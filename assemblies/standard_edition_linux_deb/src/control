@@ -1,0 +1,9 @@
+Source: vestige
+Package: vestige
+Version: 1.0.0
+Architecture: all
+Maintainer: http://code.google.com/p/vestige/people/list <vestige@googlecode.com>
+Description: Java Application Manager
+Homepage: http://code.google.com/p/vestige/
+Installed-Size: 4292
+Depends: bash, java6-runtime, python-gtk2 (>= 2.6)

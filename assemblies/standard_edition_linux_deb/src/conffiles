@@ -1,0 +1,6 @@
+/etc/vestige/ssh/authorized_keys
+/etc/vestige/ssh/vestige_rsa
+/etc/vestige/README
+/etc/vestige/m2/vestige-se.xml
+/etc/vestige/m2/settings.xml
+/etc/vestige/logback.xml

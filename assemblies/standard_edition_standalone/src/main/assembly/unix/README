@@ -1,0 +1,34 @@
+---
+Vestige is a java application manager.
+You can control lifecycle (install / start / stop / uninstall) of applications from vestige console.
+Moreover if the application support it you can migrate from a version to another, and
+this migration can be automatically performed with automigrate-level.
+
+---
+PROXY
+
+Vestige try to use system proxy settings.
+If it does not work it tries to use $VESTIGE_BASE/m2/settings.xml
+If the file does not exist then it uses $HOME/.m2/settings.xml
+
+---
+STARTING
+
+Execute vestige script.
+Once started you can access to vestige console.
+
+---
+SSH
+
+Vestige console is any SSH client.
+You have to generate an rsa key pair (public / private).
+Put the public key in ssh/authorized_keys and use the private key to connect to vestige console :
+$ cat $HOME/.ssh/id_rsa.pub >> $VESTIGE_BASE/ssh/authorized_keys
+$ ssh -i $HOME/.ssh/id_rsa -p 8422 admin@localhost
+Do not distribute the private key and do not add unknown public key in ssh/authorized_keys because an access to vestige console allow to install any application on your computer (including virus).
+
+---
+STOPPING
+
+CTRL-C or kill $VESTIGE_PID.
+Avoid a kill -9 which prevents vestige to shutdown properly.

@@ -1,0 +1,12 @@
+to add env variable like 
+
+launchctl setenv VESTIGE_DEBUG 1
+
+launchctl unsetenv VESTIGE_DEBUG
+
+
+if you want persistant (after a reboot) modification edit file
+
+/etc/launchd.conf
+setenv VESTIGE_OPTS -Xmx4096m
+

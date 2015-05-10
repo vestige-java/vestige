@@ -1,0 +1,67 @@
+#!/bin/bash
+
+DIRNAME=`dirname "$0"`
+if [ "$DIRNAME" = "." ]; then
+  DIRNAME="$PWD"
+fi
+
+LIBDIR="$DIRNAME/lib"
+CONFDIR="$DIRNAME"
+
+if [ "$JAVA" = "" ]; then
+  JAVA=`which java`
+  if [ "$JAVA" = "" ]; then
+    if [ "$JAVA_HOME" = "" ]; then
+      echo 'Unable to start a JVM : $JAVA is not set and java is not in PATH and $JAVA_HOME is not set'
+      exit
+    fi
+    JAVA="$JAVA_HOME/bin/java"
+  fi
+fi
+
+if [ "$JAVA_OPTS" = "" ]; then
+  JAVA_OPTS=-Djava.net.useSystemProxies=true
+fi
+
+if [ "$VESTIGE_BASE" = "" ]; then
+  VESTIGE_BASE="$DIRNAME/base"
+fi
+
+if [ ! -d "$VESTIGE_BASE" ]; then
+  mkdir -p "$VESTIGE_BASE"
+fi
+
+if [ "$VESTIGE_DATA" = "" ]; then
+  VESTIGE_DATA="$DIRNAME/data"
+fi
+
+if [ "$VESTIGE_LISTENER_PORT" = "" ]; then
+  VESTIGE_LISTENER_PORT=0
+fi
+
+if [ ${#VESTIGE_OPTS[@]} -eq 0 ]; then
+  VESTIGE_OPTS=($JAVA_OPTS)
+fi
+if [ ${#VESTIGE_DEBUG} -ne 0 ]; then
+  VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8000)
+fi
+
+
+MAVEN_LAUNCHER_FILE="$VESTIGE_BASE/m2/vestige-se.xml"
+if [ ! -f "$MAVEN_LAUNCHER_FILE" ]; then
+  mkdir -p "$VESTIGE_BASE/m2"
+  cp "$CONFDIR/m2/vestige-se.xml" "$MAVEN_LAUNCHER_FILE"
+fi
+
+MAVEN_SETTINGS_FILE="$VESTIGE_BASE/m2/settings.xml"
+
+MAVEN_RESOLVER_CACHE_FILE="$VESTIGE_DATA/m2/resolver-cache.ser"
+
+LOGBACK_CONFIGURATION_FILE="$VESTIGE_BASE/logback.xml"
+if [ ! -f "$LOGBACK_CONFIGURATION_FILE" ]; then
+  cp "$CONFDIR/logback.xml" "$LOGBACK_CONFIGURATION_FILE"
+fi
+
+VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Dvestige.mavenRepository="$DIRNAME/repository" -Djava.util.logging.manager=com.googlecode.vestige.core.logger.JULLogManager -Dlogback.logsDirectory="$VESTIGE_BASE/logs" -Dlogback.configurationFile="$LOGBACK_CONFIGURATION_FILE")
+
+exec "$JAVA" "${VESTIGE_OPTS[@]}" -jar "$LIBDIR/vestige.core-${vestige.core.version}.jar" "$LIBDIR/vestige.assemblies.standard_edition_bootstrap-${project.version}-jar-with-dependencies.jar" com.googlecode.vestige.jvm_enhancer.JVMEnhancer com.googlecode.vestige.resolver.maven.VestigeMavenResolver "$MAVEN_LAUNCHER_FILE" "$MAVEN_SETTINGS_FILE" "$MAVEN_RESOLVER_CACHE_FILE" "$VESTIGE_BASE" "$VESTIGE_DATA" "$VESTIGE_LISTENER_PORT"

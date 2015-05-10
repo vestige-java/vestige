@@ -1,0 +1,7 @@
+<pkg-contents spec="1.12">
+  <f n="vestige" pt="target/root" m="true" t="file">
+    <mod>owner</mod>
+    <mod>mode</mod>
+    <mod>group</mod>
+  </f>
+</pkg-contents>

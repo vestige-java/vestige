@@ -1,0 +1,12 @@
+<settings xmlns="http://vestige.googlecode.com/SETTINGS" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://vestige.googlecode.com/SETTINGS settings.xsd">
+  <security enabled="true" />
+  <admin>
+    <ssh enabled="true">
+      <bind port="8422" />
+    </ssh>
+    <web enabled="true">
+      <bind host="127.0.0.1" port="8480" />
+    </web>
+  </admin>
+</settings>

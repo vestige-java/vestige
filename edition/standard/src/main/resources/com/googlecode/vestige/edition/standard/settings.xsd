@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" xmlns:tns="http://vestige.googlecode.com/SETTINGS" xmlns="http://vestige.googlecode.com/SETTINGS"
+  targetNamespace="http://vestige.googlecode.com/SETTINGS" version="1.0.0">
+  <xs:element name="settings" type="Settings">
+    <xs:annotation>
+      <xs:documentation source="version">1.0.0</xs:documentation>
+      <xs:documentation source="description">
+        Root element of the user
+        configuration file.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:element>
+
+  <xs:complexType name="Settings">
+    <xs:sequence>
+      <xs:element name="security" type="Security" />
+      <xs:element name="admin" type="Admin" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="Security">
+    <xs:attribute name="enabled" type="xs:boolean" use="optional" default="true" />
+  </xs:complexType>
+
+  <xs:complexType name="Admin">
+    <xs:sequence>
+      <xs:element name="ssh" type="SSH" />
+      <xs:element name="web" type="Web" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="SSH">
+    <xs:sequence>
+      <xs:element name="bind" type="Bind" />
+    </xs:sequence>
+    <xs:attribute name="enabled" type="xs:boolean" use="optional" default="true" />
+  </xs:complexType>
+
+  <xs:complexType name="Web">
+    <xs:sequence>
+      <xs:element name="bind" type="Bind" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="enabled" type="xs:boolean" use="optional" default="true" />
+  </xs:complexType>
+
+  <xs:complexType name="Bind">
+    <xs:attribute name="host" type="xs:string" use="optional" />
+    <xs:attribute name="port" type="xs:int" />
+  </xs:complexType>
+
+</xs:schema>

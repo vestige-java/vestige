@@ -1,0 +1,4 @@
+#!/bin/sh
+chown root:wheel /Library/LaunchDaemons/com.googlecode.vestige.daemon.plist
+launchctl load /Library/LaunchDaemons/com.googlecode.vestige.daemon.plist
+echo

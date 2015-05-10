@@ -1,0 +1,126 @@
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Vestige Admin</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico" />
+<link rel="stylesheet" href="css/smoothness/jquery-ui-1.9.2.custom.css" />
+<script src="js/jquery-1.8.3.js"></script>
+<script src="js/jquery-ui-1.9.2.custom.js"></script>
+<script src="jqueryui-ext.js"></script>
+<script src="vestige.js"></script>
+<style>
+body {
+	font-family: "Trebuchet MS", "Helvetica", "Arial", "Verdana",
+		"sans-serif";
+	font-size: 62.5%;
+}
+
+.toolbar {
+	padding: 10px 4px;
+}
+
+.dialog label,.dialog input {
+	display: block;
+}
+
+.dialog label {
+	margin-top: 0.5em;
+}
+
+.dialog input,.dialog textarea {
+	width: 95%;
+}
+
+#loading-div-background {
+	display: none;
+	position: fixed;
+	top: 0;
+	left: 0;
+	background-color: #AAA;
+	width: 100%;
+	height: 100%;
+	opacity: 0.3;
+	z-index: 998;
+}
+
+*html #loading-div-background { /* only ie6 : hack position fixe */
+        filter:alpha(opacity=30);
+        position: absolute;
+        top: expression((document.documentElement.scrollTop || document.body.scrollTop) + this.offsetHeight - this.offsetHeight);
+        left: expression((document.documentElement.scrollLeft || document.body.scrollLeft) + this.offsetWidth - this.offsetWidth);
+}
+
+#loading-div {
+	display: none;
+	width: 32px;
+	height: 32px;
+	background-color: #ffffff;
+	text-align: center;
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	margin-left: -16px;
+	margin-top: -16px;
+	z-index: 999;
+}
+
+.ui-combobox {
+	position: relative;
+	display: inline-block;
+}
+
+.ui-combobox-toggle {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	margin-left: -1px;
+	padding: 0;
+	/* adjust styles for IE 6/7 */
+	*height: 1.7em;
+	*top: 0.1em;
+}
+
+.ui-combobox-input {
+	margin: 0;
+	padding: 0.3em;
+}
+</style>
+</head>
+<body>
+  <h1>Vestige Admin</h1>
+  <div id="loading-div-background"></div>
+  <div id="loading-div" class="ui-corner-all">
+    <img src="load.gif" alt="Loading.." />
+  </div>
+  <div id="dialog-message" title="Error"></div>
+  <div id="dialog-addrepo" class="dialog" title="Add repository">
+    <form>
+      <fieldset class="ui-helper-reset">
+        <label for="tab_localname">Local name</label> <input type="text" name="tab_localname" id="tab_localname" value="" class="ui-widget-content ui-corner-all" /> <label
+          for="tab_url">URL</label> <input type="text" name="tab_url" id="tab_url" value="" class="ui-widget-content ui-corner-all" />
+      </fieldset>
+    </form>
+  </div>
+  <div id="dialog-install" class="dialog" title="Install application">
+    <form>
+      <fieldset class="ui-helper-reset">
+        <label for="dialog-install-name">Name</label> <input type="text" id="dialog-install-name" value="" class="ui-widget-content ui-corner-all" /> <label
+          for="dialog-install-version">Version</label> <input type="text" id="dialog-install-version" value="" class="ui-widget-content ui-corner-all" />
+      </fieldset>
+    </form>
+  </div>
+  <div id="dialog-migrate" class="dialog" title="Migrate">
+    <form>
+      <fieldset class="ui-helper-reset">
+        <label for="tab_version">Version</label> <input type="text" id="tab_version" value="" class="ui-widget-content ui-corner-all" />
+      </fieldset>
+    </form>
+  </div>
+  <button id="add_tab">Add repository...</button>
+  <button id="update_all">Update all applications</button>
+  <div id="tabs">
+    <ul>
+    </ul>
+  </div>
+</body>
+</html>

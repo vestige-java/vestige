@@ -1,0 +1,13 @@
+#include <windows.h>
+
+#include "resources.h"
+
+IDI_APPICON ICON "vestige.ico"
+
+LEMENU MENU
+BEGIN
+POPUP "TrayMenu"
+BEGIN
+MENUITEM "Quit", IDM_QUIT
+END
+END
