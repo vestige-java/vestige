@@ -266,7 +266,7 @@
     <!-- <url>http://milton.io/maven</url> -->
     <!-- </repository> -->
     <repository>
-      <id>googlecode</id>
+      <id>vps168244nexus</id>
       <url>http://vps168244.ovh.net:8081/nexus/content/repositories/releases/</url>
       <releases>
         <enabled>true</enabled>
@@ -278,7 +278,7 @@
   </repositories>
   <pluginRepositories>
     <pluginRepository>
-      <id>googlecode</id>
+      <id>vps168244nexus</id>
       <url>http://vps168244.ovh.net:8081/nexus/content/repositories/releases/</url>
       <releases>
         <enabled>true</enabled>
@@ -290,11 +290,11 @@
   </pluginRepositories>
   <distributionManagement>
     <repository>
-      <id>vps168244.ovh.net</id>
+      <id>vps168244nexus</id>
       <url>http://vps168244.ovh.net:8081/nexus/content/repositories/releases/</url>
     </repository>
     <snapshotRepository>
-      <id>vps168244.ovh.net</id>
+      <id>vps168244nexus</id>
       <url>http://vps168244.ovh.net:8081/nexus/content/repositories/snapshots/</url>
     </snapshotRepository>
     <!-- disable site because svn auto-props do not work -->
