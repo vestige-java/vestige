@@ -274,7 +274,7 @@
     <!-- </repository> -->
     <repository>
       <id>googlecode</id>
-      <url>http://vestige.googlecode.com/svn/repo</url>
+      <url>http://vps168244.ovh.net:8081/nexus/content/repositories/releases/</url>
       <releases>
         <enabled>true</enabled>
       </releases>
@@ -286,7 +286,7 @@
   <pluginRepositories>
     <pluginRepository>
       <id>googlecode</id>
-      <url>http://vestige.googlecode.com/svn/repo</url>
+      <url>http://vps168244.ovh.net:8081/nexus/content/repositories/releases/</url>
       <releases>
         <enabled>true</enabled>
       </releases>
@@ -298,11 +298,11 @@
   <distributionManagement>
     <repository>
       <id>vps168244.ovh.net</id>
-      <url>scpexe://vps168244.ovh.net:/root/repository</url>
+      <url>http://vps168244.ovh.net:8081/nexus/content/repositories/releases/</url>
     </repository>
     <snapshotRepository>
       <id>vps168244.ovh.net</id>
-      <url>scpexe://vps168244.ovh.net:/root/repository</url>
+      <url>http://vps168244.ovh.net:8081/nexus/content/repositories/snapshots/</url>
     </snapshotRepository>
     <!-- disable site because svn auto-props do not work -->
     <!-- <site> -->
