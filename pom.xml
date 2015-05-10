@@ -290,12 +290,12 @@
   </pluginRepositories>
   <distributionManagement>
     <repository>
-      <id>googlecode</id>
-      <url>svn:https://vestige.googlecode.com/svn/repo</url>
+      <id>vps168244.ovh.net</id>
+      <url>scpexe://vps168244.ovh.net:/root/repository</url>
     </repository>
     <snapshotRepository>
-      <id>googlecode</id>
-      <url>svn:https://vestige.googlecode.com/svn/repo</url>
+      <id>vps168244.ovh.net</id>
+      <url>scpexe://vps168244.ovh.net:/root/repository</url>
     </snapshotRepository>
     <!-- disable site because svn auto-props do not work -->
     <!-- <site> -->
@@ -304,8 +304,8 @@
     <!-- </site> -->
   </distributionManagement>
   <scm>
-    <connection>scm:svn:http://vestige.googlecode.com/svn/vestige/trunk</connection>
-    <developerConnection>scm:svn:https://vestige.googlecode.com/svn/vestige/trunk</developerConnection>
+    <connection>scm:git:git@vps168244.ovh.net:gaellalire/vestige.git</connection>
+    <developerConnection>scm:git:git@vps168244.ovh.net:gaellalire/vestige.git</developerConnection>
   </scm>
   <reporting>
     <plugins>
