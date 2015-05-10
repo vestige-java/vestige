@@ -266,8 +266,8 @@
     <!-- <url>http://milton.io/maven</url> -->
     <!-- </repository> -->
     <repository>
-      <id>vps168244nexus</id>
-      <url>http://vps168244.ovh.net:8081/nexus/content/repositories/releases/</url>
+      <id>googlecode</id>
+      <url>http://vestige.googlecode.com/svn/repo</url>
       <releases>
         <enabled>true</enabled>
       </releases>
@@ -278,8 +278,8 @@
   </repositories>
   <pluginRepositories>
     <pluginRepository>
-      <id>vps168244nexus</id>
-      <url>http://vps168244.ovh.net:8081/nexus/content/repositories/releases/</url>
+      <id>googlecode</id>
+      <url>http://vestige.googlecode.com/svn/repo</url>
       <releases>
         <enabled>true</enabled>
       </releases>
