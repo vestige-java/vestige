@@ -17,7 +17,6 @@
 
 package com.googlecode.vestige.application.descriptor.xml;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -59,7 +58,6 @@ import com.googlecode.vestige.application.descriptor.xml.schema.ReplaceDependenc
 import com.googlecode.vestige.resolver.maven.DefaultDependencyModifier;
 import com.googlecode.vestige.resolver.maven.MavenArtifactResolver;
 import com.googlecode.vestige.resolver.maven.MavenRepository;
-import com.googlecode.vestige.resolver.maven.schema.FileAdditionalRepository;
 
 /**
  * @author Gael Lalire
@@ -184,7 +182,7 @@ public class XMLApplicationDescriptorFactory implements ApplicationDescriptorFac
         }
     }
 
-    public void setMavenConfig(final MavenConfig mavenConfig, final DefaultDependencyModifier defaultDependencyModifier, final List<MavenRepository> additionalRepositories) throws ApplicationException {
+    public void setMavenConfig(final MavenConfig mavenConfig, final DefaultDependencyModifier defaultDependencyModifier, final List<MavenRepository> additionalRepositories) {
         for (Object object : mavenConfig.getModifyDependencyOrReplaceDependencyOrAdditionalRepository()) {
             if (object instanceof ModifyDependency) {
                 ModifyDependency modifyDependency = (ModifyDependency) object;
@@ -218,14 +216,6 @@ public class XMLApplicationDescriptorFactory implements ApplicationDescriptorFac
             } else if (object instanceof AdditionalRepository) {
                 AdditionalRepository additionalRepository = (AdditionalRepository) object;
                 additionalRepositories.add(new MavenRepository(additionalRepository.getId(), additionalRepository.getLayout(), additionalRepository.getUrl()));
-            } else if (object instanceof FileAdditionalRepository) {
-                FileAdditionalRepository additionalRepository = (FileAdditionalRepository) object;
-                try {
-                    additionalRepositories.add(new MavenRepository(additionalRepository.getId(), additionalRepository.getLayout(), new File(additionalRepository.getPath()).toURI()
-                            .toURL().toString()));
-                } catch (MalformedURLException e) {
-                    throw new ApplicationException("Unable to get valid url from file path", e);
-                }
             }
         }
     }
