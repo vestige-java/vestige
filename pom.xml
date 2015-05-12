@@ -349,6 +349,9 @@
       </plugin>
     </plugins>
   </reporting>
+  <prerequisites>
+    <maven>2.2.1</maven>
+  </prerequisites>
   <modules>
     <module>utils</module>
     <module>jvm_enhancer</module>
