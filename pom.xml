@@ -258,10 +258,10 @@
       <url>http://gaellalire.fr/nexus/content/repositories/snapshots/</url>
     </snapshotRepository>
     <!-- disable site because svn auto-props do not work -->
-    <site>
-      <id>gaellalire_site</id>
-      <url>file:/Users/gaellalire/vsite</url>
-    </site>
+<!--     <site> -->
+<!--       <id>gaellalire_site</id> -->
+<!--       <url>file:/Users/gaellalire/vsite</url> -->
+<!--     </site> -->
   </distributionManagement>
   <scm>
     <connection>scm:git:git@gaellalire.fr:gaellalire/vestige.git</connection>
