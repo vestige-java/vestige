@@ -290,12 +290,12 @@
   </pluginRepositories>
   <distributionManagement>
     <repository>
-      <id>vps168244nexus</id>
-      <url>http://vps168244.ovh.net:8081/nexus/content/repositories/releases/</url>
+      <id>gaellalire_nexus</id>
+      <url>http://gaellalire.fr/nexus/content/repositories/releases/</url>
     </repository>
     <snapshotRepository>
-      <id>vps168244nexus</id>
-      <url>http://vps168244.ovh.net:8081/nexus/content/repositories/snapshots/</url>
+      <id>gaellalire_nexus</id>
+      <url>http://gaellalire.fr/nexus/content/repositories/snapshots/</url>
     </snapshotRepository>
     <!-- disable site because svn auto-props do not work -->
     <!-- <site> -->
@@ -304,8 +304,8 @@
     <!-- </site> -->
   </distributionManagement>
   <scm>
-    <connection>scm:git:git@vps168244.ovh.net:gaellalire/vestige.git</connection>
-    <developerConnection>scm:git:git@vps168244.ovh.net:gaellalire/vestige.git</developerConnection>
+    <connection>scm:git:git@gaellalire.fr:gaellalire/vestige.git</connection>
+    <developerConnection>scm:git:git@gaellalire.fr:gaellalire/vestige.git</developerConnection>
     <tag>HEAD</tag>
   </scm>
   <reporting>
