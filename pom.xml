@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.googlecode.vestige</groupId>
   <artifactId>vestige</artifactId>
-  <version>2.0.10-SNAPSHOT</version>
+  <version>3.0.5-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Vestige</name>
   <build>
@@ -306,6 +306,7 @@
   <scm>
     <connection>scm:git:git@vps168244.ovh.net:gaellalire/vestige.git</connection>
     <developerConnection>scm:git:git@vps168244.ovh.net:gaellalire/vestige.git</developerConnection>
+    <tag>HEAD</tag>
   </scm>
   <reporting>
     <plugins>
