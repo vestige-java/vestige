@@ -20,7 +20,7 @@
   <logger name="org.apache.sshd" level="OFF" />
   <logger name="com.ning.http" level="INFO" />
   <logger name="com.btr.proxy" level="ERROR" />
-  <logger name="com.googlecode.vestige.resolver.maven" level="INFO" />
+  <logger name="fr.gaellalire.vestige.resolver.maven" level="INFO" />
 
   <root level="INFO">
     <appender-ref ref="STDOUT" />

@@ -1,6 +1,6 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
-    <groupId>com.googlecode.vestige</groupId>
+    <groupId>fr.gaellalire.vestige</groupId>
     <artifactId>vestige</artifactId>
     <version>3.0.10-SNAPSHOT</version>
   </parent>
@@ -28,7 +28,7 @@
         <configuration>
           <archive>
             <manifestEntries>
-              <StartStop-Class>com.googlecode.vestige.jvm_enhancer.JVMEnhancer</StartStop-Class>
+              <StartStop-Class>fr.gaellalire.vestige.jvm_enhancer.JVMEnhancer</StartStop-Class>
             </manifestEntries>
           </archive>
         </configuration>
@@ -47,7 +47,7 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>com.googlecode.vestige</groupId>
+      <groupId>fr.gaellalire.vestige</groupId>
       <artifactId>proxy_vole</artifactId>
     </dependency>
   </dependencies>

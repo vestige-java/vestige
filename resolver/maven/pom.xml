@@ -1,6 +1,6 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
-    <groupId>com.googlecode.vestige</groupId>
+    <groupId>fr.gaellalire.vestige</groupId>
     <artifactId>vestige.resolver</artifactId>
     <version>3.0.10-SNAPSHOT</version>
   </parent>
@@ -35,9 +35,9 @@
             </goals>
             <configuration>
               <bindingDirectory>${basedir}/src/main/config</bindingDirectory>
-              <generatePackage>com.googlecode.vestige.resolver.maven.schema</generatePackage>
+              <generatePackage>fr.gaellalire.vestige.resolver.maven.schema</generatePackage>
               <schemaIncludes>
-                <include>com/googlecode/vestige/resolver/maven/mavenLauncher.xsd</include>
+                <include>fr/gaellalire/vestige/resolver/maven/mavenLauncher.xsd</include>
               </schemaIncludes>
             </configuration>
           </execution>

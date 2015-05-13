@@ -1,0 +1,105 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" xmlns:tns="http://vestige.gaellalire.fr/MAVEN_LAUNCHER" xmlns="http://vestige.gaellalire.fr/MAVEN_LAUNCHER"
+  targetNamespace="http://vestige.gaellalire.fr/MAVEN_LAUNCHER" version="1.0.0">
+
+  <xs:element name="mavenLauncher" type="MavenLauncher">
+    <xs:annotation>
+      <xs:documentation source="version">1.0.0</xs:documentation>
+      <xs:documentation source="description">
+        Root element of the user
+        configuration file.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:element>
+
+  <xs:complexType name="MavenLauncher">
+    <xs:sequence>
+      <xs:element name="attach" type="MavenAttachType" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element name="launch" type="MavenClassType" />
+      <xs:element minOccurs="0" name="config" type="MavenConfig" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="MavenAttachType">
+    <xs:attribute name="groupId" type="xs:string" use="required" />
+    <xs:attribute name="artifactId" type="xs:string" use="required" />
+    <xs:attribute name="version" type="xs:string" use="required" />
+    <xs:attribute name="mode" type="Mode" default="FIXED_DEPENDENCIES" />
+    <xs:attribute name="scope" type="Scope" default="PLATFORM" />
+  </xs:complexType>
+
+  <xs:complexType name="MavenClassType">
+    <xs:attribute name="class" type="xs:string" use="required" />
+    <xs:attribute name="groupId" type="xs:string" use="required" />
+    <xs:attribute name="artifactId" type="xs:string" use="required" />
+    <xs:attribute name="version" type="xs:string" use="required" />
+    <xs:attribute name="mode" type="Mode" default="FIXED_DEPENDENCIES" />
+    <xs:attribute name="scope" type="Scope" default="PLATFORM" />
+  </xs:complexType>
+
+  <xs:simpleType name="Scope">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ATTACHMENT" />
+      <xs:enumeration value="APPLICATION" />
+      <xs:enumeration value="PLATFORM" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="Mode">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="CLASSPATH" />
+      <xs:enumeration value="FIXED_DEPENDENCIES" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="AddDependency">
+    <xs:attribute name="groupId" type="xs:string" use="required" />
+    <xs:attribute name="artifactId" type="xs:string" use="required" />
+    <xs:attribute name="version" type="xs:string" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="ModifyDependency">
+    <xs:sequence minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="addDependency" type="AddDependency" />
+    </xs:sequence>
+    <xs:attribute name="groupId" type="xs:string" use="required" />
+    <xs:attribute name="artifactId" type="xs:string" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="ExceptIn">
+    <xs:attribute name="groupId" type="xs:string" use="required" />
+    <xs:attribute name="artifactId" type="xs:string" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="ReplaceDependency">
+    <xs:sequence>
+      <xs:element name="exceptIn" type="ExceptIn" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element name="addDependency" type="AddDependency" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="groupId" type="xs:string" use="required" />
+    <xs:attribute name="artifactId" type="xs:string" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="AdditionalRepository">
+    <xs:attribute name="id" type="xs:string" use="required" />
+    <xs:attribute name="layout" type="xs:string" />
+    <xs:attribute name="url" type="xs:anyURI" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="FileAdditionalRepository">
+    <xs:attribute name="id" type="xs:string" use="required" />
+    <xs:attribute name="layout" type="xs:string" />
+    <xs:attribute name="path" type="xs:string" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="MavenConfig">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="modifyDependency" type="ModifyDependency" />
+      <xs:element name="replaceDependency" type="ReplaceDependency" />
+      <xs:element name="additionalRepository" type="AdditionalRepository" />
+      <xs:element name="fileAdditionalRepository" type="FileAdditionalRepository" />
+    </xs:choice>
+  </xs:complexType>
+
+
+</xs:schema>

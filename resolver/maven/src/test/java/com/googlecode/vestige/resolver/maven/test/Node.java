@@ -15,7 +15,7 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.googlecode.vestige.resolver.maven.test;
+package fr.gaellalire.vestige.resolver.maven.test;
 
 import java.util.Collections;
 import java.util.HashSet;

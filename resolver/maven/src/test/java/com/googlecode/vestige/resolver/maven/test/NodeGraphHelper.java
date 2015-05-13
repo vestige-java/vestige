@@ -15,12 +15,12 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.googlecode.vestige.resolver.maven.test;
+package fr.gaellalire.vestige.resolver.maven.test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import com.googlecode.vestige.resolver.maven.GraphHelper;
+import fr.gaellalire.vestige.resolver.maven.GraphHelper;
 
 /**
  * @author Gael Lalire

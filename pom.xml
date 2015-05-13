@@ -1,6 +1,6 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>com.googlecode.vestige</groupId>
+  <groupId>fr.gaellalire.vestige</groupId>
   <artifactId>vestige</artifactId>
   <version>3.0.10-SNAPSHOT</version>
   <packaging>pom</packaging>
@@ -123,7 +123,7 @@
         <version>1</version>
       </dependency>
       <dependency>
-        <groupId>com.googlecode.vestige</groupId>
+        <groupId>fr.gaellalire.vestige</groupId>
         <artifactId>vestige.core</artifactId>
         <version>${vestige.core.version}</version>
       </dependency>
@@ -148,9 +148,9 @@
         <version>${logback.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.googlecode.vestige</groupId>
+        <groupId>fr.gaellalire.vestige</groupId>
         <artifactId>proxy_vole</artifactId>
-        <version>0.0.2</version>
+        <version>0.0.4</version>
       </dependency>
       <dependency>
         <groupId>junit</groupId>
@@ -226,8 +226,8 @@
     <!-- <url>http://milton.io/maven</url> -->
     <!-- </repository> -->
     <repository>
-      <id>googlecode</id>
-      <url>http://vestige.googlecode.com/svn/repo</url>
+      <id>gaellalire_nexus</id>
+      <url>http://gaellalire.fr/nexus/content/repositories/releases</url>
       <releases>
         <enabled>true</enabled>
       </releases>
@@ -236,18 +236,6 @@
       </snapshots>
     </repository>
   </repositories>
-  <pluginRepositories>
-    <pluginRepository>
-      <id>googlecode</id>
-      <url>http://vestige.googlecode.com/svn/repo</url>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </pluginRepository>
-  </pluginRepositories>
   <distributionManagement>
     <repository>
       <id>gaellalire_nexus</id>
@@ -257,11 +245,6 @@
       <id>gaellalire_nexus</id>
       <url>http://gaellalire.fr/nexus/content/repositories/snapshots/</url>
     </snapshotRepository>
-    <!-- disable site because svn auto-props do not work -->
-<!--     <site> -->
-<!--       <id>gaellalire_site</id> -->
-<!--       <url>file:/Users/gaellalire/vsite</url> -->
-<!--     </site> -->
   </distributionManagement>
   <scm>
     <connection>scm:git:git@gaellalire.fr:gaellalire/vestige.git</connection>

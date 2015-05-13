@@ -11,7 +11,7 @@
 	<key>CFBundleIconFile</key>
 	<string>vestige.icns</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.googlecode.vestige</string>
+	<string>fr.gaellalire.vestige</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>

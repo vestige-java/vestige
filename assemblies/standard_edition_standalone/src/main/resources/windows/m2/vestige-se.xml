@@ -1,6 +1,6 @@
-<mavenLauncher xmlns="http://vestige.googlecode.com/MAVEN_LAUNCHER" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://vestige.googlecode.com/MAVEN_LAUNCHER mavenLauncher.xsd">
-  <attach version="${project.version}" groupId="com.googlecode.vestige" artifactId="vestige.jvm_enhancer" />
-  <launch class="com.googlecode.vestige.edition.standard.StandardEditionVestige" groupId="com.googlecode.vestige" artifactId="vestige.edition.standard" version="${project.version}"
+<mavenLauncher xmlns="http://vestige.gaellalire.fr/MAVEN_LAUNCHER" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://vestige.gaellalire.fr/MAVEN_LAUNCHER mavenLauncher.xsd">
+  <attach version="${project.version}" groupId="fr.gaellalire.vestige" artifactId="vestige.jvm_enhancer" />
+  <launch class="fr.gaellalire.vestige.edition.standard.StandardEditionVestige" groupId="fr.gaellalire.vestige" artifactId="vestige.edition.standard" version="${project.version}"
     mode="FIXED_DEPENDENCIES" />
   <config>
     <modifyDependency artifactId="milton-server-ce" groupId="io.milton">
@@ -17,7 +17,7 @@
       <addDependency artifactId="logback-classic" groupId="ch.qos.logback" version="${logback.version}" />
     </modifyDependency>
     <modifyDependency artifactId="aether-impl" groupId="org.eclipse.aether">
-      <addDependency artifactId="vestige.resolver.maven" groupId="com.googlecode.vestige" version="${project.version}" />
+      <addDependency artifactId="vestige.resolver.maven" groupId="fr.gaellalire.vestige" version="${project.version}" />
     </modifyDependency>
     <replaceDependency artifactId="commons-logging" groupId="commons-logging">
       <addDependency artifactId="jcl-over-slf4j" groupId="org.slf4j" version="${slf4j.version}" />

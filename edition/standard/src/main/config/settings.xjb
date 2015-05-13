@@ -6,12 +6,12 @@
         <jaxb:globalBindings generateIsSetMethod="true">
             <xjc:javaType name="java.lang.String"
                 xmlType="xsd:string"
-                adapter="com.googlecode.vestige.utils.jaxb.StringAdapter"/>
+                adapter="fr.gaellalire.vestige.utils.jaxb.StringAdapter"/>
             <xjc:javaType name="java.lang.Integer"
                 xmlType="xsd:int"
-                adapter="com.googlecode.vestige.utils.jaxb.IntegerAdapter"/>
+                adapter="fr.gaellalire.vestige.utils.jaxb.IntegerAdapter"/>
             <xjc:javaType name="java.lang.Boolean"
                 xmlType="xsd:boolean"
-                adapter="com.googlecode.vestige.utils.jaxb.BooleanAdapter"/>
+                adapter="fr.gaellalire.vestige.utils.jaxb.BooleanAdapter"/>
         </jaxb:globalBindings>
 </jaxb:bindings>

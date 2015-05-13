@@ -15,7 +15,7 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.googlecode.vestige.resolver.maven.test;
+package fr.gaellalire.vestige.resolver.maven.test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -23,7 +23,7 @@ import java.util.Collections;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.googlecode.vestige.resolver.maven.GraphCycleRemover;
+import fr.gaellalire.vestige.resolver.maven.GraphCycleRemover;
 
 /**
  * @author Gael Lalire
