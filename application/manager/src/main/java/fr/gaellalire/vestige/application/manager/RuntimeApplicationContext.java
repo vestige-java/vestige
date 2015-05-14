@@ -15,7 +15,7 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.application;
+package fr.gaellalire.vestige.application.manager;
 
 import fr.gaellalire.vestige.core.VestigeClassLoader;
 import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;

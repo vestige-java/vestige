@@ -30,9 +30,9 @@ import org.slf4j.LoggerFactory;
 
 import fr.gaellalire.vestige.admin.command.VestigeCommandExecutor;
 import fr.gaellalire.vestige.admin.telnet.TelnetServer;
-import fr.gaellalire.vestige.application.ApplicationDescriptorFactory;
-import fr.gaellalire.vestige.application.DefaultApplicationManager;
 import fr.gaellalire.vestige.application.descriptor.xml.PropertiesApplicationDescriptorFactory;
+import fr.gaellalire.vestige.application.manager.ApplicationDescriptorFactory;
+import fr.gaellalire.vestige.application.manager.DefaultApplicationManager;
 import fr.gaellalire.vestige.core.VestigeExecutor;
 import fr.gaellalire.vestige.core.logger.VestigeLoggerFactory;
 import fr.gaellalire.vestige.platform.DefaultVestigePlatform;

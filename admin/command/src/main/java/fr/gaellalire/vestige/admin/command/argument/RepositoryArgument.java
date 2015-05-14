@@ -20,8 +20,8 @@ package fr.gaellalire.vestige.admin.command.argument;
 import java.util.Collection;
 import java.util.Collections;
 
-import fr.gaellalire.vestige.application.ApplicationException;
-import fr.gaellalire.vestige.application.ApplicationManager;
+import fr.gaellalire.vestige.application.manager.ApplicationException;
+import fr.gaellalire.vestige.application.manager.ApplicationManager;
 
 /**
  * @author Gael Lalire

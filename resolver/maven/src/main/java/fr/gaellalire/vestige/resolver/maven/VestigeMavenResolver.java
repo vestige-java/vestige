@@ -113,6 +113,8 @@ public final class VestigeMavenResolver {
             DefaultDependencyModifier defaultDependencyModifier = new DefaultDependencyModifier();
             MavenConfig mavenConfig = mavenLauncher.getConfig();
             List<MavenRepository> additionalRepositories = new ArrayList<MavenRepository>();
+            boolean pomRepositoriesIgnored = false;
+            boolean superPomRepositoriesUsed = true;
             if (mavenConfig != null) {
                 for (Object object : mavenConfig.getModifyDependencyOrReplaceDependencyOrAdditionalRepository()) {
                     if (object instanceof ModifyDependency) {
@@ -155,6 +157,8 @@ public final class VestigeMavenResolver {
                                 .toURI().toURL().toString()));
                     }
                 }
+                pomRepositoriesIgnored = mavenConfig.isPomRepositoriesIgnored();
+                superPomRepositoriesUsed = mavenConfig.isSuperPomRepositoriesUsed();
             }
             MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(mavenSettingsFile);
             List<ClassLoaderConfiguration> launchCaches = new ArrayList<ClassLoaderConfiguration>();
@@ -191,7 +195,7 @@ public final class VestigeMavenResolver {
                 }
 
                 ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve("vestige-attach-" + attachCount, mavenClassType.getGroupId(),
-                        mavenClassType.getArtifactId(), mavenClassType.getVersion(), additionalRepositories, defaultDependencyModifier, resolveMode, mavenScope);
+                        mavenClassType.getArtifactId(), mavenClassType.getVersion(), additionalRepositories, defaultDependencyModifier, resolveMode, mavenScope, superPomRepositoriesUsed, pomRepositoriesIgnored);
                 launchCaches.add(classLoaderConfiguration);
                 attachCount++;
             }
@@ -226,7 +230,7 @@ public final class VestigeMavenResolver {
                 break;
             }
             ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve("vestige", mavenClassType.getGroupId(), mavenClassType.getArtifactId(),
-                    mavenClassType.getVersion(), additionalRepositories, defaultDependencyModifier, resolveMode, mavenScope);
+                    mavenClassType.getVersion(), additionalRepositories, defaultDependencyModifier, resolveMode, mavenScope, superPomRepositoriesUsed, pomRepositoriesIgnored);
 
             LOGGER.trace("classLoaderConfiguration : {}", classLoaderConfiguration);
 
@@ -388,7 +392,7 @@ public final class VestigeMavenResolver {
             LOGGER.info("Use {} for maven settings file", mavenSettingsFile);
 
             File mavenResolverCacheFile = new File(args[2]).getCanonicalFile();
-            LOGGER.info("Use {} for maven resolver cache file", mavenResolverCacheFile);
+            LOGGER.debug("Use {} for maven resolver cache file", mavenResolverCacheFile);
 
             final String[] dargs = new String[args.length - 3];
             System.arraycopy(args, 3, dargs, 0, dargs.length);

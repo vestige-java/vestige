@@ -5,7 +5,7 @@ setlocal
 set DIRNAME=%~dp0
 if "%DIRNAME:~-1%" == "\" (set DIRNAME=%DIRNAME:~0,-1%)
 
-set LIBDIR=%DIRNAME%\lib
+set DATADIR=%DIRNAME%
 set CONFDIR=%DIRNAME%
 
 if defined JAVA goto :java_found
@@ -50,8 +50,8 @@ set MAVEN_RESOLVER_CACHE_FILE=%VESTIGE_DATA%\m2\resolver-cache.ser
 set LOGBACK_CONFIGURATION_FILE=%VESTIGE_BASE%\logback.xml
 if not exist "%LOGBACK_CONFIGURATION_FILE%" copy /Y "%CONFDIR%\logback.xml" "%LOGBACK_CONFIGURATION_FILE%" > nul
 
-set VESTIGE_OPTS=%VESTIGE_OPTS% -Dvestige.mavenRepository="%DIRNAME%\repository" -Djava.util.logging.manager=fr.gaellalire.vestige.core.logger.JULLogManager -Dlogback.logsDirectory="%VESTIGE_BASE%\logs" -Dlogback.configurationFile="%LOGBACK_CONFIGURATION_FILE%"
+set VESTIGE_OPTS=%VESTIGE_OPTS% -Dvestige.mavenRepository="%DATADIR%\repository" -Djava.util.logging.manager=fr.gaellalire.vestige.core.logger.JULLogManager -Dlogback.logsDirectory="%VESTIGE_BASE%\logs" -Dlogback.configurationFile="%LOGBACK_CONFIGURATION_FILE%"
 
-"%JAVA%" %VESTIGE_OPTS% -jar "%LIBDIR%\vestige.core-${vestige.core.version}.jar" "%LIBDIR%\vestige.assemblies.standard_edition_bootstrap-${project.version}-jar-with-dependencies.jar" fr.gaellalire.vestige.jvm_enhancer.JVMEnhancer fr.gaellalire.vestige.resolver.maven.VestigeMavenResolver "%MAVEN_LAUNCHER_FILE%" "%MAVEN_SETTINGS_FILE%" "%MAVEN_RESOLVER_CACHE_FILE%" "%VESTIGE_BASE%" "%VESTIGE_DATA%" %VESTIGE_LISTENER_PORT% || exit /B 2
+"%JAVA%" %VESTIGE_OPTS% -jar "%DATADIR%\lib\vestige.core-${vestige.core.version}.jar" "%DATADIR%\lib\vestige.assemblies.standard_edition_bootstrap-${project.version}-jar-with-dependencies.jar" fr.gaellalire.vestige.jvm_enhancer.JVMEnhancer fr.gaellalire.vestige.resolver.maven.VestigeMavenResolver "%MAVEN_LAUNCHER_FILE%" "%MAVEN_SETTINGS_FILE%" "%MAVEN_RESOLVER_CACHE_FILE%" "%VESTIGE_BASE%" "%VESTIGE_DATA%" %VESTIGE_LISTENER_PORT% || exit /B 2
 
 endlocal

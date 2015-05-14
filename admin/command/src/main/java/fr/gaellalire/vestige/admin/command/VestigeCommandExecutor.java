@@ -26,7 +26,7 @@ import java.util.TreeMap;
 
 import fr.gaellalire.vestige.admin.command.argument.Argument;
 import fr.gaellalire.vestige.admin.command.argument.ParseException;
-import fr.gaellalire.vestige.application.ApplicationManager;
+import fr.gaellalire.vestige.application.manager.ApplicationManager;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 
 /**

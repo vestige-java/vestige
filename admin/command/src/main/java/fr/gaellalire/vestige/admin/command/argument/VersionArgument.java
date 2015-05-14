@@ -22,9 +22,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
-import fr.gaellalire.vestige.application.ApplicationException;
-import fr.gaellalire.vestige.application.ApplicationManager;
-import fr.gaellalire.vestige.application.VersionUtils;
+import fr.gaellalire.vestige.application.manager.ApplicationException;
+import fr.gaellalire.vestige.application.manager.ApplicationManager;
+import fr.gaellalire.vestige.application.manager.VersionUtils;
 
 /**
  * @author Gael Lalire

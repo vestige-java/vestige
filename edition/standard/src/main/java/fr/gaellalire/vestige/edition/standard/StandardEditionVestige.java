@@ -47,9 +47,7 @@ import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.sshd.SshServer;
 import org.eclipse.aether.repository.NoLocalRepositoryManagerException;
-import org.eclipse.jetty.server.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,10 +57,10 @@ import ch.qos.logback.classic.util.ContextInitializer;
 import ch.qos.logback.core.joran.spi.ConsoleTarget;
 import ch.qos.logback.core.joran.spi.JoranException;
 import ch.qos.logback.core.util.StatusPrinter;
-import fr.gaellalire.vestige.application.ApplicationDescriptorFactory;
-import fr.gaellalire.vestige.application.DefaultApplicationManager;
-import fr.gaellalire.vestige.application.SynchronizedApplicationManager;
 import fr.gaellalire.vestige.application.descriptor.xml.XMLApplicationDescriptorFactory;
+import fr.gaellalire.vestige.application.manager.ApplicationDescriptorFactory;
+import fr.gaellalire.vestige.application.manager.DefaultApplicationManager;
+import fr.gaellalire.vestige.application.manager.SynchronizedApplicationManager;
 import fr.gaellalire.vestige.core.VestigeExecutor;
 import fr.gaellalire.vestige.edition.standard.schema.Admin;
 import fr.gaellalire.vestige.edition.standard.schema.Bind;
@@ -93,9 +91,9 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
 
     private DefaultApplicationManager defaultApplicationManager;
 
-    private SshServer sshServer;
+    private VestigeServer sshServer;
 
-    private Server webServer;
+    private VestigeServer webServer;
 
     private VestigeExecutor vestigeExecutor;
 
@@ -201,25 +199,20 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
         try {
             resolverFile = new File(dataFile, "application-manager.ser");
             if (resolverFile.isFile()) {
-                LOGGER.trace("Restoring application-manager.ser");
+                LOGGER.debug("Use {} for serialized application manager", resolverFile);
                 ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(resolverFile));
                 try {
                     defaultApplicationManager = (DefaultApplicationManager) objectInputStream.readObject();
                 } finally {
                     objectInputStream.close();
                 }
-                LOGGER.trace("application-manager.ser restored");
             }
         } catch (Exception e) {
             LOGGER.warn("Unable to restore application manager", e);
         }
 
-        File appHomeFile = new File(appFile, "home");
-        if (!appHomeFile.exists()) {
-            appHomeFile.mkdir();
-        }
         if (defaultApplicationManager == null) {
-            defaultApplicationManager = new DefaultApplicationManager(appHomeFile);
+            defaultApplicationManager = new DefaultApplicationManager(appFile);
         }
         SynchronizedApplicationManager synchronizedApplicationManager = new SynchronizedApplicationManager(defaultApplicationManager);
 
@@ -227,13 +220,21 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
         // if none exists then no config file is used
         File mavenSettingsFile = new File(new File(baseFile, "m2"), "settings.xml");
         if (!mavenSettingsFile.exists()) {
+            LOGGER.debug("No vestige maven settings file found at {}", mavenSettingsFile);
             mavenSettingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
             if (!mavenSettingsFile.exists()) {
+                LOGGER.debug("No user maven settings file found at {}", mavenSettingsFile);
                 mavenSettingsFile = null;
             }
         }
 
-        LOGGER.info("Use {} for maven settings file", mavenSettingsFile);
+        if (LOGGER.isInfoEnabled()) {
+            if (mavenSettingsFile == null) {
+                LOGGER.info("No maven settings file found");
+            } else {
+                LOGGER.info("Use {} for maven settings file", mavenSettingsFile);
+            }
+        }
 
         try {
             applicationDescriptorFactory = new XMLApplicationDescriptorFactory(new MavenArtifactResolver(mavenSettingsFile));
@@ -245,16 +246,16 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
         Admin admin = settings.getAdmin();
         SSH ssh = admin.getSsh();
 
-        Future<SshServer> futureSshServer = null;
+        Future<VestigeServer> futureSshServer = null;
         if (ssh.isEnabled()) {
             File sshBase = new File(baseFile, "ssh");
-            futureSshServer = executorService.submit(new SSHServerFactory(sshBase, ssh, appHomeFile, synchronizedApplicationManager, vestigePlatform));
+            futureSshServer = executorService.submit(new SSHServerFactory(sshBase, ssh, baseFile, synchronizedApplicationManager, vestigePlatform));
         }
 
-        Future<Server> futureServer = null;
+        Future<VestigeServer> futureWebServer = null;
         Web web = admin.getWeb();
         if (web.isEnabled()) {
-            futureServer = executorService.submit(new WebServerFactory(web, synchronizedApplicationManager, appHomeFile));
+            futureWebServer = executorService.submit(new WebServerFactory(web, synchronizedApplicationManager, baseFile));
         }
 
         PrivateVestigePolicy vestigePolicy = null;
@@ -292,9 +293,9 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
                     LOGGER.error("Unable to start SSH access", e);
                 }
             }
-            if (futureServer != null) {
+            if (futureWebServer != null) {
                 try {
-                    webServer = futureServer.get();
+                    webServer = futureWebServer.get();
                     List<Bind> binds = web.getBind();
                     for (Bind bind : binds) {
                         String host = bind.getHost();

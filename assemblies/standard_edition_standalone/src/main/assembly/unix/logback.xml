@@ -13,16 +13,17 @@
 
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
-      <pattern>%d{HH:mm:ss.SSS} %level [%X{vestige.appName:-vestige} %t] %logger -> %msg%n</pattern>
+      <pattern>%d{HH:mm:ss.SSS} %level [%X{vestige.appName:-vestige}] -> %msg%n</pattern>
     </encoder>
   </appender>
   
   <logger name="org.apache.sshd" level="OFF" />
-  <logger name="com.ning.http" level="INFO" />
   <logger name="com.btr.proxy" level="ERROR" />
+  <logger name="fr.gaellalire.vestige.edition.standard" level="INFO" />
   <logger name="fr.gaellalire.vestige.resolver.maven" level="INFO" />
+  <logger name="fr.gaellalire.vestige.application.manager" level="INFO" />
 
-  <root level="INFO">
+  <root level="WARN">
     <appender-ref ref="STDOUT" />
     <appender-ref ref="FILE" />
   </root>

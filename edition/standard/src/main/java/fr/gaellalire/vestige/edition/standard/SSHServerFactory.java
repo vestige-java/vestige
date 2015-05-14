@@ -41,7 +41,7 @@ import fr.gaellalire.vestige.admin.ssh.DefaultPublickeyAuthenticator;
 import fr.gaellalire.vestige.admin.ssh.RootedFileSystemFactory;
 import fr.gaellalire.vestige.admin.ssh.SSHExecCommand;
 import fr.gaellalire.vestige.admin.ssh.SSHShellCommandFactory;
-import fr.gaellalire.vestige.application.ApplicationManager;
+import fr.gaellalire.vestige.application.manager.ApplicationManager;
 import fr.gaellalire.vestige.edition.standard.schema.Bind;
 import fr.gaellalire.vestige.edition.standard.schema.SSH;
 import fr.gaellalire.vestige.platform.VestigePlatform;
@@ -49,7 +49,7 @@ import fr.gaellalire.vestige.platform.VestigePlatform;
 /**
  * @author Gael Lalire
  */
-public class SSHServerFactory implements Callable<SshServer> {
+public class SSHServerFactory implements Callable<VestigeServer> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SSHServerFactory.class);
 
@@ -71,28 +71,22 @@ public class SSHServerFactory implements Callable<SshServer> {
         this.vestigePlatform = vestigePlatform;
     }
 
-    public SshServer call() throws Exception {
-        Bind bind = ssh.getBind();
+    public VestigeServer call() throws Exception {
+        final Bind bind = ssh.getBind();
 
         File privateKey = new File(sshBase, "vestige_rsa");
         if (!privateKey.exists()) {
             sshBase.mkdirs();
             IOUtils.copy(StandardEditionVestige.class.getResourceAsStream("vestige_rsa"), new FileOutputStream(privateKey));
         }
-        LOGGER.info("Use {} for private ssh key file", privateKey);
+        LOGGER.info("Use {} for private SSH key file", privateKey);
         KeyPairProvider keyPairProvider = new FileKeyPairProvider(new String[] {privateKey.getPath()});
-        SshServer sshServer = SshServer.setUpDefaultServer();
+        final SshServer sshServer = SshServer.setUpDefaultServer();
         sshServer.setFileSystemFactory(new RootedFileSystemFactory(appHomeFile, "vestige"));
         sshServer.setIoServiceFactoryFactory(new MinaServiceFactoryFactory());
-        String host = bind.getHost();
+        final String host = bind.getHost();
         sshServer.setHost(host);
         sshServer.setPort(bind.getPort());
-        if (LOGGER.isInfoEnabled()) {
-            if (host == null) {
-                host = "*";
-            }
-            LOGGER.info("Listen on {}:{} for ssh interface", host, bind.getPort());
-        }
         final VestigeCommandExecutor vestigeCommandExecutor = new VestigeCommandExecutor(applicationManager, vestigePlatform);
         sshServer.setCommandFactory(new ScpCommandFactory(new CommandFactory() {
 
@@ -111,11 +105,31 @@ public class SSHServerFactory implements Callable<SshServer> {
             authorizedKeysFile = new File(sshBase, "authorized_keys");
             authorizedKeysFile.createNewFile();
         }
-        LOGGER.info("Use {} for authorized public ssh keys file", authorizedKeysFile);
+        LOGGER.info("Use {} for authorized public SSH keys file", authorizedKeysFile);
         sshServer.setPublickeyAuthenticator(new DefaultPublickeyAuthenticator(keyPairProvider, authorizedKeysFile));
         // 1 hour time out
         sshServer.getProperties().put(ServerFactoryManager.IDLE_TIMEOUT, "3600000");
-        return sshServer;
+        return new VestigeServer() {
+
+            @Override
+            public void stop() throws Exception {
+                sshServer.stop();
+                LOGGER.info("SSH interface stopped");
+            }
+
+            @Override
+            public void start() throws Exception {
+                sshServer.start();
+                if (LOGGER.isInfoEnabled()) {
+                    if (host == null) {
+                        LOGGER.info("Listen on *:{} for SSH interface", bind.getPort());
+                    } else {
+                        LOGGER.info("Listen on {}:{} for SSH interface", host, bind.getPort());
+                    }
+                    LOGGER.info("SSH interface started");
+                }
+            }
+        };
     }
 
 }

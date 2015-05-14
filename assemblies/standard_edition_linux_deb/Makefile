@@ -8,9 +8,11 @@ Vestige.pkg:
 	mkdir -p target/vestige_deb/usr/share/icons
 	mkdir -p target/vestige_deb/usr/share/applications
 	unzip -d target/vestige ../standard_edition_standalone/target/vestige.assemblies.standard_edition_standalone-$(VESTIGE_VERSION)-unix.zip
-	sed -i~ -e 's/VESTIGE_BASE=.*/VESTIGE_BASE="$$HOME\/vestige"/' -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="$$HOME\/.vestige"/' -e 's/LIBDIR=.*/LIBDIR=\/usr\/share\/vestige/' -e 's/CONFDIR=.*/CONFDIR=\/etc\/vestige\//' target/vestige/vestige
+	sed -i~ -e 's/VESTIGE_BASE=.*/VESTIGE_BASE="$$HOME\/vestige"/' -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="$$HOME\/.vestige"/' -e 's/DATADIR=.*/DATADIR=\/usr\/share\/vestige/' -e 's/CONFDIR=.*/CONFDIR=\/etc\/vestige\//' target/vestige/vestige
 	rm target/vestige/vestige~
-	mv target/vestige/lib target/vestige_deb/usr/share/vestige
+	mkdir -p target/vestige_deb/usr/share/vestige
+	mv target/vestige/repository target/vestige_deb/usr/share/vestige/repository
+	mv target/vestige/lib target/vestige_deb/usr/share/vestige/lib
 	mv target/vestige/vestige target/vestige_deb/usr/bin/vestige
 	mv target/vestige/* target/vestige_deb/etc/vestige/
 	sed -e 's/Version: .*/Version: $(VESTIGE_VERSION)/' src/control > target/vestige_deb/DEBIAN/control

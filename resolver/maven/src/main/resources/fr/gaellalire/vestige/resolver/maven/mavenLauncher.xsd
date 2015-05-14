@@ -99,6 +99,8 @@
       <xs:element name="additionalRepository" type="AdditionalRepository" />
       <xs:element name="fileAdditionalRepository" type="FileAdditionalRepository" />
     </xs:choice>
+    <xs:attribute name="superPomRepositoriesUsed" type="xs:boolean" use="optional" default="true" />
+    <xs:attribute name="pomRepositoriesIgnored" type="xs:boolean" use="optional" default="false" />
   </xs:complexType>
 
 

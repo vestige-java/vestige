@@ -20,9 +20,9 @@ package fr.gaellalire.vestige.application.descriptor.xml;
 import java.net.URL;
 import java.util.List;
 
-import fr.gaellalire.vestige.application.ApplicationDescriptor;
-import fr.gaellalire.vestige.application.ApplicationDescriptorFactory;
-import fr.gaellalire.vestige.application.ApplicationException;
+import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
+import fr.gaellalire.vestige.application.manager.ApplicationDescriptorFactory;
+import fr.gaellalire.vestige.application.manager.ApplicationException;
 
 /**
  * @author Gael Lalire

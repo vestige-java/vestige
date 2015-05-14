@@ -18,6 +18,7 @@
 package fr.gaellalire.vestige.edition.standard;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -31,14 +32,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import fr.gaellalire.vestige.admin.web.VestigeServlet;
-import fr.gaellalire.vestige.application.ApplicationManager;
+import fr.gaellalire.vestige.application.manager.ApplicationManager;
 import fr.gaellalire.vestige.edition.standard.schema.Bind;
 import fr.gaellalire.vestige.edition.standard.schema.Web;
 
 /**
  * @author Gael Lalire
  */
-public class WebServerFactory implements Callable<Server> {
+public class WebServerFactory implements Callable<VestigeServer> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(WebServerFactory.class);
 
@@ -55,21 +56,28 @@ public class WebServerFactory implements Callable<Server> {
         this.appHomeFile = appHomeFile;
     }
 
-    public Server call() throws Exception {
+    public VestigeServer call() throws Exception {
         List<Bind> binds = web.getBind();
-        Server webServer = new Server();
+        final Server webServer = new Server();
         List<Connector> connectors = new ArrayList<Connector>(binds.size());
-        for (Bind bind : binds) {
-            Connector connector = new SocketConnector();
-            String host = bind.getHost();
+        for (final Bind bind : binds) {
+            final String host = bind.getHost();
+
+            Connector connector = new SocketConnector() {
+                @Override
+                public void open() throws IOException {
+                    super.open();
+                    if (LOGGER.isInfoEnabled()) {
+                        if (host == null) {
+                            LOGGER.info("Listen on *:{} for web interface", bind.getPort());
+                        } else {
+                            LOGGER.info("Listen on {}:{} for web interface", host, bind.getPort());
+                        }
+                    }
+                }
+            };
             connector.setPort(bind.getPort());
             connector.setHost(host);
-            if (LOGGER.isInfoEnabled()) {
-                if (host == null) {
-                    host = "*";
-                }
-                LOGGER.info("Listen on {}:{} for web interface", host, bind.getPort());
-            }
             connectors.add(connector);
         }
         webServer.setConnectors(connectors.toArray(new Connector[connectors.size()]));
@@ -84,10 +92,20 @@ public class WebServerFactory implements Callable<Server> {
 //                "/" + contextPath + "/*");
 
         webServer.setHandler(servletHandler);
-        return webServer;
-    }
+        return new VestigeServer() {
 
-    public static void main(final String[] args) {
+            @Override
+            public void stop() throws Exception {
+                webServer.stop();
+                LOGGER.info("Web interface stopped");
+            }
+
+            @Override
+            public void start() throws Exception {
+                webServer.start();
+                LOGGER.info("Web interface started");
+            }
+        };
     }
 
 }

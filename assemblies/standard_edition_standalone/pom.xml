@@ -67,5 +67,17 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>vestige.core</artifactId>
     </dependency>
+
+    <!-- hidden dependencies : vestige-se.xml attach it -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>vestige.jvm_enhancer</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>jcl-over-slf4j</artifactId>
+    </dependency>
+
   </dependencies>
 </project>

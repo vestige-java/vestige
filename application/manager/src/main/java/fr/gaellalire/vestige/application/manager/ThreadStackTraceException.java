@@ -15,35 +15,25 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.admin.command;
-
-import java.io.PrintWriter;
-import java.util.Collections;
-import java.util.List;
-
-import fr.gaellalire.vestige.admin.command.argument.Argument;
-import fr.gaellalire.vestige.application.manager.GarbageCollectorUtils;
+package fr.gaellalire.vestige.application.manager;
 
 /**
  * @author Gael Lalire
  */
-public class ForceGC implements Command {
+public class ThreadStackTraceException extends Exception {
 
+    private static final long serialVersionUID = 2594835488228389486L;
 
-    public String getName() {
-        return "force-gc";
+    private StackTraceElement[] elements;
+
+    public ThreadStackTraceException(final Thread t) {
+        super("StackTrace of " + t.getName());
+        elements = t.getStackTrace();
     }
 
-    public List<Argument> getArguments() {
-        return Collections.emptyList();
-    }
-
-    public String getDesc() {
-        return "Force garbage collector to run and clean at least on soft reference";
-    }
-
-    public void execute(final PrintWriter out) {
-        GarbageCollectorUtils.forceSoftReferenceGC();
+    @Override
+    public StackTraceElement[] getStackTrace() {
+        return elements;
     }
 
 }

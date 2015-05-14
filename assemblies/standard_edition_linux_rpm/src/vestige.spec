@@ -30,8 +30,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %{_datadir}/applications/vestige.desktop
-%{_datadir}/vestige/vestige.core-1.jar
-%{_datadir}/vestige/vestige.assemblies.standard_edition_bootstrap-0.0.1-SNAPSHOT-jar-with-dependencies.jar
+%{_datadir}/vestige/lib
 %{_datadir}/vestige/repository
 %{_datadir}/icons/hicolor/32x32/apps/vestige.png
 %{_datadir}/icons/hicolor/48x48/apps/vestige.png

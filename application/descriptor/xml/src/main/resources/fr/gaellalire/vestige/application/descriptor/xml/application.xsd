@@ -144,6 +144,8 @@
       <xs:element name="replaceDependency" type="ReplaceDependency" />
       <xs:element name="additionalRepository" type="AdditionalRepository" />
     </xs:choice>
+    <xs:attribute name="superPomRepositoriesUsed" type="xs:boolean" use="optional" default="true" />
+    <xs:attribute name="pomRepositoriesIgnored" type="xs:boolean" use="optional" default="false" />
   </xs:complexType>
 
   <xs:complexType name="Permissions">

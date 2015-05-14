@@ -15,16 +15,15 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.application;
-
-import java.util.concurrent.Future;
+package fr.gaellalire.vestige.edition.standard;
 
 /**
- * @param <E> return type of future
  * @author Gael Lalire
  */
-public interface FutureDoneHandler<E> {
+public interface VestigeServer {
 
-    void futureDone(Future<E> future);
+    void start() throws Exception;
+
+    void stop() throws Exception;
 
 }

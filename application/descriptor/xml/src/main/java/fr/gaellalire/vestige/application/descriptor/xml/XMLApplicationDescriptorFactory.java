@@ -41,10 +41,6 @@ import org.eclipse.aether.graph.Dependency;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import fr.gaellalire.vestige.application.ApplicationDescriptor;
-import fr.gaellalire.vestige.application.ApplicationDescriptorFactory;
-import fr.gaellalire.vestige.application.ApplicationException;
-import fr.gaellalire.vestige.application.VersionUtils;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.AddDependency;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.AdditionalRepository;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.Application;
@@ -55,6 +51,10 @@ import fr.gaellalire.vestige.application.descriptor.xml.schema.ModifyDependency;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.ObjectFactory;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.Permissions;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.ReplaceDependency;
+import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
+import fr.gaellalire.vestige.application.manager.ApplicationDescriptorFactory;
+import fr.gaellalire.vestige.application.manager.ApplicationException;
+import fr.gaellalire.vestige.application.manager.VersionUtils;
 import fr.gaellalire.vestige.resolver.maven.DefaultDependencyModifier;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
 import fr.gaellalire.vestige.resolver.maven.MavenRepository;
@@ -117,15 +117,16 @@ public class XMLApplicationDescriptorFactory implements ApplicationDescriptorFac
             throw new ApplicationException("unable to unmarshall application xml", e);
         }
 
-        List<MavenRepository> additionalRepositories = new ArrayList<MavenRepository>();
-        DefaultDependencyModifier defaultDependencyModifier = new DefaultDependencyModifier();
         Config configurations = application.getConfigurations();
         Set<Permission> installerPermissionSet = new HashSet<Permission>();
         Set<Permission> launcherPermissionSet = new HashSet<Permission>();
+        MavenConfigResolved mavenConfigResolved;
         if (configurations != null) {
             MavenConfig mavenConfig = configurations.getMavenConfig();
             if (mavenConfig != null) {
-                setMavenConfig(configurations.getMavenConfig(), defaultDependencyModifier, additionalRepositories);
+                mavenConfigResolved = resolveMavenConfig(configurations.getMavenConfig());
+            } else {
+                mavenConfigResolved = new MavenConfigResolved();
             }
             Config.Permissions permissions = configurations.getPermissions();
             if (permissions != null) {
@@ -140,9 +141,10 @@ public class XMLApplicationDescriptorFactory implements ApplicationDescriptorFac
                     readPermissions(launcherPerms, launcherPermissionSet);
                 }
             }
+        } else {
+            mavenConfigResolved = new MavenConfigResolved();
         }
-        return new XMLApplicationDescriptor(mavenArtifactResolver, repoName + "-" + appName + "-" + VersionUtils.toString(version), version, application, additionalRepositories,
-                defaultDependencyModifier, launcherPermissionSet);
+        return new XMLApplicationDescriptor(mavenArtifactResolver, repoName + "-" + appName + "-" + VersionUtils.toString(version), version, application, mavenConfigResolved, launcherPermissionSet);
     }
 
     public void readPermissions(final Permissions permissions, final Set<Permission> result) {
@@ -182,7 +184,9 @@ public class XMLApplicationDescriptorFactory implements ApplicationDescriptorFac
         }
     }
 
-    public void setMavenConfig(final MavenConfig mavenConfig, final DefaultDependencyModifier defaultDependencyModifier, final List<MavenRepository> additionalRepositories) {
+    public MavenConfigResolved resolveMavenConfig(final MavenConfig mavenConfig) {
+        List<MavenRepository> additionalRepositories = new ArrayList<MavenRepository>();
+        DefaultDependencyModifier defaultDependencyModifier = new DefaultDependencyModifier();
         for (Object object : mavenConfig.getModifyDependencyOrReplaceDependencyOrAdditionalRepository()) {
             if (object instanceof ModifyDependency) {
                 ModifyDependency modifyDependency = (ModifyDependency) object;
@@ -218,6 +222,7 @@ public class XMLApplicationDescriptorFactory implements ApplicationDescriptorFac
                 additionalRepositories.add(new MavenRepository(additionalRepository.getId(), additionalRepository.getLayout(), additionalRepository.getUrl()));
             }
         }
+        return new MavenConfigResolved(mavenConfig.isSuperPomRepositoriesUsed(), mavenConfig.isPomRepositoriesIgnored(), additionalRepositories, defaultDependencyModifier);
     }
 
 }

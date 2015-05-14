@@ -15,7 +15,7 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.application;
+package fr.gaellalire.vestige.application.manager;
 
 import java.net.URL;
 import java.util.List;

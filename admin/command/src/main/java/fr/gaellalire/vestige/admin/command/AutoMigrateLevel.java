@@ -26,8 +26,8 @@ import fr.gaellalire.vestige.admin.command.argument.Argument;
 import fr.gaellalire.vestige.admin.command.argument.LevelArgument;
 import fr.gaellalire.vestige.admin.command.argument.RepositoryArgument;
 import fr.gaellalire.vestige.admin.command.argument.VersionArgument;
-import fr.gaellalire.vestige.application.ApplicationException;
-import fr.gaellalire.vestige.application.ApplicationManager;
+import fr.gaellalire.vestige.application.manager.ApplicationException;
+import fr.gaellalire.vestige.application.manager.ApplicationManager;
 
 /**
  * @author Gael Lalire

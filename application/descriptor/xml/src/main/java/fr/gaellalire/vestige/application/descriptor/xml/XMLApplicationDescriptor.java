@@ -28,19 +28,17 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import fr.gaellalire.vestige.application.ApplicationDescriptor;
-import fr.gaellalire.vestige.application.ApplicationException;
-import fr.gaellalire.vestige.application.VersionUtils;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.Application;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.Installer;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.Launcher;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.MavenClassType;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.Mode;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.URLsClassType;
+import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
+import fr.gaellalire.vestige.application.manager.ApplicationException;
+import fr.gaellalire.vestige.application.manager.VersionUtils;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
-import fr.gaellalire.vestige.resolver.maven.DefaultDependencyModifier;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
-import fr.gaellalire.vestige.resolver.maven.MavenRepository;
 import fr.gaellalire.vestige.resolver.maven.ResolveMode;
 import fr.gaellalire.vestige.resolver.maven.Scope;
 
@@ -59,20 +57,17 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
 
     private Application application;
 
-    private List<MavenRepository> additionalRepositories;
-
-    private DefaultDependencyModifier defaultDependencyModifier;
+    private MavenConfigResolved mavenConfigResolved;
 
     private Set<Permission> permissions;
 
     public XMLApplicationDescriptor(final MavenArtifactResolver mavenArtifactResolver, final String appName, final List<Integer> version, final Application application,
-            final List<MavenRepository> additionalRepositories, final DefaultDependencyModifier defaultDependencyModifier, final Set<Permission> permissions) {
+            final MavenConfigResolved mavenConfigResolved, final Set<Permission> permissions) {
         this.mavenArtifactResolver = mavenArtifactResolver;
         this.appName = appName;
         this.version = version;
         this.application = application;
-        this.additionalRepositories = additionalRepositories;
-        this.defaultDependencyModifier = defaultDependencyModifier;
+        this.mavenConfigResolved = mavenConfigResolved;
         this.permissions = permissions;
     }
 
@@ -98,8 +93,7 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
                     List<Integer> otherVersion = Arrays.asList(major, minor, i);
                     Integer compare = VersionUtils.compare(version, otherVersion);
                     if (compare != null && compare.intValue() < 0) {
-                        throw new ApplicationException("Version " + VersionUtils.toString(otherVersion)
-                                + " cannot be supported by " + VersionUtils.toString(version));
+                        throw new ApplicationException("Version " + VersionUtils.toString(otherVersion) + " cannot be supported by " + VersionUtils.toString(version));
                     }
                     supportedMigrationVersion.add(otherVersion);
                 }
@@ -130,8 +124,7 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
                     List<Integer> otherVersion = Arrays.asList(major, minor, i);
                     Integer compare = VersionUtils.compare(version, otherVersion);
                     if (compare != null && compare.intValue() < 0) {
-                        throw new ApplicationException("Version " + VersionUtils.toString(otherVersion)
-                                + " cannot be supported by " + VersionUtils.toString(version));
+                        throw new ApplicationException("Version " + VersionUtils.toString(otherVersion) + " cannot be supported by " + VersionUtils.toString(version));
                     }
                     uninterruptedMigrationVersion.add(otherVersion);
                 }
@@ -187,7 +180,7 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
             return new ClassLoaderConfiguration(key, name, urlsInstaller.getScope() == fr.gaellalire.vestige.application.descriptor.xml.schema.Scope.ATTACHMENT, urls,
                     Collections.<ClassLoaderConfiguration> emptyList(), null, null, null);
         }
-        return resolve(appName, installer.getMavenInstaller(), defaultDependencyModifier, additionalRepositories);
+        return resolve(appName, installer.getMavenInstaller());
     }
 
     public String getLauncherClassName() throws ApplicationException {
@@ -246,11 +239,10 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
             return new ClassLoaderConfiguration(key, name, urlsLauncher.getScope() == fr.gaellalire.vestige.application.descriptor.xml.schema.Scope.ATTACHMENT, urls,
                     Collections.<ClassLoaderConfiguration> emptyList(), null, null, null);
         }
-        return resolve(appName, launcher.getMavenLauncher(), defaultDependencyModifier, additionalRepositories);
+        return resolve(appName, launcher.getMavenLauncher());
     }
 
-    public ClassLoaderConfiguration resolve(final String appName, final MavenClassType mavenClassType,
-            final DefaultDependencyModifier defaultDependencyModifier, final List<MavenRepository> additionalRepositories) throws ApplicationException {
+    public ClassLoaderConfiguration resolve(final String appName, final MavenClassType mavenClassType) throws ApplicationException {
         ResolveMode resolveMode;
         Mode mode = mavenClassType.getMode();
         switch (mode) {
@@ -281,8 +273,8 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
         }
 
         try {
-            return mavenArtifactResolver.resolve(appName, mavenClassType.getGroupId(), mavenClassType.getArtifactId(),
-                    mavenClassType.getVersion(), additionalRepositories, defaultDependencyModifier, resolveMode, mavenScope);
+            return mavenArtifactResolver.resolve(appName, mavenClassType.getGroupId(), mavenClassType.getArtifactId(), mavenClassType.getVersion(), mavenConfigResolved.getAdditionalRepositories(),
+                    mavenConfigResolved.getDefaultDependencyModifier(), resolveMode, mavenScope, mavenConfigResolved.isSuperPomRepositoriesUsed(), mavenConfigResolved.isPomRepositoriesIgnored());
         } catch (Exception e) {
             throw new ApplicationException("Unable to resolve", e);
         }

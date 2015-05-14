@@ -21,8 +21,8 @@ import java.security.Permission;
 import java.util.List;
 import java.util.Set;
 
-import fr.gaellalire.vestige.application.ApplicationDescriptor;
-import fr.gaellalire.vestige.application.ApplicationException;
+import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
+import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 
 /**

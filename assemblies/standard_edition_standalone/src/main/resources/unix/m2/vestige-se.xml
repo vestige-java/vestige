@@ -2,7 +2,7 @@
   <attach version="${project.version}" groupId="fr.gaellalire.vestige" artifactId="vestige.jvm_enhancer" />
   <launch class="fr.gaellalire.vestige.edition.standard.StandardEditionVestige" groupId="fr.gaellalire.vestige" artifactId="vestige.edition.standard" version="${project.version}"
     mode="FIXED_DEPENDENCIES" />
-  <config>
+  <config superPomRepositoriesUsed="false" pomRepositoriesIgnored="true">
     <modifyDependency artifactId="milton-server-ce" groupId="io.milton">
       <addDependency artifactId="javax.servlet" groupId="org.eclipse.jetty.orbit" version="${javax-servlet.version}" />
     </modifyDependency>

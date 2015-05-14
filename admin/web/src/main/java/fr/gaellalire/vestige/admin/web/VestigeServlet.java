@@ -32,9 +32,9 @@ import javax.servlet.http.HttpServletResponse;
 
 import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
-import fr.gaellalire.vestige.application.ApplicationException;
-import fr.gaellalire.vestige.application.ApplicationManager;
-import fr.gaellalire.vestige.application.VersionUtils;
+import fr.gaellalire.vestige.application.manager.ApplicationException;
+import fr.gaellalire.vestige.application.manager.ApplicationManager;
+import fr.gaellalire.vestige.application.manager.VersionUtils;
 
 /**
  * @author Gael Lalire

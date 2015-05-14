@@ -15,25 +15,16 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.application;
+package fr.gaellalire.vestige.application.manager;
+
+import java.util.concurrent.Future;
 
 /**
+ * @param <E> return type of future
  * @author Gael Lalire
  */
-public class ThreadStackTraceException extends Exception {
+public interface FutureDoneHandler<E> {
 
-    private static final long serialVersionUID = 2594835488228389486L;
-
-    private StackTraceElement[] elements;
-
-    public ThreadStackTraceException(final Thread t) {
-        super("StackTrace of " + t.getName());
-        elements = t.getStackTrace();
-    }
-
-    @Override
-    public StackTraceElement[] getStackTrace() {
-        return elements;
-    }
+    void futureDone(Future<E> future);
 
 }

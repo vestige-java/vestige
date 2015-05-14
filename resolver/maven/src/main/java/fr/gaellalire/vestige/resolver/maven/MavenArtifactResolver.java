@@ -31,6 +31,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.maven.model.Repository;
+import org.apache.maven.model.building.DefaultModelBuilder;
+import org.apache.maven.model.building.DefaultModelBuilderFactory;
+import org.apache.maven.model.building.ModelBuilder;
+import org.apache.maven.model.superpom.SuperPomProvider;
+import org.apache.maven.repository.internal.ArtifactDescriptorUtils;
 import org.apache.maven.repository.internal.DefaultArtifactDescriptorReader;
 import org.apache.maven.repository.internal.DefaultVersionRangeResolver;
 import org.apache.maven.repository.internal.DefaultVersionResolver;
@@ -98,6 +104,8 @@ public class MavenArtifactResolver {
 
     private Proxy proxy;
 
+    private List<RemoteRepository> superPomRemoteRepositories;
+
     public MavenArtifactResolver(final File settingsFile) throws NoLocalRepositoryManagerException {
         stringParserFactory = new MinimalStringParserFactory();
         boolean offline = false;
@@ -115,9 +123,9 @@ public class MavenArtifactResolver {
                     authentication = new AuthenticationBuilder().addUsername(activeProxy.getUsername()).addPassword(activeProxy.getPassword()).build();
                 }
                 proxy = new Proxy(activeProxy.getProtocol(), activeProxy.getHost(), activeProxy.getPort(), authentication);
-                LOGGER.info("Use proxy with id {}", activeProxy.getId());
+                LOGGER.info("Use proxy in maven settings with id {}", activeProxy.getId());
             } else {
-                LOGGER.info("Use system proxy (if any)");
+                LOGGER.info("No proxy in maven settings, system proxy will be used (if any)");
             }
             String settingsLocalRepository = settings.getLocalRepository();
             if (settingsLocalRepository != null && settingsLocalRepository.length() != 0) {
@@ -139,6 +147,7 @@ public class MavenArtifactResolver {
         locator.addService(TransporterFactory.class, FileTransporterFactory.class);
         locator.setService(DependencyCollector.class, ModifiedDependencyCollector.class);
 
+
         repoSystem = locator.getService(RepositorySystem.class);
 
         session = MavenRepositorySystemUtils.newSession();
@@ -150,6 +159,7 @@ public class MavenArtifactResolver {
 
         modifiedDependencyCollector = ((ModifiedDependencyCollector) locator.getService(DependencyCollector.class));
         descriptorReader = locator.getService(ArtifactDescriptorReader.class);
+
 
         session.setProxySelector(new ProxySelector() {
 
@@ -165,21 +175,21 @@ public class MavenArtifactResolver {
             }
         });
 
-    }
-
-    public RemoteRepository createCentral() {
-        String url = "http://repo1.maven.org/maven2/";
-        RemoteRepository.Builder centralBuilder = new RemoteRepository.Builder("central", "default", url);
-        if (proxy == null) {
-            try {
-                centralBuilder.setProxy(getSystemProxy(new URI(url)));
-            } catch (URISyntaxException e) {
-                LOGGER.error("URL is not valid", e);
+        // read central repositories
+        final SuperPomProvider[] superPomProviderArray = new SuperPomProvider[1];
+        DefaultModelBuilderFactory defaultModelBuilderFactory = new DefaultModelBuilderFactory() {
+            protected SuperPomProvider newSuperPomProvider() {
+                superPomProviderArray[0] = super.newSuperPomProvider();
+                return superPomProviderArray[0];
             }
-        } else {
-            centralBuilder.setProxy(proxy);
+        };
+        DefaultModelBuilder defaultModelBuilder = defaultModelBuilderFactory.newInstance();
+        locator.setServices(ModelBuilder.class, defaultModelBuilder);
+        List<Repository> repositories = superPomProviderArray[0].getSuperModel("4.0.0").getRepositories();
+        superPomRemoteRepositories = new ArrayList<RemoteRepository>(repositories.size());
+        for (Repository repository : repositories) {
+            superPomRemoteRepositories.add(ArtifactDescriptorUtils.toRemoteRepository(repository));
         }
-        return centralBuilder.build();
     }
 
     public static final List<String> NON_PROXY_URI_SCHEMES = Arrays.asList("file");
@@ -215,7 +225,7 @@ public class MavenArtifactResolver {
         return null;
     }
 
-    public ClassLoaderConfiguration resolve(final String appName, final String groupId, final String artifactId, final String version, final List<MavenRepository> additionalRepositories, final DependencyModifier dependencyModifier, final ResolveMode resolveMode, final Scope scope) throws Exception {
+    public ClassLoaderConfiguration resolve(final String appName, final String groupId, final String artifactId, final String version, final List<MavenRepository> additionalRepositories, final DependencyModifier dependencyModifier, final ResolveMode resolveMode, final Scope scope, final boolean useSuperPomRepositories, final boolean ignorePomRepositories) throws Exception {
 
         Map<String, Map<String, MavenArtifact>> runtimeDependencies = new HashMap<String, Map<String, MavenArtifact>>();
 
@@ -223,7 +233,9 @@ public class MavenArtifactResolver {
 
         CollectRequest collectRequest = new CollectRequest();
         collectRequest.setRoot(dependency);
-        collectRequest.addRepository(createCentral());
+        if (useSuperPomRepositories) {
+            collectRequest.setRepositories(new ArrayList<RemoteRepository>(superPomRemoteRepositories));
+        }
         for (MavenRepository additionalRepository : additionalRepositories) {
             RemoteRepository.Builder repositoryBuilder = new RemoteRepository.Builder(additionalRepository.getId(), additionalRepository.getLayout(), additionalRepository.getUrl());
             if (proxy == null) {
@@ -233,6 +245,8 @@ public class MavenArtifactResolver {
             }
             collectRequest.addRepository(repositoryBuilder.build());
         }
+
+        session.setIgnoreArtifactDescriptorRepositories(ignorePomRepositories);
 
         DependencyNode node = modifiedDependencyCollector.collectDependencies(session, collectRequest, dependencyModifier).getRoot();
 
