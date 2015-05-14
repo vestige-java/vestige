@@ -5,7 +5,7 @@ VESTIGE_RPM_VERSION=0.0.1
 Vestige.pkg:
 	mkdir target
 	unzip -d target/vestige-$(VESTIGE_RPM_VERSION) ../standard_edition_standalone/target/vestige.assemblies.standard_edition_standalone-$(VESTIGE_VERSION)-unix.zip
-	sed -i~ -e 's/VESTIGE_BASE=.*/VESTIGE_BASE="$$HOME\/.vestige"/' -e 's/LIBDIR=.*/LIBDIR=\/usr\/share\/vestige/' -e 's/CONFDIR=.*/CONFDIR=\/etc\/vestige\//' target/vestige-$(VESTIGE_RPM_VERSION)/vestige
+	sed -i~ -e 's/VESTIGE_BASE=.*/VESTIGE_BASE="$$HOME\/vestige"/' -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="$$HOME\/.vestige"/' -e 's/LIBDIR=.*/LIBDIR=\/usr\/share\/vestige/' -e 's/CONFDIR=.*/CONFDIR=\/etc\/vestige\//' target/vestige-$(VESTIGE_RPM_VERSION)/vestige
 	rm target/vestige-$(VESTIGE_RPM_VERSION)/vestige~
 	sed -e 's/Version:        .*/Version:        $(VESTIGE_RPM_VERSION)/' -e 's/standard_edition_bootstrap.*-jar-with-dependencies.jar/standard_edition_bootstrap-$(VESTIGE_VERSION)-jar-with-dependencies.jar/' src/vestige.spec > target/vestige.spec
 	cp src/Makefile target/vestige-$(VESTIGE_RPM_VERSION)/
