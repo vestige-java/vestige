@@ -46,7 +46,6 @@ import javax.xml.bind.Unmarshaller;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 
-import org.apache.commons.io.IOUtils;
 import org.eclipse.aether.repository.NoLocalRepositoryManagerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,7 +144,7 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
         File settingsFile = new File(baseFile, "settings.xml");
         if (!settingsFile.exists()) {
             try {
-                IOUtils.copy(StandardEditionVestige.class.getResourceAsStream("settings.xml"), new FileOutputStream(settingsFile));
+                ConfFileUtils.copy(StandardEditionVestige.class.getResourceAsStream("settings.xml"), settingsFile);
             } catch (FileNotFoundException e) {
                 throw new RuntimeException("Settings file does not exists", e);
             } catch (IOException e) {
@@ -425,7 +424,7 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
                             throw new RuntimeException("Unable to create logback.xml parent directory");
                         }
                     }
-                    IOUtils.copy(StandardEditionVestige.class.getResourceAsStream("logback.xml"), new FileOutputStream(logbackConfigurationFile));
+                    ConfFileUtils.copy(StandardEditionVestige.class.getResourceAsStream("logback.xml"), logbackConfigurationFile);
                 } catch (FileNotFoundException e) {
                     throw new RuntimeException("logback.configurationFile does not exists", e);
                 } catch (IOException e) {
