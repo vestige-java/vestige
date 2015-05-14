@@ -40,7 +40,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import javax.naming.spi.ObjectFactory;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.Unmarshaller;
@@ -68,6 +67,7 @@ import fr.gaellalire.vestige.resolver.maven.schema.MavenClassType;
 import fr.gaellalire.vestige.resolver.maven.schema.MavenConfig;
 import fr.gaellalire.vestige.resolver.maven.schema.MavenLauncher;
 import fr.gaellalire.vestige.resolver.maven.schema.ModifyDependency;
+import fr.gaellalire.vestige.resolver.maven.schema.ObjectFactory;
 import fr.gaellalire.vestige.resolver.maven.schema.ReplaceDependency;
 
 /**
