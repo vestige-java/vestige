@@ -12,8 +12,9 @@ BuildArchitectures: noarch
 
 Requires:  java >= 1.6.0 pygtk2 >= 2.6.0
 
-%description
+%define __jar_repack %{nil}
 
+%description
 
 %prep
 %setup -q
