@@ -37,7 +37,7 @@
               <bindingDirectory>${basedir}/src/main/config</bindingDirectory>
               <generatePackage>fr.gaellalire.vestige.resolver.maven.schema</generatePackage>
               <schemaIncludes>
-                <include>fr/gaellalire/vestige/resolver/maven/mavenLauncher.xsd</include>
+                <include>fr/gaellalire/vestige/resolver/maven/mavenLauncher-1.0.0.xsd</include>
               </schemaIncludes>
             </configuration>
           </execution>

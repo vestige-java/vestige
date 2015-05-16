@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" xmlns:tns="http://vestige.gaellalire.fr/SETTINGS" xmlns="http://vestige.gaellalire.fr/SETTINGS"
-  targetNamespace="http://vestige.gaellalire.fr/SETTINGS" version="1.0.0">
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" xmlns:tns="http://gaellalire.fr/vestige/SETTINGS" xmlns="http://gaellalire.fr/vestige/SETTINGS"
+  targetNamespace="http://gaellalire.fr/vestige/SETTINGS" version="1.0.0">
   <xs:element name="settings" type="Settings">
     <xs:annotation>
       <xs:documentation source="version">1.0.0</xs:documentation>

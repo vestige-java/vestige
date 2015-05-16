@@ -45,7 +45,7 @@
               <bindingDirectory>${basedir}/src/main/config</bindingDirectory>
               <generatePackage>fr.gaellalire.vestige.edition.standard.schema</generatePackage>
               <schemaIncludes>
-                <include>fr/gaellalire/vestige/edition/standard/settings.xsd</include>
+                <include>fr/gaellalire/vestige/edition/standard/settings-1.0.0.xsd</include>
               </schemaIncludes>
             </configuration>
           </execution>

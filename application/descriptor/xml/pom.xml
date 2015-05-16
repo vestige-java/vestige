@@ -34,7 +34,7 @@
               <bindingDirectory>${basedir}/src/main/config</bindingDirectory>
               <generatePackage>fr.gaellalire.vestige.application.descriptor.xml.schema</generatePackage>
               <schemaIncludes>
-                <include>fr/gaellalire/vestige/application/descriptor/xml/application.xsd</include>
+                <include>fr/gaellalire/vestige/application/descriptor/xml/application-1.0.0.xsd</include>
               </schemaIncludes>
             </configuration>
           </execution>

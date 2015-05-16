@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" xmlns:tns="http://vestige.gaellalire.fr/MAVEN_LAUNCHER" xmlns="http://vestige.gaellalire.fr/MAVEN_LAUNCHER"
-  targetNamespace="http://vestige.gaellalire.fr/MAVEN_LAUNCHER" version="1.0.0">
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" xmlns:tns="http://gaellalire.fr/vestige/MAVEN_LAUNCHER" xmlns="http://gaellalire.fr/vestige/MAVEN_LAUNCHER"
+  targetNamespace="http://gaellalire.fr/vestige/MAVEN_LAUNCHER" version="1.0.0">
 
   <xs:element name="mavenLauncher" type="MavenLauncher">
     <xs:annotation>

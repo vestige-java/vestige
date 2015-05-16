@@ -103,7 +103,7 @@ public class XMLApplicationDescriptorFactory implements ApplicationDescriptorFac
             JAXBContext jc = JAXBContext.newInstance(ObjectFactory.class.getPackage().getName());
             unMarshaller = jc.createUnmarshaller();
 
-            URL xsdURL = XMLApplicationDescriptorFactory.class.getResource("application.xsd");
+            URL xsdURL = XMLApplicationDescriptorFactory.class.getResource("application-1.0.0.xsd");
             SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
             Schema schema = schemaFactory.newSchema(xsdURL);
             unMarshaller.setSchema(schema);

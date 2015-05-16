@@ -105,7 +105,7 @@ public final class VestigeMavenResolver {
             JAXBContext jc = JAXBContext.newInstance(ObjectFactory.class.getPackage().getName());
             Unmarshaller unMarshaller = jc.createUnmarshaller();
 
-            URL xsdURL = VestigeMavenResolver.class.getResource("mavenLauncher.xsd");
+            URL xsdURL = VestigeMavenResolver.class.getResource("mavenLauncher-1.0.0.xsd");
             SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
             Schema schema = schemaFactory.newSchema(xsdURL);
             unMarshaller.setSchema(schema);

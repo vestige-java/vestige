@@ -158,7 +158,7 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
             JAXBContext jc = JAXBContext.newInstance(ObjectFactory.class.getPackage().getName());
             unMarshaller = jc.createUnmarshaller();
 
-            URL xsdURL = StandardEditionVestige.class.getResource("settings.xsd");
+            URL xsdURL = StandardEditionVestige.class.getResource("settings-1.0.0.xsd");
             SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
             Schema schema = schemaFactory.newSchema(xsdURL);
             unMarshaller.setSchema(schema);
