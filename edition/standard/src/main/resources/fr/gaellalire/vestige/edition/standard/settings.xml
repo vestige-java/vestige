@@ -2,7 +2,7 @@
 xsi:schemaLocation="http://gaellalire.fr/vestige/SETTINGS http://gaellalire.fr/vestige/settings-1.0.0.xsd">
   <security enabled="true" />
   <admin>
-    <ssh enabled="true">
+    <ssh enabled="false">
       <bind port="8422" />
     </ssh>
     <web enabled="true">
