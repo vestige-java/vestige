@@ -33,12 +33,13 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/applications/vestige.desktop
 %{_datadir}/vestige/lib
 %{_datadir}/vestige/repository
+%{_datadir}/icons/hicolor/24x24/apps/vestige.png
 %{_datadir}/icons/hicolor/32x32/apps/vestige.png
 %{_datadir}/icons/hicolor/48x48/apps/vestige.png
 %{_datadir}/icons/hicolor/128x128/apps/vestige.png
 %{_datadir}/icons/hicolor/256x256/apps/vestige.png
+%{_datadir}/vestige/vestige
 %{_bindir}/vestige
-%{_bindir}/vestige_gtk_launcher.py
 %{_sysconfdir}/vestige/README
 %{_sysconfdir}/vestige/settings.xml
 %{_sysconfdir}/vestige/logback.xml

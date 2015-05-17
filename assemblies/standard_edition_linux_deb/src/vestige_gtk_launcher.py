@@ -10,7 +10,7 @@ def killVestige(icon):
 class StatusIcon:
     def __init__(self):
         self.statusicon = gtk.StatusIcon()
-        self.statusicon.set_from_file("/usr/share/icons/hicolor/48x48/apps/vestige.png")
+        self.statusicon.set_from_icon_name("vestige")
         self.statusicon.connect("popup-menu", self.right_click_event)
         self.statusicon.connect("activate", self.left_click_event)
         self.statusicon.set_tooltip("Vestige")
@@ -36,7 +36,7 @@ def child_cb(pid, status):
 
 vestigePid = os.fork()
 if vestigePid == 0:
-    os.execlp("vestige", "vestige")
+    os.execlp("/usr/share/vestige/vestige", "/usr/share/vestige/vestige")
     os._exit(1)
 
 gobject.child_watch_add(vestigePid, child_cb)

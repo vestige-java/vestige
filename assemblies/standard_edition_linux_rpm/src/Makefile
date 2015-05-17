@@ -13,9 +13,9 @@ install:
 	mkdir -p $(DESTDIR)/$(datadir)/applications
 	mkdir -p $(DESTDIR)/$(datadir)/icons
 	mkdir -p $(DESTDIR)/etc/vestige
-	cp vestige $(DESTDIR)/$(bindir)/
+	cp vestige $(DESTDIR)/$(datadir)/vestige/
 	cp vestige.desktop $(DESTDIR)/$(datadir)/applications/
-	cp vestige_gtk_launcher.py $(DESTDIR)/$(bindir)/
+	cp vestige_gtk_launcher.py $(DESTDIR)/$(bindir)/vestige
 	cp -r hicolor $(DESTDIR)/$(datadir)/icons/
 	cp -r lib $(DESTDIR)/$(datadir)/vestige
 	cp -r repository $(DESTDIR)/$(datadir)/vestige
