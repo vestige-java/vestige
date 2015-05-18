@@ -18,11 +18,9 @@
 package fr.gaellalire.vestige.edition.standard;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.util.Collections;
 import java.util.concurrent.Callable;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.sshd.SshServer;
 import org.apache.sshd.common.KeyPairProvider;
 import org.apache.sshd.common.NamedFactory;
@@ -77,7 +75,7 @@ public class SSHServerFactory implements Callable<VestigeServer> {
         File privateKey = new File(sshBase, "vestige_rsa");
         if (!privateKey.exists()) {
             sshBase.mkdirs();
-            IOUtils.copy(StandardEditionVestige.class.getResourceAsStream("vestige_rsa"), new FileOutputStream(privateKey));
+            ConfFileUtils.copy(StandardEditionVestige.class.getResourceAsStream("vestige_rsa"), privateKey);
         }
         LOGGER.info("Use {} for private SSH key file", privateKey);
         KeyPairProvider keyPairProvider = new FileKeyPairProvider(new String[] {privateKey.getPath()});

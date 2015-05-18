@@ -28,7 +28,8 @@ if [ "$VESTIGE_BASE" = "" ]; then
 fi
 
 if [ ! -d "$VESTIGE_BASE" ]; then
-  mkdir -p "$VESTIGE_BASE"
+  mkdir -p `dirname "$VESTIGE_BASE"`
+  cp -R "$CONFDIR/template" "$VESTIGE_BASE"
 fi
 
 if [ "$VESTIGE_DATA" = "" ]; then
@@ -48,19 +49,12 @@ fi
 
 
 MAVEN_LAUNCHER_FILE="$VESTIGE_BASE/m2/vestige-se.xml"
-if [ ! -f "$MAVEN_LAUNCHER_FILE" ]; then
-  mkdir -p "$VESTIGE_BASE/m2"
-  cp "$CONFDIR/m2/vestige-se.xml" "$MAVEN_LAUNCHER_FILE"
-fi
 
 MAVEN_SETTINGS_FILE="$VESTIGE_BASE/m2/settings.xml"
 
 MAVEN_RESOLVER_CACHE_FILE="$VESTIGE_DATA/m2/resolver-cache.ser"
 
 LOGBACK_CONFIGURATION_FILE="$VESTIGE_BASE/logback.xml"
-if [ ! -f "$LOGBACK_CONFIGURATION_FILE" ]; then
-  cp "$CONFDIR/logback.xml" "$LOGBACK_CONFIGURATION_FILE"
-fi
 
 VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Dvestige.mavenRepository="$DATADIR/repository" -Djava.util.logging.manager=fr.gaellalire.vestige.core.logger.JULLogManager -Dlogback.logsDirectory="$VESTIGE_BASE/logs" -Dlogback.configurationFile="$LOGBACK_CONFIGURATION_FILE")
 

@@ -27,7 +27,10 @@ if not defined JAVA_OPTS set JAVA_OPTS=-Djava.net.useSystemProxies=true
 
 if not defined VESTIGE_BASE set VESTIGE_BASE=%DIRNAME%\base
 
-if not exist "%VESTIGE_BASE%" md "%VESTIGE_BASE%"
+if not exist "%VESTIGE_BASE%" (
+  md "%VESTIGE_BASE%"
+  call "%DIRNAME%\deepCopy.bat" "%CONFDIR%\template" "%VESTIGE_BASE%"
+)
 
 if not defined VESTIGE_DATA set VESTIGE_DATA=%DIRNAME%\data
 
@@ -38,17 +41,12 @@ if not defined VESTIGE_OPTS set VESTIGE_OPTS=%JAVA_OPTS%
 if defined VESTIGE_DEBUG set VESTIGE_OPTS=%VESTIGE_OPTS% -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8000
 
 set MAVEN_LAUNCHER_FILE=%VESTIGE_BASE%\m2\vestige-se.xml
-if not exist "%MAVEN_LAUNCHER_FILE%" (
-  md "%VESTIGE_BASE%\m2"
-  copy /Y "%CONFDIR%\m2\vestige-se.xml" "%MAVEN_LAUNCHER_FILE%" > nul
-)
 
 set MAVEN_SETTINGS_FILE=%VESTIGE_BASE%\m2\settings.xml
 
 set MAVEN_RESOLVER_CACHE_FILE=%VESTIGE_DATA%\m2\resolver-cache.ser
 
 set LOGBACK_CONFIGURATION_FILE=%VESTIGE_BASE%\logback.xml
-if not exist "%LOGBACK_CONFIGURATION_FILE%" copy /Y "%CONFDIR%\logback.xml" "%LOGBACK_CONFIGURATION_FILE%" > nul
 
 set VESTIGE_OPTS=%VESTIGE_OPTS% -Dvestige.mavenRepository="%DATADIR%\repository" -Djava.util.logging.manager=fr.gaellalire.vestige.core.logger.JULLogManager -Dlogback.logsDirectory="%VESTIGE_BASE%\logs" -Dlogback.configurationFile="%LOGBACK_CONFIGURATION_FILE%"
 

@@ -10,7 +10,7 @@ Source0:        vestige.tar.gz
 
 BuildArchitectures: noarch
 
-Requires:  java >= 1.6.0 pygtk2 >= 2.6.0
+Requires:  bash java >= 1.6.0 pygtk2 >= 2.6.0 python-appindicator
 
 %define __jar_repack %{nil}
 
@@ -41,9 +41,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/vestige/vestige
 %{_bindir}/vestige
 %{_sysconfdir}/vestige/README
-%{_sysconfdir}/vestige/settings.xml
-%{_sysconfdir}/vestige/logback.xml
-%{_sysconfdir}/vestige/m2/vestige-se.xml
+%{_sysconfdir}/vestige/template/logback.xml
+%{_sysconfdir}/vestige/template/m2/vestige-se.xml
 
 
 %doc
