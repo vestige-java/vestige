@@ -28,8 +28,8 @@ if [ "$VESTIGE_BASE" = "" ]; then
 fi
 
 if [ ! -d "$VESTIGE_BASE" ]; then
-  mkdir -p `dirname "$VESTIGE_BASE"`
-  cp -R "$CONFDIR/template" "$VESTIGE_BASE"
+  mkdir -p "$VESTIGE_BASE"
+  cp -R "$CONFDIR/template/." "$VESTIGE_BASE"
 fi
 
 if [ "$VESTIGE_DATA" = "" ]; then
