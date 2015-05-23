@@ -31,18 +31,14 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %{_datadir}/applications/vestige.desktop
-%{_datadir}/vestige/lib
-%{_datadir}/vestige/repository
+%{_datadir}/vestige
 %{_datadir}/icons/hicolor/24x24/apps/vestige.png
 %{_datadir}/icons/hicolor/32x32/apps/vestige.png
 %{_datadir}/icons/hicolor/48x48/apps/vestige.png
 %{_datadir}/icons/hicolor/128x128/apps/vestige.png
 %{_datadir}/icons/hicolor/256x256/apps/vestige.png
-%{_datadir}/vestige/vestige
 %{_bindir}/vestige
-%{_sysconfdir}/vestige/README
-%{_sysconfdir}/vestige/template/logback.xml
-%{_sysconfdir}/vestige/template/m2/vestige-se.xml
+%{_sysconfdir}/vestige
 
 
 %doc

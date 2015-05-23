@@ -151,6 +151,7 @@ public class MavenArtifactResolver {
         repoSystem = locator.getService(RepositorySystem.class);
 
         session = MavenRepositorySystemUtils.newSession();
+        session.setTransferListener(new VestigeTransferListener());
         session.setOffline(offline);
         session.setLocalRepositoryManager(new SimpleLocalRepositoryManagerFactory().newInstance(session, new LocalRepository(localRepository)));
         AndDependencySelector andDependencySelector = new AndDependencySelector(new ScopeDependencySelector("test", "provided"),
@@ -248,6 +249,7 @@ public class MavenArtifactResolver {
 
         session.setIgnoreArtifactDescriptorRepositories(ignorePomRepositories);
 
+        LOGGER.info("Collecting dependencies for {}", appName);
         DependencyNode node = modifiedDependencyCollector.collectDependencies(session, collectRequest, dependencyModifier).getRoot();
 
         DependencyRequest dependencyRequest = new DependencyRequest(node, null);
@@ -258,7 +260,10 @@ public class MavenArtifactResolver {
         node.accept(nlg);
 
         List<Artifact> artifacts = nlg.getArtifacts(true);
+        LOGGER.info("Dependencies collected");
 
+        LOGGER.info("Creating classloader configuration for {}", appName);
+        ClassLoaderConfiguration classLoaderConfiguration;
         switch (resolveMode) {
         case CLASSPATH:
             URL[] urls = new URL[artifacts.size()];
@@ -278,7 +283,8 @@ public class MavenArtifactResolver {
                 key = new MavenClassLoaderConfigurationKey(mavenArtifacts, Collections.<MavenClassLoaderConfigurationKey> emptyList(), false);
                 name = appName;
             }
-            return new ClassLoaderConfiguration(key, name, scope == Scope.ATTACHMENT, urls, Collections.<ClassLoaderConfiguration> emptyList(), null, null, null);
+            classLoaderConfiguration = new ClassLoaderConfiguration(key, name, scope == Scope.ATTACHMENT, urls, Collections.<ClassLoaderConfiguration> emptyList(), null, null, null);
+            break;
         case FIXED_DEPENDENCIES:
             Map<MavenArtifact, URL> urlByKey = new HashMap<MavenArtifact, URL>();
             for (Artifact artifact : artifacts) {
@@ -296,11 +302,13 @@ public class MavenArtifactResolver {
             ClassLoaderConfigurationGraphHelper classLoaderConfigurationGraphHelper = new ClassLoaderConfigurationGraphHelper(appName, urlByKey, descriptorReader, collectRequest, session, dependencyModifier, runtimeDependencies, scope);
 
             GraphCycleRemover<NodeAndState, MavenArtifact, ClassLoaderConfigurationFactory> graphCycleRemover = new GraphCycleRemover<NodeAndState, MavenArtifact, ClassLoaderConfigurationFactory>(classLoaderConfigurationGraphHelper);
-            return graphCycleRemover.removeCycle(new NodeAndState(null, node, session.getDependencyManager())).create(stringParserFactory);
+            classLoaderConfiguration = graphCycleRemover.removeCycle(new NodeAndState(null, node, session.getDependencyManager(), false)).create(stringParserFactory);
+            break;
         default:
             throw new Exception("Unsupported resolve mode " + resolveMode);
         }
-
+        LOGGER.info("Classloader configuration created");
+        return classLoaderConfiguration;
     }
 
 }

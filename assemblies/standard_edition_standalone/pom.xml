@@ -12,6 +12,41 @@
     <defaultGoal>install</defaultGoal>
     <plugins>
       <plugin>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>copy</goal>
+            </goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>vestige.assemblies.standard_edition_bootstrap</artifactId>
+                  <classifier>unix-classpath</classifier>
+                  <version>${project.version}</version>
+                  <type>txt</type>
+                  <overWrite>true</overWrite>
+                  <outputDirectory>${basedir}/target/classes/unix</outputDirectory>
+                  <destFileName>unix-classpath.txt</destFileName>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>vestige.assemblies.standard_edition_bootstrap</artifactId>
+                  <classifier>windows-classpath</classifier>
+                  <version>${project.version}</version>
+                  <type>txt</type>
+                  <overWrite>true</overWrite>
+                  <outputDirectory>${basedir}/target/classes/windows</outputDirectory>
+                  <destFileName>windows-classpath.txt</destFileName>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
         <executions>
           <execution>
@@ -63,8 +98,8 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>vestige.assemblies.standard_edition_bootstrap</artifactId>
-      <classifier>jar-with-dependencies</classifier>
       <version>${project.version}</version>
+      <type>pom</type>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>

@@ -31,7 +31,7 @@ import com.btr.proxy.util.Logger;
 
 import fr.gaellalire.vestige.core.StackedHandlerUtils;
 import fr.gaellalire.vestige.core.Vestige;
-import fr.gaellalire.vestige.core.VestigeExecutor;
+import fr.gaellalire.vestige.core.executor.VestigeExecutor;
 
 /**
  * @author Gael Lalire
@@ -138,8 +138,7 @@ public final class JVMEnhancer {
     }
 
     @SuppressWarnings("unchecked")
-    public static void boot() throws InterruptedException {
-        VestigeExecutor vestigeExecutor = new VestigeExecutor();
+    public static void boot(final VestigeExecutor vestigeExecutor) throws InterruptedException {
         Thread thread = vestigeExecutor.createWorker("bootstrap-sun-worker", true, 0);
 
         ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
@@ -250,17 +249,21 @@ public final class JVMEnhancer {
     }
 
     public static void main(final String[] args) throws Exception {
+        vestigeCoreMain(new VestigeExecutor(), args);
+    }
+
+    public static void vestigeCoreMain(final VestigeExecutor vestigeExecutor, final String[] args) throws Exception {
         if (args.length == 0) {
             throw new IllegalArgumentException("expecting at least 1 arg : mainClass");
         }
         // preload some crappy classes to avoid classloader leak
-        boot();
+        boot(vestigeExecutor);
         // install system proxy selector
         start();
         try {
             String[] dargs = new String[args.length - 1];
             System.arraycopy(args, 1, dargs, 0, dargs.length);
-            Vestige.runMain(Thread.currentThread().getContextClassLoader(), args[0], dargs);
+            Vestige.runMain(Thread.currentThread().getContextClassLoader(), args[0], vestigeExecutor, dargs);
         } finally {
             stop();
         }

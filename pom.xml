@@ -258,6 +258,18 @@
       </snapshots>
     </repository>
   </repositories>
+  <pluginRepositories>
+    <pluginRepository>
+      <id>gaellalire_nexus</id>
+      <url>http://gaellalire.fr/nexus/content/repositories/releases</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </pluginRepository>
+  </pluginRepositories>
   <distributionManagement>
     <repository>
       <id>gaellalire_nexus</id>

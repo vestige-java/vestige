@@ -16,6 +16,9 @@
     <modifyDependency artifactId="slf4j-api" groupId="org.slf4j">
       <addDependency artifactId="logback-classic" groupId="ch.qos.logback" version="${logback.version}" />
     </modifyDependency>
+    <modifyDependency artifactId="logback-classic" groupId="ch.qos.logback">
+      <addDependency artifactId="vestige.utils" groupId="fr.gaellalire.vestige" version="${project.version}" />
+    </modifyDependency>
     <modifyDependency artifactId="aether-impl" groupId="org.eclipse.aether">
       <addDependency artifactId="vestige.resolver.maven" groupId="fr.gaellalire.vestige" version="${project.version}" />
     </modifyDependency>

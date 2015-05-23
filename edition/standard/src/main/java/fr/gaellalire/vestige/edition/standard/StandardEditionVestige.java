@@ -60,7 +60,7 @@ import fr.gaellalire.vestige.application.descriptor.xml.XMLApplicationDescriptor
 import fr.gaellalire.vestige.application.manager.ApplicationDescriptorFactory;
 import fr.gaellalire.vestige.application.manager.DefaultApplicationManager;
 import fr.gaellalire.vestige.application.manager.SynchronizedApplicationManager;
-import fr.gaellalire.vestige.core.VestigeExecutor;
+import fr.gaellalire.vestige.core.executor.VestigeExecutor;
 import fr.gaellalire.vestige.edition.standard.schema.Admin;
 import fr.gaellalire.vestige.edition.standard.schema.Bind;
 import fr.gaellalire.vestige.edition.standard.schema.ObjectFactory;

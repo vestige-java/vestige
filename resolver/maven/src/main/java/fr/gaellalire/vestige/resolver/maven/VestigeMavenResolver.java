@@ -52,8 +52,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import fr.gaellalire.vestige.core.VestigeClassLoader;
-import fr.gaellalire.vestige.core.VestigeExecutor;
-import fr.gaellalire.vestige.core.callable.InvokeMethod;
+import fr.gaellalire.vestige.core.executor.VestigeExecutor;
+import fr.gaellalire.vestige.core.executor.callable.InvokeMethod;
 import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
@@ -81,8 +81,7 @@ public final class VestigeMavenResolver {
     private static final Logger LOGGER = LoggerFactory.getLogger(VestigeMavenResolver.class);
 
     @SuppressWarnings("unchecked")
-    public static void runVestigeMain(final File mavenLauncherFile, final File mavenSettingsFile, final File mavenResolverCacheFile, final String[] dargs) throws Exception {
-        final VestigeExecutor vestigeExecutor = new VestigeExecutor();
+    public static void runVestigeMain(final VestigeExecutor vestigeExecutor, final File mavenLauncherFile, final File mavenSettingsFile, final File mavenResolverCacheFile, final String[] dargs) throws Exception {
         Thread thread = vestigeExecutor.createWorker("resolver-maven-worker", true, 0);
         VestigePlatform vestigePlatform = new DefaultVestigePlatform(vestigeExecutor);
 
@@ -232,8 +231,6 @@ public final class VestigeMavenResolver {
             ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve("vestige", mavenClassType.getGroupId(), mavenClassType.getArtifactId(),
                     mavenClassType.getVersion(), additionalRepositories, defaultDependencyModifier, resolveMode, mavenScope, superPomRepositoriesUsed, pomRepositoriesIgnored);
 
-            LOGGER.trace("classLoaderConfiguration : {}", classLoaderConfiguration);
-
             mavenResolverCache = new MavenResolverCache(launchCaches, mavenClassType.getClazz(), classLoaderConfiguration, lastModified);
             try {
                 File parentFile = mavenResolverCacheFile.getParentFile();
@@ -372,6 +369,10 @@ public final class VestigeMavenResolver {
     }
 
     public static void main(final String[] args) throws Exception {
+        vestigeCoreMain(new VestigeExecutor(), args);
+    }
+
+    public static void vestigeCoreMain(final VestigeExecutor vestigeExecutor, final String[] args) throws Exception {
         try {
             if (args.length < 3) {
                 throw new IllegalArgumentException("expected at least 3 arguments (maven launcher, maven settings, maven resolver cache)");
@@ -383,7 +384,7 @@ public final class VestigeMavenResolver {
             }
 
             File mavenLauncherFile = new File(args[0]).getCanonicalFile();
-            LOGGER.info("Use {} for maven launcher file", mavenLauncherFile);
+            LOGGER.debug("Use {} for maven launcher file", mavenLauncherFile);
 
             File mavenSettingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
             if (!mavenSettingsFile.isFile()) {
@@ -397,7 +398,7 @@ public final class VestigeMavenResolver {
             final String[] dargs = new String[args.length - 3];
             System.arraycopy(args, 3, dargs, 0, dargs.length);
 
-            runVestigeMain(mavenLauncherFile, mavenSettingsFile, mavenResolverCacheFile, dargs);
+            runVestigeMain(vestigeExecutor, mavenLauncherFile, mavenSettingsFile, mavenResolverCacheFile, dargs);
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info("Maven application started in {} ms", System.currentTimeMillis() - currentTimeMillis);
             }

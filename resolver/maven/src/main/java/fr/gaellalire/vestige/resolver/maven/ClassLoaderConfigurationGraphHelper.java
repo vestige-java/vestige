@@ -157,9 +157,10 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
             dependencies = dependencyModifier.modify(nodeAndState.getDependencyNode().getDependency(), dependencies);
             List<NodeAndState> children = new ArrayList<NodeAndState>(dependencies.size());
             for (Dependency dependency : dependencies) {
+                boolean optional = dependency.isOptional();
                 PremanagedDependency preManaged = PremanagedDependency.create(dependencyManager, dependency, false, false);
                 dependency = preManaged.managedDependency;
-                children.add(new NodeAndState(managedDependencies, new DefaultDependencyNode(dependency), dependencyManager));
+                children.add(new NodeAndState(managedDependencies, new DefaultDependencyNode(dependency), dependencyManager, optional));
             }
             return children;
         } catch (ArtifactDescriptorException e) {
@@ -176,7 +177,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
             key = map.get(artifact.getArtifactId());
         }
         if (key == null) {
-            if (nodeAndState.getDependencyNode().getDependency().isOptional()) {
+            if (nodeAndState.isOptional() || nodeAndState.getDependencyNode().getDependency().isOptional()) {
                 return null;
             } else {
                 throw new RuntimeException(nodeAndState.getDependencyNode().getDependency() + " has no classloader conf");

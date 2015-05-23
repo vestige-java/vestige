@@ -48,7 +48,7 @@ if [ ${#VESTIGE_DEBUG} -ne 0 ]; then
 fi
 
 
-MAVEN_LAUNCHER_FILE="$VESTIGE_BASE/m2/vestige-se.xml"
+MAVEN_LAUNCHER_FILE="$DATADIR/m2/vestige-se.xml"
 
 MAVEN_SETTINGS_FILE="$VESTIGE_BASE/m2/settings.xml"
 
@@ -58,4 +58,4 @@ LOGBACK_CONFIGURATION_FILE="$VESTIGE_BASE/logback.xml"
 
 VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Dvestige.mavenRepository="$DATADIR/repository" -Djava.util.logging.manager=fr.gaellalire.vestige.core.logger.JULLogManager -Dlogback.logsDirectory="$VESTIGE_BASE/logs" -Dlogback.configurationFile="$LOGBACK_CONFIGURATION_FILE")
 
-exec "$JAVA" "${VESTIGE_OPTS[@]}" -jar "$DATADIR/lib/vestige.core-${vestige.core.version}.jar" "$DATADIR/lib/vestige.assemblies.standard_edition_bootstrap-${project.version}-jar-with-dependencies.jar" fr.gaellalire.vestige.jvm_enhancer.JVMEnhancer fr.gaellalire.vestige.resolver.maven.VestigeMavenResolver "$MAVEN_LAUNCHER_FILE" "$MAVEN_SETTINGS_FILE" "$MAVEN_RESOLVER_CACHE_FILE" "$VESTIGE_BASE" "$VESTIGE_DATA" "$VESTIGE_LISTENER_PORT"
+exec "$JAVA" "${VESTIGE_OPTS[@]}" -jar "$DATADIR/lib/vestige.core-${vestige.core.version}.jar" frcp "$DATADIR" "$DATADIR/unix-classpath.txt" fr.gaellalire.vestige.jvm_enhancer.JVMEnhancer fr.gaellalire.vestige.resolver.maven.VestigeMavenResolver "$MAVEN_LAUNCHER_FILE" "$MAVEN_SETTINGS_FILE" "$MAVEN_RESOLVER_CACHE_FILE" "$VESTIGE_BASE" "$VESTIGE_DATA" "$VESTIGE_LISTENER_PORT"

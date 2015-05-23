@@ -33,7 +33,7 @@ import fr.gaellalire.vestige.admin.telnet.TelnetServer;
 import fr.gaellalire.vestige.application.descriptor.xml.PropertiesApplicationDescriptorFactory;
 import fr.gaellalire.vestige.application.manager.ApplicationDescriptorFactory;
 import fr.gaellalire.vestige.application.manager.DefaultApplicationManager;
-import fr.gaellalire.vestige.core.VestigeExecutor;
+import fr.gaellalire.vestige.core.executor.VestigeExecutor;
 import fr.gaellalire.vestige.core.logger.VestigeLoggerFactory;
 import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
 import fr.gaellalire.vestige.platform.VestigePlatform;

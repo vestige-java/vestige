@@ -40,7 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import fr.gaellalire.vestige.core.VestigeClassLoader;
-import fr.gaellalire.vestige.core.VestigeExecutor;
+import fr.gaellalire.vestige.core.executor.VestigeExecutor;
 import fr.gaellalire.vestige.core.parser.ClassesStringParser;
 import fr.gaellalire.vestige.core.parser.NoStateStringParser;
 import fr.gaellalire.vestige.core.parser.StringParser;

@@ -12,17 +12,71 @@
     <defaultGoal>install</defaultGoal>
     <plugins>
       <plugin>
-        <artifactId>maven-assembly-plugin</artifactId>
+        <groupId>fr.gaellalire.vestige</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>2.10</version>
         <executions>
           <execution>
+            <id>build-unix-classpath</id>
             <phase>generate-resources</phase>
             <goals>
-              <goal>attached</goal>
+              <goal>build-classpath</goal>
             </goals>
             <configuration>
-              <descriptors>
-                <descriptor>src/main/config/assembly.xml</descriptor>
-              </descriptors>
+              <outputFile>${project.build.directory}/unix-classpath.txt</outputFile>
+              <pathSeparator>:</pathSeparator>
+              <fileSeparator>/</fileSeparator>
+              <prefix>repository</prefix>
+              <useRepositoryLayout>true</useRepositoryLayout>
+            </configuration>
+          </execution>
+          <execution>
+            <id>build-windows-classpath</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>build-classpath</goal>
+            </goals>
+            <configuration>
+              <outputFile>${project.build.directory}/windows-classpath.txt</outputFile>
+              <pathSeparator>;</pathSeparator>
+              <fileSeparator>\</fileSeparator>
+              <prefix>repository</prefix>
+              <useRepositoryLayout>true</useRepositoryLayout>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <artifactId>maven-install-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>install-unix-classpath</id>
+            <phase>install</phase>
+            <goals>
+              <goal>install-file</goal>
+            </goals>
+            <configuration>
+              <groupId>${project.groupId}</groupId>
+              <artifactId>${project.artifactId}</artifactId>
+              <version>${project.version}</version>
+              <packaging>txt</packaging>
+              <file>${project.build.directory}/unix-classpath.txt</file>
+              <classifier>unix-classpath</classifier>
+            </configuration>
+          </execution>
+          <execution>
+            <id>install-windows-classpath</id>
+            <phase>install</phase>
+            <goals>
+              <goal>install-file</goal>
+            </goals>
+            <configuration>
+              <groupId>${project.groupId}</groupId>
+              <artifactId>${project.artifactId}</artifactId>
+              <version>${project.version}</version>
+              <packaging>txt</packaging>
+              <file>${project.build.directory}/windows-classpath.txt</file>
+              <classifier>windows-classpath</classifier>
             </configuration>
           </execution>
         </executions>

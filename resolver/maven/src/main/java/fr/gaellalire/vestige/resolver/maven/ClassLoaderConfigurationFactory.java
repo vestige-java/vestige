@@ -29,6 +29,9 @@ import java.util.TreeMap;
 import java.util.jar.JarInputStream;
 import java.util.zip.ZipEntry;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import fr.gaellalire.vestige.core.parser.StringParser;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.StringParserFactory;
@@ -37,6 +40,8 @@ import fr.gaellalire.vestige.platform.StringParserFactory;
  * @author Gael Lalire
  */
 public class ClassLoaderConfigurationFactory {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClassLoaderConfigurationFactory.class);
 
     public static final List<Integer> LOCAL_CLASSLOADER_PATH = Collections.singletonList(-1);
 
@@ -150,8 +155,8 @@ public class ClassLoaderConfigurationFactory {
             for (ClassLoaderConfigurationFactory classLoaderConfigurationFactory : factoryDependencies) {
                 dependencies.add(classLoaderConfigurationFactory.create(stringParserFactory));
             }
-            StringParser pathsByResourceName = stringParserFactory.createStringParser(this.pathsByResourceName,
-                    0);
+            LOGGER.trace("Creating classloader rules for {}", classLoaderConfigurationKey.getArtifacts());
+            StringParser pathsByResourceName = stringParserFactory.createStringParser(this.pathsByResourceName, 0);
             String name;
             MavenClassLoaderConfigurationKey key;
             if (scope == Scope.PLATFORM) {
@@ -161,8 +166,8 @@ public class ClassLoaderConfigurationFactory {
                 key = new MavenClassLoaderConfigurationKey(classLoaderConfigurationKey.getArtifacts(), classLoaderConfigurationKey.getDependencies(), false);
                 name = key.getArtifacts().toString() + " of " + appName;
             }
-            cachedClassLoaderConfiguration = new ClassLoaderConfiguration(key, name, scope == Scope.ATTACHMENT, urls, dependencies, paths, pathIdsList,
-                    pathsByResourceName);
+            cachedClassLoaderConfiguration = new ClassLoaderConfiguration(key, name, scope == Scope.ATTACHMENT, urls, dependencies, paths, pathIdsList, pathsByResourceName);
+            LOGGER.trace("Classloader rules created");
         }
         return cachedClassLoaderConfiguration;
     }
