@@ -310,7 +310,7 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
                                 continue;
                             }
                         }
-                        vestigeStateListener.webAdminAvailable(host + ":" + bind.getPort());
+                        vestigeStateListener.webAdminAvailable("http://" + host + ":" + bind.getPort());
                         break;
                     }
                 } catch (ExecutionException e) {
@@ -458,28 +458,35 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
             int listenerPort = Integer.parseInt(args[argIndex++]);
 
             VestigeStateListener vestigeStateListener;
-            if (listenerPort != 0) {
-                SocketChannel socketChannel = SocketChannel.open(new InetSocketAddress("localhost", listenerPort));
-                vestigeStateListener = new PrintWriterVestigeStateListener(new PrintWriter(socketChannel.socket().getOutputStream(), true));
-                vestigeStateListener.starting();
-            } else {
-                vestigeStateListener = new NoopVestigeStateListener();
-            }
+            SocketChannel socketChannel = null;
+            try {
+                if (listenerPort != 0) {
+                    socketChannel = SocketChannel.open(new InetSocketAddress("127.0.0.1", listenerPort));
+                    vestigeStateListener = new PrintWriterVestigeStateListener(new PrintWriter(socketChannel.socket().getOutputStream(), true));
+                    vestigeStateListener.starting();
+                } else {
+                    vestigeStateListener = new NoopVestigeStateListener();
+                }
 
-            File baseFile = new File(base).getCanonicalFile();
-            File dataFile = new File(data).getCanonicalFile();
-            if (!baseFile.isDirectory()) {
-                if (!baseFile.mkdirs()) {
-                    LOGGER.error("Unable to create vestige base");
+                File baseFile = new File(base).getCanonicalFile();
+                File dataFile = new File(data).getCanonicalFile();
+                if (!baseFile.isDirectory()) {
+                    if (!baseFile.mkdirs()) {
+                        LOGGER.error("Unable to create vestige base");
+                    }
+                }
+                if (!dataFile.isDirectory()) {
+                    if (!dataFile.mkdirs()) {
+                        LOGGER.error("Unable to create vestige data");
+                    }
+                }
+                final StandardEditionVestige standardEditionVestige = new StandardEditionVestige(baseFile, dataFile, vestigeExecutor, vestigePlatform, vestigeStateListener);
+                standardEditionVestige.run();
+            } finally {
+                if (socketChannel != null) {
+                    socketChannel.close();
                 }
             }
-            if (!dataFile.isDirectory()) {
-                if (!dataFile.mkdirs()) {
-                    LOGGER.error("Unable to create vestige data");
-                }
-            }
-            final StandardEditionVestige standardEditionVestige = new StandardEditionVestige(baseFile, dataFile, vestigeExecutor, vestigePlatform, vestigeStateListener);
-            standardEditionVestige.run();
 
         } catch (Throwable e) {
             LOGGER.error("Uncatched throwable", e);
