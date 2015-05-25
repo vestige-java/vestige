@@ -17,12 +17,16 @@
 
 package fr.gaellalire.vestige.edition.standard;
 
+import java.io.File;
+
 /**
  * @author Gael Lalire
  */
 public interface VestigeStateListener {
 
     void starting();
+
+    void base(File file);
 
     void webAdminAvailable(String url);
 

@@ -17,6 +17,7 @@
 
 package fr.gaellalire.vestige.edition.standard;
 
+import java.io.File;
 import java.io.PrintWriter;
 
 /**
@@ -58,6 +59,11 @@ public class PrintWriterVestigeStateListener implements VestigeStateListener {
     @Override
     public void webAdminAvailable(final String url) {
         printWriter.println("Web " + url);
+    }
+
+    @Override
+    public void base(final File file) {
+        printWriter.println("Base " + file.getAbsolutePath());
     }
 
 }

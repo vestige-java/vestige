@@ -61,7 +61,6 @@ class Vestige(dbus.service.Object):
         gobject.io_add_watch(serversocket, gobject.IO_IN, self.listener)        
 
         procenv = os.environ.copy()
-        self.baseFolder = procenv["VESTIGE_BASE"] if "VESTIGE_BASE" in procenv else procenv["HOME"] + "/vestige"
         
         procenv["VESTIGE_LISTENER_PORT"] = str(serversocket.getsockname()[1]);
         self.proc = subprocess.Popen("/usr/share/vestige/vestige", env = procenv, shell = False, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
@@ -75,9 +74,10 @@ class Vestige(dbus.service.Object):
         self.menu.append(self.adminItem)
         self.adminItem.set_sensitive(False)
 
-        folderItem = gtk.MenuItem("Open base folder")
-        folderItem.connect("activate", lambda e : self.openFolder())
-        self.menu.append(folderItem)
+        self.folderItem = gtk.MenuItem("Open base folder")
+        self.folderItem.connect("activate", lambda e : self.openFolder())
+        self.menu.append(self.folderItem)
+        self.folderItem.set_sensitive(False)
 
         consoleItem = gtk.MenuItem("Show command line output")
         consoleItem.connect("activate", lambda e : self.showWin())
@@ -155,11 +155,13 @@ class Vestige(dbus.service.Object):
         for line in lines.splitlines():
             if line.startswith("Web "):
                 self.url = line[len("Web "):]
+                self.adminItem.set_sensitive(True)
+            elif line.startswith("Base "):
+                self.baseFolder = line[len("Base "):]
+                self.folderItem.set_sensitive(True)
             elif line == "Starting":
                 self.procState = 1
             elif line == "Started":
-                if self.url is not None:
-                    self.adminItem.set_sensitive(True)
                 self.procState = 2
             elif line == "Stopping":
                 self.procState = 3

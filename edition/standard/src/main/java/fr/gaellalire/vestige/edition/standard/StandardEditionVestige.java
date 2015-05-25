@@ -182,6 +182,8 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
         }
     }
 
+    private String webURL;
+
     @Override
     public void vestigeSystemRun(final PublicVestigeSystem vestigeSystem) {
         // Vestige dependencies can modify system, so we run isolated
@@ -255,6 +257,24 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
         Web web = admin.getWeb();
         if (web.isEnabled()) {
             futureWebServer = executorService.submit(new WebServerFactory(web, synchronizedApplicationManager, baseFile));
+            List<Bind> binds = web.getBind();
+            for (Bind bind : binds) {
+                String host = bind.getHost();
+                if (host == null) {
+                    host = "localhost";
+                } else {
+                    try {
+                        if (InetAddress.getByName(host).isAnyLocalAddress()) {
+                            host = "localhost";
+                        }
+                    } catch (UnknownHostException e) {
+                        LOGGER.debug("Invalid host", e);
+                        continue;
+                    }
+                }
+                webURL = "http://" + host + ":" + bind.getPort();
+                break;
+            }
         }
 
         PrivateVestigePolicy vestigePolicy = null;
@@ -289,32 +309,14 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
                 try {
                     sshServer = futureSshServer.get();
                 } catch (ExecutionException e) {
-                    LOGGER.error("Unable to start SSH access", e);
+                    LOGGER.error("Unable to create SSH access", e);
                 }
             }
             if (futureWebServer != null) {
                 try {
                     webServer = futureWebServer.get();
-                    List<Bind> binds = web.getBind();
-                    for (Bind bind : binds) {
-                        String host = bind.getHost();
-                        if (host == null) {
-                            host = "localhost";
-                        } else {
-                            try {
-                                if (InetAddress.getByName(host).isAnyLocalAddress()) {
-                                    host = "localhost";
-                                }
-                            } catch (UnknownHostException e) {
-                                LOGGER.error("Invalid host", e);
-                                continue;
-                            }
-                        }
-                        vestigeStateListener.webAdminAvailable("http://" + host + ":" + bind.getPort());
-                        break;
-                    }
                 } catch (ExecutionException e) {
-                    LOGGER.error("Unable to start web access", e);
+                    LOGGER.error("Unable to create web access", e);
                 }
             }
         } catch (InterruptedException e) {
@@ -371,10 +373,19 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
         workerThread = vestigeExecutor.createWorker("se-worker", true, 0);
         defaultApplicationManager.powerOn(vestigePlatform, vestigeSystem, standardEditionVestigeSystem, vestigeSecurityManager, vestigePolicy, applicationDescriptorFactory);
         if (sshServer != null) {
-            sshServer.start();
+            try {
+                sshServer.start();
+            } catch (Exception e) {
+                LOGGER.error("Unable to start SSH access", e);
+            }
         }
         if (webServer != null) {
-            webServer.start();
+            try {
+                webServer.start();
+                vestigeStateListener.webAdminAvailable(webURL);
+            } catch (Exception e) {
+                LOGGER.error("Unable to start web access", e);
+            }
         }
     }
 
@@ -383,10 +394,18 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
             return;
         }
         if (webServer != null) {
-            webServer.stop();
+            try {
+                webServer.stop();
+            } catch (Exception e) {
+                LOGGER.error("Unable to stop web access", e);
+            }
         }
         if (sshServer != null) {
-            sshServer.stop();
+            try {
+                sshServer.stop();
+            } catch (Exception e) {
+                LOGGER.error("Unable to stop SSH access", e);
+            }
         }
         defaultApplicationManager.shutdown();
         try {
@@ -475,6 +494,7 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
                         LOGGER.error("Unable to create vestige base");
                     }
                 }
+                vestigeStateListener.base(baseFile);
                 if (!dataFile.isDirectory()) {
                     if (!dataFile.mkdirs()) {
                         LOGGER.error("Unable to create vestige data");

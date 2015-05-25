@@ -17,6 +17,8 @@
 
 package fr.gaellalire.vestige.edition.standard;
 
+import java.io.File;
+
 /**
  * @author Gael Lalire
  */
@@ -44,6 +46,10 @@ public class NoopVestigeStateListener implements VestigeStateListener {
 
     @Override
     public void webAdminAvailable(final String url) {
+    }
+
+    @Override
+    public void base(final File file) {
     }
 
 }
