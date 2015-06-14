@@ -54,13 +54,14 @@ DWORD WINAPI WaitForBatCommand(void * param) {
 		);
     }
     WaitForSingleObject(vestigeProc, INFINITE);
-    procState = 5;
     if (consoleWinShown || procState < 2) {
         // user show console or starting failed
+        procState = 5;
         Shell_NotifyIcon(NIM_DELETE, &TrayIcon);
         ShowWindow(hWnd, SW_SHOW);
     } else {
         // quit
+        procState = 5;
         PostMessage(hWnd, WM_CLOSE, 0, 0);
     }
 }
@@ -126,6 +127,8 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
        return 0;
     }
 
+    consoleWinShown = FALSE;
+    procState = 0;
     hinst = hinstance;	
     wc.style = 0;
     wc.lpfnWndProc = MainWndProc;
@@ -171,7 +174,6 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
     SetHandleInformation(g_hChildStd_OUT_Rd, HANDLE_FLAG_INHERIT, 0);
 
     // launch
-    procState = 0;
     vestigeProc = launchVestige(g_hChildStd_OUT_Wr);
     CloseHandle(g_hChildStd_OUT_Wr);
 
@@ -204,7 +206,7 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
 
     if (!hWnd) return FALSE;
 
-    consoleWinShown = FALSE;
+
     ShowWindow(hWnd, SW_HIDE);
 
     TrayIcon.cbSize = sizeof( NOTIFYICONDATA );
