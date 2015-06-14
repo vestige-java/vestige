@@ -63,9 +63,15 @@ class Vestige(dbus.service.Object):
         procenv = os.environ.copy()
         
         procenv["VESTIGE_LISTENER_PORT"] = str(serversocket.getsockname()[1]);
-        self.proc = subprocess.Popen("/usr/share/vestige/vestige", env = procenv, shell = False, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-        gobject.io_add_watch(self.proc.stdout, gobject.IO_IN, self.write_to_buffer)
-        gobject.io_add_watch(self.proc.stderr, gobject.IO_IN, self.write_to_buffer)
+        try:
+            self.proc = subprocess.Popen("/usr/share/vestige/vestige", env = procenv, shell = False, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+            gobject.io_add_watch(self.proc.stdout, gobject.IO_IN, self.write_to_buffer)
+            gobject.io_add_watch(self.proc.stderr, gobject.IO_IN, self.write_to_buffer)
+            gobject.child_watch_add(self.proc.pid, lambda pid, condition: self.processQuit())
+        except:
+            buf = self.console.get_buffer()
+            buf.insert_at_cursor("Error: vestige script cannot be launched")
+            self.processQuit();
 
         self.menu = gtk.Menu()
         
@@ -94,7 +100,6 @@ class Vestige(dbus.service.Object):
         if not self.loadStatusIcon:
             self.ind.set_menu(self.menu)
 
-        gobject.child_watch_add(self.proc.pid, lambda pid, condition: self.processQuit())
         
     def processQuit(self):
         if self.consoleWinShown or self.procState < 2:
@@ -174,6 +179,7 @@ class Vestige(dbus.service.Object):
         if condition == gobject.IO_IN:
             char = fd.read(1)
             buf = self.console.get_buffer()
+            buf.place_cursor(buf.get_end_iter());
             buf.insert_at_cursor(char)
             return True
         else:

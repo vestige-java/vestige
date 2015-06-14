@@ -480,6 +480,7 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
             SocketChannel socketChannel = null;
             try {
                 if (listenerPort != 0) {
+                    LOGGER.debug("Connect to listener at port {}", listenerPort);
                     socketChannel = SocketChannel.open(new InetSocketAddress("127.0.0.1", listenerPort));
                     vestigeStateListener = new PrintWriterVestigeStateListener(new PrintWriter(socketChannel.socket().getOutputStream(), true));
                     vestigeStateListener.starting();

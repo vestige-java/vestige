@@ -1,178 +1,355 @@
 #include <windows.h>
+#include <winsock2.h>
 #include "resources.h"
+#include <stdio.h>
 
 #define MY_WM_NOTIFYICON WM_USER+1
+#define WM_SOCKET		WM_USER+2
+#define VESTIGE_CLASSNAME "fr.gaellalire.vestige"
 
 NOTIFYICONDATA TrayIcon;
 HINSTANCE hinst;
+HWND hWnd;
+HWND hEditIn;
+SOCKET ssocket, csocket;
+HMENU hmenu;
+int procState;
+HANDLE g_hChildStd_OUT_Rd;
+HANDLE vestigeProc;
+DWORD vestigePid;
+BOOL consoleWinShown;
+
+char * url, * base;
 
 LRESULT CALLBACK MainWndProc(HWND, UINT, WPARAM, LPARAM);
 
-typedef struct _WaitForBatCommandParam {
-	HWND hwnd;
-	HANDLE hProcess;
-} WaitForBatCommandParam;
-
-typedef struct _smPROCESS_BASIC_INFORMATION {
-    LONG ExitStatus;
-    void * PebBaseAddress;
-    ULONG_PTR AffinityMask;
-    LONG BasePriority;
-    ULONG_PTR UniqueProcessId;
-    ULONG_PTR InheritedFromUniqueProcessId;
-} smPROCESS_BASIC_INFORMATION, *smPPROCESS_BASIC_INFORMATION;
-
-typedef LONG (WINAPI* pfnQueryInformationProcess)(
-													  HANDLE ProcessHandle,
-													  LONG ProcessInformationClass,
-													  PVOID ProcessInformation,
-													  ULONG ProcessInformationLength,
-													  PULONG ReturnLength);
-
-BOOL CALLBACK TerminateAppEnum( HWND hwnd, LPARAM lParam )
+BOOL CALLBACK TerminateAppEnum( HWND hWnd, LPARAM lParam )
 {
-	DWORD dwID ;
-	
-	GetWindowThreadProcessId(hwnd, &dwID) ;
-	
-	if(dwID == (DWORD)lParam)
-	{
-		PostMessage(hwnd, WM_CLOSE, 0, 0) ;
-	}
-	
-	return TRUE ;
-   }
+    DWORD dwID ;
 
-DWORD WINAPI WaitForBatCommand(WaitForBatCommandParam * param) {
-	WaitForSingleObject(param->hProcess, INFINITE);
-	PostMessage(param->hwnd, WM_COMMAND, IDM_QUIT, 0) ;	
+    GetWindowThreadProcessId(hWnd, &dwID) ;
+
+    if(dwID == (DWORD)lParam)
+    {
+        PostMessage(hWnd, WM_CLOSE, 0, 0);
+    }
+
+    return TRUE ;
 }
 
+DWORD WINAPI WaitForBatCommand(void * param) {
+    char chBuf[1024];
+    DWORD dwRead;
+	
+    while (ReadFile( g_hChildStd_OUT_Rd, chBuf, sizeof(chBuf) - 1, &dwRead, NULL)) {
+        chBuf[dwRead] = 0;
+		int ndx = GetWindowTextLength(hEditIn);
+        SetFocus(hEditIn);
+	    SendMessage(hEditIn, EM_SETSEL, ndx, ndx);
+
+        SendMessage(hEditIn,
+				EM_REPLACESEL,
+				0,
+				(LPARAM) &chBuf[0]
+		);
+    }
+    WaitForSingleObject(vestigeProc, INFINITE);
+    procState = 5;
+    if (consoleWinShown || procState < 2) {
+        // user show console or starting failed
+        Shell_NotifyIcon(NIM_DELETE, &TrayIcon);
+        ShowWindow(hWnd, SW_SHOW);
+    } else {
+        // quit
+        PostMessage(hWnd, WM_CLOSE, 0, 0);
+    }
+}
+
+HANDLE Execute(char * action, char * file, char * params, DWORD show) {
+    SHELLEXECUTEINFO shExecInfo;
+
+    shExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
+    shExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
+    shExecInfo.hwnd = NULL;
+    shExecInfo.lpVerb = action;
+    shExecInfo.lpFile = file;
+    shExecInfo.lpParameters = params;
+    shExecInfo.lpDirectory = NULL;
+    shExecInfo.nShow = show;
+    shExecInfo.hInstApp = NULL;
+
+    if (!ShellExecuteEx(&shExecInfo)) {
+        return NULL;
+    }
+
+    return shExecInfo.hProcess;
+}
+
+HANDLE launchVestige(HANDLE g_hChildStd_OUT_Wr) {
+
+   STARTUPINFO siStartInfo;
+
+   ZeroMemory( &siStartInfo, sizeof(STARTUPINFO) );
+   siStartInfo.cb = sizeof(STARTUPINFO);
+   siStartInfo.hStdError = g_hChildStd_OUT_Wr;
+   siStartInfo.hStdOutput = g_hChildStd_OUT_Wr;
+   siStartInfo.dwFlags |= STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+   siStartInfo.wShowWindow = SW_HIDE;
+
+   PROCESS_INFORMATION pi;
+   ZeroMemory( &pi, sizeof(PROCESS_INFORMATION) );
+
+   CreateProcess( NULL, TEXT("cmd.exe /c vestige.bat"), NULL, NULL, TRUE, 0, NULL, NULL, &siStartInfo, &pi );
+   vestigePid = pi.dwProcessId;
+   return pi.hProcess;
+}
+
+
 int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
-				   LPSTR lpCmdLine, int nCmdShow)
+                   LPSTR lpCmdLine, int nCmdShow)
 {
-    HWND hwnd;
     MSG msg;
     WNDCLASS wc;
-	DWORD pid;
-	WaitForBatCommandParam param;
+    DWORD pid;
+    HANDLE g_hChildStd_OUT_Wr;
 
-	char * appName = "vestige";
-        char * batfile = "vestige.bat";
-	
-	SHELLEXECUTEINFO shExecInfo;
-	
-	shExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
-	shExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-	shExecInfo.hwnd = NULL;
-	shExecInfo.lpVerb = NULL;
-	shExecInfo.lpFile = batfile;
-	shExecInfo.lpParameters = NULL;
-	shExecInfo.lpDirectory = NULL;
-	shExecInfo.nShow = SW_HIDE;
-	shExecInfo.hInstApp = NULL;
-	
-	if (!ShellExecuteEx(&shExecInfo)) {
-		return;
-	}
-	
-	pfnQueryInformationProcess ntQIP = (pfnQueryInformationProcess) GetProcAddress(GetModuleHandle("NTDLL.DLL"),"NtQueryInformationProcess");
-	smPROCESS_BASIC_INFORMATION info;
-	ULONG returnSize;
-	ntQIP(shExecInfo.hProcess, 0, &info, sizeof(info), &returnSize);
-	pid = info.UniqueProcessId;
-	
+    SECURITY_ATTRIBUTES saAttr;
+
+    saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
+    saAttr.bInheritHandle = TRUE;
+    saAttr.lpSecurityDescriptor = NULL;
+
+    hWnd = FindWindowEx(NULL, NULL, VESTIGE_CLASSNAME, NULL);
+    if (hWnd) {
+       SetForegroundWindow(hWnd);
+       // notify other
+       return 0;
+    }
+
     hinst = hinstance;	
     wc.style = 0;
     wc.lpfnWndProc = MainWndProc;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
     wc.hInstance = hinstance;
-    wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+    wc.hIcon = (HICON) LoadImage(hinstance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, 0, 0, LR_SHARED);
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)(1 + COLOR_BTNFACE);
     wc.lpszMenuName =  NULL;
-    wc.lpszClassName = "MaWinClass";
-	
+    wc.lpszClassName = VESTIGE_CLASSNAME;
+
     if(!RegisterClass(&wc)) return FALSE;
-	
-    hwnd = CreateWindow(wc.lpszClassName, appName, WS_OVERLAPPEDWINDOW,
-						CW_USEDEFAULT, CW_USEDEFAULT, 0, 0,
-						NULL, NULL, hinstance, NULL);
-	
-    if (!hwnd) return FALSE;
 
-	TrayIcon.cbSize = sizeof( NOTIFYICONDATA );
-	TrayIcon.hWnd = hwnd;
-	TrayIcon.uID = 0;
-	TrayIcon.hIcon = (HICON) LoadImage(hinstance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, 0, 0, LR_SHARED);
-	TrayIcon.uCallbackMessage = MY_WM_NOTIFYICON;
-	TrayIcon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-	strcpy(TrayIcon.szTip, appName);
-	Shell_NotifyIcon(NIM_ADD,&TrayIcon);
-	
-    UpdateWindow(hwnd);	
-	
-	param.hProcess = shExecInfo.hProcess;
-	param.hwnd = hwnd;
-	DWORD dwThreadID;
-	CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) WaitForBatCommand, &param,              // no thread parameters
-								0,                 // default startup flags
-								&dwThreadID); 
+    hWnd = CreateWindow(wc.lpszClassName, "Vestige: command line output", WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, CW_USEDEFAULT, 700, 500,
+        NULL, NULL, hinstance, NULL);
 
+    hmenu = LoadMenu(hinst, "VESTIGE_MENU");
+
+    WSADATA WsaDat;
+	WSAStartup(MAKEWORD(2,2),&WsaDat);
 	
+	
+	SOCKADDR_IN SockAddr;
+    SockAddr.sin_port=htons(0);
+    SockAddr.sin_family=AF_INET;
+    SockAddr.sin_addr.s_addr=inet_addr("127.0.0.1");
+    int SockAddrSize = sizeof(SockAddr);
+
+	ssocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	WSAAsyncSelect(ssocket, hWnd, WM_SOCKET, FD_ACCEPT);
+	bind(ssocket,(LPSOCKADDR)&SockAddr, SockAddrSize);
+	getsockname(ssocket, (SOCKADDR *)&SockAddr, &SockAddrSize);
+	listen(ssocket, 1);
+	
+	char portString[10];
+    sprintf(portString, "%d", ntohs(SockAddr.sin_port));
+
+    SetEnvironmentVariable(TEXT("VESTIGE_LISTENER_PORT"), portString);
+
+    CreatePipe(&g_hChildStd_OUT_Rd, &g_hChildStd_OUT_Wr, &saAttr, 0);
+    SetHandleInformation(g_hChildStd_OUT_Rd, HANDLE_FLAG_INHERIT, 0);
+
+    // launch
+    procState = 0;
+    vestigeProc = launchVestige(g_hChildStd_OUT_Wr);
+    CloseHandle(g_hChildStd_OUT_Wr);
+
+
+    RECT rc;
+
+    GetWindowRect ( hWnd, &rc ) ;
+
+    int xPos = (GetSystemMetrics(SM_CXSCREEN) - rc.right)/2;
+    int yPos = (GetSystemMetrics(SM_CYSCREEN) - rc.bottom)/2;
+
+    SetWindowPos( hWnd, 0, xPos, yPos, 0, 0, SWP_NOZORDER | SWP_NOSIZE );
+
+    GetClientRect(hWnd, &rc);
+
+    hEditIn=CreateWindowEx(WS_EX_CLIENTEDGE,
+				"EDIT",
+				"",
+				WS_CHILD|WS_VISIBLE|ES_MULTILINE|
+				ES_AUTOVSCROLL|ES_AUTOHSCROLL |
+				WS_HSCROLL | WS_VSCROLL | ES_READONLY,
+				rc.left,
+				rc.top,
+				rc.right - rc.left,
+				rc.bottom - rc.top,
+				hWnd,
+				NULL,
+				GetModuleHandle(NULL),
+				NULL);
+
+    if (!hWnd) return FALSE;
+
+    consoleWinShown = FALSE;
+    ShowWindow(hWnd, SW_HIDE);
+
+    TrayIcon.cbSize = sizeof( NOTIFYICONDATA );
+    TrayIcon.hWnd = hWnd;
+    TrayIcon.uID = 0;
+    TrayIcon.hIcon = (HICON) LoadImage(hinstance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, 0, 0, LR_SHARED);
+    TrayIcon.uCallbackMessage = MY_WM_NOTIFYICON;
+    TrayIcon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    strcpy(TrayIcon.szTip, "Vestige");
+
+    Shell_NotifyIcon(NIM_ADD, &TrayIcon);
+
+    UpdateWindow(hWnd);
+
+    DWORD dwThreadID;
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) WaitForBatCommand, 0,              // no thread parameters
+        0,                 // default startup flags
+        &dwThreadID);
+
+
     while (GetMessage(&msg, NULL, 0, 0))
     {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
-	
-	EnumWindows((WNDENUMPROC)TerminateAppEnum, (LPARAM) pid) ;	
-	WaitForSingleObject(shExecInfo.hProcess, INFINITE);
-	CloseHandle(shExecInfo.hProcess);
-	free(batfile);
-	free(appName);
-	
+
+    EnumWindows((WNDENUMPROC)TerminateAppEnum, (LPARAM) vestigePid);
+    WaitForSingleObject(vestigeProc, INFINITE);
+    CloseHandle(vestigeProc);
+
+
     return msg.wParam;
 }
 /******************************************************************************/
 
-LRESULT CALLBACK MainWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+    RECT rc;
     switch (uMsg)
     {
-        case WM_CREATE:
-			
-            return 0;
-			
-        case WM_CLOSE:
-            return 0;
-			
-        case MY_WM_NOTIFYICON :
-            if(lParam == WM_LBUTTONUP || lParam == WM_RBUTTONUP)
-            {
-				HMENU hmenu;
-				HMENU hpopup;
-				POINT pos;
-				GetCursorPos(&pos);
-				hmenu = LoadMenu(hinst,"LEMENU");
-				hpopup = GetSubMenu(hmenu, 0);
-				SetForegroundWindow(hwnd);
-				TrackPopupMenuEx(hpopup, 0, pos.x, pos.y, hwnd, NULL);              
-				DestroyMenu(hmenu);
-			 }
-            return 0;
-			
-        case WM_COMMAND:
-            if(LOWORD(wParam) == IDM_QUIT) DestroyWindow(hwnd);
-            return 0;   
-			
-        case WM_DESTROY:
-            Shell_NotifyIcon(NIM_DELETE,&TrayIcon);
-            PostQuitMessage(0);
-            return 0;
+    case WM_CREATE:
+    case WM_SIZE:
+    case WM_SIZING:
+        GetClientRect(hWnd, &rc);
+        MoveWindow(hEditIn, rc.left, rc.top, rc.right - rc.left,
+				rc.bottom - rc.top, TRUE);
+        return 0;
+    case WM_CLOSE:
+        if (procState == 5) {
+            DestroyWindow(hWnd);
+        } else {
+            consoleWinShown = FALSE;
+            ShowWindow(hWnd, SW_HIDE);
+        }
+        return 0;
 
-        default:
-            return DefWindowProc(hwnd, uMsg, wParam, lParam);
+    case MY_WM_NOTIFYICON :
+        if(lParam == WM_LBUTTONUP || lParam == WM_RBUTTONUP)
+        {
+
+            HMENU hpopup;
+            POINT pos;
+            GetCursorPos(&pos);
+            hpopup = GetSubMenu(hmenu, 0);
+            SetForegroundWindow(hWnd);
+            TrackPopupMenuEx(hpopup, 0, pos.x, pos.y, hWnd, NULL);
+        }
+        return 0;
+
+    case WM_COMMAND:
+        switch(LOWORD(wParam)) {
+           case IDM_QUIT:
+           EnumWindows((WNDENUMPROC)TerminateAppEnum, (LPARAM) vestigePid);
+           break;
+           case IDM_OPEN_WEB:
+           Execute("open", url, NULL, SW_SHOWNORMAL);
+           break;
+           case IDM_OPEN_BASE:
+           Execute("open", base, NULL, SW_SHOWNORMAL);
+           break;
+           case IDM_SHOW_CONSOLE:
+           consoleWinShown = TRUE;
+           ShowWindow(hWnd, SW_SHOWNORMAL);
+           SetForegroundWindow(hWnd);
+           break;
+        }
+        return 0;
+
+    case WM_DESTROY:
+        Shell_NotifyIcon(NIM_DELETE,&TrayIcon);
+        PostQuitMessage(0);
+        return 0;
+
+    case WM_SOCKET:	{
+			switch(WSAGETSELECTEVENT(lParam))
+			{
+				case FD_READ:
+				{
+				    int i;
+					char szIncoming[1024];
+					ZeroMemory(szIncoming,sizeof(szIncoming));
+
+					int len = recv(csocket,
+						(char*)szIncoming,
+						sizeof(szIncoming)/sizeof(szIncoming[0]),
+						0);
+
+                    char * command = (char *) &szIncoming[0];
+                    for (i = 0; i < len; i++) {
+                        if (szIncoming[i] == '\r') {
+                            szIncoming[i] = 0;
+                            int webLen = strlen("Web ");
+                            int baseLen = strlen("Base ");
+                            if (strlen(command) > webLen && strncmp(command, "Web ", webLen) == 0) {
+                                url = (char *) malloc(strlen(&command[webLen]) + 1);
+                                strcpy(url, &command[webLen]);
+                                EnableMenuItem(hmenu, IDM_OPEN_WEB, MF_ENABLED);
+                            } else if (strlen(command) > baseLen && strncmp(command, "Base ", baseLen) == 0) {
+                                base = (char *) malloc(strlen(&command[baseLen]) + 1);
+                                strcpy(base, &command[baseLen]);
+                                EnableMenuItem(hmenu, IDM_OPEN_BASE, MF_ENABLED);
+                            } else if (strcmp(command, "Starting") == 0) {
+                                procState = 1;
+                            } else if (strcmp(command, "Started") == 0) {
+                                procState = 2;
+                            } else if (strcmp(command, "Stopping") == 0) {
+                                procState = 3;
+                            } else if (strcmp(command, "Stopped") == 0) {
+                                procState = 4;
+                            }
+                            command = (char *) &szIncoming[i + 2];
+                        }
+                     }
+				}
+				break;
+                case FD_ACCEPT:
+				{
+					csocket = accept(ssocket, 0, 0);
+					WSAAsyncSelect(csocket, hWnd, WM_SOCKET, FD_READ);
+				}
+				break;
+			}
+		}
+
+    default:
+        return DefWindowProc(hWnd, uMsg, wParam, lParam);
     }
 }

@@ -3,7 +3,7 @@ ${at}echo off
 setlocal
 
 set DIRNAME=%~dp0
-if "%DIRNAME:~-1%" == "\" (set DIRNAME=%DIRNAME:~0,-1%)
+if "%DIRNAME:~-1%" == "\" set DIRNAME=%DIRNAME:~0,-1%
 
 set DATADIR=%DIRNAME%
 set CONFDIR=%DIRNAME%
