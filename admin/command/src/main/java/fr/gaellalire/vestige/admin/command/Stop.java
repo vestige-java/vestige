@@ -21,10 +21,8 @@ import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.List;
 
-import fr.gaellalire.vestige.admin.command.argument.ApplicationArgument;
 import fr.gaellalire.vestige.admin.command.argument.Argument;
-import fr.gaellalire.vestige.admin.command.argument.RepositoryArgument;
-import fr.gaellalire.vestige.admin.command.argument.VersionArgument;
+import fr.gaellalire.vestige.admin.command.argument.LocalApplicationNameArgument;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
 
@@ -35,17 +33,11 @@ public class Stop implements Command {
 
     private ApplicationManager applicationManager;
 
-    private RepositoryArgument repositoryArgument;
-
-    private ApplicationArgument applicationArgument;
-
-    private VersionArgument versionArgument;
+    private LocalApplicationNameArgument applicationArgument;
 
     public Stop(final ApplicationManager applicationManager) {
         this.applicationManager = applicationManager;
-        repositoryArgument = new RepositoryArgument(applicationManager, Boolean.TRUE);
-        applicationArgument = new ApplicationArgument(applicationManager, Boolean.TRUE, repositoryArgument);
-        versionArgument = new VersionArgument(applicationManager, Boolean.TRUE, repositoryArgument, applicationArgument);
+        applicationArgument = new LocalApplicationNameArgument(applicationManager);
     }
 
     public String getName() {
@@ -56,13 +48,13 @@ public class Stop implements Command {
         return "Stop an application";
     }
 
-    public List<Argument> getArguments() {
-        return Arrays.asList(repositoryArgument, applicationArgument, versionArgument);
+    public List<? extends Argument> getArguments() {
+        return Arrays.asList(applicationArgument);
     }
 
     public void execute(final PrintWriter out) {
         try {
-            applicationManager.stop(repositoryArgument.getRepository(), applicationArgument.getApplication(), versionArgument.getVersion());
+            applicationManager.stop(applicationArgument.getApplication());
         } catch (ApplicationException e) {
             e.printStackTrace(out);
         }

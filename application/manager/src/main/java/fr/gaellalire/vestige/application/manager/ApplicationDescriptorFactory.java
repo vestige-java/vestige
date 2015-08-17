@@ -19,14 +19,19 @@ package fr.gaellalire.vestige.application.manager;
 
 import java.net.URL;
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author Gael Lalire
  */
 public interface ApplicationDescriptorFactory {
 
-    boolean hasApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version) throws ApplicationException;
+    boolean hasApplicationDescriptor(URL context, String repoName, String appName, List<Integer> version) throws ApplicationException;
 
-    ApplicationDescriptor createApplicationDescriptor(final URL context, String repoName, final String appName, final List<Integer> version) throws ApplicationException;
+    ApplicationDescriptor createApplicationDescriptor(URL context, String repoName, String appName, List<Integer> version) throws ApplicationException;
+
+    Set<String> listApplicationsName(URL context);
+
+    Set<List<Integer>> listApplicationVersions(URL context, String appName);
 
 }

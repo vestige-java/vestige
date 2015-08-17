@@ -21,9 +21,8 @@ import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.List;
 
-import fr.gaellalire.vestige.admin.command.argument.ApplicationArgument;
+import fr.gaellalire.vestige.admin.command.argument.LocalApplicationNameArgument;
 import fr.gaellalire.vestige.admin.command.argument.Argument;
-import fr.gaellalire.vestige.admin.command.argument.RepositoryArgument;
 import fr.gaellalire.vestige.admin.command.argument.VersionArgument;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
@@ -35,9 +34,7 @@ public class Migrate implements Command {
 
     private ApplicationManager applicationManager;
 
-    private RepositoryArgument repositoryArgument;
-
-    private ApplicationArgument applicationArgument;
+    private LocalApplicationNameArgument applicationArgument;
 
     private VersionArgument fromVersionArgument;
 
@@ -45,10 +42,8 @@ public class Migrate implements Command {
 
     public Migrate(final ApplicationManager applicationManager) {
         this.applicationManager = applicationManager;
-        repositoryArgument = new RepositoryArgument(applicationManager, Boolean.TRUE);
-        applicationArgument = new ApplicationArgument(applicationManager, Boolean.TRUE, repositoryArgument);
-        fromVersionArgument = new VersionArgument("<from-version>", applicationManager, Boolean.TRUE, repositoryArgument, applicationArgument);
-        toVersionArgument = new VersionArgument("<to-version>", applicationManager, Boolean.FALSE, repositoryArgument, applicationArgument);
+        applicationArgument = new LocalApplicationNameArgument(applicationManager);
+        toVersionArgument = new VersionArgument("<to-version>", applicationManager, applicationArgument);
     }
 
     public String getName() {
@@ -56,16 +51,16 @@ public class Migrate implements Command {
     }
 
     public String getDesc() {
-        return "Migrate an application from <from-version> to <to-version>, <from-version> configuration should be kept";
+        return "Migrate an application to <to-version>";
     }
 
     public List<Argument> getArguments() {
-        return Arrays.asList(repositoryArgument, applicationArgument, fromVersionArgument, toVersionArgument);
+        return Arrays.asList(applicationArgument, fromVersionArgument, toVersionArgument);
     }
 
     public void execute(final PrintWriter out) {
         try {
-            applicationManager.migrate(repositoryArgument.getRepository(), applicationArgument.getApplication(), fromVersionArgument.getVersion(), toVersionArgument.getVersion());
+            applicationManager.migrate(applicationArgument.getApplication(), toVersionArgument.getVersion());
         } catch (ApplicationException e) {
             e.printStackTrace(out);
         }

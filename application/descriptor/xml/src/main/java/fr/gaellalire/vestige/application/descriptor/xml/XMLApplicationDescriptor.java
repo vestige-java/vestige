@@ -28,12 +28,12 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import fr.gaellalire.vestige.application.descriptor.xml.schema.Application;
-import fr.gaellalire.vestige.application.descriptor.xml.schema.Installer;
-import fr.gaellalire.vestige.application.descriptor.xml.schema.Launcher;
-import fr.gaellalire.vestige.application.descriptor.xml.schema.MavenClassType;
-import fr.gaellalire.vestige.application.descriptor.xml.schema.Mode;
-import fr.gaellalire.vestige.application.descriptor.xml.schema.URLsClassType;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Application;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Installer;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Launcher;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.MavenClassType;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Mode;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.URLsClassType;
 import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.VersionUtils;
@@ -170,14 +170,14 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
             }
             URLClassLoaderConfigurationKey key;
             String name;
-            if (urlsInstaller.getScope() == fr.gaellalire.vestige.application.descriptor.xml.schema.Scope.PLATFORM) {
+            if (urlsInstaller.getScope() == fr.gaellalire.vestige.application.descriptor.xml.schema.application.Scope.PLATFORM) {
                 key = new URLClassLoaderConfigurationKey(true, urls);
                 name = url.toString();
             } else {
                 key = new URLClassLoaderConfigurationKey(false, urls);
                 name = appName;
             }
-            return new ClassLoaderConfiguration(key, name, urlsInstaller.getScope() == fr.gaellalire.vestige.application.descriptor.xml.schema.Scope.ATTACHMENT, urls,
+            return new ClassLoaderConfiguration(key, name, urlsInstaller.getScope() == fr.gaellalire.vestige.application.descriptor.xml.schema.application.Scope.ATTACHMENT, urls,
                     Collections.<ClassLoaderConfiguration> emptyList(), null, null, null);
         }
         return resolve(appName, installer.getMavenInstaller());
@@ -229,14 +229,14 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
             }
             URLClassLoaderConfigurationKey key;
             String name;
-            if (urlsLauncher.getScope() == fr.gaellalire.vestige.application.descriptor.xml.schema.Scope.PLATFORM) {
+            if (urlsLauncher.getScope() == fr.gaellalire.vestige.application.descriptor.xml.schema.application.Scope.PLATFORM) {
                 key = new URLClassLoaderConfigurationKey(true, urls);
                 name = url.toString();
             } else {
                 key = new URLClassLoaderConfigurationKey(false, urls);
                 name = appName;
             }
-            return new ClassLoaderConfiguration(key, name, urlsLauncher.getScope() == fr.gaellalire.vestige.application.descriptor.xml.schema.Scope.ATTACHMENT, urls,
+            return new ClassLoaderConfiguration(key, name, urlsLauncher.getScope() == fr.gaellalire.vestige.application.descriptor.xml.schema.application.Scope.ATTACHMENT, urls,
                     Collections.<ClassLoaderConfiguration> emptyList(), null, null, null);
         }
         return resolve(appName, launcher.getMavenLauncher());
@@ -257,7 +257,7 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
         }
 
         Scope mavenScope;
-        fr.gaellalire.vestige.application.descriptor.xml.schema.Scope scope = mavenClassType.getScope();
+        fr.gaellalire.vestige.application.descriptor.xml.schema.application.Scope scope = mavenClassType.getScope();
         switch (scope) {
         case ATTACHMENT:
             mavenScope = Scope.ATTACHMENT;

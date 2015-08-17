@@ -48,7 +48,9 @@ public class ApplicationContext implements Serializable {
 
     private String name;
 
-    private File home;
+    private File base;
+
+    private File data;
 
     private int autoMigrateLevel;
 
@@ -61,6 +63,46 @@ public class ApplicationContext implements Serializable {
     private Set<List<Integer>> supportedMigrationVersion;
 
     private Set<List<Integer>> uninterruptedMigrationVersion;
+
+    private String repoName;
+
+    private boolean autoStarted;
+
+    public boolean isAutoStarted() {
+        return autoStarted;
+    }
+
+    public void setAutoStarted(final boolean autoStarted) {
+        this.autoStarted = autoStarted;
+    }
+
+    public String getRepoName() {
+        return repoName;
+    }
+
+    public void setRepoName(final String repoName) {
+        this.repoName = repoName;
+    }
+
+    public String getRepoApplicationName() {
+        return repoApplicationName;
+    }
+
+    public void setRepoApplicationName(final String repoApplicationName) {
+        this.repoApplicationName = repoApplicationName;
+    }
+
+    public List<Integer> getRepoApplicationVersion() {
+        return repoApplicationVersion;
+    }
+
+    public void setRepoApplicationVersion(final List<Integer> repoApplicationVersion) {
+        this.repoApplicationVersion = repoApplicationVersion;
+    }
+
+    private String repoApplicationName;
+
+    private List<Integer> repoApplicationVersion;
 
     private transient WeakReference<RuntimeApplicationContext> runtimeApplicationContext;
 
@@ -90,12 +132,12 @@ public class ApplicationContext implements Serializable {
         this.started = started;
     }
 
-    public File getHome() {
-        return home;
+    public File getBase() {
+        return base;
     }
 
-    public void setHome(final File home) {
-        this.home = home;
+    public void setBase(final File base) {
+        this.base = base;
     }
 
     public RuntimeApplicationContext getRuntimeApplicationContext() {
@@ -195,6 +237,14 @@ public class ApplicationContext implements Serializable {
 
     public void setInstallerPermissions(final Set<Permission> installerPermissions) {
         this.installerPermissions = installerPermissions;
+    }
+
+    public File getData() {
+        return data;
+    }
+
+    public void setData(final File data) {
+        this.data = data;
     }
 
 }

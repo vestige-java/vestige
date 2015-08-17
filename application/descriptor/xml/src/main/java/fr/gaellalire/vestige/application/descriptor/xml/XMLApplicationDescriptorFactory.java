@@ -28,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
@@ -41,16 +42,18 @@ import org.eclipse.aether.graph.Dependency;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import fr.gaellalire.vestige.application.descriptor.xml.schema.AddDependency;
-import fr.gaellalire.vestige.application.descriptor.xml.schema.AdditionalRepository;
-import fr.gaellalire.vestige.application.descriptor.xml.schema.Application;
-import fr.gaellalire.vestige.application.descriptor.xml.schema.Config;
-import fr.gaellalire.vestige.application.descriptor.xml.schema.ExceptIn;
-import fr.gaellalire.vestige.application.descriptor.xml.schema.MavenConfig;
-import fr.gaellalire.vestige.application.descriptor.xml.schema.ModifyDependency;
-import fr.gaellalire.vestige.application.descriptor.xml.schema.ObjectFactory;
-import fr.gaellalire.vestige.application.descriptor.xml.schema.Permissions;
-import fr.gaellalire.vestige.application.descriptor.xml.schema.ReplaceDependency;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.AddDependency;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.AdditionalRepository;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Application;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Config;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ExceptIn;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.MavenConfig;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ModifyDependency;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ObjectFactory;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Permissions;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ReplaceDependency;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.repository.Repository;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.repository.Repository.Application.Version;
 import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
 import fr.gaellalire.vestige.application.manager.ApplicationDescriptorFactory;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
@@ -144,12 +147,13 @@ public class XMLApplicationDescriptorFactory implements ApplicationDescriptorFac
         } else {
             mavenConfigResolved = new MavenConfigResolved();
         }
-        return new XMLApplicationDescriptor(mavenArtifactResolver, repoName + "-" + appName + "-" + VersionUtils.toString(version), version, application, mavenConfigResolved, launcherPermissionSet);
+        return new XMLApplicationDescriptor(mavenArtifactResolver, repoName + "-" + appName + "-" + VersionUtils.toString(version), version, application, mavenConfigResolved,
+                launcherPermissionSet);
     }
 
     public void readPermissions(final Permissions permissions, final Set<Permission> result) {
         ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
-        for (fr.gaellalire.vestige.application.descriptor.xml.schema.Permission perm : permissions.getPermission()) {
+        for (fr.gaellalire.vestige.application.descriptor.xml.schema.application.Permission perm : permissions.getPermission()) {
             try {
                 String type = perm.getType();
                 String name = perm.getName();
@@ -223,6 +227,82 @@ public class XMLApplicationDescriptorFactory implements ApplicationDescriptorFac
             }
         }
         return new MavenConfigResolved(mavenConfig.isSuperPomRepositoriesUsed(), mavenConfig.isPomRepositoriesIgnored(), additionalRepositories, defaultDependencyModifier);
+    }
+
+    public Set<String> listApplicationsName(final URL context) {
+        Set<String> names = new TreeSet<String>();
+        URL url;
+        try {
+            url = new URL(context, "repository.xml");
+        } catch (MalformedURLException e) {
+            LOGGER.warn("url repo issue", e);
+            return names;
+        }
+
+        Unmarshaller unMarshaller = null;
+        try {
+            JAXBContext jc = JAXBContext.newInstance(fr.gaellalire.vestige.application.descriptor.xml.schema.repository.ObjectFactory.class.getPackage().getName());
+            unMarshaller = jc.createUnmarshaller();
+
+            URL xsdURL = XMLApplicationDescriptorFactory.class.getResource("repository-1.0.0.xsd");
+            SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
+            Schema schema = schemaFactory.newSchema(xsdURL);
+            unMarshaller.setSchema(schema);
+        } catch (Exception e) {
+            LOGGER.warn("Unable to initialize repository parser", e);
+            return names;
+        }
+        Repository repository;
+        try {
+            repository = ((JAXBElement<Repository>) unMarshaller.unmarshal(url)).getValue();
+        } catch (JAXBException e) {
+            LOGGER.warn("unable to unmarshall repository xml", e);
+            return names;
+        }
+        for (fr.gaellalire.vestige.application.descriptor.xml.schema.repository.Repository.Application application : repository.getApplication()) {
+            names.add(application.getName());
+        }
+        return names;
+    }
+
+    public Set<List<Integer>> listApplicationVersions(final URL context, final String appName) {
+        Set<List<Integer>> versions = new TreeSet<List<Integer>>(VersionUtils.VERSION_COMPARATOR);
+        URL url;
+        try {
+            url = new URL(context, "repository.xml");
+        } catch (MalformedURLException e) {
+            LOGGER.warn("url repo issue", e);
+            return versions;
+        }
+
+        Unmarshaller unMarshaller = null;
+        try {
+            JAXBContext jc = JAXBContext.newInstance(fr.gaellalire.vestige.application.descriptor.xml.schema.repository.ObjectFactory.class.getPackage().getName());
+            unMarshaller = jc.createUnmarshaller();
+
+            URL xsdURL = XMLApplicationDescriptorFactory.class.getResource("repository-1.0.0.xsd");
+            SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
+            Schema schema = schemaFactory.newSchema(xsdURL);
+            unMarshaller.setSchema(schema);
+        } catch (Exception e) {
+            LOGGER.warn("Unable to initialize repository parser", e);
+            return versions;
+        }
+        Repository repository;
+        try {
+            repository = ((JAXBElement<Repository>) unMarshaller.unmarshal(url)).getValue();
+        } catch (JAXBException e) {
+            LOGGER.warn("unable to unmarshall repository xml", e);
+            return versions;
+        }
+        for (fr.gaellalire.vestige.application.descriptor.xml.schema.repository.Repository.Application application : repository.getApplication()) {
+            if (application.getName().equals(appName)) {
+                for (Version v : application.getVersion()) {
+                    versions.add(VersionUtils.fromString(v.getValue()));
+                }
+            }
+        }
+        return versions;
     }
 
 }

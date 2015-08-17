@@ -59,11 +59,9 @@ public class ListCommand implements Command {
                     out.println("Repository : " + repositoryName + " (" + applicationManager.getRepositoryURL(repositoryName)
                             + ")");
                     out.println();
-                    Set<String> applicationsName = applicationManager.getApplicationsName(repositoryName);
+                    Set<String> applicationsName = applicationManager.getApplicationsName();
                     for (String applicationName : applicationsName) {
-                        Set<List<Integer>> versions = applicationManager.getVersions(repositoryName, applicationName);
                         boolean first = true;
-                        for (List<Integer> version : versions) {
                             if (first) {
                                 out.print(applicationName);
                                 out.print(" ");
@@ -74,15 +72,25 @@ public class ListCommand implements Command {
                                 }
                                 out.print(" ");
                             }
-                            out.print(VersionUtils.toString(version));
+                            out.print(applicationManager.getRepositoryName(applicationName));
+                            out.print("-");
+                            out.print(applicationManager.getRepositoryApplicationName(applicationName));
+                            out.print("-");
+                            out.print(VersionUtils.toString(applicationManager.getRepositoryApplicationVersion(applicationName)));
                             out.print(" -> state:");
-                            if (applicationManager.isStarted(repositoryName, applicationName, version)) {
+                            if (applicationManager.isStarted(applicationName)) {
                                 out.print("STARTED");
                             } else {
                                 out.print("STOPPED");
                             }
+                            out.print(", auto-start:");
+                            if (applicationManager.isAutoStarted(applicationName)) {
+                                out.print("ON");
+                            } else {
+                                out.print("OFF");
+                            }
                             out.print(", auto-migrate-level:");
-                            int level = applicationManager.getAutoMigrateLevel(repositoryName, applicationName, version);
+                            int level = applicationManager.getAutoMigrateLevel(applicationName);
                             out.print(level);
                             switch (level) {
                             case 0:
@@ -101,7 +109,6 @@ public class ListCommand implements Command {
                                 break;
                             }
                             out.println();
-                        }
                     }
                     out.println("----------------------------------");
                 }

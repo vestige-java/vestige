@@ -10,9 +10,9 @@ $(function() {
         $("#loading-div-background").hide();
     }
     
-    var activeRepo = -1;
-    var lastCreateName = null;
-
+    var afterAddRepo = null;
+    var afterCancelRepo = null;
+        
     lockFrame("Loading");
     $.ajax({
         url : "noop",
@@ -23,6 +23,18 @@ $(function() {
     });
 
     var tabs = $("#tabs").tabs();
+    
+    $("#refresh").button().click(function() {
+        lockFrame("Refreshing");
+        $.ajax({
+            url : "noop",
+            type : "post",
+            dataType : "json"
+        }).done(function(data) {
+            update(data);
+        });
+    });
+
 
     $("#update_all").button().click(function() {
         lockFrame("Remove repository");
@@ -34,6 +46,8 @@ $(function() {
             update(data);
         });
     });
+    
+    var afterError = null;
 
     $("#dialog-message").dialog({
         autoOpen : false,
@@ -45,26 +59,60 @@ $(function() {
             Ok : function() {
                 $(this).dialog("close");
             }
+        },
+        close : function() {
+        	var p = afterError;
+        	afterError = null;
+        	if (p != null) {
+        		p();
+        	}
         }
     });
 
+    var clickOnInstall = function() {
+    	  $.ajax({
+            url : "get-repos",
+            type : "post",
+            data : {
+            },
+            dataType : "json"
+        }).done(function(data) {
+      	  var dialogInstallRepo = $("#dialog-install-repo");
+      	  dialogInstallRepo.empty();
+      	  if (data.length == 0) {
+      	      dialog.dialog("open");
+      	      afterAddRepo = clickOnInstall;
+      	  } else {
+      		  for (var i=0; i<data.length;i++) {
+      			  dialogInstallRepo.append($("<option value=" + data[i].name + ">" + data[i].name + " (" + data[i].url + ")</option>"));
+      		  }
+      		  dialogInstallRepo.selectmenu("refresh");
+      		  dialogInstall.dialog("open");
+      	  }
+            
+        });
+      }
+
+    
     var dialog = $("#dialog-addrepo").dialog({
         autoOpen : false,
         modal : true,
         buttons : {
             Add : function() {
-                lastCreateName = $("#tab_localname").val();
+                var p = afterAddRepo;
+            	afterCancelRepo = null;
+            	afterAddRepo = null;
                 lockFrame("Add repository");
                 $.ajax({
                     url : "mk-repo",
                     type : "post",
                     data : {
-                        "name" : lastCreateName,
+                        "name" : $("#tab_localname").val(),
                         "url" : $("#tab_url").val()
                     },
                     dataType : "json"
                 }).done(function(data) {
-                    update(data);
+                    update(data, p);
                 });
                 $(this).dialog("close");
             },
@@ -74,12 +122,21 @@ $(function() {
         },
         close : function() {
             $(this).find("form")[0].reset();
+            var p = afterCancelRepo;
+        	afterCancelRepo = null;
+        	afterAddRepo = null;
+            if (p != null) {
+            	p();
+            }
         }
     });
-
-    var installData = {};
     
+    
+    $("#install_app").button().click(clickOnInstall);
+
+
     var dialogInstall = $("#dialog-install").dialog({
+    	width : 620,
         autoOpen : false,
         modal : true,
         buttons : {
@@ -89,9 +146,10 @@ $(function() {
                     url : "install",
                     type : "post",
                     data : {
-                        "repo" : installData.repo,
+                        "repo" : $("#dialog-install-repo").val(),
                         "name" : $("#dialog-install-name").val(),
-                        "version" : $("#dialog-install-version").val()
+                        "version" : $("#dialog-install-version").val(),
+                        "local" : $("#dialog-install-local").val()
                     },
                     dataType : "json"
                 }).done(function(data) {
@@ -104,9 +162,58 @@ $(function() {
             }
         },
         close : function() {
-            $(this).find("form")[0].reset();
+        	$("#dialog-install-name").val("");
+        	$("#dialog-install-version").val("");
+        	$("#dialog-install-local").val("");
         }
     });
+
+    $("#dialog-install-repo").selectmenu({
+    	  width: 400
+    });
+    
+    $("#dialog-install-add-repo").button().click(function() {
+	    dialogInstall.dialog("close");
+        dialog.dialog("open");
+	    afterAddRepo = clickOnInstall;
+	    afterCancelRepo = clickOnInstall;
+    });
+    
+    $("#dialog-install-name").autocomplete({
+    	minLength : 0,
+        source: function (req, res) {
+    	  $.ajax({
+              url : "get-repo-app-name",
+              type : "post",
+              data : {
+              	"req" : req.term,
+                "repo" : $("#dialog-install-repo").val()
+              },
+              dataType : "json"
+          }).done(function(data) {
+              res(data);
+          });
+      }
+    });
+
+    $("#dialog-install-version").autocomplete({
+    	minLength : 0,
+        source: function (req, res) {
+      	  $.ajax({
+                url : "get-repo-app-version",
+                type : "post",
+                data : {
+                  	"req" : req.term,
+                    "repo" : $("#dialog-install-repo").val(),
+                    "name" : $("#dialog-install-name").val()
+                },
+                dataType : "json"
+            }).done(function(data) {
+                res(data);
+            });
+        }
+      });    
+
     
     var migrateData = {};
     
@@ -120,10 +227,8 @@ $(function() {
                     url : "migrate",
                     type : "post",
                     data : {
-                        "repo" : migrateData.repo,
                         "name" : migrateData.appli,
-                        "fromVersion" : migrateData.version,
-                        "toVersion" : $("#tab_version").val()
+                        "toVersion" : $("#dialog-migrate-version").val()
                     },
                     dataType : "json"
                 }).done(function(data) {
@@ -140,10 +245,24 @@ $(function() {
         }
     });
 
-    $("#add_tab").button().click(function() {
-        dialog.dialog("open");
-    });
+    $("#dialog-migrate-version").autocomplete({
+    	minLength : 0,
+        source: function (req, res) {
+      	  $.ajax({
+                url : "get-repo-app-version",
+                type : "post",
+                data : {                    
+                	"req" : req.term,
+                    "name" : migrateData.appli
+                },
+                dataType : "json"
+            }).done(function(data) {
+                res(data);
+            });
+        }
+      });    
 
+    
     function updateItems(oldItems, newItems, comparatorFunc, deleteFunc, updateFunc, createFunc) {
         var j = 0;
         var oldItem = null;
@@ -190,7 +309,7 @@ $(function() {
     }
 
     currentState = {
-        "repository" : []
+        "application" : []
     };
 
     function nameComparator(obj1, obj2) {
@@ -204,102 +323,35 @@ $(function() {
         }
     }
 
-    function update(state) {
-        state.repository = state.repository.sort(nameComparator);
-        updateItems(currentState.repository, state.repository, nameComparator, function(repo) {
-            repo.dom.li.remove();
-            repo.dom.div.remove();
-        }, updateRepository, createRepository);
+    function update(state, afterUpdate) {
+        state.application = state.application.sort(nameComparator);
+        
+        updateItems(currentState.application, state.application, nameComparator, function(appli) {
+            appli.dom.p.remove();
+        }, function(appli, currentAppli) {
+            updateApplication(appli, currentAppli);
+        }, function(appli, afterAppli) {
+            createApplication(appli, afterAppli);
+        });
 
+        
         tabs.tabs("refresh");
         unlockFrame();
         if (state.error != null) {
             $("#dialog-message").children().remove();
             $("#dialog-message").append("<pre>" + state.error + "</pre>");
             $("#dialog-message").dialog("open");
-        }
-        if (lastCreateName == null) {
-            if (currentState.repository.length == 0 && state.repository.length != 0) {
-                tabs.tabs( "option", "active", 0);
-            }
-        } else {
-            if (activeRepo != -1) {
-                tabs.tabs( "option", "active", activeRepo);
-                activeRepo = -1;
-            }
-            lastCreateName = null;
+            afterError = afterUpdate;
+            afterUpdate = null;
         }
         currentState = state;
+        if (afterUpdate != null) {
+        	afterUpdate();
+        }
     }
 
     var tabCounter = 1;
     var tabTemplate = "<li><a href='#{href}'>#{label}</a> </li>";
-
-    function updateRepository(repo, currentRepo) {
-        repo.nextVersion = currentRepo.nextVersion;
-        repo.id = currentRepo.id;
-        repo.dom = currentRepo.dom;
-        repo.application = repo.application.sort(nameComparator);
-        updateItems(currentRepo.application, repo.application, nameComparator, function(appli) {
-            appli.dom.remove();
-        }, function(appli, currentAppli) {
-            updateApplication(repo, appli, currentAppli);
-        }, function(appli, afterAppli) {
-            createApplication(repo, appli, afterAppli);
-        });
-    }
-
-    function createRepository(repo, afterRepo) {
-        var id = "tabs-" + tabCounter;
-        repo.id = id;
-        repo.nextVersion = 0;
-        var li = $(tabTemplate.replace(/#\{href\}/g, "#" + id).replace(/#\{label\}/g, repo.name)), tabContentHtml = repo.url;
-        var content = $("<div id='" + id + "'><p><b>URL</b> <a href='" + tabContentHtml + "'>" + tabContentHtml
-                + "</a></p></div>");
-        content.append($("<p></p>").append($("<button>Remove this repository</button>").button().click(function() {
-            lockFrame("Remove repository");
-            $.ajax({
-                url : "rm-repo",
-                type : "post",
-                data : {
-                    "name" : repo.name
-                },
-                dataType : "json"
-            }).done(function(data) {
-                update(data);
-            });
-        }), $("<button>Install application...</button>").button().click(function() {
-            installData.repo = repo.name;
-            dialogInstall.dialog("open");
-        })));
-
-        content.append("<hr>Installed applications");
-
-        repo.dom = {
-            "li" : li,
-            "div" : content
-        };
-
-        var applis = repo.application.sort(nameComparator);
-        repo.application = applis;
-        for ( var i = 0; i < applis.length; i++) {
-            var appli = applis[i];
-            createApplication(repo, appli, null);
-        }
-
-        if (afterRepo == null) {
-            tabs.find(".ui-tabs-nav").append(li);
-            tabs.append(content);
-        } else {
-            afterRepo.dom.li.before(li);
-            afterRepo.dom.div.before(content);
-        }
-        if (lastCreateName == repo.name) {
-            activeRepo = li.prevAll("li").size();
-        }
-
-        tabCounter++;
-    }
 
     function versionComparator(version1, version2) {
         var v1 = version1.value.split(".");
@@ -320,48 +372,22 @@ $(function() {
         }
     }
 
-    function updateApplication(repo, appli, currentAppli) {
+    function updateApplication(appli, currentAppli) {
         appli.dom = currentAppli.dom;
-        appli.version = appli.version.sort(versionComparator);
-        updateItems(currentAppli.version, appli.version, versionComparator, function(appliVersion) {
-            appliVersion.dom.p.remove();
-        }, function(appliVersion, currentAppliVersion) {
-            updateApplicationVersion(repo, appli, appliVersion, currentAppliVersion);
-        }, function(appliVersion, afterAppliVersion) {
-            createApplicationVersion(repo, appli, appliVersion, afterAppliVersion);
-        });
-    }
-
-    function createApplication(repo, appli, afterAppli) {
-
-        appli.dom = $("<div></div>");
-        if (afterAppli == null) {
-            repo.dom.div.append(appli.dom);
-        } else {
-            afterAppli.dom.before(appli.dom);
-        }
-
-        var versions = appli.version.sort(versionComparator);
-        appli.version = versions;
-        for ( var i = 0; i < versions.length; i++) {
-            var version = versions[i];
-            createApplicationVersion(repo, appli, version, null);
-        }
-    }
-
-    function updateApplicationVersion(repo, appli, appliVersion, currentAppliVersion) {
-        appliVersion.dom = currentAppliVersion.dom;
-        if (appliVersion.started != currentAppliVersion.started) {
+        
+        appli.dom.textSpan.text(appli.name + " (" + appli.path + ") ");
+        
+        if (appli.started != currentAppli.started) {
             var state;
             var icon;
-            if (appliVersion.started) {
+            if (appli.started) {
                 state = "stop";
                 icon = "ui-icon-stop";
             } else {
                 state = "start";
                 icon = "ui-icon-play";
             }
-            var startStop = appliVersion.dom.startStop;
+            var startStop = appli.dom.startStop;
             startStop.button("option", {
                 label : state,
                 icons : {
@@ -369,18 +395,17 @@ $(function() {
                 }
             });
         }
-        appliVersion.dom.bugfix.attr('checked', appliVersion.bugfix);
-        appliVersion.dom.minor.attr('checked', appliVersion.minor);
-        appliVersion.dom.major.attr('checked', appliVersion.major);
-        appliVersion.dom.buttonset.buttonset("refresh");
+        appli.dom.bugfix.prop('checked', appli.bugfix);
+        appli.dom.minor.prop('checked', appli.minor);
+        appli.dom.major.prop('checked', appli.major);
+        appli.dom.buttonset.buttonset("refresh");        
     }
 
-    function createApplicationVersion(repo, appli, appliVersion, afterAppliVersion) {
-        var vid = repo.id + "-v-" + repo.nextVersion;
-        repo.nextVersion++;
+    function createApplication(appli, afterAppli) {
+        var vid = "app-" + appli.name;
         var state;
         var icon;
-        if (appliVersion.started) {
+        if (appli.started) {
             state = "stop";
             icon = "ui-icon-stop";
         } else {
@@ -399,9 +424,7 @@ $(function() {
                 url : $(this).text(),
                 type : "post",
                 data : {
-                    "repo" : repo.name,
-                    "name" : appli.name,
-                    "version" : appliVersion.value
+                    "name" : appli.name
                 },
                 dataType : "json"
             }).done(function(data) {
@@ -417,9 +440,9 @@ $(function() {
         bugfix = $(bugfix[0]);
         minor = $(minor[0]);
         major = $(major[0]);
-        bugfix.attr('checked', appliVersion.bugfix);
-        minor.attr('checked', appliVersion.minor);
-        major.attr('checked', appliVersion.major);
+        bugfix.prop('checked', appli.bugfix);
+        minor.prop('checked', appli.minor);
+        major.prop('checked', appli.major);
 
         bugfix.button().click(function() {
             lockFrame("Toogle bugfix");
@@ -427,9 +450,7 @@ $(function() {
                 url : "bugfix",
                 type : "post",
                 data : {
-                    "repo" : repo.name,
                     "name" : appli.name,
-                    "version" : appliVersion.value,
                     "value" : $(this).is(':checked')
                 },
                 dataType : "json"
@@ -444,9 +465,7 @@ $(function() {
                 url : "minor-evolution",
                 type : "post",
                 data : {
-                    "repo" : repo.name,
                     "name" : appli.name,
-                    "version" : appliVersion.value,
                     "value" : $(this).is(':checked')
                 },
                 dataType : "json"
@@ -461,9 +480,7 @@ $(function() {
                 url : "major-evolution",
                 type : "post",
                 data : {
-                    "repo" : repo.name,
                     "name" : appli.name,
-                    "version" : appliVersion.value,
                     "value" : $(this).is(':checked')
                 },
                 dataType : "json"
@@ -472,13 +489,14 @@ $(function() {
             });
         });
         
-
-        var content = $("<p></p>").append(
-                $("<span class='ui-widget-header ui-corner-all toolbar'> " + appli.name + " " + appliVersion.value + " </span>")
-                        .append(startStop, buttonset, $("<button>migrate...</button>").button().click(function() {
-                            migrateData.repo = repo.name;
+        var autoStart = $("<input type='checkbox' id='" + vid + "check'>");
+        autoStart.prop('checked', appli.autoStarted);
+        
+        var textSpan = $("<span>" + appli.name + " (" + appli.path + ") </span>")
+        
+        var content = $("<p></p>").append($("<span class='ui-widget-header ui-corner-all toolbar'></span>")                
+                        .append(textSpan, startStop, autoStart, $("<label for='" + vid + "check'>AutoStart</label>"), buttonset, $("<button>migrate...</button>").button().click(function() {
                             migrateData.appli = appli.name;
-                            migrateData.version = appliVersion.value;
                             dialogMigrate.dialog("open");
                         }), $("<button>uninstall</button>").button({
                             text : false,
@@ -491,9 +509,7 @@ $(function() {
                                 url : "uninstall",
                                 type : "post",
                                 data : {
-                                    "repo" : repo.name,
-                                    "name" : appli.name,
-                                    "version" : appliVersion.value
+                                    "name" : appli.name
                                 },
                                 dataType : "json"
                             }).done(function(data) {
@@ -503,22 +519,37 @@ $(function() {
 
                         ));
 
+        autoStart.button().click(function() {
+            $.ajax({
+                url : "auto-start",
+                type : "post",
+                data : {
+                    "name" : appli.name,
+                    "value" : $(this).is(':checked')
+                },
+                dataType : "json"
+            }).done(function(data) {
+                update(data);
+            });
+        });
         buttonset.buttonset();
 
-        appliVersion.dom = {
+        appli.dom = {
             "p" : content,
             "startStop" : startStop,
             "bugfix" : bugfix,
             "minor" : minor,
             "major" : major,
-            "buttonset" : buttonset
+            "buttonset" : buttonset,
+            "textSpan" : textSpan
         };
 
-        if (afterAppliVersion == null) {
-            appli.dom.append(content);
+        if (afterAppli == null) {
+        	$("#tabs").append(content);
         } else {
-            afterAppliVersion.dom.p.before(content);
+            afterAppli.dom.p.before(content);
         }
+        
     }
 
 });

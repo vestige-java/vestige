@@ -40,7 +40,7 @@ BOOL CALLBACK TerminateAppEnum( HWND hWnd, LPARAM lParam )
 DWORD WINAPI WaitForBatCommand(void * param) {
     char chBuf[1024];
     DWORD dwRead;
-	
+
     while (ReadFile( g_hChildStd_OUT_Rd, chBuf, sizeof(chBuf) - 1, &dwRead, NULL)) {
         chBuf[dwRead] = 0;
 		int ndx = GetWindowTextLength(hEditIn);
@@ -64,26 +64,6 @@ DWORD WINAPI WaitForBatCommand(void * param) {
         procState = 5;
         PostMessage(hWnd, WM_CLOSE, 0, 0);
     }
-}
-
-HANDLE Execute(char * action, char * file, char * params, DWORD show) {
-    SHELLEXECUTEINFO shExecInfo;
-
-    shExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
-    shExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-    shExecInfo.hwnd = NULL;
-    shExecInfo.lpVerb = action;
-    shExecInfo.lpFile = file;
-    shExecInfo.lpParameters = params;
-    shExecInfo.lpDirectory = NULL;
-    shExecInfo.nShow = show;
-    shExecInfo.hInstApp = NULL;
-
-    if (!ShellExecuteEx(&shExecInfo)) {
-        return NULL;
-    }
-
-    return shExecInfo.hProcess;
 }
 
 HANDLE launchVestige(HANDLE g_hChildStd_OUT_Wr) {
@@ -129,7 +109,7 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
 
     consoleWinShown = FALSE;
     procState = 0;
-    hinst = hinstance;	
+    hinst = hinstance;
     wc.style = 0;
     wc.lpfnWndProc = MainWndProc;
     wc.cbClsExtra = 0;
@@ -151,8 +131,8 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
 
     WSADATA WsaDat;
 	WSAStartup(MAKEWORD(2,2),&WsaDat);
-	
-	
+
+
 	SOCKADDR_IN SockAddr;
     SockAddr.sin_port=htons(0);
     SockAddr.sin_family=AF_INET;
@@ -164,7 +144,7 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
 	bind(ssocket,(LPSOCKADDR)&SockAddr, SockAddrSize);
 	getsockname(ssocket, (SOCKADDR *)&SockAddr, &SockAddrSize);
 	listen(ssocket, 1);
-	
+
 	char portString[10];
     sprintf(portString, "%d", ntohs(SockAddr.sin_port));
 
@@ -245,6 +225,7 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
 LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     RECT rc;
+    char cbuf[1024];
     switch (uMsg)
     {
     case WM_CREATE:
@@ -282,10 +263,11 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
            EnumWindows((WNDENUMPROC)TerminateAppEnum, (LPARAM) vestigePid);
            break;
            case IDM_OPEN_WEB:
-           Execute("open", url, NULL, SW_SHOWNORMAL);
+           sprintf(cbuf, "url.dll,FileProtocolHandler %s", url);
+           ShellExecute(NULL, "open", "rundll32.exe", cbuf ,NULL, SW_SHOWNORMAL);
            break;
            case IDM_OPEN_BASE:
-           Execute("open", base, NULL, SW_SHOWNORMAL);
+           ShellExecute(NULL, "open", base, NULL, NULL, SW_SHOWNORMAL);
            break;
            case IDM_SHOW_CONSOLE:
            consoleWinShown = TRUE;

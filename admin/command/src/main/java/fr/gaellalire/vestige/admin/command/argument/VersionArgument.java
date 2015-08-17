@@ -31,31 +31,18 @@ import fr.gaellalire.vestige.application.manager.VersionUtils;
  */
 public class VersionArgument implements Argument {
 
-    private static final String NAME = "<version>";
-
     private String name;
-
-    private Boolean installed;
 
     private ApplicationManager applicationManager;
 
     private List<Integer> version;
 
-    private RepositoryArgument repositoryArgument;
+    private LocalApplicationNameArgument applicationArgument;
 
-    private ApplicationArgument applicationArgument;
-
-    public VersionArgument(final ApplicationManager applicationManager, final Boolean installed,
-            final RepositoryArgument repositoryArgument, final ApplicationArgument applicationArgument) {
-        this(NAME, applicationManager, installed, repositoryArgument, applicationArgument);
-    }
-
-    public VersionArgument(final String name, final ApplicationManager applicationManager, final Boolean installed,
-            final RepositoryArgument repositoryArgument, final ApplicationArgument applicationArgument) {
+    public VersionArgument(final String name, final ApplicationManager applicationManager,
+            final LocalApplicationNameArgument applicationArgument) {
         this.name = name;
         this.applicationManager = applicationManager;
-        this.installed = installed;
-        this.repositoryArgument = repositoryArgument;
         this.applicationArgument = applicationArgument;
     }
 
@@ -74,42 +61,20 @@ public class VersionArgument implements Argument {
         } catch (IllegalArgumentException e) {
             throw new ParseException(e);
         }
-        if (installed != null) {
-            boolean contains;
-            try {
-                contains = applicationManager.getVersions(repositoryArgument.getRepository(),
-                        applicationArgument.getApplication()).contains(version);
-            } catch (ApplicationException e) {
-                throw new ParseException(e);
-            }
-            if (installed) {
-                if (!contains) {
-                    throw new ParseException(s + " is not an installed version");
-                }
-            } else {
-                if (contains) {
-                    throw new ParseException(s + " is an already installed version");
-                }
-            }
-        }
         this.version = version;
     }
 
     public Collection<String> propose() throws ParseException {
-        if (installed != null && installed) {
-            try {
-                Set<List<Integer>> versions = applicationManager.getVersions(repositoryArgument.getRepository(),
-                        applicationArgument.getApplication());
-                Set<String> set = new TreeSet<String>();
-                for (List<Integer> version : versions) {
-                    set.add(VersionUtils.toString(version));
-                }
-                return set;
-            } catch (ApplicationException e) {
-                throw new ParseException(e);
+        try {
+            String installName = applicationArgument.getApplication();
+            Set<List<Integer>> versions = applicationManager.getRepositoryApplicationVersions(applicationManager.getRepositoryName(installName), applicationManager.getRepositoryApplicationName(installName));
+            Set<String> set = new TreeSet<String>();
+            for (List<Integer> version : versions) {
+                set.add(VersionUtils.toString(version));
             }
-        } else {
-            return null;
+            return set;
+        } catch (ApplicationException e) {
+            throw new ParseException(e);
         }
     }
 

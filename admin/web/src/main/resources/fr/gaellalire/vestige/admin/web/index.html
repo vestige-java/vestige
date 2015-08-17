@@ -3,10 +3,10 @@
 <meta charset="utf-8" />
 <title>Vestige Admin</title>
 <link rel="icon" type="image/x-icon" href="favicon.ico" />
-<link rel="stylesheet" href="css/smoothness/jquery-ui-1.9.2.custom.css" />
-<script src="js/jquery-1.8.3.js"></script>
-<script src="js/jquery-ui-1.9.2.custom.js"></script>
-<script src="jqueryui-ext.js"></script>
+<link rel="stylesheet" href="jquery-ui.css" />
+<script src="external/jquery/jquery.js"></script>
+<script src="jquery-ui.js"></script>
+<!-- <script src="jqueryui-ext.js"></script> -->
 <script src="vestige.js"></script>
 <style>
 body {
@@ -19,7 +19,7 @@ body {
 	padding: 10px 4px;
 }
 
-.dialog label,.dialog input {
+.dialog label, .dialog input {
 	display: block;
 }
 
@@ -27,7 +27,7 @@ body {
 	margin-top: 0.5em;
 }
 
-.dialog input,.dialog textarea {
+.dialog input, .dialog textarea {
 	width: 95%;
 }
 
@@ -43,11 +43,13 @@ body {
 	z-index: 998;
 }
 
-*html #loading-div-background { /* only ie6 : hack position fixe */
-        filter:alpha(opacity=30);
-        position: absolute;
-        top: expression((document.documentElement.scrollTop || document.body.scrollTop) + this.offsetHeight - this.offsetHeight);
-        left: expression((document.documentElement.scrollLeft || document.body.scrollLeft) + this.offsetWidth - this.offsetWidth);
+* html #loading-div-background { /* only ie6 : hack position fixe */
+	filter: alpha(opacity = 30);
+	position: absolute;
+	top: expression(( document.documentElement.scrollTop ||  
+		 document.body.scrollTop)+ this.offsetHeight- this.offsetHeight);
+	left: expression(( document.documentElement.scrollLeft ||  
+		 document.body.scrollLeft)+ this.offsetWidth- this.offsetWidth);
 }
 
 #loading-div {
@@ -102,25 +104,30 @@ body {
     </form>
   </div>
   <div id="dialog-install" class="dialog" title="Install application">
-    <form>
-      <fieldset class="ui-helper-reset">
-        <label for="dialog-install-name">Name</label> <input type="text" id="dialog-install-name" value="" class="ui-widget-content ui-corner-all" /> <label
-          for="dialog-install-version">Version</label> <input type="text" id="dialog-install-version" value="" class="ui-widget-content ui-corner-all" />
-      </fieldset>
-    </form>
+      <div class="ui-widget">
+        <label for="dialog-install-repo">Select a repository</label> 
+        <div style="display: flex; align-items: center;">
+          <select id="dialog-install-repo"></select>&nbsp;&nbsp;&nbsp;
+          <button id="dialog-install-add-repo">Add another repository...</button>
+        </div>
+        <label for="dialog-install-name">Enter repository application name</label> <input id="dialog-install-name" /> 
+        <label for="dialog-install-version">Enter repository application version</label> <input id="dialog-install-version"  /> 
+        <label for="dialog-install-local">Choose local application name</label> <input  id="dialog-install-local" />
+      </div>
   </div>
   <div id="dialog-migrate" class="dialog" title="Migrate">
     <form>
       <fieldset class="ui-helper-reset">
-        <label for="tab_version">Version</label> <input type="text" id="tab_version" value="" class="ui-widget-content ui-corner-all" />
+        <label for="dialog-migrate-version">Version</label> <input id="dialog-migrate-version" />
       </fieldset>
     </form>
   </div>
-  <button id="add_tab">Add repository...</button>
+  <button id="refresh">Refresh</button>
+  <button id="install_app">Install application...</button>
   <button id="update_all">Update all applications</button>
+  <br>
+  <br>
   <div id="tabs">
-    <ul>
-    </ul>
   </div>
 </body>
 </html>

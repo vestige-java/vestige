@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" xmlns:tns="http://gaellalire.fr/vestige/REPOSITORY" xmlns="http://gaellalire.fr/vestige/REPOSITORY"
+  targetNamespace="http://gaellalire.fr/vestige/REPOSITORY" version="1.0.0">
+  <xs:element name="repository" type="Repository">
+    <xs:annotation>
+      <xs:documentation source="version">1.0.0</xs:documentation>
+      <xs:documentation source="description">
+        Root element of the user
+        configuration file.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:element>
+
+  <xs:complexType name="Repository">
+    <xs:sequence minOccurs="0" maxOccurs="unbounded">
+      <xs:element minOccurs="0" name="application">
+        <xs:complexType>
+          <xs:sequence minOccurs="0" maxOccurs="unbounded">
+            <xs:element name="version">
+              <xs:complexType>
+                <xs:attribute name="value" use="required" type="xs:string" />
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence>
+          <xs:attribute name="name" use="required" type="xs:string" />
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+</xs:schema>

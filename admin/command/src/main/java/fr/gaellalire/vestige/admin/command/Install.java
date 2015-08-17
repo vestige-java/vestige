@@ -21,10 +21,11 @@ import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.List;
 
-import fr.gaellalire.vestige.admin.command.argument.ApplicationArgument;
+import fr.gaellalire.vestige.admin.command.argument.LocalApplicationNameArgument;
 import fr.gaellalire.vestige.admin.command.argument.Argument;
+import fr.gaellalire.vestige.admin.command.argument.RepositoryApplicationNameArgument;
 import fr.gaellalire.vestige.admin.command.argument.RepositoryArgument;
-import fr.gaellalire.vestige.admin.command.argument.VersionArgument;
+import fr.gaellalire.vestige.admin.command.argument.RepositoryApplicationVersionArgument;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
 
@@ -37,15 +38,18 @@ public class Install implements Command {
 
     private RepositoryArgument repositoryArgument;
 
-    private ApplicationArgument applicationArgument;
+    private RepositoryApplicationNameArgument applicationArgument;
 
-    private VersionArgument versionArgument;
+    private RepositoryApplicationVersionArgument versionArgument;
+
+    private LocalApplicationNameArgument installNameArgument;
 
     public Install(final ApplicationManager applicationManager) {
         this.applicationManager = applicationManager;
         repositoryArgument = new RepositoryArgument(applicationManager, Boolean.TRUE);
-        applicationArgument = new ApplicationArgument(applicationManager, null, repositoryArgument);
-        versionArgument = new VersionArgument(applicationManager, Boolean.FALSE, repositoryArgument, applicationArgument);
+        applicationArgument = new RepositoryApplicationNameArgument(applicationManager, repositoryArgument);
+        versionArgument = new RepositoryApplicationVersionArgument(applicationManager, repositoryArgument, applicationArgument);
+        installNameArgument = new LocalApplicationNameArgument(applicationManager, false);
     }
 
     public String getName() {
@@ -57,12 +61,12 @@ public class Install implements Command {
     }
 
     public List<Argument> getArguments() {
-        return Arrays.asList(repositoryArgument, applicationArgument, versionArgument);
+        return Arrays.asList(repositoryArgument, applicationArgument, versionArgument, installNameArgument);
     }
 
     public void execute(final PrintWriter out) {
         try {
-            applicationManager.install(repositoryArgument.getRepository(), applicationArgument.getApplication(), versionArgument.getVersion());
+            applicationManager.install(repositoryArgument.getRepository(), applicationArgument.getApplication(), versionArgument.getVersion(), installNameArgument.getApplication());
         } catch (ApplicationException e) {
             e.printStackTrace(out);
         }

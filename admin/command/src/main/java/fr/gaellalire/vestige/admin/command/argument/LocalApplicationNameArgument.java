@@ -18,7 +18,6 @@
 package fr.gaellalire.vestige.admin.command.argument;
 
 import java.util.Collection;
-import java.util.Collections;
 
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
@@ -26,56 +25,58 @@ import fr.gaellalire.vestige.application.manager.ApplicationManager;
 /**
  * @author Gael Lalire
  */
-public class RepositoryArgument implements Argument {
+public class LocalApplicationNameArgument implements Argument {
 
-    private static final String NAME = "<repository-name>";
+    private static final String NAME = "<local-application-name>";
 
     public String getName() {
         return NAME;
     }
 
-    private Boolean installed;
-
     private ApplicationManager applicationManager;
 
-    private String repository;
+    private String application;
 
-    public RepositoryArgument(final ApplicationManager applicationManager, final Boolean installed) {
-        this.applicationManager = applicationManager;
-        this.installed = installed;
+    private boolean used;
+
+    public LocalApplicationNameArgument(final ApplicationManager applicationManager) {
+        this(applicationManager, true);
     }
 
-    public String getRepository() {
-        return repository;
+    public LocalApplicationNameArgument(final ApplicationManager applicationManager, final boolean used) {
+        this.applicationManager = applicationManager;
+        this.used = used;
+    }
+
+    public String getApplication() {
+        return application;
     }
 
     public void parse(final String s) throws ParseException {
-        if (installed != null) {
-            boolean contains;
-            try {
-                contains = applicationManager.getRepositoriesName().contains(s);
-            } catch (ApplicationException e) {
-                throw new ParseException(e);
+        boolean contains;
+        try {
+            contains = applicationManager.getApplicationsName().contains(s);
+        } catch (ApplicationException e) {
+            throw new ParseException(e);
+        }
+        if (used) {
+            if (!contains) {
+                throw new ParseException(s + " is not an installed application");
             }
-            if (installed) {
-                if (!contains) {
-                    throw new ParseException(s + " is not an installed repo");
-                }
-            } else {
-                if (contains) {
-                    throw new ParseException(s + " is an already installed repo");
-                }
+        } else {
+            if (contains) {
+                throw new ParseException(s + " is an installed application");
             }
         }
-        repository = s;
+        application = s;
     }
 
-    public Collection<String> propose() {
-        if (installed != null && installed) {
+    public Collection<String> propose() throws ParseException {
+        if (used) {
             try {
-                return applicationManager.getRepositoriesName();
+                return applicationManager.getApplicationsName();
             } catch (ApplicationException e) {
-                return Collections.emptySet();
+                throw new ParseException(e);
             }
         } else {
             return null;
@@ -83,7 +84,7 @@ public class RepositoryArgument implements Argument {
     }
 
     public void reset() {
-        repository = null;
+        application = null;
     }
 
 }

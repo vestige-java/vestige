@@ -59,7 +59,6 @@ import ch.qos.logback.core.util.StatusPrinter;
 import fr.gaellalire.vestige.application.descriptor.xml.XMLApplicationDescriptorFactory;
 import fr.gaellalire.vestige.application.manager.ApplicationDescriptorFactory;
 import fr.gaellalire.vestige.application.manager.DefaultApplicationManager;
-import fr.gaellalire.vestige.application.manager.SynchronizedApplicationManager;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;
 import fr.gaellalire.vestige.edition.standard.schema.Admin;
 import fr.gaellalire.vestige.edition.standard.schema.Bind;
@@ -192,9 +191,13 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
         // new threads are in subsystem
         ExecutorService executorService = Executors.newCachedThreadPool();
 
-        File appFile = new File(baseFile, "app");
-        if (!appFile.exists()) {
-            appFile.mkdir();
+        File appBaseFile = new File(baseFile, "app");
+        if (!appBaseFile.exists()) {
+            appBaseFile.mkdir();
+        }
+        File appDataFile = new File(dataFile, "app");
+        if (!appDataFile.exists()) {
+            appDataFile.mkdir();
         }
 
         try {
@@ -213,9 +216,8 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
         }
 
         if (defaultApplicationManager == null) {
-            defaultApplicationManager = new DefaultApplicationManager(appFile);
+            defaultApplicationManager = new DefaultApplicationManager(appBaseFile, appDataFile);
         }
-        SynchronizedApplicationManager synchronizedApplicationManager = new SynchronizedApplicationManager(defaultApplicationManager);
 
         // $VESTIGE_BASE/m2/settings.xml overrides $home/.m2/settings.xml
         // if none exists then no config file is used
@@ -250,13 +252,13 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
         Future<VestigeServer> futureSshServer = null;
         if (ssh.isEnabled()) {
             File sshBase = new File(baseFile, "ssh");
-            futureSshServer = executorService.submit(new SSHServerFactory(sshBase, ssh, baseFile, synchronizedApplicationManager, vestigePlatform));
+            futureSshServer = executorService.submit(new SSHServerFactory(sshBase, ssh, baseFile, defaultApplicationManager, vestigePlatform));
         }
 
         Future<VestigeServer> futureWebServer = null;
         Web web = admin.getWeb();
         if (web.isEnabled()) {
-            futureWebServer = executorService.submit(new WebServerFactory(web, synchronizedApplicationManager, baseFile));
+            futureWebServer = executorService.submit(new WebServerFactory(web, defaultApplicationManager, baseFile));
             List<Bind> binds = web.getBind();
             for (Bind bind : binds) {
                 String host = bind.getHost();

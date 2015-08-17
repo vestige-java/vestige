@@ -32,31 +32,43 @@ public interface ApplicationManager {
 
     URL getRepositoryURL(final String repoName) throws ApplicationException;
 
-    Set<String> getApplicationsName(String repo) throws ApplicationException;
+    Set<String> getRepositoryApplicationsName(String repoName);
 
-    Set<List<Integer>> getVersions(String repo, String appName) throws ApplicationException;
+    Set<List<Integer>> getRepositoryApplicationVersions(String repoName, String applicationName);
 
-    ClassLoaderConfiguration getClassLoaders(final String repoName, final String appName, final List<Integer> version) throws ApplicationException;
+    Set<String> getApplicationsName() throws ApplicationException;
 
-    boolean isStarted(String repoName, String appName, List<Integer> version) throws ApplicationException;
+    ClassLoaderConfiguration getClassLoaders(String installName) throws ApplicationException;
+
+    boolean isStarted(String installName) throws ApplicationException;
 
     void createRepository(String name, URL url) throws ApplicationException;
 
     void removeRepository(String name) throws ApplicationException;
 
-    void install(String repoName, String appName, List<Integer> version) throws ApplicationException;
+    void install(String repoName, String appName, List<Integer> version, String installName) throws ApplicationException;
 
-    void uninstall(String repoName, String appName, List<Integer> version) throws ApplicationException;
+    void uninstall(String installName) throws ApplicationException;
 
-    void migrate(String repoName, String appName, List<Integer> fromVersion, List<Integer> toVersion) throws ApplicationException;
+    void migrate(String installName, List<Integer> toVersion) throws ApplicationException;
 
-    void start(String repoName, String appName, List<Integer> version) throws ApplicationException;
+    void start(String installName) throws ApplicationException;
 
-    void stop(String repoName, String appName, List<Integer> version) throws ApplicationException;
+    void stop(String installName) throws ApplicationException;
 
-    int getAutoMigrateLevel(final String repoName, final String appName, final List<Integer> version) throws ApplicationException;
+    String getRepositoryName(String installName) throws ApplicationException;
 
-    void setAutoMigrateLevel(String repoName, String appName, List<Integer> version, int level) throws ApplicationException;
+    String getRepositoryApplicationName(String installName) throws ApplicationException;
+
+    List<Integer> getRepositoryApplicationVersion(String installName) throws ApplicationException;
+
+    int getAutoMigrateLevel(String installName) throws ApplicationException;
+
+    void setAutoMigrateLevel(String installName, int level) throws ApplicationException;
+
+    void setAutoStarted(String installName, boolean autoStarted) throws ApplicationException;
+
+    boolean isAutoStarted(String installName) throws ApplicationException;
 
     void autoMigrate() throws ApplicationException;
 

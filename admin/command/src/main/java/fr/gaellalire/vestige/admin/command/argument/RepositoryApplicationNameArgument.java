@@ -19,32 +19,27 @@ package fr.gaellalire.vestige.admin.command.argument;
 
 import java.util.Collection;
 
-import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
 
 /**
  * @author Gael Lalire
  */
-public class ApplicationArgument implements Argument {
+public class RepositoryApplicationNameArgument implements Argument {
 
-    private static final String NAME = "<application>";
+    private static final String NAME = "<repository-application-name>";
 
     public String getName() {
         return NAME;
     }
 
-    private Boolean installed;
+    private RepositoryArgument repositoryArgument;
 
     private ApplicationManager applicationManager;
 
     private String application;
 
-    private RepositoryArgument repositoryArgument;
-
-    public ApplicationArgument(final ApplicationManager applicationManager, final Boolean installed,
-            final RepositoryArgument repositoryArgument) {
+    public RepositoryApplicationNameArgument(final ApplicationManager applicationManager, final RepositoryArgument repositoryArgument) {
         this.applicationManager = applicationManager;
-        this.installed = installed;
         this.repositoryArgument = repositoryArgument;
     }
 
@@ -53,36 +48,14 @@ public class ApplicationArgument implements Argument {
     }
 
     public void parse(final String s) throws ParseException {
-        if (installed != null) {
-            boolean contains;
-            try {
-                contains = applicationManager.getApplicationsName(repositoryArgument.getRepository()).contains(s);
-            } catch (ApplicationException e) {
-                throw new ParseException(e);
-            }
-            if (installed) {
-                if (!contains) {
-                    throw new ParseException(s + " is not an installed application");
-                }
-            } else {
-                if (contains) {
-                    throw new ParseException(s + " is an already installed application");
-                }
-            }
+        if (!applicationManager.getRepositoryApplicationsName(repositoryArgument.getRepository()).contains(s)) {
+            throw new ParseException("Application not found in repository");
         }
         application = s;
     }
 
     public Collection<String> propose() throws ParseException {
-        if (installed != null && installed) {
-            try {
-                return applicationManager.getApplicationsName(repositoryArgument.getRepository());
-            } catch (ApplicationException e) {
-                throw new ParseException(e);
-            }
-        } else {
-            return null;
-        }
+        return applicationManager.getRepositoryApplicationsName(repositoryArgument.getRepository());
     }
 
     public void reset() {

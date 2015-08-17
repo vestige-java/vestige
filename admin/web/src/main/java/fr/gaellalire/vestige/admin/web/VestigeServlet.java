@@ -23,6 +23,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.URL;
 import java.util.List;
+import java.util.Set;
 
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
@@ -105,36 +106,86 @@ public class VestigeServlet extends HttpServlet {
                     } else if ("/rm-repo".equals(requestURI)) {
                         applicationManager.removeRepository(req.getParameter("name"));
                     } else if ("/install".equals(requestURI)) {
-                        applicationManager.install(req.getParameter("repo"), req.getParameter("name"), VersionUtils.fromString(req.getParameter("version")));
+                        applicationManager.install(req.getParameter("repo"), req.getParameter("name"), VersionUtils.fromString(req.getParameter("version")), req.getParameter("local"));
                     } else if ("/uninstall".equals(requestURI)) {
-                        applicationManager.uninstall(req.getParameter("repo"), req.getParameter("name"), VersionUtils.fromString(req.getParameter("version")));
+                        applicationManager.uninstall(req.getParameter("name"));
+                    } else if ("/auto-start".equals(requestURI)) {
+                        applicationManager.setAutoStarted(req.getParameter("name"), Boolean.parseBoolean(req.getParameter("value")));
                     } else if ("/start".equals(requestURI)) {
-                        applicationManager.start(req.getParameter("repo"), req.getParameter("name"), VersionUtils.fromString(req.getParameter("version")));
+                        applicationManager.start(req.getParameter("name"));
                     } else if ("/stop".equals(requestURI)) {
-                        applicationManager.stop(req.getParameter("repo"), req.getParameter("name"), VersionUtils.fromString(req.getParameter("version")));
+                        applicationManager.stop(req.getParameter("name"));
                     } else if ("/bugfix".equals(requestURI)) {
                         if (Boolean.parseBoolean(req.getParameter("value"))) {
-                            applicationManager.setAutoMigrateLevel(req.getParameter("repo"), req.getParameter("name"), VersionUtils.fromString(req.getParameter("version")), 1);
+                            applicationManager.setAutoMigrateLevel(req.getParameter("name"), 1);
                         } else {
-                            applicationManager.setAutoMigrateLevel(req.getParameter("repo"), req.getParameter("name"), VersionUtils.fromString(req.getParameter("version")), 0);
+                            applicationManager.setAutoMigrateLevel(req.getParameter("name"), 0);
                         }
                     } else if ("/minor-evolution".equals(requestURI)) {
                         if (Boolean.parseBoolean(req.getParameter("value"))) {
-                            applicationManager.setAutoMigrateLevel(req.getParameter("repo"), req.getParameter("name"), VersionUtils.fromString(req.getParameter("version")), 2);
+                            applicationManager.setAutoMigrateLevel(req.getParameter("name"), 2);
                         } else {
-                            applicationManager.setAutoMigrateLevel(req.getParameter("repo"), req.getParameter("name"), VersionUtils.fromString(req.getParameter("version")), 0);
+                            applicationManager.setAutoMigrateLevel(req.getParameter("name"), 0);
                         }
                     } else if ("/major-evolution".equals(requestURI)) {
                         if (Boolean.parseBoolean(req.getParameter("value"))) {
-                            applicationManager.setAutoMigrateLevel(req.getParameter("repo"), req.getParameter("name"), VersionUtils.fromString(req.getParameter("version")), 3);
+                            applicationManager.setAutoMigrateLevel(req.getParameter("name"), 3);
                         } else {
-                            applicationManager.setAutoMigrateLevel(req.getParameter("repo"), req.getParameter("name"), VersionUtils.fromString(req.getParameter("version")), 0);
+                            applicationManager.setAutoMigrateLevel(req.getParameter("name"), 0);
                         }
                     } else if ("/migrate".equals(requestURI)) {
-                        applicationManager.migrate(req.getParameter("repo"), req.getParameter("name"), VersionUtils.fromString(req.getParameter("fromVersion")),
-                                VersionUtils.fromString(req.getParameter("toVersion")));
+                        applicationManager.migrate(req.getParameter("name"), VersionUtils.fromString(req.getParameter("toVersion")));
                     } else if ("/auto-migrate".equals(requestURI)) {
                         applicationManager.autoMigrate();
+                    } else if ("/get-repos".equals(requestURI)) {
+                        Set<String> repositoriesName = applicationManager.getRepositoriesName();
+                        JSONArray jsonArray = new JSONArray();
+                        for (String string : repositoriesName) {
+                            JSONObject jsonObject = new JSONObject();
+                            jsonObject.put("name", string);
+                            jsonObject.put("url", applicationManager.getRepositoryURL(string).toString());
+                            jsonArray.add(jsonObject);
+                        }
+                        PrintWriter writer = resp.getWriter();
+                        writer.print(jsonArray.toJSONString());
+                        writer.close();
+                        return;
+                    } else if ("/get-repo-app-name".equals(requestURI)) {
+                        Set<String> repositoryApplicationsName = applicationManager.getRepositoryApplicationsName(req.getParameter("repo"));
+                        JSONArray jsonArray = new JSONArray();
+                        String parameter = req.getParameter("req");
+                        for (String string : repositoryApplicationsName) {
+                            if (parameter == null || parameter.length() == 0 || string.indexOf(parameter) != -1) {
+                                jsonArray.add(string);
+                            }
+                        }
+                        PrintWriter writer = resp.getWriter();
+                        writer.print(jsonArray.toJSONString());
+                        writer.close();
+                        return;
+                    } else if ("/get-repo-app-version".equals(requestURI)) {
+                        String repo = req.getParameter("repo");
+                        String name = req.getParameter("name");
+                        String exclude = "";
+                        if (repo == null || repo.length() == 0) {
+                            repo = applicationManager.getRepositoryName(name);
+                            exclude = VersionUtils.toString(applicationManager.getRepositoryApplicationVersion(name));
+                            name = applicationManager.getRepositoryApplicationName(name);
+                        }
+
+                        Set<List<Integer>> repositoryApplicationsName = applicationManager.getRepositoryApplicationVersions(repo, name);
+                        JSONArray jsonArray = new JSONArray();
+                        String parameter = req.getParameter("req");
+                        for (List<Integer> version : repositoryApplicationsName) {
+                            String string = VersionUtils.toString(version);
+                            if ((parameter == null || parameter.length() == 0 || string.indexOf(parameter) != -1) && !exclude.equals(string)) {
+                                jsonArray.add(string);
+                            }
+                        }
+                        PrintWriter writer = resp.getWriter();
+                        writer.print(jsonArray.toJSONString());
+                        writer.close();
+                        return;
                     }
                 } catch (Exception e) {
                     StringWriter out = new StringWriter();
@@ -148,36 +199,24 @@ public class VestigeServlet extends HttpServlet {
                 if (error != null) {
                     jsonObject.put("error", error);
                 }
-                JSONArray repositories = new JSONArray();
-
                 PrintWriter writer = resp.getWriter();
-                for (String repoName : applicationManager.getRepositoriesName()) {
-                    JSONObject jsonRepo = new JSONObject();
-                    jsonRepo.put("name", repoName);
-                    URL repositoryURL = applicationManager.getRepositoryURL(repoName);
-                    jsonRepo.put("url", repositoryURL.toString());
-                    JSONArray applications = new JSONArray();
-                    for (String appName : applicationManager.getApplicationsName(repoName)) {
-                        JSONObject jsonApp = new JSONObject();
-                        jsonApp.put("name", appName);
-                        JSONArray versions = new JSONArray();
-                        for (List<Integer> version : applicationManager.getVersions(repoName, appName)) {
-                            JSONObject jsonVersion = new JSONObject();
-                            jsonVersion.put("value", VersionUtils.toString(version));
-                            jsonVersion.put("started", applicationManager.isStarted(repoName, appName, version));
-                            int autoMigrateLevel = applicationManager.getAutoMigrateLevel(repoName, appName, version);
-                            jsonVersion.put("bugfix", autoMigrateLevel >= 1);
-                            jsonVersion.put("minor", autoMigrateLevel >= 2);
-                            jsonVersion.put("major", autoMigrateLevel >= 3);
-                            versions.add(jsonVersion);
-                        }
-                        jsonApp.put("version", versions);
-                        applications.add(jsonApp);
-                    }
-                    jsonRepo.put("application", applications);
-                    repositories.add(jsonRepo);
+                JSONArray applications = new JSONArray();
+                for (String appName : applicationManager.getApplicationsName()) {
+                    JSONObject jsonApp = new JSONObject();
+                    jsonApp.put("name", appName);
+                    jsonApp.put(
+                            "path",
+                            applicationManager.getRepositoryName(appName) + "-" + applicationManager.getRepositoryApplicationName(appName) + "-"
+                                    + VersionUtils.toString(applicationManager.getRepositoryApplicationVersion(appName)));
+                    jsonApp.put("autoStarted", applicationManager.isAutoStarted(appName));
+                    jsonApp.put("started", applicationManager.isStarted(appName));
+                    int autoMigrateLevel = applicationManager.getAutoMigrateLevel(appName);
+                    jsonApp.put("bugfix", autoMigrateLevel >= 1);
+                    jsonApp.put("minor", autoMigrateLevel >= 2);
+                    jsonApp.put("major", autoMigrateLevel >= 3);
+                    applications.add(jsonApp);
                 }
-                jsonObject.put("repository", repositories);
+                jsonObject.put("application", applications);
                 writer.print(jsonObject.toJSONString());
                 writer.close();
             } catch (ApplicationException e) {

@@ -18,13 +18,11 @@
 package fr.gaellalire.vestige.admin.command;
 
 import java.io.PrintWriter;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-import fr.gaellalire.vestige.admin.command.argument.ApplicationArgument;
+import fr.gaellalire.vestige.admin.command.argument.LocalApplicationNameArgument;
 import fr.gaellalire.vestige.admin.command.argument.Argument;
-import fr.gaellalire.vestige.admin.command.argument.RepositoryArgument;
-import fr.gaellalire.vestige.admin.command.argument.VersionArgument;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
 
@@ -35,17 +33,11 @@ public class ClassLoaders implements Command {
 
     private ApplicationManager applicationManager;
 
-    private RepositoryArgument repositoryArgument;
-
-    private ApplicationArgument applicationArgument;
-
-    private VersionArgument versionArgument;
+    private LocalApplicationNameArgument applicationArgument;
 
     public ClassLoaders(final ApplicationManager applicationManager) {
         this.applicationManager = applicationManager;
-        repositoryArgument = new RepositoryArgument(applicationManager, Boolean.TRUE);
-        applicationArgument = new ApplicationArgument(applicationManager, Boolean.TRUE, repositoryArgument);
-        versionArgument = new VersionArgument(applicationManager, Boolean.TRUE, repositoryArgument, applicationArgument);
+        applicationArgument = new LocalApplicationNameArgument(applicationManager, Boolean.TRUE);
     }
 
     public String getName() {
@@ -57,17 +49,15 @@ public class ClassLoaders implements Command {
     }
 
     public List<Argument> getArguments() {
-        return Arrays.asList(repositoryArgument, applicationArgument, versionArgument);
+        return Collections.<Argument> singletonList(applicationArgument);
     }
 
     public void execute(final PrintWriter out) {
         try {
-            out.println(applicationManager.getClassLoaders(repositoryArgument.getRepository(),
-                    applicationArgument.getApplication(), versionArgument.getVersion()));
+            out.println(applicationManager.getClassLoaders(applicationArgument.getApplication()));
         } catch (ApplicationException e) {
             e.printStackTrace(out);
         }
     }
-
 
 }

@@ -21,44 +21,47 @@ import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.List;
 
-import fr.gaellalire.vestige.admin.command.argument.LocalApplicationNameArgument;
 import fr.gaellalire.vestige.admin.command.argument.Argument;
-import fr.gaellalire.vestige.admin.command.argument.LevelArgument;
+import fr.gaellalire.vestige.admin.command.argument.LocalApplicationNameArgument;
+import fr.gaellalire.vestige.admin.command.argument.OnOffArgument;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
 
 /**
  * @author Gael Lalire
  */
-public class AutoMigrateLevel implements Command {
+public class AutoStart implements Command {
 
     private ApplicationManager applicationManager;
 
     private LocalApplicationNameArgument applicationArgument;
 
-    private LevelArgument levelArgument;
+    private OnOffArgument onOffArgument;
 
-    public AutoMigrateLevel(final ApplicationManager applicationManager) {
+    public AutoStart(final ApplicationManager applicationManager) {
         this.applicationManager = applicationManager;
-        applicationArgument = new LocalApplicationNameArgument(applicationManager, Boolean.TRUE);
-        levelArgument = new LevelArgument();
+        applicationArgument = new LocalApplicationNameArgument(applicationManager);
+        onOffArgument = new OnOffArgument();
     }
 
     public String getName() {
-        return "auto-migrate-level";
+        return "auto-start";
     }
 
     public String getDesc() {
-        return "Change auto migrate level of an application";
+        return "Set if application should start with platform";
     }
 
-    public List<Argument> getArguments() {
-        return Arrays.asList(applicationArgument, levelArgument);
+    public List<? extends Argument> getArguments() {
+        return Arrays.asList(applicationArgument, onOffArgument);
     }
 
     public void execute(final PrintWriter out) {
         try {
-            applicationManager.setAutoMigrateLevel(applicationArgument.getApplication(), levelArgument.getLevel());
+            Boolean active = onOffArgument.getActive();
+            if (active != null) {
+                applicationManager.setAutoStarted(applicationArgument.getApplication(), active.booleanValue());
+            }
         } catch (ApplicationException e) {
             e.printStackTrace(out);
         }

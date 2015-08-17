@@ -62,14 +62,14 @@ public class MicroEditionVestige {
 
     private ApplicationDescriptorFactory applicationDescriptorFactory;
 
-    public MicroEditionVestige(final File homeFile, final VestigeExecutor vestigeExecutor, final VestigePlatform vestigePlatform) throws IOException {
+    public MicroEditionVestige(final File baseFile, final File dataFile, final VestigeExecutor vestigeExecutor, final VestigePlatform vestigePlatform) throws IOException {
         this.vestigeExecutor = vestigeExecutor;
         this.vestigePlatform = vestigePlatform;
 
-        File appHome = new File(homeFile, "app");
-
+        File appBaseFile = new File(baseFile, "app");
+        File appDataFile = new File(dataFile, "app");
         try {
-            resolverFile = new File(appHome, "application-manager.ser");
+            resolverFile = new File(dataFile, "application-manager.ser");
             if (resolverFile.isFile()) {
                 ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(resolverFile));
                 try {
@@ -83,7 +83,7 @@ public class MicroEditionVestige {
         }
 
         if (defaultApplicationManager == null) {
-            defaultApplicationManager = new DefaultApplicationManager(new File(appHome, "home"));
+            defaultApplicationManager = new DefaultApplicationManager(appBaseFile, appDataFile);
         }
 
         applicationDescriptorFactory = new PropertiesApplicationDescriptorFactory();
@@ -161,15 +161,21 @@ public class MicroEditionVestige {
 
             VestigeExecutor vestigeExecutor = new VestigeExecutor();
             VestigePlatform vestigePlatform = new DefaultVestigePlatform(vestigeExecutor);
-            String home = args[0];
-            File homeFile = new File(home);
-            if (!homeFile.isDirectory()) {
-                if (!homeFile.mkdirs()) {
-                    LOGGER.error("Unable to create vestige home");
+            File baseFile = new File(args[0]);
+            File dataFile = new File(args[1]);
+            if (!baseFile.isDirectory()) {
+                if (!baseFile.mkdirs()) {
+                    LOGGER.error("Unable to create vestige base");
                 }
             }
-            LOGGER.info("Use {} for home file", homeFile);
-            final MicroEditionVestige microEditionVestige = new MicroEditionVestige(homeFile, vestigeExecutor, vestigePlatform);
+            if (!dataFile.isDirectory()) {
+                if (!dataFile.mkdirs()) {
+                    LOGGER.error("Unable to create vestige data");
+                }
+            }
+            LOGGER.info("Use {} for base file", baseFile);
+            LOGGER.debug("Use {} for data file", dataFile);
+            final MicroEditionVestige microEditionVestige = new MicroEditionVestige(baseFile, dataFile, vestigeExecutor, vestigePlatform);
             Runtime.getRuntime().addShutdownHook(new Thread("me-shutdown") {
                 @Override
                 public void run() {
