@@ -61,11 +61,12 @@ public final class VersionUtils {
     }
 
     /**
-     * @return
-     * < 0 if version < otherVersion
-     * = 0 if version = otherVersion
-     * > 0 if version > otherVersion
-     * null if we cannot compare.
+     * @return <ul>
+     * <li>&lt; 0 if version &lt; otherVersion</li>
+     * <li>0 if version = otherVersion</li>
+     * <li>&gt; 0 if version &gt; otherVersion</li>
+     * <li>null if we cannot compare.</li>
+     * </ul>
      */
     public static Integer compare(final List<Integer> version, final List<Integer> otherVersion) {
         for (int i = 0; i < 3; i++) {
