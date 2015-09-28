@@ -34,6 +34,8 @@ if not exist "%VESTIGE_BASE%" (
 
 if not defined VESTIGE_DATA set VESTIGE_DATA=%DIRNAME%\data
 
+if not defined VESTIGE_SECURITY set VESTIGE_SECURITY=true
+
 if not defined VESTIGE_LISTENER_PORT set VESTIGE_LISTENER_PORT=0
 
 if not defined VESTIGE_OPTS set VESTIGE_OPTS=%JAVA_OPTS%
@@ -50,6 +52,6 @@ set LOGBACK_CONFIGURATION_FILE=%VESTIGE_BASE%\logback.xml
 
 set VESTIGE_OPTS=%VESTIGE_OPTS% -Dvestige.mavenRepository="%DATADIR%\repository" -Djava.util.logging.manager=fr.gaellalire.vestige.core.logger.JULLogManager -Dlogback.logsDirectory="%VESTIGE_BASE%\logs" -Dlogback.configurationFile="%LOGBACK_CONFIGURATION_FILE%"
 
-"%JAVA%" %VESTIGE_OPTS% -jar "%DATADIR%\lib\vestige.core-${vestige.core.version}.jar" frcp "%DATADIR%" "%DATADIR%\windows-classpath.txt" fr.gaellalire.vestige.jvm_enhancer.JVMEnhancer fr.gaellalire.vestige.resolver.maven.VestigeMavenResolver "%MAVEN_LAUNCHER_FILE%" "%MAVEN_SETTINGS_FILE%" "%MAVEN_RESOLVER_CACHE_FILE%" "%VESTIGE_BASE%" "%VESTIGE_DATA%" %VESTIGE_LISTENER_PORT% || exit /B 2
+"%JAVA%" %VESTIGE_OPTS% -jar "%DATADIR%\lib\vestige.core-${vestige.core.version}.jar" frcp "%DATADIR%" "%DATADIR%\windows-classpath.txt" fr.gaellalire.vestige.jvm_enhancer.JVMEnhancer fr.gaellalire.vestige.resolver.maven.VestigeMavenResolver "%MAVEN_LAUNCHER_FILE%" "%MAVEN_SETTINGS_FILE%" "%MAVEN_RESOLVER_CACHE_FILE%" "%VESTIGE_BASE%" "%VESTIGE_DATA%" %VESTIGE_SECURITY% %VESTIGE_LISTENER_PORT% || exit /B 2
 
 endlocal

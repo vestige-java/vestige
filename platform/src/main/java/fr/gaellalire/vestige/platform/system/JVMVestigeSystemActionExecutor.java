@@ -78,22 +78,21 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
     }
 
     public void execute(final VestigeSystemAction vestigeSystemAction) {
+        final VestigeSystemHolder vestigeSystemHolder = new VestigeSystemHolder();
+        final VestigeSystem vestigeSystem = new VestigeSystem(vestigeSystemHolder);
+        vestigeSystemHolder.setFallbackVestigeSystem(vestigeSystem);
+
         // JDK log
         synchronized (VestigeLoggerFactory.class) {
             SLF4JLoggerFactoryAdapter factory;
             if (securityEnabled) {
-                factory = new SecureSLF4JLoggerFactoryAdapter();
+                factory = new SecureSLF4JLoggerFactoryAdapter(vestigeSystem);
             } else {
                 factory = new SLF4JLoggerFactoryAdapter();
             }
             factory.setNextHandler(VestigeLoggerFactory.getVestigeLoggerFactory());
             VestigeLoggerFactory.setVestigeLoggerFactory(factory);
         }
-
-
-        final VestigeSystemHolder vestigeSystemHolder = new VestigeSystemHolder();
-        final VestigeSystem vestigeSystem = new VestigeSystem(vestigeSystemHolder);
-        vestigeSystemHolder.setFallbackVestigeSystem(vestigeSystem);
 
         VestigePolicy vestigePolicy = null;
         if (securityEnabled) {
@@ -117,7 +116,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
         VestigeInputStream in;
         // avoid direct log
         synchronized (System.class) {
-            out = new VestigePrintStream(new SLF4JPrintStream(true, System.out)) {
+            out = new VestigePrintStream(new SLF4JPrintStream(vestigeSystem, true, System.out)) {
 
                 @Override
                 public PrintStream getPrintStream() {
@@ -127,7 +126,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
             vestigeSystem.setOut(out.getNextHandler());
             System.setOut(out);
 
-            err = new VestigePrintStream(new SLF4JPrintStream(false, System.err)) {
+            err = new VestigePrintStream(new SLF4JPrintStream(vestigeSystem, false, System.err)) {
 
                 @Override
                 public PrintStream getPrintStream() {

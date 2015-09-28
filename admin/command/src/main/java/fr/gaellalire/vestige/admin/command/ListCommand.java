@@ -77,6 +77,11 @@ public class ListCommand implements Command {
                             out.print(applicationManager.getRepositoryApplicationName(applicationName));
                             out.print("-");
                             out.print(VersionUtils.toString(applicationManager.getRepositoryApplicationVersion(applicationName)));
+                            List<Integer> migrationRepositoryApplicationVersion = applicationManager.getMigrationRepositoryApplicationVersion(applicationName);
+                            if (migrationRepositoryApplicationVersion != null) {
+                                out.print("-");
+                                out.print(VersionUtils.toString(migrationRepositoryApplicationVersion));
+                            }
                             out.print(" -> state:");
                             if (applicationManager.isStarted(applicationName)) {
                                 out.print("STARTED");

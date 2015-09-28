@@ -22,7 +22,6 @@ import java.net.Proxy;
 import java.net.ProxySelector;
 import java.net.SocketAddress;
 import java.net.URI;
-import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.List;
 
@@ -33,13 +32,16 @@ public class SecureProxySelector extends ProxySelector {
 
     private ProxySelector proxySelector;
 
-    public SecureProxySelector(final ProxySelector proxySelector) {
+    private PublicVestigeSystem privilegedVestigeSystem;
+
+    public SecureProxySelector(final PublicVestigeSystem privilegedVestigeSystem, final ProxySelector proxySelector) {
+        this.privilegedVestigeSystem = privilegedVestigeSystem;
         this.proxySelector = proxySelector;
     }
 
     @Override
     public List<Proxy> select(final URI uri) {
-        return AccessController.doPrivileged(new PrivilegedAction<List<Proxy>>() {
+        return privilegedVestigeSystem.doPrivileged(new PrivilegedAction<List<Proxy>>() {
 
             @Override
             public List<Proxy> run() {
@@ -50,7 +52,7 @@ public class SecureProxySelector extends ProxySelector {
 
     @Override
     public void connectFailed(final URI uri, final SocketAddress sa, final IOException ioe) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
 
             @Override
             public Void run() {

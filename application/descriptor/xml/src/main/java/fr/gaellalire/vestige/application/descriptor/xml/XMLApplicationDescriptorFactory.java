@@ -229,6 +229,7 @@ public class XMLApplicationDescriptorFactory implements ApplicationDescriptorFac
         return new MavenConfigResolved(mavenConfig.isSuperPomRepositoriesUsed(), mavenConfig.isPomRepositoriesIgnored(), additionalRepositories, defaultDependencyModifier);
     }
 
+    @SuppressWarnings("unchecked")
     public Set<String> listApplicationsName(final URL context) {
         Set<String> names = new TreeSet<String>();
         URL url;
@@ -265,6 +266,7 @@ public class XMLApplicationDescriptorFactory implements ApplicationDescriptorFac
         return names;
     }
 
+    @SuppressWarnings("unchecked")
     public Set<List<Integer>> listApplicationVersions(final URL context, final String appName) {
         Set<List<Integer>> versions = new TreeSet<List<Integer>>(VersionUtils.VERSION_COMPARATOR);
         URL url;

@@ -371,11 +371,15 @@ public class TestStringParserConfiguration {
     private void map(final URL url, final TreeMap<String, Integer> pathsByResourceName) {
         try {
             JarInputStream openStream = new JarInputStream(url.openStream());
-            ZipEntry nextEntry = openStream.getNextEntry();
-            while (nextEntry != null) {
-                String name = nextEntry.getName();
-                pathsByResourceName.put(name, 1);
-                nextEntry = openStream.getNextEntry();
+            try {
+                ZipEntry nextEntry = openStream.getNextEntry();
+                while (nextEntry != null) {
+                    String name = nextEntry.getName();
+                    pathsByResourceName.put(name, 1);
+                    nextEntry = openStream.getNextEntry();
+                }
+            } finally {
+                openStream.close();
             }
         } catch (IOException e) {
             e.printStackTrace();

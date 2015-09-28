@@ -62,6 +62,8 @@ public interface ApplicationManager {
 
     List<Integer> getRepositoryApplicationVersion(String installName) throws ApplicationException;
 
+    List<Integer> getMigrationRepositoryApplicationVersion(String installName) throws ApplicationException;
+
     int getAutoMigrateLevel(String installName) throws ApplicationException;
 
     void setAutoMigrateLevel(String installName, int level) throws ApplicationException;
@@ -71,5 +73,6 @@ public interface ApplicationManager {
     boolean isAutoStarted(String installName) throws ApplicationException;
 
     void autoMigrate() throws ApplicationException;
+
 
 }

@@ -18,10 +18,8 @@
 package fr.gaellalire.vestige.edition.micro;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Properties;
 
@@ -66,25 +64,25 @@ public class MicroEditionVestige {
         this.vestigeExecutor = vestigeExecutor;
         this.vestigePlatform = vestigePlatform;
 
-        File appBaseFile = new File(baseFile, "app");
-        File appDataFile = new File(dataFile, "app");
-        try {
-            resolverFile = new File(dataFile, "application-manager.ser");
-            if (resolverFile.isFile()) {
-                ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(resolverFile));
-                try {
-                    defaultApplicationManager = (DefaultApplicationManager) objectInputStream.readObject();
-                } finally {
-                    objectInputStream.close();
-                }
-            }
-        } catch (Exception e) {
-            LOGGER.warn("Unable to restore application manager", e);
-        }
-
-        if (defaultApplicationManager == null) {
-            defaultApplicationManager = new DefaultApplicationManager(appBaseFile, appDataFile);
-        }
+//        File appBaseFile = new File(baseFile, "app");
+//        File appDataFile = new File(dataFile, "app");
+//        try {
+//            resolverFile = new File(dataFile, "application-manager.ser");
+//            if (resolverFile.isFile()) {
+//                ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(resolverFile));
+//                try {
+//                    defaultApplicationManager = (DefaultApplicationManager) objectInputStream.readObject();
+//                } finally {
+//                    objectInputStream.close();
+//                }
+//            }
+//        } catch (Exception e) {
+//            LOGGER.warn("Unable to restore application manager", e);
+//        }
+//
+//        if (defaultApplicationManager == null) {
+//            defaultApplicationManager = new DefaultApplicationManager(appBaseFile, appDataFile);
+//        }
 
         applicationDescriptorFactory = new PropertiesApplicationDescriptorFactory();
 
@@ -97,7 +95,7 @@ public class MicroEditionVestige {
             throw new Exception("Vestige ME already started");
         }
         workerThread = vestigeExecutor.createWorker("me-worker", true, 0);
-        defaultApplicationManager.powerOn(vestigePlatform, null, null, null, null, applicationDescriptorFactory);
+        defaultApplicationManager.autoStart();
         server.start();
     }
 
@@ -106,7 +104,7 @@ public class MicroEditionVestige {
             throw new Exception("Vestige ME is not started");
         }
         server.stop();
-        defaultApplicationManager.shutdown();
+        defaultApplicationManager.stopAll();
         try {
             ObjectOutputStream objectOutputStream = new ObjectOutputStream(new FileOutputStream(resolverFile));
             try {
@@ -142,9 +140,9 @@ public class MicroEditionVestige {
             // FIXME simple logger must not be intercepted
             // avoid direct log
             synchronized (System.class) {
-                SLF4JPrintStream out = new SLF4JPrintStream(true, System.out);
+                SLF4JPrintStream out = new SLF4JPrintStream(null, true, System.out);
                 System.setOut(out);
-                SLF4JPrintStream err = new SLF4JPrintStream(false, System.err);
+                SLF4JPrintStream err = new SLF4JPrintStream(null, false, System.err);
                 System.setErr(err);
             }
 

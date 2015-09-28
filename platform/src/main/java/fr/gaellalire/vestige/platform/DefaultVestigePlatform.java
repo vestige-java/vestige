@@ -320,9 +320,12 @@ public class DefaultVestigePlatform implements VestigePlatform {
                 classStringParser = new ClassesStringParser(resourceStringParser);
             }
 
-            vestigeClassLoader = vestigeExecutor.createVestigeClassLoader(ClassLoader.getSystemClassLoader(), convert(attachedVestigeClassLoader, classLoaderConfiguration),
+            vestigeClassLoader = new VestigeClassLoader<AttachedVestigeClassLoader>(ClassLoader.getSystemClassLoader(), convert(attachedVestigeClassLoader, classLoaderConfiguration),
                     classStringParser, resourceStringParser, urls);
 
+//            vestigeClassLoader = vestigeExecutor.createVestigeClassLoader(ClassLoader.getSystemClassLoader(), convert(attachedVestigeClassLoader, classLoaderConfiguration),
+//                    classStringParser, resourceStringParser, urls);
+//
             List<String> classes = new ArrayList<String>();
             for (URL url : urls) {
                 try {

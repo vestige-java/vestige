@@ -13,13 +13,8 @@
 
   <xs:complexType name="Settings">
     <xs:sequence>
-      <xs:element name="security" type="Security" />
       <xs:element name="admin" type="Admin" />
     </xs:sequence>
-  </xs:complexType>
-
-  <xs:complexType name="Security">
-    <xs:attribute name="enabled" type="xs:boolean" use="optional" default="true" />
   </xs:complexType>
 
   <xs:complexType name="Admin">

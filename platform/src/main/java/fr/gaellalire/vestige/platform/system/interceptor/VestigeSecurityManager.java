@@ -26,6 +26,7 @@ import fr.gaellalire.vestige.core.StackedHandler;
 /**
  * @author Gael Lalire
  */
+@SuppressWarnings("deprecation")
 public abstract class VestigeSecurityManager extends SecurityManager implements StackedHandler<SecurityManager> {
 
     private SecurityManager nextHandler;
@@ -106,7 +107,6 @@ public abstract class VestigeSecurityManager extends SecurityManager implements 
         getSecurityManager().checkMulticast(maddr);
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public void checkMulticast(final InetAddress maddr, final byte ttl) {
         getSecurityManager().checkMulticast(maddr, ttl);
@@ -197,7 +197,6 @@ public abstract class VestigeSecurityManager extends SecurityManager implements 
         return getSecurityManager().equals(obj);
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public boolean getInCheck() {
         return getSecurityManager().getInCheck();

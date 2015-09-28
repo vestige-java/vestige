@@ -38,10 +38,18 @@ public abstract class VestigePolicy extends Policy implements StackedHandler<Pol
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VestigePolicy.class);
 
+    private ThreadLocal<Boolean> insideImplies;
+
     private Policy nextHandler;
 
     public VestigePolicy(final Policy nextHandler) {
         this.nextHandler = nextHandler;
+        insideImplies = new ThreadLocal<Boolean>();
+//        try {
+//            Class.forName(Boolean.class.getName(), true, Boolean.class.getClassLoader());
+//        } catch (ClassNotFoundException e) {
+//            LOGGER.error("Boolean class not found", e);
+//        }
     }
 
     public abstract Policy getCurrentPolicy();
@@ -73,18 +81,27 @@ public abstract class VestigePolicy extends Policy implements StackedHandler<Pol
 
     @Override
     public boolean implies(final ProtectionDomain domain, final Permission permission) {
-        if (getCurrentPolicy().implies(domain, permission)) {
+        if (insideImplies.get() != null) {
+            // a policy has all rights to avoid stack overflow
             return true;
         }
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
-
-            @Override
-            public Void run() {
-                LOGGER.warn("Permission {} refused for {}", permission, domain);
-                return null;
+        insideImplies.set(Boolean.TRUE);
+        try {
+            if (getCurrentPolicy().implies(domain, permission)) {
+                return true;
             }
-        });
-        return false;
+            AccessController.doPrivileged(new PrivilegedAction<Void>() {
+
+                @Override
+                public Void run() {
+                    LOGGER.warn("Permission {} refused for {}", permission, domain);
+                    return null;
+                }
+            });
+            return false;
+        } finally {
+            insideImplies.remove();
+        }
     }
 
     @Override
