@@ -100,16 +100,24 @@ public class DefaultApplicationManager implements ApplicationManager {
         state = new DefaultApplicationManagerState();
     }
 
+    private DefaultApplicationManagerState readDefaultApplicationManagerState(final File file) throws IOException, ClassNotFoundException {
+        ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(file)) {
+            protected java.lang.Class<?> resolveClass(final java.io.ObjectStreamClass desc) throws IOException, ClassNotFoundException {
+                return Class.forName(desc.getName(), false, Thread.currentThread().getContextClassLoader());
+            }
+        };
+        try {
+            return (DefaultApplicationManagerState) objectInputStream.readObject();
+        } finally {
+            objectInputStream.close();
+        }
+    }
+
     public void restoreState() throws ApplicationException {
         try {
             if (nextResolverFile.isFile()) {
                 try {
-                    ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(nextResolverFile));
-                    try {
-                        state = (DefaultApplicationManagerState) objectInputStream.readObject();
-                    } finally {
-                        objectInputStream.close();
-                    }
+                    state = readDefaultApplicationManagerState(nextResolverFile);
                     resolverFile.delete();
                     nextResolverFile.renameTo(resolverFile);
                     return;
@@ -117,12 +125,7 @@ public class DefaultApplicationManager implements ApplicationManager {
                     LOGGER.warn("Next resolver file invalid", e);
                 }
             }
-            ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(resolverFile));
-            try {
-                state = (DefaultApplicationManagerState) objectInputStream.readObject();
-            } finally {
-                objectInputStream.close();
-            }
+            state = readDefaultApplicationManagerState(resolverFile);
         } catch (Exception e) {
             throw new ApplicationException("Unable to restore old state", e);
         }
