@@ -20,9 +20,12 @@ package fr.gaellalire.vestige.platform.logger;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.security.PrivilegedAction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import fr.gaellalire.vestige.platform.system.PublicVestigeSystem;
 
 /**
  * @author Gael Lalire
@@ -31,13 +34,16 @@ public class SLF4JOutputStream extends OutputStream {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(System.class);
 
+    private PublicVestigeSystem privilegedVestigeSystem;
+
     private ByteArrayOutputStream outputStream;
 
     private boolean crRead = false;
 
     private boolean info;
 
-    public SLF4JOutputStream(final boolean info) {
+    public SLF4JOutputStream(final PublicVestigeSystem privilegedVestigeSystem, final boolean info) {
+        this.privilegedVestigeSystem = privilegedVestigeSystem;
         this.info = info;
         outputStream = new ByteArrayOutputStream();
     }
@@ -67,13 +73,23 @@ public class SLF4JOutputStream extends OutputStream {
         }
         if (lineReaded) {
             if (info) {
-                if (LOGGER.isInfoEnabled()) {
-                    LOGGER.info("{}", outputStream.toString());
-                }
+                privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
+                    public Void run() {
+                        if (LOGGER.isInfoEnabled()) {
+                            LOGGER.info("{}", outputStream.toString());
+                        }
+                        return null;
+                    }
+                });
             } else {
-                if (LOGGER.isErrorEnabled()) {
-                    LOGGER.error("{}", outputStream.toString());
-                }
+                privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
+                    public Void run() {
+                        if (LOGGER.isErrorEnabled()) {
+                            LOGGER.error("{}", outputStream.toString());
+                        }
+                        return null;
+                    }
+                });
             }
             outputStream.reset();
         }

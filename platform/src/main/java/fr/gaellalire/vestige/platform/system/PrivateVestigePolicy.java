@@ -17,13 +17,11 @@
 
 package fr.gaellalire.vestige.platform.system;
 
-import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Permission;
 import java.security.PermissionCollection;
 import java.security.Permissions;
 import java.security.Policy;
-import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 
 /**
@@ -31,7 +29,13 @@ import java.security.ProtectionDomain;
  */
 public class PrivateVestigePolicy extends Policy {
 
+    private PermissionCollection impliesPermissionCollection;
+
     private ThreadLocal<PermissionCollection> permissionCollectionThreadLocal = new InheritableThreadLocal<PermissionCollection>();
+
+    public PrivateVestigePolicy(final PermissionCollection impliesPermissionCollection) {
+        this.impliesPermissionCollection = impliesPermissionCollection;
+    }
 
     public void setPermissionCollection(final PermissionCollection permissionCollection) {
         permissionCollectionThreadLocal.set(permissionCollection);
@@ -39,6 +43,10 @@ public class PrivateVestigePolicy extends Policy {
 
     public void unsetPermissionCollection() {
         permissionCollectionThreadLocal.remove();
+    }
+
+    public PermissionCollection getPermissionCollection() {
+        return permissionCollectionThreadLocal.get();
     }
 
     @Override
@@ -54,34 +62,32 @@ public class PrivateVestigePolicy extends Policy {
     @Override
     public boolean implies(final ProtectionDomain domain, final Permission permission) {
         PermissionCollection permissionCollection = permissionCollectionThreadLocal.get();
-        if (permissionCollection == null) {
-            // not restricted
-            return true;
-        }
-        if (permissionCollection.implies(permission)) {
-            return true;
-        }
-        if (!AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
-            @Override
-            public Boolean run() {
-                ClassLoader permClassLoader = permission.getClass().getClassLoader();
-                if (permClassLoader == null) {
-                    return true;
-                }
-                ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
-                while (systemClassLoader != null) {
-                    if (systemClassLoader == permClassLoader) {
-                        return true;
-                    }
-                    systemClassLoader = systemClassLoader.getParent();
-                }
+        permissionCollectionThreadLocal.set(impliesPermissionCollection);
+        try {
+            if (permissionCollection != null && permissionCollection.implies(permission)) {
+                return true;
+            }
+            // permission is refused, however if the permission is not a JVM permission we ignore it
+            ClassLoader permClassLoader = permission.getClass().getClassLoader();
+            if (permClassLoader == null) {
                 return false;
             }
-        })) {
-            // the permission is not a system permission, so we ignore it
+            ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
+            while (systemClassLoader != null) {
+                if (systemClassLoader == permClassLoader) {
+                    return false;
+                }
+                systemClassLoader = systemClassLoader.getParent();
+            }
+            // not a JVM permission
             return true;
+        } finally {
+            if (permissionCollection == null) {
+                permissionCollectionThreadLocal.remove();
+            } else {
+                permissionCollectionThreadLocal.set(permissionCollection);
+            }
         }
-        return false;
     }
 
 }

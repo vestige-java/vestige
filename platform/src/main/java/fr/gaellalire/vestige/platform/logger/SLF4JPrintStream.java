@@ -20,6 +20,7 @@ package fr.gaellalire.vestige.platform.logger;
 import java.io.PrintStream;
 
 import fr.gaellalire.vestige.core.StackedHandler;
+import fr.gaellalire.vestige.platform.system.PublicVestigeSystem;
 
 /**
  * @author Gael Lalire
@@ -28,8 +29,8 @@ public class SLF4JPrintStream extends PrintStream implements StackedHandler<Prin
 
     private PrintStream nextHandler;
 
-    public SLF4JPrintStream(final boolean info, final PrintStream nextHandler) {
-        super(new SLF4JOutputStream(info));
+    public SLF4JPrintStream(final PublicVestigeSystem privilegedVestigeSystem, final boolean info, final PrintStream nextHandler) {
+        super(new SLF4JOutputStream(privilegedVestigeSystem, info));
         this.nextHandler = nextHandler;
     }
 

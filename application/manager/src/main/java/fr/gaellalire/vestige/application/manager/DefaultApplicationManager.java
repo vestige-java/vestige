@@ -18,22 +18,24 @@
 package fr.gaellalire.vestige.application.manager;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FilePermission;
 import java.io.IOException;
-import java.io.Serializable;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
+import java.security.AllPermission;
 import java.security.Permission;
+import java.security.PermissionCollection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -53,73 +55,118 @@ import fr.gaellalire.vestige.utils.FileUtils;
 /**
  * @author Gael Lalire
  */
-public class DefaultApplicationManager implements ApplicationManager, Serializable {
-
-    private static final long serialVersionUID = -738251991775204424L;
+public class DefaultApplicationManager implements ApplicationManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultApplicationManager.class);
 
-    private transient VestigePlatform vestigePlatform;
+    private VestigePlatform vestigePlatform;
 
-    private transient PublicVestigeSystem rootVestigeSystem;
+    private PublicVestigeSystem rootVestigeSystem;
 
-    private transient PublicVestigeSystem managerVestigeSystem;
+    private PublicVestigeSystem managerVestigeSystem;
 
-    // private transient PrivateVestigePolicy vestigePolicy;
-
-    // private transient PrivateVestigeSecurityManager vestigeSecurityManager;
-
-    private Map<String, ApplicationContext> applicationContextByInstallName = new TreeMap<String, ApplicationContext>();
-
-    private Map<String, URL> urlByRepo = new TreeMap<String, URL>();
-
-    private transient ApplicationDescriptorFactory applicationDescriptorFactory;
+    private ApplicationDescriptorFactory applicationDescriptorFactory;
 
     private File appBaseFile;
 
     private File appDataFile;
 
-    public DefaultApplicationManager(final File appBaseFile, final File appDataFile) {
+    private DefaultApplicationManagerState state;
+
+    private VestigeSecureExecutor vestigeSecureExecutor;
+
+    private File resolverFile;
+
+    private File nextResolverFile;
+
+    public DefaultApplicationManager(final File appBaseFile, final File appDataFile, final VestigePlatform vestigePlatform, final PublicVestigeSystem vestigeSystem, final PublicVestigeSystem managerVestigeSystem,
+            final PrivateVestigeSecurityManager vestigeSecurityManager, final ApplicationDescriptorFactory applicationDescriptorFactory, final File resolverFile, final File nextResolverFile) {
         this.appBaseFile = appBaseFile;
         this.appDataFile = appDataFile;
+
+        AllPermission allPermission = new AllPermission();
+        PermissionCollection allPermissionCollection = allPermission.newPermissionCollection();
+        allPermissionCollection.add(allPermission);
+
+        PrivateVestigePolicy vestigePolicy = new PrivateVestigePolicy(allPermissionCollection);
+        vestigeSystem.setPolicy(vestigePolicy);
+        this.rootVestigeSystem = vestigeSystem;
+        this.managerVestigeSystem = managerVestigeSystem;
+        this.vestigeSecureExecutor = new VestigeSecureExecutor(vestigeSecurityManager, vestigePolicy);
+        this.vestigePlatform = vestigePlatform;
+        this.applicationDescriptorFactory = applicationDescriptorFactory;
+        this.resolverFile = resolverFile;
+        this.nextResolverFile = nextResolverFile;
+        state = new DefaultApplicationManagerState();
     }
 
-    public void createRepository(final String name, final URL url) throws ApplicationException {
-        URL old = urlByRepo.put(name, url);
-        if (old != null) {
-            urlByRepo.put(name, old);
-            throw new ApplicationException("Repository with url " + url + " already exists");
+    public void restoreState() throws ApplicationException {
+        try {
+            if (nextResolverFile.isFile()) {
+                try {
+                    ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(nextResolverFile));
+                    try {
+                        state = (DefaultApplicationManagerState) objectInputStream.readObject();
+                    } finally {
+                        objectInputStream.close();
+                    }
+                    resolverFile.delete();
+                    nextResolverFile.renameTo(resolverFile);
+                    return;
+                } catch (Exception e) {
+                    LOGGER.warn("Next resolver file invalid", e);
+                }
+            }
+            ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(resolverFile));
+            try {
+                state = (DefaultApplicationManagerState) objectInputStream.readObject();
+            } finally {
+                objectInputStream.close();
+            }
+        } catch (Exception e) {
+            throw new ApplicationException("Unable to restore old state", e);
         }
+    }
+
+    public void saveState() throws ApplicationException {
+        try {
+            ObjectOutputStream objectOutputStream = new ObjectOutputStream(new FileOutputStream(nextResolverFile));
+            try {
+                objectOutputStream.writeObject(state);
+            } finally {
+                objectOutputStream.close();
+            }
+            resolverFile.delete();
+            nextResolverFile.renameTo(resolverFile);
+        } catch (IOException e) {
+            throw new ApplicationException("Unable to save new state", e);
+        }
+    }
+
+
+    public void createRepository(final String name, final URL url) throws ApplicationException {
+        state.createRepository(name, url);
+        saveState();
         LOGGER.info("Repository {} with url {} created", name, url);
     }
 
     public void removeRepository(final String name) throws ApplicationException {
-        URL remove = urlByRepo.remove(name);
-        if (remove == null) {
-            throw new ApplicationException("Repository do not exists");
-        }
+        state.removeRepository(name);
+        saveState();
         LOGGER.info("Repository {} removed", name);
     }
 
     public URL getRepositoryURL(final String repoName) {
-        return urlByRepo.get(repoName);
+        return state.getRepositoryURL(repoName);
     }
 
     public Set<String> getRepositoriesName() {
-        return urlByRepo.keySet();
-    }
-
-    public ApplicationContext getApplication(final String installName) throws ApplicationException {
-        ApplicationContext applicationContext = applicationContextByInstallName.get(installName);
-        if (applicationContext == null) {
-            throw new ApplicationException("Application " + installName + " is not installed");
-        }
-        return applicationContext;
+        return state.getRepositoriesName();
     }
 
     public ApplicationContext createApplicationContext(final String repoName, final String appName, final List<Integer> version, final String installName)
             throws ApplicationException {
-        URL context = urlByRepo.get(repoName);
+        URL context = state.getRepositoryURL(repoName);
         if (context == null) {
             throw new ApplicationException("repo not found");
         }
@@ -161,6 +208,8 @@ public class DefaultApplicationManager implements ApplicationManager, Serializab
         return applicationContext;
     }
 
+    private Set<String> lockedInstallNames = new HashSet<String>();
+
     public void install(final String repoName, final String appName, final List<Integer> version, final String pinstallName) throws ApplicationException {
 
         String installName = pinstallName;
@@ -168,9 +217,12 @@ public class DefaultApplicationManager implements ApplicationManager, Serializab
             installName = appName;
         }
 
-        synchronized (applicationContextByInstallName) {
-            if (applicationContextByInstallName.containsKey(installName)) {
+        synchronized (lockedInstallNames) {
+            if (state.hasContext(installName)) {
                 throw new ApplicationException("application already installed");
+            }
+            if (!lockedInstallNames.add(installName)) {
+                throw new ApplicationException("application already installing");
             }
         }
 
@@ -232,8 +284,10 @@ public class DefaultApplicationManager implements ApplicationManager, Serializab
             throw new ApplicationException("fail to install", e);
         }
 
-        synchronized (applicationContextByInstallName) {
-            applicationContextByInstallName.put(installName, applicationContext);
+        state.install(installName, applicationContext);
+        saveState();
+        synchronized (lockedInstallNames) {
+            lockedInstallNames.remove(installName);
         }
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Application {} version {} on repository {} installed", new Object[] {appName, VersionUtils.toString(version), repoName});
@@ -241,7 +295,7 @@ public class DefaultApplicationManager implements ApplicationManager, Serializab
     }
 
     public void uninstall(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = getApplication(installName);
+        final ApplicationContext applicationContext = state.getApplication(installName);
         if (applicationContext.isStarted()) {
             throw new ApplicationException("Application is started");
         }
@@ -317,7 +371,8 @@ public class DefaultApplicationManager implements ApplicationManager, Serializab
         } catch (Exception e) {
             LOGGER.error("fail to uninstall properly", e);
         } finally {
-            applicationContextByInstallName.remove(installName);
+            state.uninstall(installName);
+            saveState();
         }
 
         if (LOGGER.isInfoEnabled()) {
@@ -385,7 +440,7 @@ public class DefaultApplicationManager implements ApplicationManager, Serializab
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("migrating {} to version {} ", installName, VersionUtils.toString(toVersion));
         }
-        final ApplicationContext fromApplicationContext = getApplication(installName);
+        final ApplicationContext fromApplicationContext = state.getApplication(installName);
         ApplicationContext toApplicationContext = createApplicationContext(fromApplicationContext.getRepoName(), fromApplicationContext.getRepoApplicationName(), toVersion,
                 installName);
 
@@ -451,6 +506,7 @@ public class DefaultApplicationManager implements ApplicationManager, Serializab
                         }
                     }
                 };
+                fromApplicationContext.setMigrationRepoApplicationVersion(toVersion);
                 try {
                     int installerAttach = vestigePlatform.attach(installerResolve);
                     try {
@@ -514,9 +570,11 @@ public class DefaultApplicationManager implements ApplicationManager, Serializab
                 stop(fromApplicationContext);
 
             } catch (Exception e) {
+                fromApplicationContext.setMigrationRepoApplicationVersion(null);
                 throw new ApplicationException("fail to uninterrupted migrate", e);
             }
         } else {
+            fromApplicationContext.setMigrationRepoApplicationVersion(toVersion);
             try {
                 int installerAttach = vestigePlatform.attach(installerResolve);
                 try {
@@ -571,10 +629,12 @@ public class DefaultApplicationManager implements ApplicationManager, Serializab
                     vestigePlatform.detach(installerAttach);
                 }
             } catch (Exception e) {
+                fromApplicationContext.setMigrationRepoApplicationVersion(null);
                 throw new ApplicationException("fail to migrate", e);
             }
         }
-        applicationContextByInstallName.put(installName, toApplicationContext);
+        state.install(installName, toApplicationContext);
+        saveState();
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Application {} migrated to version {}", installName, VersionUtils.toString(toVersion));
         }
@@ -582,17 +642,17 @@ public class DefaultApplicationManager implements ApplicationManager, Serializab
     }
 
     public boolean isStarted(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = getApplication(installName);
+        final ApplicationContext applicationContext = state.getApplication(installName);
         return applicationContext.isStarted();
     }
 
     public ClassLoaderConfiguration getClassLoaders(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = getApplication(installName);
+        final ApplicationContext applicationContext = state.getApplication(installName);
         return applicationContext.getResolve();
     }
 
     public void start(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = getApplication(installName);
+        final ApplicationContext applicationContext = state.getApplication(installName);
         if (applicationContext.isStarted()) {
             throw new ApplicationException("already started");
         }
@@ -601,13 +661,13 @@ public class DefaultApplicationManager implements ApplicationManager, Serializab
     }
 
     public void stop(final String installName) throws ApplicationException {
-        ApplicationContext applicationContext = getApplication(installName);
+        ApplicationContext applicationContext = state.getApplication(installName);
         stop(applicationContext);
         LOGGER.info("Application {} stopped", installName);
     }
 
     public Set<String> getApplicationsName() {
-        return applicationContextByInstallName.keySet();
+        return state.getApplicationsName();
     }
 
     public void start(final ApplicationContext applicationContext) throws ApplicationException {
@@ -700,7 +760,6 @@ public class DefaultApplicationManager implements ApplicationManager, Serializab
         }
     }
 
-    private transient VestigeSecureExecutor vestigeSecureExecutor;
 
     public void start(final ApplicationContext applicationContext, final Object runMutex, final Object constructorMutex) throws ApplicationException {
         try {
@@ -814,9 +873,8 @@ public class DefaultApplicationManager implements ApplicationManager, Serializab
     /**
      * Stop all applications without modifing its states.
      */
-    public void shutdown() {
-        for (Entry<String, ApplicationContext> entry : applicationContextByInstallName.entrySet()) {
-            ApplicationContext applicationContext = entry.getValue();
+    public void stopAll() {
+        for (ApplicationContext applicationContext : state.getApplicationContexts()) {
             if (applicationContext.isStarted()) {
                 try {
                     stop(applicationContext);
@@ -825,30 +883,17 @@ public class DefaultApplicationManager implements ApplicationManager, Serializab
                 }
             }
         }
-        this.vestigePlatform = null;
-        this.applicationDescriptorFactory = null;
         this.vestigeSecureExecutor.stop();
     }
 
-    public void powerOn(final VestigePlatform vestigePlatform, final PublicVestigeSystem vestigeSystem, final PublicVestigeSystem managerVestigeSystem,
-            final PrivateVestigeSecurityManager vestigeSecurityManager, final PrivateVestigePolicy vestigePolicy, final ApplicationDescriptorFactory applicationDescriptorFactory) {
-        this.rootVestigeSystem = vestigeSystem;
-        this.managerVestigeSystem = managerVestigeSystem;
-        this.vestigeSecureExecutor = new VestigeSecureExecutor(vestigeSecurityManager, vestigePolicy);
-        this.vestigePlatform = vestigePlatform;
-        this.applicationDescriptorFactory = applicationDescriptorFactory;
+    public void autoStart() {
         List<ApplicationContext> autoStartApplicationContext = new ArrayList<ApplicationContext>();
-        for (Entry<String, ApplicationContext> entry : applicationContextByInstallName.entrySet()) {
-            ApplicationContext applicationContext = entry.getValue();
+
+        for (ApplicationContext applicationContext : state.getApplicationContexts()) {
             applicationContext.setStarted(false);
             if (applicationContext.isAutoStarted()) {
                 autoStartApplicationContext.add(applicationContext);
             }
-        }
-        try {
-            autoMigrate();
-        } catch (ApplicationException e) {
-            LOGGER.error("Automigration failed", e);
         }
         for (ApplicationContext applicationContext : autoStartApplicationContext) {
             try {
@@ -861,13 +906,12 @@ public class DefaultApplicationManager implements ApplicationManager, Serializab
 
     public void autoMigrate() throws ApplicationException {
         List<String> failedMigration = new ArrayList<String>();
-        for (Entry<String, ApplicationContext> entry : applicationContextByInstallName.entrySet()) {
+        for (ApplicationContext applicationContext : state.getApplicationContexts()) {
             // create a new map because migration cause concurent
             // modification
             try {
-                ApplicationContext applicationContext = entry.getValue();
                 String repoName = applicationContext.getRepoName();
-                URL context = urlByRepo.get(repoName);
+                URL context = state.getRepositoryURL(repoName);
                 String appName = applicationContext.getRepoApplicationName();
                 List<Integer> version = applicationContext.getRepoApplicationVersion();
                 int autoMigrateLevel = applicationContext.getAutoMigrateLevel();
@@ -917,10 +961,10 @@ public class DefaultApplicationManager implements ApplicationManager, Serializab
                     throw new ApplicationException("Unexpected autoMigrateLevel" + autoMigrateLevel);
                 }
                 if (!newerVersion.equals(version)) {
-                    migrate(entry.getKey(), newerVersion, true);
+                    migrate(applicationContext.getName(), newerVersion, true);
                 }
             } catch (ApplicationException e) {
-                String fromApplication = entry.getKey();
+                String fromApplication = applicationContext.getName();
                 failedMigration.add(fromApplication);
                 LOGGER.warn("Unable to auto-migrate " + fromApplication, e);
             }
@@ -934,48 +978,56 @@ public class DefaultApplicationManager implements ApplicationManager, Serializab
         if (level < 0 || level > 3) {
             throw new ApplicationException("Level must be an integer between 0 and 3");
         }
-        ApplicationContext applicationContext = getApplication(installName);
+        ApplicationContext applicationContext = state.getApplication(installName);
         applicationContext.setAutoMigrateLevel(level);
+        saveState();
         LOGGER.info("Application {} auto-migrate-level set to {}", installName, level);
     }
 
     public int getAutoMigrateLevel(final String installName) throws ApplicationException {
-        ApplicationContext applicationContext = getApplication(installName);
+        ApplicationContext applicationContext = state.getApplication(installName);
         return applicationContext.getAutoMigrateLevel();
     }
 
     @Override
     public String getRepositoryName(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = getApplication(installName);
+        final ApplicationContext applicationContext = state.getApplication(installName);
         return applicationContext.getRepoName();
     }
 
     @Override
     public String getRepositoryApplicationName(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = getApplication(installName);
+        final ApplicationContext applicationContext = state.getApplication(installName);
         return applicationContext.getRepoApplicationName();
     }
 
     @Override
     public List<Integer> getRepositoryApplicationVersion(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = getApplication(installName);
+        final ApplicationContext applicationContext = state.getApplication(installName);
         return applicationContext.getRepoApplicationVersion();
     }
 
     @Override
+    public List<Integer> getMigrationRepositoryApplicationVersion(final String installName) throws ApplicationException {
+        final ApplicationContext applicationContext = state.getApplication(installName);
+        return applicationContext.getMigrationRepoApplicationVersion();
+    }
+
+    @Override
     public Set<String> getRepositoryApplicationsName(final String repoName) {
-        return applicationDescriptorFactory.listApplicationsName(urlByRepo.get(repoName));
+        return applicationDescriptorFactory.listApplicationsName(state.getRepositoryURL(repoName));
     }
 
     @Override
     public Set<List<Integer>> getRepositoryApplicationVersions(final String repoName, final String applicationName) {
-        return applicationDescriptorFactory.listApplicationVersions(urlByRepo.get(repoName), applicationName);
+        return applicationDescriptorFactory.listApplicationVersions(state.getRepositoryURL(repoName), applicationName);
     }
 
     @Override
     public void setAutoStarted(final String installName, final boolean autostart) throws ApplicationException {
-        final ApplicationContext applicationContext = getApplication(installName);
+        final ApplicationContext applicationContext = state.getApplication(installName);
         applicationContext.setAutoStarted(autostart);
+        saveState();
         if (autostart) {
             LOGGER.info("Application {} auto start enabled", installName);
         } else {
@@ -985,8 +1037,9 @@ public class DefaultApplicationManager implements ApplicationManager, Serializab
 
     @Override
     public boolean isAutoStarted(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = getApplication(installName);
+        final ApplicationContext applicationContext = state.getApplication(installName);
         return applicationContext.isAutoStarted();
     }
+
 
 }

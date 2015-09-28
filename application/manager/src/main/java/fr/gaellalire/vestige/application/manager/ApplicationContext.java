@@ -54,8 +54,6 @@ public class ApplicationContext implements Serializable {
 
     private int autoMigrateLevel;
 
-    private boolean started;
-
     private boolean installerPrivateSystem;
 
     private boolean privateSystem;
@@ -92,6 +90,16 @@ public class ApplicationContext implements Serializable {
         this.repoApplicationName = repoApplicationName;
     }
 
+    private transient List<Integer> migrationRepoApplicationVersion;
+
+    public List<Integer> getMigrationRepoApplicationVersion() {
+        return migrationRepoApplicationVersion;
+    }
+
+    public void setMigrationRepoApplicationVersion(final List<Integer> migrationRepoApplicationVersion) {
+        this.migrationRepoApplicationVersion = migrationRepoApplicationVersion;
+    }
+
     public List<Integer> getRepoApplicationVersion() {
         return repoApplicationVersion;
     }
@@ -107,6 +115,8 @@ public class ApplicationContext implements Serializable {
     private transient WeakReference<RuntimeApplicationContext> runtimeApplicationContext;
 
     private transient Thread thread;
+
+    private transient boolean started;
 
     public ClassLoaderConfiguration getResolve() {
         return resolve;

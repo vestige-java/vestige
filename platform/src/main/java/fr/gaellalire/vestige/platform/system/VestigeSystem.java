@@ -26,6 +26,7 @@ import java.net.URLStreamHandler;
 import java.net.URLStreamHandlerFactory;
 import java.security.Permission;
 import java.security.Policy;
+import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -410,6 +411,29 @@ public final class VestigeSystem implements PublicVestigeSystem {
 
     public HashMap<Integer, List<Object>> getIntToLevels() {
         return intToLevels;
+    }
+
+    @Override
+    public <T> T doPrivileged(final PrivilegedAction<T> action) {
+        VestigeSystem vestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        vestigeSystemHolder.setVestigeSystem(this);
+        try {
+            return action.run();
+        } finally {
+            vestigeSystemHolder.setVestigeSystem(vestigeSystem);
+        }
+    }
+
+    private String name;
+
+    @Override
+    public void setName(final String name) {
+        this.name = name;
+    }
+
+    @Override
+    public String toString() {
+        return name;
     }
 
 }

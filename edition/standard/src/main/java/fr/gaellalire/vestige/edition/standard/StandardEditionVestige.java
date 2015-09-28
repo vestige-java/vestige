@@ -18,12 +18,8 @@
 package fr.gaellalire.vestige.edition.standard;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Field;
@@ -58,6 +54,7 @@ import ch.qos.logback.core.joran.spi.JoranException;
 import ch.qos.logback.core.util.StatusPrinter;
 import fr.gaellalire.vestige.application.descriptor.xml.XMLApplicationDescriptorFactory;
 import fr.gaellalire.vestige.application.manager.ApplicationDescriptorFactory;
+import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.DefaultApplicationManager;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;
 import fr.gaellalire.vestige.edition.standard.schema.Admin;
@@ -70,7 +67,6 @@ import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
 import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.platform.system.JVMVestigeSystemActionExecutor;
-import fr.gaellalire.vestige.platform.system.PrivateVestigePolicy;
 import fr.gaellalire.vestige.platform.system.PrivateVestigeSecurityManager;
 import fr.gaellalire.vestige.platform.system.PrivateWhiteListVestigePolicy;
 import fr.gaellalire.vestige.platform.system.PublicVestigeSystem;
@@ -81,7 +77,7 @@ import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
 /**
  * @author Gael Lalire
  */
-public class StandardEditionVestige implements VestigeSystemAction, Runnable {
+public class StandardEditionVestige implements Runnable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(StandardEditionVestige.class);
 
@@ -97,34 +93,48 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
 
     private Thread workerThread;
 
-    private ApplicationDescriptorFactory applicationDescriptorFactory;
-
-    private File resolverFile;
-
-    private boolean securityEnabled;
+    //private ApplicationDescriptorFactory applicationDescriptorFactory;
 
     private File baseFile;
 
     private File dataFile;
 
-    private Settings settings;
-
     private long startTimeMillis;
 
     private VestigeStateListener vestigeStateListener;
 
-    public StandardEditionVestige(final File baseFile, final File dataFile, final VestigeExecutor vestigeExecutor, final VestigePlatform vestigePlatform,
-            final VestigeStateListener vestigeStateListener) throws Exception {
+    private PublicVestigeSystem vestigeSystem;
+
+    public void setVestigeExecutor(final VestigeExecutor vestigeExecutor) {
         this.vestigeExecutor = vestigeExecutor;
+    }
+
+    public void setVestigePlatform(final VestigePlatform vestigePlatform) {
         this.vestigePlatform = vestigePlatform;
+    }
+
+    public void setVestigeStateListener(final VestigeStateListener vestigeStateListener) {
+        this.vestigeStateListener = vestigeStateListener;
+    }
+
+    public StandardEditionVestige(final File baseFile, final File dataFile, final PublicVestigeSystem vestigeSystem) {
         this.baseFile = baseFile;
         this.dataFile = dataFile;
-        this.vestigeStateListener = vestigeStateListener;
+        this.vestigeSystem = vestigeSystem;
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public void run() {
+        if (vestigeExecutor == null) {
+            vestigeExecutor = new VestigeExecutor();
+        }
+        if (vestigePlatform == null) {
+            vestigePlatform = new DefaultVestigePlatform(vestigeExecutor);
+        }
+        if (vestigeStateListener == null) {
+            vestigeStateListener = new NoopVestigeStateListener();
+        }
         if (LOGGER.isInfoEnabled()) {
             startTimeMillis = System.currentTimeMillis();
             String implementationVersion = null;
@@ -165,30 +175,42 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
             throw new RuntimeException("Unable to initialize settings parser", e);
         }
 
+        Settings settings;
         try {
             settings = ((JAXBElement<Settings>) unMarshaller.unmarshal(settingsFile)).getValue();
         } catch (JAXBException e) {
             throw new RuntimeException("unable to unmarshall settings.xml", e);
         }
-        securityEnabled = settings.getSecurity().isEnabled();
-        new JVMVestigeSystemActionExecutor(securityEnabled).execute(this);
-    }
 
-    public void addAll(final AttachedVestigeClassLoader attachedVestigeClassLoader, final PrivateWhiteListVestigePolicy whiteListVestigePolicy) {
-        whiteListVestigePolicy.addSafeClassLoader(attachedVestigeClassLoader.getVestigeClassLoader());
-        for (AttachedVestigeClassLoader child : attachedVestigeClassLoader.getDependencies()) {
-            addAll(child, whiteListVestigePolicy);
-        }
-    }
+        boolean securityEnabled = System.getSecurityManager() != null;
 
-    private String webURL;
-
-    @Override
-    public void vestigeSystemRun(final PublicVestigeSystem vestigeSystem) {
         // Vestige dependencies can modify system, so we run isolated
+        vestigeSystem.setName("rootVestigeSystem");
         PublicVestigeSystem standardEditionVestigeSystem = vestigeSystem.createSubSystem();
+        standardEditionVestigeSystem.setName("standardEditionVestigeSystem");
+        PublicVestigeSystem applicationsVestigeSystem = vestigeSystem.createSubSystem();
+        applicationsVestigeSystem.setName("applicationsVestigeSystem");
         standardEditionVestigeSystem.setCurrentSystem();
         // new threads are in subsystem
+        PrivateVestigeSecurityManager vestigeSecurityManager = null;
+
+        if (securityEnabled) {
+            PrivateWhiteListVestigePolicy whiteListVestigePolicy = new PrivateWhiteListVestigePolicy();
+            // So AccessController.doPrivileged will work in JVM classes
+            whiteListVestigePolicy.addSafeClassLoader(ClassLoader.getSystemClassLoader());
+
+            vestigeSystem.setWhiteListPolicy(whiteListVestigePolicy);
+
+            ProxySelector defaultProxySelector = vestigeSystem.getDefaultProxySelector();
+            if (defaultProxySelector != null) {
+                vestigeSystem.setDefaultProxySelector(new SecureProxySelector(vestigeSystem, defaultProxySelector));
+            }
+
+            vestigeSecurityManager = new PrivateVestigeSecurityManager();
+            applicationsVestigeSystem.setSecurityManager(vestigeSecurityManager);
+        }
+
+
         ExecutorService executorService = Executors.newCachedThreadPool();
 
         File appBaseFile = new File(baseFile, "app");
@@ -200,24 +222,8 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
             appDataFile.mkdir();
         }
 
-        try {
-            resolverFile = new File(dataFile, "application-manager.ser");
-            if (resolverFile.isFile()) {
-                LOGGER.debug("Use {} for serialized application manager", resolverFile);
-                ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(resolverFile));
-                try {
-                    defaultApplicationManager = (DefaultApplicationManager) objectInputStream.readObject();
-                } finally {
-                    objectInputStream.close();
-                }
-            }
-        } catch (Exception e) {
-            LOGGER.warn("Unable to restore application manager", e);
-        }
-
-        if (defaultApplicationManager == null) {
-            defaultApplicationManager = new DefaultApplicationManager(appBaseFile, appDataFile);
-        }
+        File resolverFile = new File(dataFile, "application-manager.ser");
+        File nextResolverFile = new File(dataFile, "application-manager-tmp.ser");
 
         // $VESTIGE_BASE/m2/settings.xml overrides $home/.m2/settings.xml
         // if none exists then no config file is used
@@ -239,12 +245,21 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
             }
         }
 
+        ApplicationDescriptorFactory applicationDescriptorFactory;
         try {
             applicationDescriptorFactory = new XMLApplicationDescriptorFactory(new MavenArtifactResolver(mavenSettingsFile));
         } catch (NoLocalRepositoryManagerException e) {
             LOGGER.error("NoLocalRepositoryManagerException", e);
             return;
         }
+
+        defaultApplicationManager = new DefaultApplicationManager(appBaseFile, appDataFile, vestigePlatform, applicationsVestigeSystem, standardEditionVestigeSystem, vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile);
+        try {
+            defaultApplicationManager.restoreState();
+        } catch (ApplicationException e) {
+            LOGGER.warn("Unable to restore application manager state", e);
+        }
+
 
         Admin admin = settings.getAdmin();
         SSH ssh = admin.getSsh();
@@ -279,31 +294,6 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
             }
         }
 
-        PrivateVestigePolicy vestigePolicy = null;
-        PrivateVestigeSecurityManager vestigeSecurityManager = null;
-
-        if (securityEnabled) {
-            vestigePolicy = new PrivateVestigePolicy();
-            vestigeSystem.setPolicy(vestigePolicy);
-
-            PrivateWhiteListVestigePolicy whiteListVestigePolicy = new PrivateWhiteListVestigePolicy();
-
-            // all classloader already loaded are considered safe (to be
-            // verified later)
-            for (Integer id : vestigePlatform.getAttachments()) {
-                addAll(vestigePlatform.getAttachedVestigeClassLoader(id), whiteListVestigePolicy);
-            }
-
-            vestigeSystem.setWhiteListPolicy(whiteListVestigePolicy);
-
-            ProxySelector defaultProxySelector = vestigeSystem.getDefaultProxySelector();
-            if (defaultProxySelector != null) {
-                vestigeSystem.setDefaultProxySelector(new SecureProxySelector(defaultProxySelector));
-            }
-
-            vestigeSecurityManager = new PrivateVestigeSecurityManager();
-            vestigeSystem.setSecurityManager(vestigeSecurityManager);
-        }
 
         boolean interrupted = false;
         try {
@@ -329,7 +319,7 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
         boolean started = false;
         if (!interrupted) {
             try {
-                start(vestigeSystem, standardEditionVestigeSystem, vestigeSecurityManager, vestigePolicy);
+                start();
                 started = true;
             } catch (Exception e) {
                 LOGGER.error("Unable to start Vestige SE", e);
@@ -365,15 +355,29 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
         } catch (Exception e) {
             LOGGER.error("Unable to stop Vestige SE", e);
         }
+
     }
 
-    public void start(final PublicVestigeSystem vestigeSystem, final PublicVestigeSystem standardEditionVestigeSystem, final PrivateVestigeSecurityManager vestigeSecurityManager,
-            final PrivateVestigePolicy vestigePolicy) throws Exception {
+    public void addAll(final AttachedVestigeClassLoader attachedVestigeClassLoader, final PrivateWhiteListVestigePolicy whiteListVestigePolicy) {
+        whiteListVestigePolicy.addSafeClassLoader(attachedVestigeClassLoader.getVestigeClassLoader());
+        for (AttachedVestigeClassLoader child : attachedVestigeClassLoader.getDependencies()) {
+            addAll(child, whiteListVestigePolicy);
+        }
+    }
+
+    private String webURL;
+
+    public void start() throws Exception {
         if (workerThread != null) {
             return;
         }
         workerThread = vestigeExecutor.createWorker("se-worker", true, 0);
-        defaultApplicationManager.powerOn(vestigePlatform, vestigeSystem, standardEditionVestigeSystem, vestigeSecurityManager, vestigePolicy, applicationDescriptorFactory);
+        try {
+            defaultApplicationManager.autoMigrate();
+        } catch (ApplicationException e) {
+            LOGGER.error("Automigration failed", e);
+        }
+        defaultApplicationManager.autoStart();
         if (sshServer != null) {
             try {
                 sshServer.start();
@@ -409,30 +413,57 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
                 LOGGER.error("Unable to stop SSH access", e);
             }
         }
-        defaultApplicationManager.shutdown();
-        try {
-            File parentFile = resolverFile.getParentFile();
-            if (!parentFile.isDirectory()) {
-                parentFile.mkdirs();
-            }
-            ObjectOutputStream objectOutputStream = new ObjectOutputStream(new FileOutputStream(resolverFile));
-            try {
-                objectOutputStream.writeObject(defaultApplicationManager);
-            } finally {
-                objectOutputStream.close();
-            }
-        } catch (Exception e) {
-            LOGGER.warn("Unable to save application manager", e);
-        }
+        defaultApplicationManager.stopAll();
+//        try {
+//            File parentFile = resolverFile.getParentFile();
+//            if (!parentFile.isDirectory()) {
+//                parentFile.mkdirs();
+//            }
+//            ObjectOutputStream objectOutputStream = new ObjectOutputStream(new FileOutputStream(resolverFile));
+//            try {
+//                objectOutputStream.writeObject(defaultApplicationManager);
+//            } finally {
+//                objectOutputStream.close();
+//            }
+//        } catch (Exception e) {
+//            LOGGER.warn("Unable to save application manager", e);
+//        }
         workerThread.interrupt();
         workerThread.join();
         workerThread = null;
     }
 
+    public static void giveDirectStreamAccessToLogback() {
+        try {
+            Field streamField = ConsoleTarget.class.getDeclaredField("stream");
+            streamField.setAccessible(true);
+            streamField.set(ConsoleTarget.SystemOut, System.out);
+            streamField.set(ConsoleTarget.SystemErr, System.err);
+            streamField.setAccessible(false);
+
+            LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+            ContextInitializer ci = new ContextInitializer(loggerContext);
+            URL url = ci.findURLOfDefaultConfigurationFile(true);
+            try {
+                JoranConfigurator configurator = new JoranConfigurator();
+                configurator.setContext(loggerContext);
+                loggerContext.reset();
+                configurator.doConfigure(url);
+            } catch (JoranException je) {
+                // StatusPrinter will handle this
+            }
+            StatusPrinter.printInCaseOfErrorsOrWarnings(loggerContext);
+        } catch (NoSuchFieldException e) {
+            LOGGER.error("Logback appender changes", e);
+        } catch (IllegalAccessException e) {
+            LOGGER.error("Logback appender changes", e);
+        }
+    }
+
     public static void vestigeMain(final VestigeExecutor vestigeExecutor, final VestigePlatform vestigePlatform, final String[] args) {
         try {
-            if (args.length != 3) {
-                throw new IllegalArgumentException("expected 3 arguments (vestige base, vestige data, listener port) got " + args.length);
+            if (args.length != 4) {
+                throw new IllegalArgumentException("expected 4 arguments (vestige base, vestige data, security, listener port) got " + args.length);
             }
             final Thread currentThread = Thread.currentThread();
 
@@ -476,9 +507,10 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
             int argIndex = 0;
             String base = args[argIndex++];
             String data = args[argIndex++];
+            boolean securityEnabled = Boolean.parseBoolean(args[argIndex++]);
             int listenerPort = Integer.parseInt(args[argIndex++]);
 
-            VestigeStateListener vestigeStateListener;
+            final VestigeStateListener vestigeStateListener;
             SocketChannel socketChannel = null;
             try {
                 if (listenerPort != 0) {
@@ -490,8 +522,8 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
                     vestigeStateListener = new NoopVestigeStateListener();
                 }
 
-                File baseFile = new File(base).getCanonicalFile();
-                File dataFile = new File(data).getCanonicalFile();
+                final File baseFile = new File(base).getCanonicalFile();
+                final File dataFile = new File(data).getCanonicalFile();
                 if (!baseFile.isDirectory()) {
                     if (!baseFile.mkdirs()) {
                         LOGGER.error("Unable to create vestige base");
@@ -503,8 +535,18 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
                         LOGGER.error("Unable to create vestige data");
                     }
                 }
-                final StandardEditionVestige standardEditionVestige = new StandardEditionVestige(baseFile, dataFile, vestigeExecutor, vestigePlatform, vestigeStateListener);
-                standardEditionVestige.run();
+                new JVMVestigeSystemActionExecutor(securityEnabled).execute(new VestigeSystemAction() {
+
+                    @Override
+                    public void vestigeSystemRun(final PublicVestigeSystem vestigeSystem) {
+                        final StandardEditionVestige standardEditionVestige = new StandardEditionVestige(baseFile, dataFile, vestigeSystem);
+                        standardEditionVestige.setVestigeExecutor(vestigeExecutor);
+                        standardEditionVestige.setVestigePlatform(vestigePlatform);
+                        standardEditionVestige.setVestigeStateListener(vestigeStateListener);
+                        standardEditionVestige.run();
+                    }
+                });
+
             } finally {
                 if (socketChannel != null) {
                     socketChannel.close();
@@ -516,37 +558,14 @@ public class StandardEditionVestige implements VestigeSystemAction, Runnable {
         }
     }
 
-    public static void giveDirectStreamAccessToLogback() {
-        try {
-            Field streamField = ConsoleTarget.class.getDeclaredField("stream");
-            streamField.setAccessible(true);
-            streamField.set(ConsoleTarget.SystemOut, System.out);
-            streamField.set(ConsoleTarget.SystemErr, System.err);
-            streamField.setAccessible(false);
-
-            LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
-            ContextInitializer ci = new ContextInitializer(loggerContext);
-            URL url = ci.findURLOfDefaultConfigurationFile(true);
-            try {
-                JoranConfigurator configurator = new JoranConfigurator();
-                configurator.setContext(loggerContext);
-                loggerContext.reset();
-                configurator.doConfigure(url);
-            } catch (JoranException je) {
-                // StatusPrinter will handle this
-            }
-            StatusPrinter.printInCaseOfErrorsOrWarnings(loggerContext);
-        } catch (NoSuchFieldException e) {
-            LOGGER.error("Logback appender changes", e);
-        } catch (IllegalAccessException e) {
-            LOGGER.error("Logback appender changes", e);
-        }
+    public static void vestigeCoreMain(final VestigeExecutor vestigeExecutor, final String[] args) {
+        VestigePlatform vestigePlatform = new DefaultVestigePlatform(vestigeExecutor);
+        vestigeMain(vestigeExecutor, vestigePlatform, args);
     }
 
     public static void main(final String[] args) throws Exception {
         VestigeExecutor vestigeExecutor = new VestigeExecutor();
-        VestigePlatform vestigePlatform = new DefaultVestigePlatform(vestigeExecutor);
-        vestigeMain(vestigeExecutor, vestigePlatform, args);
+        vestigeCoreMain(vestigeExecutor, args);
     }
 
 }

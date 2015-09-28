@@ -17,27 +17,30 @@
 
 package fr.gaellalire.vestige.platform.logger;
 
-import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 
 import fr.gaellalire.vestige.core.logger.VestigeLogger;
+import fr.gaellalire.vestige.platform.system.PublicVestigeSystem;
 
 /**
  * @author Gael Lalire
  */
 public class SecureVestigeLogger implements VestigeLogger {
 
+    private PublicVestigeSystem privilegedVestigeSystem;
+
     private VestigeLogger vestigeLogger;
 
-    public SecureVestigeLogger(final VestigeLogger vestigeLogger) {
+    public SecureVestigeLogger(final PublicVestigeSystem privilegedVestigeSystem, final VestigeLogger vestigeLogger) {
+        this.privilegedVestigeSystem = privilegedVestigeSystem;
         this.vestigeLogger = vestigeLogger;
     }
 
     @Override
     public void log(final LogRecord record) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.log(record);
@@ -48,7 +51,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void log(final Level level, final String msg) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.log(level, msg);
@@ -59,7 +62,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void log(final Level level, final String msg, final Object param1) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.log(level, msg, param1);
@@ -70,7 +73,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void log(final Level level, final String msg, final Object[] params) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.log(level, msg, params);
@@ -81,7 +84,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void log(final Level level, final String msg, final Throwable thrown) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.log(level, msg, thrown);
@@ -92,7 +95,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void logp(final Level level, final String sourceClass, final String sourceMethod, final String msg) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.logp(level, sourceClass, sourceMethod, msg);
@@ -103,7 +106,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void logp(final Level level, final String sourceClass, final String sourceMethod, final String msg, final Object param1) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.logp(level, sourceClass, sourceMethod, msg, param1);
@@ -114,7 +117,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void logp(final Level level, final String sourceClass, final String sourceMethod, final String msg, final Object[] params) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.logp(level, sourceClass, sourceMethod, msg, params);
@@ -125,7 +128,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void logp(final Level level, final String sourceClass, final String sourceMethod, final String msg, final Throwable thrown) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.logp(level, sourceClass, sourceMethod, msg, thrown);
@@ -136,7 +139,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void logrb(final Level level, final String sourceClass, final String sourceMethod, final String bundleName, final String msg) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.logrb(level, sourceClass, sourceMethod, bundleName, msg);
@@ -147,7 +150,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void logrb(final Level level, final String sourceClass, final String sourceMethod, final String bundleName, final String msg, final Object param1) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.logrb(level, sourceClass, sourceMethod, bundleName, msg, param1);
@@ -158,7 +161,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void logrb(final Level level, final String sourceClass, final String sourceMethod, final String bundleName, final String msg, final Object[] params) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.logrb(level, sourceClass, sourceMethod, bundleName, msg, params);
@@ -169,7 +172,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void logrb(final Level level, final String sourceClass, final String sourceMethod, final String bundleName, final String msg, final Throwable thrown) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.logrb(level, sourceClass, sourceMethod, bundleName, msg, thrown);
@@ -180,7 +183,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void entering(final String sourceClass, final String sourceMethod) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.entering(sourceClass, sourceMethod);
@@ -191,7 +194,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void entering(final String sourceClass, final String sourceMethod, final Object param1) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.entering(sourceClass, sourceMethod, param1);
@@ -202,7 +205,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void entering(final String sourceClass, final String sourceMethod, final Object[] params) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.entering(sourceClass, sourceMethod, params);
@@ -213,7 +216,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void exiting(final String sourceClass, final String sourceMethod) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.exiting(sourceClass, sourceMethod);
@@ -224,7 +227,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void exiting(final String sourceClass, final String sourceMethod, final Object result) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.exiting(sourceClass, sourceMethod, result);
@@ -235,7 +238,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void throwing(final String sourceClass, final String sourceMethod, final Throwable thrown) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.throwing(sourceClass, sourceMethod, thrown);
@@ -246,7 +249,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void severe(final String msg) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.severe(msg);
@@ -257,7 +260,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void warning(final String msg) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.warning(msg);
@@ -268,7 +271,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void info(final String msg) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.info(msg);
@@ -279,7 +282,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void config(final String msg) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.config(msg);
@@ -290,7 +293,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void fine(final String msg) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.fine(msg);
@@ -301,7 +304,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void finer(final String msg) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.finer(msg);
@@ -312,7 +315,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public void finest(final String msg) {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
             @Override
             public Void run() {
                 vestigeLogger.finest(msg);
@@ -323,7 +326,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public Level getLevel() {
-        return AccessController.doPrivileged(new PrivilegedAction<Level>() {
+        return privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Level>() {
             @Override
             public Level run() {
                 return vestigeLogger.getLevel();
@@ -333,7 +336,7 @@ public class SecureVestigeLogger implements VestigeLogger {
 
     @Override
     public boolean isLoggable(final Level level) {
-        return AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+        return privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Boolean>() {
             @Override
             public Boolean run() {
                 return vestigeLogger.isLoggable(level);

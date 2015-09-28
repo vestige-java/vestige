@@ -94,7 +94,7 @@ public class VestigeSecureExecutor {
         threadGroupDestroyer.start();
     }
 
-    public <E> Thread execute(final Set<Permission> additionnalPermissions, final List<ThreadGroup> threadGroups,  final String name, final PublicVestigeSystem appVestigeSystem, final Callable<E> callable,
+    public <E> Thread execute(final Set<Permission> additionnalPermissions, final List<ThreadGroup> threadGroups, final String name, final PublicVestigeSystem appVestigeSystem, final Callable<E> callable,
             final PublicVestigeSystem handlerVestigeSystem, final FutureDoneHandler<E> done) {
         final ThreadGroup threadGroup = new ThreadGroup(name);
         FutureTask<E> futureTask = new FutureTask<E>(new Callable<E>() {
@@ -102,9 +102,6 @@ public class VestigeSecureExecutor {
             public E call() throws Exception {
                 MDC.put(VESTIGE_APP_NAME, name);
                 try {
-                    if (appVestigeSystem != null) {
-                        appVestigeSystem.setCurrentSystem();
-                    }
                     if (vestigeSecurityManager != null) {
                         if (threadGroups != null) {
                             List<ThreadGroup> accessibleThreadGroups = new ArrayList<ThreadGroup>(threadGroups.size() + 1);
@@ -136,10 +133,16 @@ public class VestigeSecureExecutor {
                         return AccessController.doPrivileged(new PrivilegedExceptionAction<E>() {
                             @Override
                             public E run() throws Exception {
+                                if (appVestigeSystem != null) {
+                                    appVestigeSystem.setCurrentSystem();
+                                }
                                 return callable.call();
                             }
                         });
                     } else {
+                        if (appVestigeSystem != null) {
+                            appVestigeSystem.setCurrentSystem();
+                        }
                         return callable.call();
                     }
                 } finally {

@@ -24,6 +24,7 @@ import java.security.Permission;
 /**
  * @author Gael Lalire
  */
+@SuppressWarnings("deprecation")
 public class VestigeSystemSecurityManager extends SecurityManager {
 
     private VestigeSystemHolder vestigeSystemHolder;
@@ -286,7 +287,6 @@ public class VestigeSystemSecurityManager extends SecurityManager {
         }
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public void checkMulticast(final InetAddress maddr, final byte ttl) {
         VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();

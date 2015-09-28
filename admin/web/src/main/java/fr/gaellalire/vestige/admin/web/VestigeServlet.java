@@ -89,139 +89,142 @@ public class VestigeServlet extends HttpServlet {
 
     @Override
     protected void doPost(final HttpServletRequest req, final HttpServletResponse resp) throws ServletException, IOException {
-        synchronized (applicationManager) {
+        try {
+            String error = null;
             try {
-                String error = null;
-                try {
-                    String requestURI = req.getRequestURI();
-                    if ("/mk-repo".equals(requestURI)) {
-                        URL url;
-                        String s = req.getParameter("url");
-                        if (s.endsWith("/")) {
-                            url = new URL(s);
-                        } else {
-                            url = new URL(s + "/");
-                        }
-                        applicationManager.createRepository(req.getParameter("name"), url);
-                    } else if ("/rm-repo".equals(requestURI)) {
-                        applicationManager.removeRepository(req.getParameter("name"));
-                    } else if ("/install".equals(requestURI)) {
-                        applicationManager.install(req.getParameter("repo"), req.getParameter("name"), VersionUtils.fromString(req.getParameter("version")), req.getParameter("local"));
-                    } else if ("/uninstall".equals(requestURI)) {
-                        applicationManager.uninstall(req.getParameter("name"));
-                    } else if ("/auto-start".equals(requestURI)) {
-                        applicationManager.setAutoStarted(req.getParameter("name"), Boolean.parseBoolean(req.getParameter("value")));
-                    } else if ("/start".equals(requestURI)) {
-                        applicationManager.start(req.getParameter("name"));
-                    } else if ("/stop".equals(requestURI)) {
-                        applicationManager.stop(req.getParameter("name"));
-                    } else if ("/bugfix".equals(requestURI)) {
-                        if (Boolean.parseBoolean(req.getParameter("value"))) {
-                            applicationManager.setAutoMigrateLevel(req.getParameter("name"), 1);
-                        } else {
-                            applicationManager.setAutoMigrateLevel(req.getParameter("name"), 0);
-                        }
-                    } else if ("/minor-evolution".equals(requestURI)) {
-                        if (Boolean.parseBoolean(req.getParameter("value"))) {
-                            applicationManager.setAutoMigrateLevel(req.getParameter("name"), 2);
-                        } else {
-                            applicationManager.setAutoMigrateLevel(req.getParameter("name"), 0);
-                        }
-                    } else if ("/major-evolution".equals(requestURI)) {
-                        if (Boolean.parseBoolean(req.getParameter("value"))) {
-                            applicationManager.setAutoMigrateLevel(req.getParameter("name"), 3);
-                        } else {
-                            applicationManager.setAutoMigrateLevel(req.getParameter("name"), 0);
-                        }
-                    } else if ("/migrate".equals(requestURI)) {
-                        applicationManager.migrate(req.getParameter("name"), VersionUtils.fromString(req.getParameter("toVersion")));
-                    } else if ("/auto-migrate".equals(requestURI)) {
-                        applicationManager.autoMigrate();
-                    } else if ("/get-repos".equals(requestURI)) {
-                        Set<String> repositoriesName = applicationManager.getRepositoriesName();
-                        JSONArray jsonArray = new JSONArray();
-                        for (String string : repositoriesName) {
-                            JSONObject jsonObject = new JSONObject();
-                            jsonObject.put("name", string);
-                            jsonObject.put("url", applicationManager.getRepositoryURL(string).toString());
-                            jsonArray.add(jsonObject);
-                        }
-                        PrintWriter writer = resp.getWriter();
-                        writer.print(jsonArray.toJSONString());
-                        writer.close();
-                        return;
-                    } else if ("/get-repo-app-name".equals(requestURI)) {
-                        Set<String> repositoryApplicationsName = applicationManager.getRepositoryApplicationsName(req.getParameter("repo"));
-                        JSONArray jsonArray = new JSONArray();
-                        String parameter = req.getParameter("req");
-                        for (String string : repositoryApplicationsName) {
-                            if (parameter == null || parameter.length() == 0 || string.indexOf(parameter) != -1) {
-                                jsonArray.add(string);
-                            }
-                        }
-                        PrintWriter writer = resp.getWriter();
-                        writer.print(jsonArray.toJSONString());
-                        writer.close();
-                        return;
-                    } else if ("/get-repo-app-version".equals(requestURI)) {
-                        String repo = req.getParameter("repo");
-                        String name = req.getParameter("name");
-                        String exclude = "";
-                        if (repo == null || repo.length() == 0) {
-                            repo = applicationManager.getRepositoryName(name);
-                            exclude = VersionUtils.toString(applicationManager.getRepositoryApplicationVersion(name));
-                            name = applicationManager.getRepositoryApplicationName(name);
-                        }
-
-                        Set<List<Integer>> repositoryApplicationsName = applicationManager.getRepositoryApplicationVersions(repo, name);
-                        JSONArray jsonArray = new JSONArray();
-                        String parameter = req.getParameter("req");
-                        for (List<Integer> version : repositoryApplicationsName) {
-                            String string = VersionUtils.toString(version);
-                            if ((parameter == null || parameter.length() == 0 || string.indexOf(parameter) != -1) && !exclude.equals(string)) {
-                                jsonArray.add(string);
-                            }
-                        }
-                        PrintWriter writer = resp.getWriter();
-                        writer.print(jsonArray.toJSONString());
-                        writer.close();
-                        return;
+                String requestURI = req.getRequestURI();
+                if ("/mk-repo".equals(requestURI)) {
+                    URL url;
+                    String s = req.getParameter("url");
+                    if (s.endsWith("/")) {
+                        url = new URL(s);
+                    } else {
+                        url = new URL(s + "/");
                     }
-                } catch (Exception e) {
-                    StringWriter out = new StringWriter();
-                    PrintWriter printWriter = new PrintWriter(out);
-                    e.printStackTrace(printWriter);
-                    printWriter.flush();
-                    error = out.toString();
+                    applicationManager.createRepository(req.getParameter("name"), url);
+                } else if ("/rm-repo".equals(requestURI)) {
+                    applicationManager.removeRepository(req.getParameter("name"));
+                } else if ("/install".equals(requestURI)) {
+                    applicationManager.install(req.getParameter("repo"), req.getParameter("name"), VersionUtils.fromString(req.getParameter("version")), req.getParameter("local"));
+                } else if ("/uninstall".equals(requestURI)) {
+                    applicationManager.uninstall(req.getParameter("name"));
+                } else if ("/auto-start".equals(requestURI)) {
+                    applicationManager.setAutoStarted(req.getParameter("name"), Boolean.parseBoolean(req.getParameter("value")));
+                } else if ("/start".equals(requestURI)) {
+                    applicationManager.start(req.getParameter("name"));
+                } else if ("/stop".equals(requestURI)) {
+                    applicationManager.stop(req.getParameter("name"));
+                } else if ("/bugfix".equals(requestURI)) {
+                    if (Boolean.parseBoolean(req.getParameter("value"))) {
+                        applicationManager.setAutoMigrateLevel(req.getParameter("name"), 1);
+                    } else {
+                        applicationManager.setAutoMigrateLevel(req.getParameter("name"), 0);
+                    }
+                } else if ("/minor-evolution".equals(requestURI)) {
+                    if (Boolean.parseBoolean(req.getParameter("value"))) {
+                        applicationManager.setAutoMigrateLevel(req.getParameter("name"), 2);
+                    } else {
+                        applicationManager.setAutoMigrateLevel(req.getParameter("name"), 0);
+                    }
+                } else if ("/major-evolution".equals(requestURI)) {
+                    if (Boolean.parseBoolean(req.getParameter("value"))) {
+                        applicationManager.setAutoMigrateLevel(req.getParameter("name"), 3);
+                    } else {
+                        applicationManager.setAutoMigrateLevel(req.getParameter("name"), 0);
+                    }
+                } else if ("/migrate".equals(requestURI)) {
+                    applicationManager.migrate(req.getParameter("name"), VersionUtils.fromString(req.getParameter("toVersion")));
+                } else if ("/auto-migrate".equals(requestURI)) {
+                    applicationManager.autoMigrate();
+                } else if ("/get-repos".equals(requestURI)) {
+                    Set<String> repositoriesName = applicationManager.getRepositoriesName();
+                    JSONArray jsonArray = new JSONArray();
+                    for (String string : repositoriesName) {
+                        JSONObject jsonObject = new JSONObject();
+                        jsonObject.put("name", string);
+                        jsonObject.put("url", applicationManager.getRepositoryURL(string).toString());
+                        jsonArray.add(jsonObject);
+                    }
+                    PrintWriter writer = resp.getWriter();
+                    writer.print(jsonArray.toJSONString());
+                    writer.close();
+                    return;
+                } else if ("/get-repo-app-name".equals(requestURI)) {
+                    Set<String> repositoryApplicationsName = applicationManager.getRepositoryApplicationsName(req.getParameter("repo"));
+                    JSONArray jsonArray = new JSONArray();
+                    String parameter = req.getParameter("req");
+                    for (String string : repositoryApplicationsName) {
+                        if (parameter == null || parameter.length() == 0 || string.indexOf(parameter) != -1) {
+                            jsonArray.add(string);
+                        }
+                    }
+                    PrintWriter writer = resp.getWriter();
+                    writer.print(jsonArray.toJSONString());
+                    writer.close();
+                    return;
+                } else if ("/get-repo-app-version".equals(requestURI)) {
+                    String repo = req.getParameter("repo");
+                    String name = req.getParameter("name");
+                    String exclude = "";
+                    if (repo == null || repo.length() == 0) {
+                        repo = applicationManager.getRepositoryName(name);
+                        exclude = VersionUtils.toString(applicationManager.getRepositoryApplicationVersion(name));
+                        name = applicationManager.getRepositoryApplicationName(name);
+                    }
+
+                    Set<List<Integer>> repositoryApplicationsName = applicationManager.getRepositoryApplicationVersions(repo, name);
+                    JSONArray jsonArray = new JSONArray();
+                    String parameter = req.getParameter("req");
+                    for (List<Integer> version : repositoryApplicationsName) {
+                        String string = VersionUtils.toString(version);
+                        if ((parameter == null || parameter.length() == 0 || string.indexOf(parameter) != -1) && !exclude.equals(string)) {
+                            jsonArray.add(string);
+                        }
+                    }
+                    PrintWriter writer = resp.getWriter();
+                    writer.print(jsonArray.toJSONString());
+                    writer.close();
+                    return;
+                }
+            } catch (Exception e) {
+                StringWriter out = new StringWriter();
+                PrintWriter printWriter = new PrintWriter(out);
+                e.printStackTrace(printWriter);
+                printWriter.flush();
+                error = out.toString();
+            }
+
+            JSONObject jsonObject = new JSONObject();
+            if (error != null) {
+                jsonObject.put("error", error);
+            }
+            PrintWriter writer = resp.getWriter();
+            JSONArray applications = new JSONArray();
+            for (String appName : applicationManager.getApplicationsName()) {
+                JSONObject jsonApp = new JSONObject();
+                jsonApp.put("name", appName);
+
+                String path = applicationManager.getRepositoryName(appName) + "-" + applicationManager.getRepositoryApplicationName(appName) + "-"
+                        + VersionUtils.toString(applicationManager.getRepositoryApplicationVersion(appName));
+                List<Integer> migrationRepositoryApplicationVersion = applicationManager.getMigrationRepositoryApplicationVersion(appName);
+                if (migrationRepositoryApplicationVersion != null) {
+                    path += "-" + VersionUtils.toString(migrationRepositoryApplicationVersion);
                 }
 
-                JSONObject jsonObject = new JSONObject();
-                if (error != null) {
-                    jsonObject.put("error", error);
-                }
-                PrintWriter writer = resp.getWriter();
-                JSONArray applications = new JSONArray();
-                for (String appName : applicationManager.getApplicationsName()) {
-                    JSONObject jsonApp = new JSONObject();
-                    jsonApp.put("name", appName);
-                    jsonApp.put(
-                            "path",
-                            applicationManager.getRepositoryName(appName) + "-" + applicationManager.getRepositoryApplicationName(appName) + "-"
-                                    + VersionUtils.toString(applicationManager.getRepositoryApplicationVersion(appName)));
-                    jsonApp.put("autoStarted", applicationManager.isAutoStarted(appName));
-                    jsonApp.put("started", applicationManager.isStarted(appName));
-                    int autoMigrateLevel = applicationManager.getAutoMigrateLevel(appName);
-                    jsonApp.put("bugfix", autoMigrateLevel >= 1);
-                    jsonApp.put("minor", autoMigrateLevel >= 2);
-                    jsonApp.put("major", autoMigrateLevel >= 3);
-                    applications.add(jsonApp);
-                }
-                jsonObject.put("application", applications);
-                writer.print(jsonObject.toJSONString());
-                writer.close();
-            } catch (ApplicationException e) {
-                throw new ServletException(e);
+                jsonApp.put("path", path);
+                jsonApp.put("autoStarted", applicationManager.isAutoStarted(appName));
+                jsonApp.put("started", applicationManager.isStarted(appName));
+                int autoMigrateLevel = applicationManager.getAutoMigrateLevel(appName);
+                jsonApp.put("bugfix", autoMigrateLevel >= 1);
+                jsonApp.put("minor", autoMigrateLevel >= 2);
+                jsonApp.put("major", autoMigrateLevel >= 3);
+                applications.add(jsonApp);
             }
+            jsonObject.put("application", applications);
+            writer.print(jsonObject.toJSONString());
+            writer.close();
+        } catch (ApplicationException e) {
+            throw new ServletException(e);
         }
     }
 

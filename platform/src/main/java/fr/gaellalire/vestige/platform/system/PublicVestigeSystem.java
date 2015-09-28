@@ -23,6 +23,7 @@ import java.net.ContentHandlerFactory;
 import java.net.ProxySelector;
 import java.net.URLStreamHandlerFactory;
 import java.security.Policy;
+import java.security.PrivilegedAction;
 import java.util.Properties;
 
 /**
@@ -71,5 +72,9 @@ public interface PublicVestigeSystem {
     PublicVestigeSystem createSubSystem();
 
     void setCurrentSystem();
+
+    void setName(String name);
+
+    <T> T doPrivileged(final PrivilegedAction<T> action);
 
 }

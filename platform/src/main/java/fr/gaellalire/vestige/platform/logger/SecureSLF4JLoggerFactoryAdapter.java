@@ -20,15 +20,22 @@ package fr.gaellalire.vestige.platform.logger;
 import org.slf4j.LoggerFactory;
 
 import fr.gaellalire.vestige.core.logger.VestigeLogger;
+import fr.gaellalire.vestige.platform.system.PublicVestigeSystem;
 
 /**
  * @author Gael Lalire
  */
 public class SecureSLF4JLoggerFactoryAdapter extends SLF4JLoggerFactoryAdapter {
 
+    private PublicVestigeSystem privilegedVestigeSystem;
+
+    public SecureSLF4JLoggerFactoryAdapter(final PublicVestigeSystem privilegedVestigeSystem) {
+        this.privilegedVestigeSystem = privilegedVestigeSystem;
+    }
+
     @Override
     public VestigeLogger createLogger(final String name) {
-        return new SecureVestigeLogger(new SLF4JLoggerAdapter(LoggerFactory.getLogger(name)));
+        return new SecureVestigeLogger(privilegedVestigeSystem, new SLF4JLoggerAdapter(LoggerFactory.getLogger(name)));
     }
 
 }

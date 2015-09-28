@@ -37,7 +37,7 @@ public class TestCircularity {
                     e1.printStackTrace();
                 }
 
-                PrivateVestigePolicy vestigePolicy = new PrivateVestigePolicy();
+                PrivateVestigePolicy vestigePolicy = new PrivateVestigePolicy(null);
                 vestigeSystem.setPolicy(vestigePolicy);
 
                 PrivateWhiteListVestigePolicy whiteListVestigePolicy = new PrivateWhiteListVestigePolicy();
