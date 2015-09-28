@@ -185,11 +185,11 @@ public class StandardEditionVestige implements Runnable {
         boolean securityEnabled = System.getSecurityManager() != null;
 
         // Vestige dependencies can modify system, so we run isolated
-        vestigeSystem.setName("rootVestigeSystem");
+//        vestigeSystem.setName("rootVestigeSystem");
         PublicVestigeSystem standardEditionVestigeSystem = vestigeSystem.createSubSystem();
-        standardEditionVestigeSystem.setName("standardEditionVestigeSystem");
+//        standardEditionVestigeSystem.setName("standardEditionVestigeSystem");
         PublicVestigeSystem applicationsVestigeSystem = vestigeSystem.createSubSystem();
-        applicationsVestigeSystem.setName("applicationsVestigeSystem");
+//        applicationsVestigeSystem.setName("applicationsVestigeSystem");
         standardEditionVestigeSystem.setCurrentSystem();
         // new threads are in subsystem
         PrivateVestigeSecurityManager vestigeSecurityManager = null;
