@@ -73,7 +73,7 @@ public interface PublicVestigeSystem {
 
     void setCurrentSystem();
 
-    void setName(String name);
+//    void setName(String name);
 
     <T> T doPrivileged(final PrivilegedAction<T> action);
 

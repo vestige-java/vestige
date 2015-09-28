@@ -424,16 +424,16 @@ public final class VestigeSystem implements PublicVestigeSystem {
         }
     }
 
-    private String name;
-
-    @Override
-    public void setName(final String name) {
-        this.name = name;
-    }
-
-    @Override
-    public String toString() {
-        return name;
-    }
+//    private String name;
+//
+//    @Override
+//    public void setName(final String name) {
+//        this.name = name;
+//    }
+//
+//    @Override
+//    public String toString() {
+//        return name;
+//    }
 
 }
