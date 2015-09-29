@@ -125,7 +125,9 @@ public class DefaultApplicationManager implements ApplicationManager {
                     LOGGER.warn("Next resolver file invalid", e);
                 }
             }
-            state = readDefaultApplicationManagerState(resolverFile);
+            if (resolverFile.isFile()) {
+                state = readDefaultApplicationManagerState(resolverFile);
+            }
         } catch (Exception e) {
             throw new ApplicationException("Unable to restore old state", e);
         }

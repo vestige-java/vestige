@@ -18,6 +18,8 @@
 package fr.gaellalire.vestige.application.descriptor.xml;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -85,6 +87,22 @@ public class XMLApplicationDescriptorFactory implements ApplicationDescriptorFac
         try {
             URLConnection openConnection = url.openConnection();
             openConnection.connect();
+            if (openConnection instanceof HttpURLConnection) {
+                int responseCode = ((HttpURLConnection) openConnection).getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_NOT_FOUND) {
+                    return false;
+                }
+                if (responseCode != HttpURLConnection.HTTP_OK) {
+                    // not ok but may be a redirection
+                    try {
+                        getApplication(openConnection.getInputStream());
+                        return true;
+                    } catch (JAXBException e) {
+                        LOGGER.trace("Exception confirms that url has no application descriptor (or an invalid one)", e);
+                    }
+                    return false;
+                }
+            }
             return true;
         } catch (IOException e) {
             return false;
@@ -92,15 +110,7 @@ public class XMLApplicationDescriptorFactory implements ApplicationDescriptorFac
     }
 
     @SuppressWarnings("unchecked")
-    public ApplicationDescriptor createApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version)
-            throws ApplicationException {
-        URL url;
-        try {
-            url = new URL(context, appName + "/" + appName + "-" + VersionUtils.toString(version) + ".xml");
-        } catch (MalformedURLException e) {
-            throw new ApplicationException("url repo issue", e);
-        }
-
+    public Application getApplication(final InputStream inputStream) throws ApplicationException, JAXBException {
         Unmarshaller unMarshaller = null;
         try {
             JAXBContext jc = JAXBContext.newInstance(ObjectFactory.class.getPackage().getName());
@@ -113,9 +123,23 @@ public class XMLApplicationDescriptorFactory implements ApplicationDescriptorFac
         } catch (Exception e) {
             throw new ApplicationException("Unable to initialize settings parser", e);
         }
+        return ((JAXBElement<Application>) unMarshaller.unmarshal(inputStream)).getValue();
+    }
+
+    public ApplicationDescriptor createApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version)
+            throws ApplicationException {
+        URL url;
+        try {
+            url = new URL(context, appName + "/" + appName + "-" + VersionUtils.toString(version) + ".xml");
+        } catch (MalformedURLException e) {
+            throw new ApplicationException("url repo issue", e);
+        }
+
         Application application;
         try {
-            application = ((JAXBElement<Application>) unMarshaller.unmarshal(url)).getValue();
+            application = getApplication(url.openStream());
+        } catch (IOException e) {
+            throw new ApplicationException("unable to unmarshall application xml", e);
         } catch (JAXBException e) {
             throw new ApplicationException("unable to unmarshall application xml", e);
         }
