@@ -30,7 +30,7 @@ import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 /**
  * @author Gael Lalire
  */
-public class ApplicationContext implements Serializable {
+public class ApplicationContext implements Serializable, Cloneable {
 
     private static final long serialVersionUID = -63902830158746259L;
 
@@ -255,6 +255,14 @@ public class ApplicationContext implements Serializable {
 
     public void setData(final File data) {
         this.data = data;
+    }
+
+    public ApplicationContext copy() {
+        try {
+            return (ApplicationContext) clone();
+        } catch (CloneNotSupportedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 }

@@ -39,7 +39,9 @@ public class SystemProxySelector extends ProxySelector implements StackedHandler
 
     public SystemProxySelector() {
         proxySearch = new ProxySearch();
+        proxySearch.addStrategy(Strategy.JAVA);
         proxySearch.addStrategy(Strategy.OS_DEFAULT);
+        proxySearch.addStrategy(Strategy.ENV_VAR);
     }
 
     @Override

@@ -21,14 +21,18 @@ import java.io.Serializable;
 import java.net.URL;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
+
+import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 
 /**
  * @author Gael Lalire
  */
-public class DefaultApplicationManagerState implements Serializable {
+public class DefaultApplicationManagerState implements Serializable, ApplicationManagerState {
 
     private static final long serialVersionUID = -6445126871166070449L;
 
@@ -90,6 +94,60 @@ public class DefaultApplicationManagerState implements Serializable {
             urlByRepo.put(name, old);
             throw new ApplicationException("Repository with url " + url + " already exists");
         }
+    }
+
+    @Override
+    public String getRepositoryName(final String installName) throws ApplicationException {
+        final ApplicationContext applicationContext = getApplication(installName);
+        return applicationContext.getRepoName();
+    }
+
+    @Override
+    public String getRepositoryApplicationName(final String installName) throws ApplicationException {
+        final ApplicationContext applicationContext = getApplication(installName);
+        return applicationContext.getRepoApplicationName();
+    }
+
+    @Override
+    public List<Integer> getRepositoryApplicationVersion(final String installName) throws ApplicationException {
+        final ApplicationContext applicationContext = getApplication(installName);
+        return applicationContext.getRepoApplicationVersion();
+    }
+
+    @Override
+    public List<Integer> getMigrationRepositoryApplicationVersion(final String installName) throws ApplicationException {
+        final ApplicationContext applicationContext = getApplication(installName);
+        return applicationContext.getMigrationRepoApplicationVersion();
+    }
+
+    @Override
+    public boolean isAutoStarted(final String installName) throws ApplicationException {
+        final ApplicationContext applicationContext = getApplication(installName);
+        return applicationContext.isAutoStarted();
+    }
+
+    public boolean isStarted(final String installName) throws ApplicationException {
+        final ApplicationContext applicationContext = getApplication(installName);
+        return applicationContext.isStarted();
+    }
+
+    public ClassLoaderConfiguration getClassLoaders(final String installName) throws ApplicationException {
+        final ApplicationContext applicationContext = getApplication(installName);
+        return applicationContext.getResolve();
+    }
+
+    public int getAutoMigrateLevel(final String installName) throws ApplicationException {
+        ApplicationContext applicationContext = getApplication(installName);
+        return applicationContext.getAutoMigrateLevel();
+    }
+
+    public ApplicationManagerState copy() {
+        DefaultApplicationManagerState defaultApplicationManagerState = new DefaultApplicationManagerState();
+        defaultApplicationManagerState.urlByRepo.putAll(urlByRepo);
+        for (Entry<String, ApplicationContext> entry : applicationContextByInstallName.entrySet()) {
+            defaultApplicationManagerState.applicationContextByInstallName.put(entry.getKey(), entry.getValue().copy());
+        }
+        return defaultApplicationManagerState;
     }
 
 }

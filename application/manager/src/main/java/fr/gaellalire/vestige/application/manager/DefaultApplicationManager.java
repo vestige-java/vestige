@@ -33,9 +33,11 @@ import java.security.Permission;
 import java.security.PermissionCollection;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -65,7 +67,7 @@ public class DefaultApplicationManager implements ApplicationManager {
 
     private PublicVestigeSystem managerVestigeSystem;
 
-    private ApplicationDescriptorFactory applicationDescriptorFactory;
+    private ApplicationRepositoryManager applicationDescriptorFactory;
 
     private File appBaseFile;
 
@@ -79,8 +81,9 @@ public class DefaultApplicationManager implements ApplicationManager {
 
     private File nextResolverFile;
 
-    public DefaultApplicationManager(final File appBaseFile, final File appDataFile, final VestigePlatform vestigePlatform, final PublicVestigeSystem vestigeSystem, final PublicVestigeSystem managerVestigeSystem,
-            final PrivateVestigeSecurityManager vestigeSecurityManager, final ApplicationDescriptorFactory applicationDescriptorFactory, final File resolverFile, final File nextResolverFile) {
+    public DefaultApplicationManager(final File appBaseFile, final File appDataFile, final VestigePlatform vestigePlatform, final PublicVestigeSystem vestigeSystem,
+            final PublicVestigeSystem managerVestigeSystem, final PrivateVestigeSecurityManager vestigeSecurityManager,
+            final ApplicationRepositoryManager applicationDescriptorFactory, final File resolverFile, final File nextResolverFile) {
         this.appBaseFile = appBaseFile;
         this.appDataFile = appDataFile;
 
@@ -148,27 +151,6 @@ public class DefaultApplicationManager implements ApplicationManager {
         }
     }
 
-
-    public void createRepository(final String name, final URL url) throws ApplicationException {
-        state.createRepository(name, url);
-        saveState();
-        LOGGER.info("Repository {} with url {} created", name, url);
-    }
-
-    public void removeRepository(final String name) throws ApplicationException {
-        state.removeRepository(name);
-        saveState();
-        LOGGER.info("Repository {} removed", name);
-    }
-
-    public URL getRepositoryURL(final String repoName) {
-        return state.getRepositoryURL(repoName);
-    }
-
-    public Set<String> getRepositoriesName() {
-        return state.getRepositoriesName();
-    }
-
     public ApplicationContext createApplicationContext(final String repoName, final String appName, final List<Integer> version, final String installName)
             throws ApplicationException {
         URL context = state.getRepositoryURL(repoName);
@@ -222,7 +204,7 @@ public class DefaultApplicationManager implements ApplicationManager {
             installName = appName;
         }
 
-        synchronized (lockedInstallNames) {
+        synchronized (state) {
             if (state.hasContext(installName)) {
                 throw new ApplicationException("application already installed");
             }
@@ -289,9 +271,9 @@ public class DefaultApplicationManager implements ApplicationManager {
             throw new ApplicationException("fail to install", e);
         }
 
-        state.install(installName, applicationContext);
-        saveState();
-        synchronized (lockedInstallNames) {
+        synchronized (state) {
+            state.install(installName, applicationContext);
+            saveState();
             lockedInstallNames.remove(installName);
         }
         if (LOGGER.isInfoEnabled()) {
@@ -299,10 +281,16 @@ public class DefaultApplicationManager implements ApplicationManager {
         }
     }
 
+    public static final List<Integer> LOCKED_VERSION = Collections.emptyList();
+
     public void uninstall(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = state.getApplication(installName);
-        if (applicationContext.isStarted()) {
-            throw new ApplicationException("Application is started");
+        final ApplicationContext applicationContext;
+        synchronized (state) {
+            applicationContext = state.getApplication(installName);
+            if (applicationContext.isStarted()) {
+                throw new ApplicationException("Application is started");
+            }
+            applicationContext.setMigrationRepoApplicationVersion(LOCKED_VERSION);
         }
         try {
             final File base = applicationContext.getBase();
@@ -376,8 +364,10 @@ public class DefaultApplicationManager implements ApplicationManager {
         } catch (Exception e) {
             LOGGER.error("fail to uninstall properly", e);
         } finally {
-            state.uninstall(installName);
-            saveState();
+            synchronized (state) {
+                state.uninstall(installName);
+                saveState();
+            }
         }
 
         if (LOGGER.isInfoEnabled()) {
@@ -437,15 +427,18 @@ public class DefaultApplicationManager implements ApplicationManager {
     }
 
     public void migrate(final String installName, final List<Integer> toVersion) throws ApplicationException {
-        migrate(installName, toVersion, false);
+        migrate(installName, toVersion, false, false);
     }
 
-
-    public void migrate(final String installName, final List<Integer> toVersion, final boolean ignoreIfUnsupported) throws ApplicationException {
+    public void migrate(final String installName, final List<Integer> toVersion, final boolean ignoreIfUnsupported, final boolean stopIfMigrationPossible) throws ApplicationException {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("migrating {} to version {} ", installName, VersionUtils.toString(toVersion));
         }
-        final ApplicationContext fromApplicationContext = state.getApplication(installName);
+        final ApplicationContext fromApplicationContext;
+        synchronized (state) {
+            fromApplicationContext = state.getApplication(installName);
+            fromApplicationContext.setMigrationRepoApplicationVersion(toVersion);
+        }
         ApplicationContext toApplicationContext = createApplicationContext(fromApplicationContext.getRepoName(), fromApplicationContext.getRepoApplicationName(), toVersion,
                 installName);
 
@@ -454,8 +447,12 @@ public class DefaultApplicationManager implements ApplicationManager {
         toApplicationContext.setAutoMigrateLevel(level);
 
         final List<Integer> fromVersion = fromApplicationContext.getRepoApplicationVersion();
-        final ApplicationContext migratorApplicationContext = findMigratorApplicationContext(fromVersion, fromApplicationContext, toVersion, toApplicationContext, ignoreIfUnsupported);
+        final ApplicationContext migratorApplicationContext = findMigratorApplicationContext(fromVersion, fromApplicationContext, toVersion, toApplicationContext,
+                ignoreIfUnsupported);
         if (migratorApplicationContext == null) {
+            synchronized (state) {
+                fromApplicationContext.setMigrationRepoApplicationVersion(null);
+            }
             return;
         }
         ClassLoaderConfiguration installerResolve = migratorApplicationContext.getInstallerResolve();
@@ -465,11 +462,17 @@ public class DefaultApplicationManager implements ApplicationManager {
         if (fromApplicationContext.isStarted() && runtimeApplicationContext != null) {
             if (fromApplicationContext == migratorApplicationContext) {
                 if (!migratorApplicationContext.getUninterruptedMigrationVersion().contains(toVersion)) {
+                    synchronized (state) {
+                        fromApplicationContext.setMigrationRepoApplicationVersion(null);
+                    }
                     LOGGER.info("Uninterrupted migration not supported and application running");
                     return;
                 }
             } else {
                 if (!migratorApplicationContext.getUninterruptedMigrationVersion().contains(fromVersion)) {
+                    synchronized (state) {
+                        fromApplicationContext.setMigrationRepoApplicationVersion(null);
+                    }
                     LOGGER.info("Uninterrupted migration not supported and application running");
                     return;
                 }
@@ -511,7 +514,6 @@ public class DefaultApplicationManager implements ApplicationManager {
                         }
                     }
                 };
-                fromApplicationContext.setMigrationRepoApplicationVersion(toVersion);
                 try {
                     int installerAttach = vestigePlatform.attach(installerResolve);
                     try {
@@ -543,9 +545,11 @@ public class DefaultApplicationManager implements ApplicationManager {
                                         ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(callConstructor(installerClassLoader,
                                                 installerClassLoader.loadClass(fromApplicationContext.getInstallerClassName()), base, data, vestigeSystem));
                                         if (migratorApplicationContext == fromApplicationContext) {
-                                            applicationInstaller.uninterruptedMigrateTo(runtimeApplicationContext.getRunnable(), toVersion, notNullToRuntimeApplicationContext.getRunnable(), notifyRunMutex);
+                                            applicationInstaller.uninterruptedMigrateTo(runtimeApplicationContext.getRunnable(), toVersion,
+                                                    notNullToRuntimeApplicationContext.getRunnable(), notifyRunMutex);
                                         } else {
-                                            applicationInstaller.uninterruptedMigrateFrom(fromVersion, runtimeApplicationContext.getRunnable(), notNullToRuntimeApplicationContext.getRunnable(), notifyRunMutex);
+                                            applicationInstaller.uninterruptedMigrateFrom(fromVersion, runtimeApplicationContext.getRunnable(),
+                                                    notNullToRuntimeApplicationContext.getRunnable(), notifyRunMutex);
                                         }
                                         return null;
                                     }
@@ -575,11 +579,12 @@ public class DefaultApplicationManager implements ApplicationManager {
                 stop(fromApplicationContext);
 
             } catch (Exception e) {
-                fromApplicationContext.setMigrationRepoApplicationVersion(null);
+                synchronized (state) {
+                    fromApplicationContext.setMigrationRepoApplicationVersion(null);
+                }
                 throw new ApplicationException("fail to uninterrupted migrate", e);
             }
         } else {
-            fromApplicationContext.setMigrationRepoApplicationVersion(toVersion);
             try {
                 int installerAttach = vestigePlatform.attach(installerResolve);
                 try {
@@ -634,45 +639,40 @@ public class DefaultApplicationManager implements ApplicationManager {
                     vestigePlatform.detach(installerAttach);
                 }
             } catch (Exception e) {
-                fromApplicationContext.setMigrationRepoApplicationVersion(null);
+                synchronized (state) {
+                    fromApplicationContext.setMigrationRepoApplicationVersion(null);
+                }
                 throw new ApplicationException("fail to migrate", e);
             }
         }
-        state.install(installName, toApplicationContext);
-        saveState();
+        synchronized (state) {
+            state.install(installName, toApplicationContext);
+            saveState();
+        }
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Application {} migrated to version {}", installName, VersionUtils.toString(toVersion));
         }
 
     }
 
-    public boolean isStarted(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = state.getApplication(installName);
-        return applicationContext.isStarted();
-    }
-
-    public ClassLoaderConfiguration getClassLoaders(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = state.getApplication(installName);
-        return applicationContext.getResolve();
-    }
-
     public void start(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = state.getApplication(installName);
-        if (applicationContext.isStarted()) {
-            throw new ApplicationException("already started");
+        synchronized (state) {
+            final ApplicationContext applicationContext = state.getApplication(installName);
+            if (applicationContext.isStarted()) {
+                throw new ApplicationException("already started");
+            }
+            start(applicationContext);
         }
-        start(applicationContext);
         LOGGER.info("Application {} started", installName);
     }
 
     public void stop(final String installName) throws ApplicationException {
-        ApplicationContext applicationContext = state.getApplication(installName);
+        ApplicationContext applicationContext;
+        synchronized (state) {
+            applicationContext = state.getApplication(installName);
+        }
         stop(applicationContext);
         LOGGER.info("Application {} stopped", installName);
-    }
-
-    public Set<String> getApplicationsName() {
-        return state.getApplicationsName();
     }
 
     public void start(final ApplicationContext applicationContext) throws ApplicationException {
@@ -764,7 +764,6 @@ public class DefaultApplicationManager implements ApplicationManager {
             throw new ApplicationException("No constructor found");
         }
     }
-
 
     public void start(final ApplicationContext applicationContext, final Object runMutex, final Object constructorMutex) throws ApplicationException {
         try {
@@ -910,72 +909,107 @@ public class DefaultApplicationManager implements ApplicationManager {
     }
 
     public void autoMigrate() throws ApplicationException {
-        List<String> failedMigration = new ArrayList<String>();
-        for (ApplicationContext applicationContext : state.getApplicationContexts()) {
-            // create a new map because migration cause concurent
-            // modification
-            try {
-                String repoName = applicationContext.getRepoName();
-                URL context = state.getRepositoryURL(repoName);
-                String appName = applicationContext.getRepoApplicationName();
-                List<Integer> version = applicationContext.getRepoApplicationVersion();
-                int autoMigrateLevel = applicationContext.getAutoMigrateLevel();
-                int majorVersion = version.get(0);
-                int minorVersion = version.get(1);
-                int bugfixVersion = version.get(2);
-                List<Integer> newerVersion = Arrays.asList(majorVersion, minorVersion, bugfixVersion);
-                switch (autoMigrateLevel) {
-                case 3:
-                    newerVersion.set(0, majorVersion + 1);
-                    newerVersion.set(1, 0);
-                    newerVersion.set(2, 0);
-                    if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion)) {
-                        minorVersion = 0;
-                        bugfixVersion = 0;
-                        do {
-                            majorVersion++;
-                            newerVersion.set(0, majorVersion + 1);
-                        } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion));
-                    } else {
-                        newerVersion.set(2, bugfixVersion);
+        final List<String> failedMigration = Collections.synchronizedList(new ArrayList<String>());
+        Set<String> applicationNames;
+        synchronized (state) {
+            // create a new set because migration cause concurent modification
+            applicationNames = new TreeSet<String>(state.getApplicationsName());
+        }
+        List<Thread> threads = new ArrayList<Thread>(applicationNames.size());
+        for (final String applicationName : applicationNames) {
+            Thread thread = new Thread("automigrate-" + applicationName) {
+                public void run() {
+                    try {
+                        autoMigrate(applicationName);
+                    } catch (ApplicationException e) {
+                        failedMigration.add(applicationName);
+                        LOGGER.warn("Unable to auto-migrate " + applicationName, e);
                     }
-                    newerVersion.set(0, majorVersion);
-                case 2:
-                    newerVersion.set(1, minorVersion + 1);
-                    newerVersion.set(2, 0);
-                    if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion)) {
-                        bugfixVersion = 0;
-                        do {
-                            minorVersion++;
-                            newerVersion.set(1, minorVersion + 1);
-                        } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion));
-                    }
-                    newerVersion.set(1, minorVersion);
-                case 1:
-                    newerVersion.set(2, bugfixVersion + 1);
-                    if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion)) {
-                        do {
-                            bugfixVersion++;
-                            newerVersion.set(2, bugfixVersion + 1);
-                        } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion));
-                    }
-                    newerVersion.set(2, bugfixVersion);
-                case 0:
-                    break;
-                default:
-                    throw new ApplicationException("Unexpected autoMigrateLevel" + autoMigrateLevel);
                 }
-                if (!newerVersion.equals(version)) {
-                    migrate(applicationContext.getName(), newerVersion, true);
-                }
-            } catch (ApplicationException e) {
-                String fromApplication = applicationContext.getName();
-                failedMigration.add(fromApplication);
-                LOGGER.warn("Unable to auto-migrate " + fromApplication, e);
+            };
+            threads.add(thread);
+            thread.start();
+        }
+        try {
+            for (Thread thread : threads) {
+                thread.join();
             }
+        } catch (InterruptedException e) {
+            LOGGER.warn("Interrupted auto-migrate ", e);
+            for (Thread thread : threads) {
+                thread.interrupt();
+            }
+            return;
         }
         if (failedMigration.size() != 0) {
             throw new ApplicationException("Following migration failed " + failedMigration);
+        }
+    }
+
+    public void autoMigrate(final String installName) throws ApplicationException {
+        ApplicationContext applicationContext;
+        URL context;
+        String repoName;
+        synchronized (state) {
+            applicationContext = state.getApplication(installName);
+            repoName = applicationContext.getRepoName();
+            applicationContext.setMigrationRepoApplicationVersion(LOCKED_VERSION);
+            context = state.getRepositoryURL(repoName);
+        }
+        String appName = applicationContext.getRepoApplicationName();
+        List<Integer> version = applicationContext.getRepoApplicationVersion();
+        int autoMigrateLevel = applicationContext.getAutoMigrateLevel();
+        int majorVersion = version.get(0);
+        int minorVersion = version.get(1);
+        int bugfixVersion = version.get(2);
+        List<Integer> newerVersion = Arrays.asList(majorVersion, minorVersion, bugfixVersion);
+        switch (autoMigrateLevel) {
+        case 3:
+            newerVersion.set(0, majorVersion + 1);
+            newerVersion.set(1, 0);
+            newerVersion.set(2, 0);
+            if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion)) {
+                minorVersion = 0;
+                bugfixVersion = 0;
+                do {
+                    majorVersion++;
+                    newerVersion.set(0, majorVersion + 1);
+                } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion));
+            } else {
+                newerVersion.set(2, bugfixVersion);
+            }
+            newerVersion.set(0, majorVersion);
+        case 2:
+            newerVersion.set(1, minorVersion + 1);
+            newerVersion.set(2, 0);
+            if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion)) {
+                bugfixVersion = 0;
+                do {
+                    minorVersion++;
+                    newerVersion.set(1, minorVersion + 1);
+                } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion));
+            }
+            newerVersion.set(1, minorVersion);
+        case 1:
+            newerVersion.set(2, bugfixVersion + 1);
+            if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion)) {
+                do {
+                    bugfixVersion++;
+                    newerVersion.set(2, bugfixVersion + 1);
+                } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion));
+            }
+            newerVersion.set(2, bugfixVersion);
+        case 0:
+            break;
+        default:
+            throw new ApplicationException("Unexpected autoMigrateLevel" + autoMigrateLevel);
+        }
+        if (!newerVersion.equals(version)) {
+            migrate(applicationContext.getName(), newerVersion, true, true);
+        } else {
+            synchronized (state) {
+                applicationContext.setMigrationRepoApplicationVersion(null);
+            }
         }
     }
 
@@ -983,56 +1017,21 @@ public class DefaultApplicationManager implements ApplicationManager {
         if (level < 0 || level > 3) {
             throw new ApplicationException("Level must be an integer between 0 and 3");
         }
-        ApplicationContext applicationContext = state.getApplication(installName);
-        applicationContext.setAutoMigrateLevel(level);
-        saveState();
+        synchronized (state) {
+            ApplicationContext applicationContext = state.getApplication(installName);
+            applicationContext.setAutoMigrateLevel(level);
+            saveState();
+        }
         LOGGER.info("Application {} auto-migrate-level set to {}", installName, level);
-    }
-
-    public int getAutoMigrateLevel(final String installName) throws ApplicationException {
-        ApplicationContext applicationContext = state.getApplication(installName);
-        return applicationContext.getAutoMigrateLevel();
-    }
-
-    @Override
-    public String getRepositoryName(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = state.getApplication(installName);
-        return applicationContext.getRepoName();
-    }
-
-    @Override
-    public String getRepositoryApplicationName(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = state.getApplication(installName);
-        return applicationContext.getRepoApplicationName();
-    }
-
-    @Override
-    public List<Integer> getRepositoryApplicationVersion(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = state.getApplication(installName);
-        return applicationContext.getRepoApplicationVersion();
-    }
-
-    @Override
-    public List<Integer> getMigrationRepositoryApplicationVersion(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = state.getApplication(installName);
-        return applicationContext.getMigrationRepoApplicationVersion();
-    }
-
-    @Override
-    public Set<String> getRepositoryApplicationsName(final String repoName) {
-        return applicationDescriptorFactory.listApplicationsName(state.getRepositoryURL(repoName));
-    }
-
-    @Override
-    public Set<List<Integer>> getRepositoryApplicationVersions(final String repoName, final String applicationName) {
-        return applicationDescriptorFactory.listApplicationVersions(state.getRepositoryURL(repoName), applicationName);
     }
 
     @Override
     public void setAutoStarted(final String installName, final boolean autostart) throws ApplicationException {
-        final ApplicationContext applicationContext = state.getApplication(installName);
-        applicationContext.setAutoStarted(autostart);
-        saveState();
+        synchronized (state) {
+            final ApplicationContext applicationContext = state.getApplication(installName);
+            applicationContext.setAutoStarted(autostart);
+            saveState();
+        }
         if (autostart) {
             LOGGER.info("Application {} auto start enabled", installName);
         } else {
@@ -1040,11 +1039,107 @@ public class DefaultApplicationManager implements ApplicationManager {
         }
     }
 
-    @Override
-    public boolean isAutoStarted(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = state.getApplication(installName);
-        return applicationContext.isAutoStarted();
+    public void createRepository(final String name, final URL url) throws ApplicationException {
+        synchronized (state) {
+            state.createRepository(name, url);
+            saveState();
+        }
+        LOGGER.info("Repository {} with url {} created", name, url);
     }
 
+    public void removeRepository(final String name) throws ApplicationException {
+        synchronized (state) {
+            state.removeRepository(name);
+            saveState();
+        }
+        LOGGER.info("Repository {} removed", name);
+    }
+
+    @Override
+    public ApplicationManagerState copyState() throws ApplicationException {
+        synchronized (state) {
+            return state.copy();
+        }
+    }
+
+    @Override
+    public Set<String> getApplicationsName() throws ApplicationException {
+        synchronized (state) {
+            return state.getApplicationsName();
+        }
+    }
+
+    @Override
+    public boolean isStarted(final String installName) throws ApplicationException {
+        synchronized (state) {
+            return state.isStarted(installName);
+        }
+    }
+
+    @Override
+    public ClassLoaderConfiguration getClassLoaders(final String installName) throws ApplicationException {
+        synchronized (state) {
+            return state.getClassLoaders(installName);
+        }
+    }
+
+    @Override
+    public String getRepositoryName(final String installName) throws ApplicationException {
+        synchronized (state) {
+            return state.getRepositoryName(installName);
+        }
+    }
+
+    @Override
+    public List<Integer> getMigrationRepositoryApplicationVersion(final String installName) throws ApplicationException {
+        synchronized (state) {
+            return state.getMigrationRepositoryApplicationVersion(installName);
+        }
+    }
+
+    @Override
+    public int getAutoMigrateLevel(final String installName) throws ApplicationException {
+        synchronized (state) {
+            return state.getAutoMigrateLevel(installName);
+        }
+    }
+
+    @Override
+    public boolean isAutoStarted(final String installName) throws ApplicationException {
+        synchronized (state) {
+            return state.isAutoStarted(installName);
+        }
+    }
+
+    @Override
+    public String getRepositoryApplicationName(final String installName) throws ApplicationException {
+        synchronized (state) {
+            return state.getRepositoryApplicationName(installName);
+        }
+    }
+
+    @Override
+    public List<Integer> getRepositoryApplicationVersion(final String installName) throws ApplicationException {
+        synchronized (state) {
+            return state.getRepositoryApplicationVersion(installName);
+        }
+    }
+
+    public URL getRepositoryURL(final String repoName) {
+        synchronized (state) {
+            return state.getRepositoryURL(repoName);
+        }
+    }
+
+    public Set<String> getRepositoriesName() {
+        synchronized (state) {
+            return state.getRepositoriesName();
+        }
+    }
+
+    @Override
+    public ApplicationRepositoryMetadata getRepositoryMetadata(final String repoName) {
+        return applicationDescriptorFactory.getMetadata(getRepositoryURL(repoName));
+    }
 
 }

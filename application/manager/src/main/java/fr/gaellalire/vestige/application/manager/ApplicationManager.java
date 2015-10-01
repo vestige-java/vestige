@@ -19,28 +19,13 @@ package fr.gaellalire.vestige.application.manager;
 
 import java.net.URL;
 import java.util.List;
-import java.util.Set;
-
-import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 
 /**
  * @author Gael Lalire
  */
-public interface ApplicationManager {
+public interface ApplicationManager extends ApplicationManagerState {
 
-    Set<String> getRepositoriesName() throws ApplicationException;
-
-    URL getRepositoryURL(final String repoName) throws ApplicationException;
-
-    Set<String> getRepositoryApplicationsName(String repoName);
-
-    Set<List<Integer>> getRepositoryApplicationVersions(String repoName, String applicationName);
-
-    Set<String> getApplicationsName() throws ApplicationException;
-
-    ClassLoaderConfiguration getClassLoaders(String installName) throws ApplicationException;
-
-    boolean isStarted(String installName) throws ApplicationException;
+    ApplicationManagerState copyState() throws ApplicationException;
 
     void createRepository(String name, URL url) throws ApplicationException;
 
@@ -56,23 +41,14 @@ public interface ApplicationManager {
 
     void stop(String installName) throws ApplicationException;
 
-    String getRepositoryName(String installName) throws ApplicationException;
-
-    String getRepositoryApplicationName(String installName) throws ApplicationException;
-
-    List<Integer> getRepositoryApplicationVersion(String installName) throws ApplicationException;
-
-    List<Integer> getMigrationRepositoryApplicationVersion(String installName) throws ApplicationException;
-
-    int getAutoMigrateLevel(String installName) throws ApplicationException;
-
     void setAutoMigrateLevel(String installName, int level) throws ApplicationException;
 
     void setAutoStarted(String installName, boolean autoStarted) throws ApplicationException;
 
-    boolean isAutoStarted(String installName) throws ApplicationException;
-
     void autoMigrate() throws ApplicationException;
 
+    void autoMigrate(final String installName) throws ApplicationException;
+
+    ApplicationRepositoryMetadata getRepositoryMetadata(String repoName);
 
 }

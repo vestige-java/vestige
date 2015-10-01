@@ -35,6 +35,7 @@ import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
+import fr.gaellalire.vestige.application.manager.ApplicationManagerState;
 import fr.gaellalire.vestige.application.manager.VersionUtils;
 
 /**
@@ -91,6 +92,7 @@ public class VestigeServlet extends HttpServlet {
     protected void doPost(final HttpServletRequest req, final HttpServletResponse resp) throws ServletException, IOException {
         try {
             String error = null;
+            ApplicationManagerState applicationManagerState;
             try {
                 String requestURI = req.getRequestURI();
                 if ("/mk-repo".equals(requestURI)) {
@@ -137,12 +139,13 @@ public class VestigeServlet extends HttpServlet {
                 } else if ("/auto-migrate".equals(requestURI)) {
                     applicationManager.autoMigrate();
                 } else if ("/get-repos".equals(requestURI)) {
-                    Set<String> repositoriesName = applicationManager.getRepositoriesName();
+                    applicationManagerState = applicationManager.copyState();
+                    Set<String> repositoriesName = applicationManagerState.getRepositoriesName();
                     JSONArray jsonArray = new JSONArray();
                     for (String string : repositoriesName) {
                         JSONObject jsonObject = new JSONObject();
                         jsonObject.put("name", string);
-                        jsonObject.put("url", applicationManager.getRepositoryURL(string).toString());
+                        jsonObject.put("url", applicationManagerState.getRepositoryURL(string).toString());
                         jsonArray.add(jsonObject);
                     }
                     PrintWriter writer = resp.getWriter();
@@ -150,7 +153,7 @@ public class VestigeServlet extends HttpServlet {
                     writer.close();
                     return;
                 } else if ("/get-repo-app-name".equals(requestURI)) {
-                    Set<String> repositoryApplicationsName = applicationManager.getRepositoryApplicationsName(req.getParameter("repo"));
+                    Set<String> repositoryApplicationsName = applicationManager.getRepositoryMetadata(req.getParameter("repo")).listApplicationsName();
                     JSONArray jsonArray = new JSONArray();
                     String parameter = req.getParameter("req");
                     for (String string : repositoryApplicationsName) {
@@ -163,25 +166,31 @@ public class VestigeServlet extends HttpServlet {
                     writer.close();
                     return;
                 } else if ("/get-repo-app-version".equals(requestURI)) {
+                    applicationManagerState = applicationManager.copyState();
                     String repo = req.getParameter("repo");
                     String name = req.getParameter("name");
                     String exclude = "";
+                    JSONArray jsonArray = new JSONArray();
+                    PrintWriter writer = resp.getWriter();
+                    if (name == null || name.length() == 0) {
+                        writer.print(jsonArray.toJSONString());
+                        writer.close();
+                        return;
+                    }
                     if (repo == null || repo.length() == 0) {
-                        repo = applicationManager.getRepositoryName(name);
-                        exclude = VersionUtils.toString(applicationManager.getRepositoryApplicationVersion(name));
-                        name = applicationManager.getRepositoryApplicationName(name);
+                        repo = applicationManagerState.getRepositoryName(name);
+                        exclude = VersionUtils.toString(applicationManagerState.getRepositoryApplicationVersion(name));
+                        name = applicationManagerState.getRepositoryApplicationName(name);
                     }
 
-                    Set<List<Integer>> repositoryApplicationsName = applicationManager.getRepositoryApplicationVersions(repo, name);
-                    JSONArray jsonArray = new JSONArray();
+                    Set<List<Integer>> repositoryApplicationsVersions = applicationManager.getRepositoryMetadata(repo).listApplicationVersions(name);
                     String parameter = req.getParameter("req");
-                    for (List<Integer> version : repositoryApplicationsName) {
+                    for (List<Integer> version : repositoryApplicationsVersions) {
                         String string = VersionUtils.toString(version);
                         if ((parameter == null || parameter.length() == 0 || string.indexOf(parameter) != -1) && !exclude.equals(string)) {
                             jsonArray.add(string);
                         }
                     }
-                    PrintWriter writer = resp.getWriter();
                     writer.print(jsonArray.toJSONString());
                     writer.close();
                     return;
@@ -200,21 +209,22 @@ public class VestigeServlet extends HttpServlet {
             }
             PrintWriter writer = resp.getWriter();
             JSONArray applications = new JSONArray();
-            for (String appName : applicationManager.getApplicationsName()) {
+            applicationManagerState = applicationManager.copyState();
+            for (String appName : applicationManagerState.getApplicationsName()) {
                 JSONObject jsonApp = new JSONObject();
                 jsonApp.put("name", appName);
 
-                String path = applicationManager.getRepositoryName(appName) + "-" + applicationManager.getRepositoryApplicationName(appName) + "-"
-                        + VersionUtils.toString(applicationManager.getRepositoryApplicationVersion(appName));
-                List<Integer> migrationRepositoryApplicationVersion = applicationManager.getMigrationRepositoryApplicationVersion(appName);
-                if (migrationRepositoryApplicationVersion != null) {
+                String path = applicationManagerState.getRepositoryName(appName) + "-" + applicationManagerState.getRepositoryApplicationName(appName) + "-"
+                        + VersionUtils.toString(applicationManagerState.getRepositoryApplicationVersion(appName));
+                List<Integer> migrationRepositoryApplicationVersion = applicationManagerState.getMigrationRepositoryApplicationVersion(appName);
+                if (migrationRepositoryApplicationVersion != null && migrationRepositoryApplicationVersion.size() != 0) {
                     path += "-" + VersionUtils.toString(migrationRepositoryApplicationVersion);
                 }
 
                 jsonApp.put("path", path);
-                jsonApp.put("autoStarted", applicationManager.isAutoStarted(appName));
-                jsonApp.put("started", applicationManager.isStarted(appName));
-                int autoMigrateLevel = applicationManager.getAutoMigrateLevel(appName);
+                jsonApp.put("autoStarted", applicationManagerState.isAutoStarted(appName));
+                jsonApp.put("started", applicationManagerState.isStarted(appName));
+                int autoMigrateLevel = applicationManagerState.getAutoMigrateLevel(appName);
                 jsonApp.put("bugfix", autoMigrateLevel >= 1);
                 jsonApp.put("minor", autoMigrateLevel >= 2);
                 jsonApp.put("major", autoMigrateLevel >= 3);

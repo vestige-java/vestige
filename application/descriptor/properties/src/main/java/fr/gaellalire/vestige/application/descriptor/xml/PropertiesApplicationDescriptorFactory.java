@@ -19,16 +19,16 @@ package fr.gaellalire.vestige.application.descriptor.xml;
 
 import java.net.URL;
 import java.util.List;
-import java.util.Set;
 
 import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
-import fr.gaellalire.vestige.application.manager.ApplicationDescriptorFactory;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
+import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
+import fr.gaellalire.vestige.application.manager.ApplicationRepositoryMetadata;
 
 /**
  * @author Gael Lalire
  */
-public class PropertiesApplicationDescriptorFactory implements ApplicationDescriptorFactory {
+public class PropertiesApplicationDescriptorFactory implements ApplicationRepositoryManager {
 
     public ApplicationDescriptor createApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version)
             throws ApplicationException {
@@ -42,13 +42,7 @@ public class PropertiesApplicationDescriptorFactory implements ApplicationDescri
     }
 
     @Override
-    public Set<String> listApplicationsName(final URL context) {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    @Override
-    public Set<List<Integer>> listApplicationVersions(final URL context, final String appName) {
+    public ApplicationRepositoryMetadata getMetadata(final URL context) {
         // TODO Auto-generated method stub
         return null;
     }

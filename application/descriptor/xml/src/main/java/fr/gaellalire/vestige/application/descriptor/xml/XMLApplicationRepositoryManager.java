@@ -30,6 +30,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 import javax.xml.bind.JAXBContext;
@@ -57,8 +58,9 @@ import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Repla
 import fr.gaellalire.vestige.application.descriptor.xml.schema.repository.Repository;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.repository.Repository.Application.Version;
 import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
-import fr.gaellalire.vestige.application.manager.ApplicationDescriptorFactory;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
+import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
+import fr.gaellalire.vestige.application.manager.ApplicationRepositoryMetadata;
 import fr.gaellalire.vestige.application.manager.VersionUtils;
 import fr.gaellalire.vestige.resolver.maven.DefaultDependencyModifier;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
@@ -67,13 +69,13 @@ import fr.gaellalire.vestige.resolver.maven.MavenRepository;
 /**
  * @author Gael Lalire
  */
-public class XMLApplicationDescriptorFactory implements ApplicationDescriptorFactory {
+public class XMLApplicationRepositoryManager implements ApplicationRepositoryManager {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(XMLApplicationDescriptorFactory.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(XMLApplicationRepositoryManager.class);
 
     private MavenArtifactResolver mavenArtifactResolver;
 
-    public XMLApplicationDescriptorFactory(final MavenArtifactResolver mavenArtifactResolver) {
+    public XMLApplicationRepositoryManager(final MavenArtifactResolver mavenArtifactResolver) {
         this.mavenArtifactResolver = mavenArtifactResolver;
     }
 
@@ -116,7 +118,7 @@ public class XMLApplicationDescriptorFactory implements ApplicationDescriptorFac
             JAXBContext jc = JAXBContext.newInstance(ObjectFactory.class.getPackage().getName());
             unMarshaller = jc.createUnmarshaller();
 
-            URL xsdURL = XMLApplicationDescriptorFactory.class.getResource("application-1.0.0.xsd");
+            URL xsdURL = XMLApplicationRepositoryManager.class.getResource("application-1.0.0.xsd");
             SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
             Schema schema = schemaFactory.newSchema(xsdURL);
             unMarshaller.setSchema(schema);
@@ -254,14 +256,16 @@ public class XMLApplicationDescriptorFactory implements ApplicationDescriptorFac
     }
 
     @SuppressWarnings("unchecked")
-    public Set<String> listApplicationsName(final URL context) {
-        Set<String> names = new TreeSet<String>();
+    @Override
+    public ApplicationRepositoryMetadata getMetadata(final URL context) {
+
+        Map<String, Set<List<Integer>>> versionsByNames = new TreeMap<String, Set<List<Integer>>>();
         URL url;
         try {
             url = new URL(context, "repository.xml");
         } catch (MalformedURLException e) {
             LOGGER.warn("url repo issue", e);
-            return names;
+            return new XMLApplicationRepositoryMetadata(versionsByNames);
         }
 
         Unmarshaller unMarshaller = null;
@@ -269,66 +273,30 @@ public class XMLApplicationDescriptorFactory implements ApplicationDescriptorFac
             JAXBContext jc = JAXBContext.newInstance(fr.gaellalire.vestige.application.descriptor.xml.schema.repository.ObjectFactory.class.getPackage().getName());
             unMarshaller = jc.createUnmarshaller();
 
-            URL xsdURL = XMLApplicationDescriptorFactory.class.getResource("repository-1.0.0.xsd");
+            URL xsdURL = XMLApplicationRepositoryManager.class.getResource("repository-1.0.0.xsd");
             SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
             Schema schema = schemaFactory.newSchema(xsdURL);
             unMarshaller.setSchema(schema);
         } catch (Exception e) {
             LOGGER.warn("Unable to initialize repository parser", e);
-            return names;
+            return new XMLApplicationRepositoryMetadata(versionsByNames);
         }
         Repository repository;
         try {
             repository = ((JAXBElement<Repository>) unMarshaller.unmarshal(url)).getValue();
         } catch (JAXBException e) {
             LOGGER.warn("unable to unmarshall repository xml", e);
-            return names;
+            return new XMLApplicationRepositoryMetadata(versionsByNames);
         }
         for (fr.gaellalire.vestige.application.descriptor.xml.schema.repository.Repository.Application application : repository.getApplication()) {
-            names.add(application.getName());
-        }
-        return names;
-    }
-
-    @SuppressWarnings("unchecked")
-    public Set<List<Integer>> listApplicationVersions(final URL context, final String appName) {
-        Set<List<Integer>> versions = new TreeSet<List<Integer>>(VersionUtils.VERSION_COMPARATOR);
-        URL url;
-        try {
-            url = new URL(context, "repository.xml");
-        } catch (MalformedURLException e) {
-            LOGGER.warn("url repo issue", e);
-            return versions;
-        }
-
-        Unmarshaller unMarshaller = null;
-        try {
-            JAXBContext jc = JAXBContext.newInstance(fr.gaellalire.vestige.application.descriptor.xml.schema.repository.ObjectFactory.class.getPackage().getName());
-            unMarshaller = jc.createUnmarshaller();
-
-            URL xsdURL = XMLApplicationDescriptorFactory.class.getResource("repository-1.0.0.xsd");
-            SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
-            Schema schema = schemaFactory.newSchema(xsdURL);
-            unMarshaller.setSchema(schema);
-        } catch (Exception e) {
-            LOGGER.warn("Unable to initialize repository parser", e);
-            return versions;
-        }
-        Repository repository;
-        try {
-            repository = ((JAXBElement<Repository>) unMarshaller.unmarshal(url)).getValue();
-        } catch (JAXBException e) {
-            LOGGER.warn("unable to unmarshall repository xml", e);
-            return versions;
-        }
-        for (fr.gaellalire.vestige.application.descriptor.xml.schema.repository.Repository.Application application : repository.getApplication()) {
-            if (application.getName().equals(appName)) {
-                for (Version v : application.getVersion()) {
-                    versions.add(VersionUtils.fromString(v.getValue()));
-                }
+            Set<List<Integer>> versions = new TreeSet<List<Integer>>(VersionUtils.VERSION_COMPARATOR);
+            for (Version v : application.getVersion()) {
+                versions.add(VersionUtils.fromString(v.getValue()));
             }
+            versionsByNames.put(application.getName(), versions);
         }
-        return versions;
+        return new XMLApplicationRepositoryMetadata(versionsByNames);
+
     }
 
 }

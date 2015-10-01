@@ -17,21 +17,16 @@
 
 package fr.gaellalire.vestige.application.manager;
 
-import java.net.URL;
 import java.util.List;
 import java.util.Set;
 
 /**
  * @author Gael Lalire
  */
-public interface ApplicationDescriptorFactory {
+public interface ApplicationRepositoryMetadata {
 
-    boolean hasApplicationDescriptor(URL context, String repoName, String appName, List<Integer> version) throws ApplicationException;
+    Set<String> listApplicationsName();
 
-    ApplicationDescriptor createApplicationDescriptor(URL context, String repoName, String appName, List<Integer> version) throws ApplicationException;
-
-    Set<String> listApplicationsName(URL context);
-
-    Set<List<Integer>> listApplicationVersions(URL context, String appName);
+    Set<List<Integer>> listApplicationVersions(String appName);
 
 }

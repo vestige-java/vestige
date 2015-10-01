@@ -67,7 +67,7 @@ public class VersionArgument implements Argument {
     public Collection<String> propose() throws ParseException {
         try {
             String installName = applicationArgument.getApplication();
-            Set<List<Integer>> versions = applicationManager.getRepositoryApplicationVersions(applicationManager.getRepositoryName(installName), applicationManager.getRepositoryApplicationName(installName));
+            Set<List<Integer>> versions = applicationManager.getRepositoryMetadata(applicationManager.getRepositoryName(installName)).listApplicationVersions(applicationManager.getRepositoryApplicationName(installName));
             Set<String> set = new TreeSet<String>();
             for (List<Integer> version : versions) {
                 set.add(VersionUtils.toString(version));

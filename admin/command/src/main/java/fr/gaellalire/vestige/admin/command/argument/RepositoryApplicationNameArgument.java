@@ -48,14 +48,14 @@ public class RepositoryApplicationNameArgument implements Argument {
     }
 
     public void parse(final String s) throws ParseException {
-        if (!applicationManager.getRepositoryApplicationsName(repositoryArgument.getRepository()).contains(s)) {
+        if (!applicationManager.getRepositoryMetadata(repositoryArgument.getRepository()).listApplicationsName().contains(s)) {
             throw new ParseException("Application not found in repository");
         }
         application = s;
     }
 
     public Collection<String> propose() throws ParseException {
-        return applicationManager.getRepositoryApplicationsName(repositoryArgument.getRepository());
+        return applicationManager.getRepositoryMetadata(repositoryArgument.getRepository()).listApplicationsName();
     }
 
     public void reset() {

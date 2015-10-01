@@ -25,6 +25,7 @@ import java.util.Set;
 import fr.gaellalire.vestige.admin.command.argument.Argument;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
+import fr.gaellalire.vestige.application.manager.ApplicationManagerState;
 import fr.gaellalire.vestige.application.manager.VersionUtils;
 
 /**
@@ -52,72 +53,65 @@ public class ListCommand implements Command {
 
     public void execute(final PrintWriter out) {
         try {
-            synchronized (applicationManager) {
-                Set<String> repositoriesName = applicationManager.getRepositoriesName();
-                for (String repositoryName : repositoriesName) {
-                    out.println("----------------------------------");
-                    out.println("Repository : " + repositoryName + " (" + applicationManager.getRepositoryURL(repositoryName)
-                            + ")");
-                    out.println();
-                    Set<String> applicationsName = applicationManager.getApplicationsName();
-                    for (String applicationName : applicationsName) {
-                        boolean first = true;
-                            if (first) {
-                                out.print(applicationName);
-                                out.print(" ");
-                                first = false;
-                            } else {
-                                for (int i = 0; i < applicationName.length(); i++) {
-                                    out.print(" ");
-                                }
-                                out.print(" ");
-                            }
-                            out.print(applicationManager.getRepositoryName(applicationName));
-                            out.print("-");
-                            out.print(applicationManager.getRepositoryApplicationName(applicationName));
-                            out.print("-");
-                            out.print(VersionUtils.toString(applicationManager.getRepositoryApplicationVersion(applicationName)));
-                            List<Integer> migrationRepositoryApplicationVersion = applicationManager.getMigrationRepositoryApplicationVersion(applicationName);
-                            if (migrationRepositoryApplicationVersion != null) {
-                                out.print("-");
-                                out.print(VersionUtils.toString(migrationRepositoryApplicationVersion));
-                            }
-                            out.print(" -> state:");
-                            if (applicationManager.isStarted(applicationName)) {
-                                out.print("STARTED");
-                            } else {
-                                out.print("STOPPED");
-                            }
-                            out.print(", auto-start:");
-                            if (applicationManager.isAutoStarted(applicationName)) {
-                                out.print("ON");
-                            } else {
-                                out.print("OFF");
-                            }
-                            out.print(", auto-migrate-level:");
-                            int level = applicationManager.getAutoMigrateLevel(applicationName);
-                            out.print(level);
-                            switch (level) {
-                            case 0:
-                                out.print(" (OFF)");
-                                break;
-                            case 1:
-                                out.print(" (BUG_FIXES)");
-                                break;
-                            case 2:
-                                out.print(" (BUG_FIXES and MINOR_EVOLUTIONS)");
-                                break;
-                            case 3:
-                                out.print(" (BUG_FIXES, MINOR_EVOLUTIONS and MAJOR_EVOLUTIONS)");
-                                break;
-                            default:
-                                break;
-                            }
-                            out.println();
-                    }
-                    out.println("----------------------------------");
-                }
+            ApplicationManagerState applicationManagerState = applicationManager.copyState();
+            Set<String> repositoriesName = applicationManagerState.getRepositoriesName();
+            out.println("----------------------------------");
+            out.println("Repositories:");
+            for (String repositoryName : repositoriesName) {
+                out.print("  ");
+                out.println(repositoryName + " (" + applicationManagerState.getRepositoryURL(repositoryName) + ")");
             }
+            out.println("----------------------------------");
+            out.println("Applications:");
+            Set<String> applicationsName = applicationManagerState.getApplicationsName();
+            for (String applicationName : applicationsName) {
+                out.print("  ");
+                out.print(applicationName);
+                out.print(" ");
+                out.print(applicationManagerState.getRepositoryName(applicationName));
+                out.print("-");
+                out.print(applicationManagerState.getRepositoryApplicationName(applicationName));
+                out.print("-");
+                out.print(VersionUtils.toString(applicationManagerState.getRepositoryApplicationVersion(applicationName)));
+                List<Integer> migrationRepositoryApplicationVersion = applicationManagerState.getMigrationRepositoryApplicationVersion(applicationName);
+                if (migrationRepositoryApplicationVersion != null && migrationRepositoryApplicationVersion.size() != 0) {
+                    out.print("-");
+                    out.print(VersionUtils.toString(migrationRepositoryApplicationVersion));
+                }
+                out.print(" -> state:");
+                if (applicationManagerState.isStarted(applicationName)) {
+                    out.print("STARTED");
+                } else {
+                    out.print("STOPPED");
+                }
+                out.print(", auto-start:");
+                if (applicationManagerState.isAutoStarted(applicationName)) {
+                    out.print("ON");
+                } else {
+                    out.print("OFF");
+                }
+                out.print(", auto-migrate-level:");
+                int level = applicationManagerState.getAutoMigrateLevel(applicationName);
+                out.print(level);
+                switch (level) {
+                case 0:
+                    out.print(" (OFF)");
+                    break;
+                case 1:
+                    out.print(" (BUG_FIXES)");
+                    break;
+                case 2:
+                    out.print(" (BUG_FIXES and MINOR_EVOLUTIONS)");
+                    break;
+                case 3:
+                    out.print(" (BUG_FIXES, MINOR_EVOLUTIONS and MAJOR_EVOLUTIONS)");
+                    break;
+                default:
+                    break;
+                }
+                out.println();
+            }
+            out.println("----------------------------------");
         } catch (ApplicationException e) {
             e.printStackTrace(out);
         }

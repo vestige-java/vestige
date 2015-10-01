@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 import fr.gaellalire.vestige.admin.command.VestigeCommandExecutor;
 import fr.gaellalire.vestige.admin.telnet.TelnetServer;
 import fr.gaellalire.vestige.application.descriptor.xml.PropertiesApplicationDescriptorFactory;
-import fr.gaellalire.vestige.application.manager.ApplicationDescriptorFactory;
+import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.DefaultApplicationManager;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;
 import fr.gaellalire.vestige.core.logger.VestigeLoggerFactory;
@@ -58,7 +58,7 @@ public class MicroEditionVestige {
 
     private Thread workerThread;
 
-    private ApplicationDescriptorFactory applicationDescriptorFactory;
+    private ApplicationRepositoryManager applicationDescriptorFactory;
 
     public MicroEditionVestige(final File baseFile, final File dataFile, final VestigeExecutor vestigeExecutor, final VestigePlatform vestigePlatform) throws IOException {
         this.vestigeExecutor = vestigeExecutor;

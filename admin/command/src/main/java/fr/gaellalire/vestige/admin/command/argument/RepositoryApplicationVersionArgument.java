@@ -56,7 +56,7 @@ public class RepositoryApplicationVersionArgument implements Argument {
 
     public void parse(final String s) throws ParseException {
         List<Integer> fromString = VersionUtils.fromString(s);
-        if (!applicationManager.getRepositoryApplicationVersions(repositoryArgument.getRepository(), repositoryApplicationArgument.getApplication()).contains(fromString)) {
+        if (!applicationManager.getRepositoryMetadata(repositoryArgument.getRepository()).listApplicationVersions(repositoryApplicationArgument.getApplication()).contains(fromString)) {
             throw new ParseException("Application not found in repository");
         }
         version = fromString;
@@ -64,7 +64,7 @@ public class RepositoryApplicationVersionArgument implements Argument {
 
     public Collection<String> propose() throws ParseException {
         List<String> strings = new ArrayList<String>();
-        for (List<Integer> version : applicationManager.getRepositoryApplicationVersions(repositoryArgument.getRepository(), repositoryApplicationArgument.getApplication())) {
+        for (List<Integer> version : applicationManager.getRepositoryMetadata(repositoryArgument.getRepository()).listApplicationVersions(repositoryApplicationArgument.getApplication())) {
             strings.add(VersionUtils.toString(version));
         }
         return strings;

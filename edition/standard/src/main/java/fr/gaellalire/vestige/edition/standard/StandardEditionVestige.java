@@ -52,9 +52,9 @@ import ch.qos.logback.classic.util.ContextInitializer;
 import ch.qos.logback.core.joran.spi.ConsoleTarget;
 import ch.qos.logback.core.joran.spi.JoranException;
 import ch.qos.logback.core.util.StatusPrinter;
-import fr.gaellalire.vestige.application.descriptor.xml.XMLApplicationDescriptorFactory;
-import fr.gaellalire.vestige.application.manager.ApplicationDescriptorFactory;
+import fr.gaellalire.vestige.application.descriptor.xml.XMLApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
+import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.DefaultApplicationManager;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;
 import fr.gaellalire.vestige.edition.standard.schema.Admin;
@@ -245,9 +245,9 @@ public class StandardEditionVestige implements Runnable {
             }
         }
 
-        ApplicationDescriptorFactory applicationDescriptorFactory;
+        ApplicationRepositoryManager applicationDescriptorFactory;
         try {
-            applicationDescriptorFactory = new XMLApplicationDescriptorFactory(new MavenArtifactResolver(mavenSettingsFile));
+            applicationDescriptorFactory = new XMLApplicationRepositoryManager(new MavenArtifactResolver(mavenSettingsFile));
         } catch (NoLocalRepositoryManagerException e) {
             LOGGER.error("NoLocalRepositoryManagerException", e);
             return;
@@ -372,11 +372,11 @@ public class StandardEditionVestige implements Runnable {
             return;
         }
         workerThread = vestigeExecutor.createWorker("se-worker", true, 0);
-        try {
-            defaultApplicationManager.autoMigrate();
-        } catch (ApplicationException e) {
-            LOGGER.error("Automigration failed", e);
-        }
+//        try {
+//            defaultApplicationManager.autoMigrate();
+//        } catch (ApplicationException e) {
+//            LOGGER.error("Automigration failed", e);
+//        }
         defaultApplicationManager.autoStart();
         if (sshServer != null) {
             try {
@@ -414,20 +414,6 @@ public class StandardEditionVestige implements Runnable {
             }
         }
         defaultApplicationManager.stopAll();
-//        try {
-//            File parentFile = resolverFile.getParentFile();
-//            if (!parentFile.isDirectory()) {
-//                parentFile.mkdirs();
-//            }
-//            ObjectOutputStream objectOutputStream = new ObjectOutputStream(new FileOutputStream(resolverFile));
-//            try {
-//                objectOutputStream.writeObject(defaultApplicationManager);
-//            } finally {
-//                objectOutputStream.close();
-//            }
-//        } catch (Exception e) {
-//            LOGGER.warn("Unable to save application manager", e);
-//        }
         workerThread.interrupt();
         workerThread.join();
         workerThread = null;
