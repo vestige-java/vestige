@@ -16,44 +16,46 @@
  */
 
 package fr.gaellalire.vestige.jvm_enhancer;
+
 import java.io.IOException;
 import java.net.Proxy;
 import java.net.ProxySelector;
 import java.net.SocketAddress;
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 
 import com.btr.proxy.search.ProxySearch;
 import com.btr.proxy.search.ProxySearch.Strategy;
-import com.btr.proxy.util.ProxyUtil;
 
 import fr.gaellalire.vestige.core.StackedHandler;
-
 
 /**
  * @author Gael Lalire
  */
 public class SystemProxySelector extends ProxySelector implements StackedHandler<ProxySelector> {
 
-    private ProxySearch proxySearch;
+    private ProxySelector proxySelector;
+
+    public static final List<Proxy> NO_PROXY_LIST = Collections.singletonList(Proxy.NO_PROXY);
 
     public SystemProxySelector() {
-        proxySearch = new ProxySearch();
+        ProxySearch proxySearch = new ProxySearch();
         proxySearch.addStrategy(Strategy.JAVA);
         proxySearch.addStrategy(Strategy.OS_DEFAULT);
         proxySearch.addStrategy(Strategy.ENV_VAR);
+        proxySelector = proxySearch.getProxySelector();
     }
 
     @Override
     public List<Proxy> select(final URI uri) {
+        if (proxySelector == null) {
+            return NO_PROXY_LIST;
+        }
         Thread currentThread = Thread.currentThread();
         ClassLoader contextClassLoader = currentThread.getContextClassLoader();
         currentThread.setContextClassLoader(SystemProxySelector.class.getClassLoader());
         try {
-            ProxySelector proxySelector = proxySearch.getProxySelector();
-            if (proxySelector == null) {
-                return ProxyUtil.noProxyList();
-            }
             return proxySelector.select(uri);
         } finally {
             currentThread.setContextClassLoader(contextClassLoader);
@@ -62,14 +64,14 @@ public class SystemProxySelector extends ProxySelector implements StackedHandler
 
     @Override
     public void connectFailed(final URI uri, final SocketAddress sa, final IOException ioe) {
+        if (proxySelector == null) {
+            return;
+        }
         Thread currentThread = Thread.currentThread();
         ClassLoader contextClassLoader = currentThread.getContextClassLoader();
         currentThread.setContextClassLoader(SystemProxySelector.class.getClassLoader());
         try {
-            ProxySelector proxySelector = proxySearch.getProxySelector();
-            if (proxySelector != null) {
-                proxySelector.connectFailed(uri, sa, ioe);
-            }
+            proxySelector.connectFailed(uri, sa, ioe);
         } finally {
             currentThread.setContextClassLoader(contextClassLoader);
         }
