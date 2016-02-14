@@ -57,6 +57,7 @@ import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.DefaultApplicationManager;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;
+import fr.gaellalire.vestige.core.function.Function;
 import fr.gaellalire.vestige.edition.standard.schema.Admin;
 import fr.gaellalire.vestige.edition.standard.schema.Bind;
 import fr.gaellalire.vestige.edition.standard.schema.ObjectFactory;
@@ -93,7 +94,7 @@ public class StandardEditionVestige implements Runnable {
 
     private Thread workerThread;
 
-    //private ApplicationDescriptorFactory applicationDescriptorFactory;
+    // private ApplicationDescriptorFactory applicationDescriptorFactory;
 
     private File baseFile;
 
@@ -185,11 +186,11 @@ public class StandardEditionVestige implements Runnable {
         boolean securityEnabled = System.getSecurityManager() != null;
 
         // Vestige dependencies can modify system, so we run isolated
-//        vestigeSystem.setName("rootVestigeSystem");
+        // vestigeSystem.setName("rootVestigeSystem");
         PublicVestigeSystem standardEditionVestigeSystem = vestigeSystem.createSubSystem();
-//        standardEditionVestigeSystem.setName("standardEditionVestigeSystem");
+        // standardEditionVestigeSystem.setName("standardEditionVestigeSystem");
         PublicVestigeSystem applicationsVestigeSystem = vestigeSystem.createSubSystem();
-//        applicationsVestigeSystem.setName("applicationsVestigeSystem");
+        // applicationsVestigeSystem.setName("applicationsVestigeSystem");
         standardEditionVestigeSystem.setCurrentSystem();
         // new threads are in subsystem
         PrivateVestigeSecurityManager vestigeSecurityManager = null;
@@ -209,7 +210,6 @@ public class StandardEditionVestige implements Runnable {
             vestigeSecurityManager = new PrivateVestigeSecurityManager();
             applicationsVestigeSystem.setSecurityManager(vestigeSecurityManager);
         }
-
 
         ExecutorService executorService = Executors.newCachedThreadPool();
 
@@ -253,13 +253,13 @@ public class StandardEditionVestige implements Runnable {
             return;
         }
 
-        defaultApplicationManager = new DefaultApplicationManager(appBaseFile, appDataFile, vestigePlatform, applicationsVestigeSystem, standardEditionVestigeSystem, vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile);
+        defaultApplicationManager = new DefaultApplicationManager(appBaseFile, appDataFile, vestigePlatform, applicationsVestigeSystem, standardEditionVestigeSystem,
+                vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile);
         try {
             defaultApplicationManager.restoreState();
         } catch (ApplicationException e) {
             LOGGER.warn("Unable to restore application manager state", e);
         }
-
 
         Admin admin = settings.getAdmin();
         SSH ssh = admin.getSsh();
@@ -293,7 +293,6 @@ public class StandardEditionVestige implements Runnable {
                 break;
             }
         }
-
 
         boolean interrupted = false;
         try {
@@ -372,11 +371,11 @@ public class StandardEditionVestige implements Runnable {
             return;
         }
         workerThread = vestigeExecutor.createWorker("se-worker", true, 0);
-//        try {
-//            defaultApplicationManager.autoMigrate();
-//        } catch (ApplicationException e) {
-//            LOGGER.error("Automigration failed", e);
-//        }
+        // try {
+        // defaultApplicationManager.autoMigrate();
+        // } catch (ApplicationException e) {
+        // LOGGER.error("Automigration failed", e);
+        // }
         defaultApplicationManager.autoStart();
         if (sshServer != null) {
             try {
@@ -446,7 +445,8 @@ public class StandardEditionVestige implements Runnable {
         }
     }
 
-    public static void vestigeMain(final VestigeExecutor vestigeExecutor, final VestigePlatform vestigePlatform, final String[] args) {
+    public static void vestigeMain(final VestigeExecutor vestigeExecutor, final VestigePlatform vestigePlatform, final Function<Thread, Void, RuntimeException> addShutdownHook,
+            final Function<Thread, Void, RuntimeException> removeShutdownHook, final String[] args) {
         try {
             if (args.length != 4) {
                 throw new IllegalArgumentException("expected 4 arguments (vestige base, vestige data, security, listener port) got " + args.length);
@@ -478,7 +478,7 @@ public class StandardEditionVestige implements Runnable {
                 return;
             }
 
-            Runtime.getRuntime().addShutdownHook(new Thread("se-shutdown") {
+            Thread seShutdownThread = new Thread("se-shutdown") {
                 @Override
                 public void run() {
                     currentThread.interrupt();
@@ -488,7 +488,12 @@ public class StandardEditionVestige implements Runnable {
                         LOGGER.error("Shutdown thread interrupted", e);
                     }
                 }
-            });
+            };
+            if (addShutdownHook == null) {
+                Runtime.getRuntime().addShutdownHook(seShutdownThread);
+            } else {
+                addShutdownHook.apply(seShutdownThread);
+            }
 
             int argIndex = 0;
             String base = args[argIndex++];
@@ -544,9 +549,14 @@ public class StandardEditionVestige implements Runnable {
         }
     }
 
-    public static void vestigeCoreMain(final VestigeExecutor vestigeExecutor, final String[] args) {
+    public static void vestigeEnhancedCoreMain(final VestigeExecutor vestigeExecutor, final Function<Thread, Void, RuntimeException> addShutdownHook,
+            final Function<Thread, Void, RuntimeException> removeShutdownHook, final String[] args) {
         VestigePlatform vestigePlatform = new DefaultVestigePlatform(vestigeExecutor);
-        vestigeMain(vestigeExecutor, vestigePlatform, args);
+        vestigeMain(vestigeExecutor, vestigePlatform, addShutdownHook, removeShutdownHook, args);
+    }
+
+    public static void vestigeCoreMain(final VestigeExecutor vestigeExecutor, final String[] args) {
+        vestigeEnhancedCoreMain(vestigeExecutor, null, null, args);
     }
 
     public static void main(final String[] args) throws Exception {

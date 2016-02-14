@@ -54,6 +54,7 @@ import org.slf4j.LoggerFactory;
 import fr.gaellalire.vestige.core.VestigeClassLoader;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;
 import fr.gaellalire.vestige.core.executor.callable.InvokeMethod;
+import fr.gaellalire.vestige.core.function.Function;
 import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
@@ -81,7 +82,9 @@ public final class VestigeMavenResolver {
     private static final Logger LOGGER = LoggerFactory.getLogger(VestigeMavenResolver.class);
 
     @SuppressWarnings("unchecked")
-    public static void runVestigeMain(final VestigeExecutor vestigeExecutor, final File mavenLauncherFile, final File mavenSettingsFile, final File mavenResolverCacheFile, final String[] dargs) throws Exception {
+    public static void runVestigeMain(final VestigeExecutor vestigeExecutor, final File mavenLauncherFile, final File mavenSettingsFile, final File mavenResolverCacheFile,
+            final Function<Thread, Void, RuntimeException> addShutdownHook, final Function<Thread, Void, RuntimeException> removeShutdownHook, final String[] dargs)
+            throws Exception {
         Thread thread = vestigeExecutor.createWorker("resolver-maven-worker", true, 0);
         VestigePlatform vestigePlatform = new DefaultVestigePlatform(vestigeExecutor);
 
@@ -265,7 +268,7 @@ public final class VestigeMavenResolver {
         String className = mavenResolverCache.getClassName();
         Class<?> vestigeMainClass = Class.forName(className, true, mavenResolverClassLoader);
         final Method vestigeMain = vestigeMainClass.getMethod("vestigeMain", VestigeExecutor.class, Class.forName(VestigePlatform.class.getName(), true, mavenResolverClassLoader),
-                String[].class);
+                Function.class, Function.class, String[].class);
 
         // convert
         Object loadedVestigePlatform = convertVestigePlatform(mavenResolverClassLoader, vestigePlatform, vestigeExecutor);
@@ -276,7 +279,8 @@ public final class VestigeMavenResolver {
         // start a new thread to allow this classloader to be GC even if the
         // vestigeMain method does not return
         vestigeExecutor.createWorker("resolver-maven-main", false, 1);
-        vestigeExecutor.submit(new InvokeMethod(mavenResolverClassLoader, vestigeMain, null, new Object[] {vestigeExecutor, loadedVestigePlatform, dargs}));
+        vestigeExecutor.submit(new InvokeMethod(mavenResolverClassLoader, vestigeMain, null, new Object[] {vestigeExecutor, loadedVestigePlatform, addShutdownHook,
+                removeShutdownHook, dargs}));
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -373,6 +377,11 @@ public final class VestigeMavenResolver {
     }
 
     public static void vestigeCoreMain(final VestigeExecutor vestigeExecutor, final String[] args) throws Exception {
+        vestigeEnhancedCoreMain(vestigeExecutor, null, null, args);
+    }
+
+    public static void vestigeEnhancedCoreMain(final VestigeExecutor vestigeExecutor, final Function<Thread, Void, RuntimeException> addShutdownHook,
+            final Function<Thread, Void, RuntimeException> removeShutdownHook, final String[] args) {
         try {
             if (args.length < 3) {
                 throw new IllegalArgumentException("expected at least 3 arguments (maven launcher, maven settings, maven resolver cache)");
@@ -398,7 +407,7 @@ public final class VestigeMavenResolver {
             final String[] dargs = new String[args.length - 3];
             System.arraycopy(args, 3, dargs, 0, dargs.length);
 
-            runVestigeMain(vestigeExecutor, mavenLauncherFile, mavenSettingsFile, mavenResolverCacheFile, dargs);
+            runVestigeMain(vestigeExecutor, mavenLauncherFile, mavenSettingsFile, mavenResolverCacheFile, addShutdownHook, removeShutdownHook, dargs);
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info("Maven application started in {} ms", System.currentTimeMillis() - currentTimeMillis);
             }

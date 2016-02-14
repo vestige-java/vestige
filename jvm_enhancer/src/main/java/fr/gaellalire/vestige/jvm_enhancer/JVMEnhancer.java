@@ -19,6 +19,7 @@ package fr.gaellalire.vestige.jvm_enhancer;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.ProxySelector;
 import java.util.List;
@@ -32,6 +33,8 @@ import com.btr.proxy.util.Logger;
 import fr.gaellalire.vestige.core.StackedHandlerUtils;
 import fr.gaellalire.vestige.core.Vestige;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;
+import fr.gaellalire.vestige.core.function.Function;
+import fr.gaellalire.vestige.jvm_enhancer.windows.WindowsShutdownHook;
 
 /**
  * @author Gael Lalire
@@ -263,10 +266,58 @@ public final class JVMEnhancer {
         try {
             String[] dargs = new String[args.length - 1];
             System.arraycopy(args, 1, dargs, 0, dargs.length);
-            Vestige.runMain(Thread.currentThread().getContextClassLoader(), args[0], vestigeExecutor, dargs);
+            runEnhancedMain(Thread.currentThread().getContextClassLoader(), args[0], vestigeExecutor, dargs);
         } finally {
             stop();
         }
+    }
+
+    public static void runEnhancedMain(final ClassLoader classLoader, final String mainclass, final VestigeExecutor vestigeExecutor, final String[] dargs) throws Exception {
+        Class<?> loadClass = classLoader.loadClass(mainclass);
+        try {
+            Method method = loadClass.getMethod("vestigeEnhancedCoreMain", VestigeExecutor.class, Function.class, Function.class, String[].class);
+
+            Function<Thread, Void, RuntimeException> addShutdownHook = null;
+            Function<Thread, Void, RuntimeException> removeShutdownHook = null;
+
+            String osName = System.getProperty("os.name");
+            try {
+                if (osName.toLowerCase().contains("windows")) {
+                    Class.forName(WindowsShutdownHook.class.getName(), true, WindowsShutdownHook.class.getClassLoader());
+                    addShutdownHook = new Function<Thread, Void, RuntimeException>() {
+                        @Override
+                        public Void apply(final Thread thread) throws RuntimeException {
+                            WindowsShutdownHook.addShutdownHook(thread);
+                            return null;
+                        }
+                    };
+                    removeShutdownHook = new Function<Thread, Void, RuntimeException>() {
+                        @Override
+                        public Void apply(final Thread thread) throws RuntimeException {
+                            WindowsShutdownHook.removeShutdownHook(thread);
+                            return null;
+                        }
+                    };
+                }
+            } catch (UnsatisfiedLinkError e) {
+                // continue with JVM shutdown hooks
+            } catch (ExceptionInInitializerError e) {
+                // continue with JVM shutdown hooks
+            }
+            Thread.currentThread().setContextClassLoader(classLoader);
+            try {
+                if (vestigeExecutor == null) {
+                    method.invoke(null, new Object[] {new VestigeExecutor(), addShutdownHook, removeShutdownHook, dargs});
+                } else {
+                    method.invoke(null, new Object[] {vestigeExecutor, addShutdownHook, removeShutdownHook, dargs});
+                }
+            } finally {
+                Thread.currentThread().setContextClassLoader(null);
+            }
+        } catch (NoSuchMethodException e) {
+            Vestige.runMain(classLoader, mainclass, vestigeExecutor, dargs);
+        }
+
     }
 
 }
