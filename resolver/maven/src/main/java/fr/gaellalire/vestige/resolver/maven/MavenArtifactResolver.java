@@ -302,7 +302,7 @@ public class MavenArtifactResolver {
             ClassLoaderConfigurationGraphHelper classLoaderConfigurationGraphHelper = new ClassLoaderConfigurationGraphHelper(appName, urlByKey, descriptorReader, collectRequest, session, dependencyModifier, runtimeDependencies, scope);
 
             GraphCycleRemover<NodeAndState, MavenArtifact, ClassLoaderConfigurationFactory> graphCycleRemover = new GraphCycleRemover<NodeAndState, MavenArtifact, ClassLoaderConfigurationFactory>(classLoaderConfigurationGraphHelper);
-            classLoaderConfiguration = graphCycleRemover.removeCycle(new NodeAndState(null, node, session.getDependencyManager(), false)).create(stringParserFactory);
+            classLoaderConfiguration = graphCycleRemover.removeCycle(new NodeAndState(null, node, session.getDependencyManager())).create(stringParserFactory);
             break;
         default:
             throw new Exception("Unsupported resolve mode " + resolveMode);

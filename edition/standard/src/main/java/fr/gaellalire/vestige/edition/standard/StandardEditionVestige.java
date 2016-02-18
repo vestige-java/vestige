@@ -196,6 +196,7 @@ public class StandardEditionVestige implements Runnable {
         PrivateVestigeSecurityManager vestigeSecurityManager = null;
 
         if (securityEnabled) {
+
             PrivateWhiteListVestigePolicy whiteListVestigePolicy = new PrivateWhiteListVestigePolicy();
             // So AccessController.doPrivileged will work in JVM classes
             whiteListVestigePolicy.addSafeClassLoader(ClassLoader.getSystemClassLoader());
@@ -204,7 +205,9 @@ public class StandardEditionVestige implements Runnable {
 
             ProxySelector defaultProxySelector = vestigeSystem.getDefaultProxySelector();
             if (defaultProxySelector != null) {
-                vestigeSystem.setDefaultProxySelector(new SecureProxySelector(vestigeSystem, defaultProxySelector));
+                // standardEditionVestigeSystem has no yet a security manager
+                // standardEditionVestigeSystem.setDefaultProxySelector(new SecureProxySelector(vestigeSystem, defaultProxySelector));
+                applicationsVestigeSystem.setDefaultProxySelector(new SecureProxySelector(vestigeSystem, defaultProxySelector));
             }
 
             vestigeSecurityManager = new PrivateVestigeSecurityManager();

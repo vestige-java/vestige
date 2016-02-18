@@ -213,9 +213,11 @@ public class DefaultApplicationManager implements ApplicationManager {
             }
         }
 
-        final ApplicationContext applicationContext = createApplicationContext(repoName, appName, version, installName);
+        ApplicationContext applicationContext = null;
 
+        boolean successful = false;
         try {
+            applicationContext = createApplicationContext(repoName, appName, version, installName);
             ClassLoaderConfiguration installerResolve = applicationContext.getInstallerResolve();
             if (installerResolve != null) {
                 int installerAttach = vestigePlatform.attach(installerResolve);
@@ -238,12 +240,13 @@ public class DefaultApplicationManager implements ApplicationManager {
                     } else {
                         vestigeSystem = rootVestigeSystem;
                     }
+                    final String installerClassName = applicationContext.getInstallerClassName();
                     Thread thread = vestigeSecureExecutor.execute(additionnalPermissions, null, applicationContext.getName() + "-installer", vestigeSystem, new Callable<Void>() {
 
                         @Override
                         public Void call() throws Exception {
                             ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(callConstructor(installerClassLoader,
-                                    installerClassLoader.loadClass(applicationContext.getInstallerClassName()), base, data, vestigeSystem));
+                                    installerClassLoader.loadClass(installerClassName), base, data, vestigeSystem));
                             applicationInstaller.install();
                             return null;
                         }
@@ -267,15 +270,19 @@ public class DefaultApplicationManager implements ApplicationManager {
                     vestigePlatform.detach(installerAttach);
                 }
             }
+            successful = true;
         } catch (Exception e) {
             throw new ApplicationException("fail to install", e);
+        } finally {
+            synchronized (state) {
+                lockedInstallNames.remove(installName);
+                if (successful) {
+                    state.install(installName, applicationContext);
+                    saveState();
+                }
+            }
         }
 
-        synchronized (state) {
-            state.install(installName, applicationContext);
-            saveState();
-            lockedInstallNames.remove(installName);
-        }
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Application {} version {} on repository {} installed", new Object[] {appName, VersionUtils.toString(version), repoName});
         }

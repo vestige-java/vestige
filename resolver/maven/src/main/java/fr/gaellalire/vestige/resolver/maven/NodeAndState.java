@@ -34,13 +34,10 @@ public class NodeAndState {
 
     private DependencyManager dependencyManager;
 
-    private boolean optional;
-
-    public NodeAndState(final List<Dependency> managedDependencies, final DependencyNode dependencyNode, final DependencyManager dependencyManager, final boolean optional) {
+    public NodeAndState(final List<Dependency> managedDependencies, final DependencyNode dependencyNode, final DependencyManager dependencyManager) {
         this.managedDependencies = managedDependencies;
         this.dependencyNode = dependencyNode;
         this.dependencyManager = dependencyManager;
-        this.optional = optional;
     }
 
     public DependencyNode getDependencyNode() {
@@ -53,10 +50,6 @@ public class NodeAndState {
 
     public DependencyManager getDependencyManager() {
         return dependencyManager;
-    }
-
-    public boolean isOptional() {
-        return optional;
     }
 
     @Override
