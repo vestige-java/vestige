@@ -22,33 +22,6 @@
           </execution>
         </executions>
       </plugin>
-<!--       <plugin> -->
-<!--         <groupId>org.apache.maven.plugins</groupId> -->
-<!--         <artifactId>maven-dependency-plugin</artifactId> -->
-<!--         <executions> -->
-<!--           <execution> -->
-<!--             <id>copy</id> -->
-<!--             <phase>process-resources</phase> -->
-<!--             <goals> -->
-<!--               <goal>copy</goal> -->
-<!--             </goals> -->
-<!--             <configuration> -->
-<!--               <artifactItems> -->
-<!--                 <artifactItem> -->
-<!--                   <groupId>${project.groupId}</groupId> -->
-<!--                   <artifactId>vestige.jvm_enhancer.runtime</artifactId> -->
-<!--                   <version>${project.version}</version> -->
-<!--                   <type>jar</type> -->
-<!--                   <classifier>jar-with-dependencies</classifier> -->
-<!--                   <overWrite>true</overWrite> -->
-<!--                   <outputDirectory>${project.build.outputDirectory}</outputDirectory> -->
-<!--                   <destFileName>runtime_jvm_enhancer.jar</destFileName> -->
-<!--                 </artifactItem> -->
-<!--               </artifactItems> -->
-<!--             </configuration> -->
-<!--           </execution> -->
-<!--         </executions> -->
-<!--       </plugin> -->
     </plugins>
   </build>
   <dependencies>
