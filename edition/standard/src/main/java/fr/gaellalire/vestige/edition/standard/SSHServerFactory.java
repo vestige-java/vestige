@@ -39,10 +39,8 @@ import fr.gaellalire.vestige.admin.ssh.DefaultPublickeyAuthenticator;
 import fr.gaellalire.vestige.admin.ssh.RootedFileSystemFactory;
 import fr.gaellalire.vestige.admin.ssh.SSHExecCommand;
 import fr.gaellalire.vestige.admin.ssh.SSHShellCommandFactory;
-import fr.gaellalire.vestige.application.manager.ApplicationManager;
 import fr.gaellalire.vestige.edition.standard.schema.Bind;
 import fr.gaellalire.vestige.edition.standard.schema.SSH;
-import fr.gaellalire.vestige.platform.VestigePlatform;
 
 /**
  * @author Gael Lalire
@@ -57,16 +55,13 @@ public class SSHServerFactory implements Callable<VestigeServer> {
 
     private File appHomeFile;
 
-    private ApplicationManager applicationManager;
+    private VestigeCommandExecutor vestigeCommandExecutor;
 
-    private VestigePlatform vestigePlatform;
-
-    public SSHServerFactory(final File sshBase, final SSH ssh, final File appHomeFile, final ApplicationManager applicationManager, final VestigePlatform vestigePlatform) {
+    public SSHServerFactory(final File sshBase, final SSH ssh, final File appHomeFile, final VestigeCommandExecutor vestigeCommandExecutor) {
         this.sshBase = sshBase;
         this.ssh = ssh;
         this.appHomeFile = appHomeFile;
-        this.applicationManager = applicationManager;
-        this.vestigePlatform = vestigePlatform;
+        this.vestigeCommandExecutor = vestigeCommandExecutor;
     }
 
     public VestigeServer call() throws Exception {
@@ -85,7 +80,6 @@ public class SSHServerFactory implements Callable<VestigeServer> {
         final String host = bind.getHost();
         sshServer.setHost(host);
         sshServer.setPort(bind.getPort());
-        final VestigeCommandExecutor vestigeCommandExecutor = new VestigeCommandExecutor(applicationManager, vestigePlatform);
         sshServer.setCommandFactory(new ScpCommandFactory(new CommandFactory() {
 
             public Command createCommand(final String command) {

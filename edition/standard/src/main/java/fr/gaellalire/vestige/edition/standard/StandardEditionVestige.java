@@ -22,6 +22,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -52,6 +53,8 @@ import ch.qos.logback.classic.util.ContextInitializer;
 import ch.qos.logback.core.joran.spi.ConsoleTarget;
 import ch.qos.logback.core.joran.spi.JoranException;
 import ch.qos.logback.core.util.StatusPrinter;
+import fr.gaellalire.vestige.admin.command.CheckBootstrap;
+import fr.gaellalire.vestige.admin.command.VestigeCommandExecutor;
 import fr.gaellalire.vestige.application.descriptor.xml.XMLApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
@@ -106,6 +109,10 @@ public class StandardEditionVestige implements Runnable {
 
     private PublicVestigeSystem vestigeSystem;
 
+    private List<? extends ClassLoader> privilegedClassloaders;
+
+    private WeakReference<Object> bootstrapObject;
+
     public void setVestigeExecutor(final VestigeExecutor vestigeExecutor) {
         this.vestigeExecutor = vestigeExecutor;
     }
@@ -118,10 +125,12 @@ public class StandardEditionVestige implements Runnable {
         this.vestigeStateListener = vestigeStateListener;
     }
 
-    public StandardEditionVestige(final File baseFile, final File dataFile, final PublicVestigeSystem vestigeSystem) {
+    public StandardEditionVestige(final File baseFile, final File dataFile, final PublicVestigeSystem vestigeSystem, final List<? extends ClassLoader> privilegedClassloaders, final WeakReference<Object> bootstrapObject) {
         this.baseFile = baseFile;
         this.dataFile = dataFile;
         this.vestigeSystem = vestigeSystem;
+        this.bootstrapObject = bootstrapObject;
+        this.privilegedClassloaders = privilegedClassloaders;
     }
 
     @SuppressWarnings("unchecked")
@@ -198,8 +207,11 @@ public class StandardEditionVestige implements Runnable {
         if (securityEnabled) {
 
             PrivateWhiteListVestigePolicy whiteListVestigePolicy = new PrivateWhiteListVestigePolicy();
-            // So AccessController.doPrivileged will work in JVM classes
+            // So AccessController.doPrivileged will work in JVM and privileged classes
             whiteListVestigePolicy.addSafeClassLoader(ClassLoader.getSystemClassLoader());
+            for (ClassLoader privilegedClassloader : privilegedClassloaders) {
+                whiteListVestigePolicy.addSafeClassLoader(privilegedClassloader);
+            }
 
             vestigeSystem.setWhiteListPolicy(whiteListVestigePolicy);
 
@@ -267,10 +279,15 @@ public class StandardEditionVestige implements Runnable {
         Admin admin = settings.getAdmin();
         SSH ssh = admin.getSsh();
 
+        VestigeCommandExecutor vestigeCommandExecutor = new VestigeCommandExecutor(defaultApplicationManager, vestigePlatform);
+        if (bootstrapObject != null) {
+            vestigeCommandExecutor.addCommand(new CheckBootstrap(bootstrapObject));
+        }
+
         Future<VestigeServer> futureSshServer = null;
         if (ssh.isEnabled()) {
             File sshBase = new File(baseFile, "ssh");
-            futureSshServer = executorService.submit(new SSHServerFactory(sshBase, ssh, baseFile, defaultApplicationManager, vestigePlatform));
+            futureSshServer = executorService.submit(new SSHServerFactory(sshBase, ssh, baseFile, vestigeCommandExecutor));
         }
 
         Future<VestigeServer> futureWebServer = null;
@@ -449,7 +466,8 @@ public class StandardEditionVestige implements Runnable {
     }
 
     public static void vestigeMain(final VestigeExecutor vestigeExecutor, final VestigePlatform vestigePlatform, final Function<Thread, Void, RuntimeException> addShutdownHook,
-            final Function<Thread, Void, RuntimeException> removeShutdownHook, final String[] args) {
+            final Function<Thread, Void, RuntimeException> removeShutdownHook, final List<? extends ClassLoader> privilegedClassloaders, final WeakReference<Object> bootstrapObject,
+            final String[] args) {
         try {
             if (args.length != 4) {
                 throw new IllegalArgumentException("expected 4 arguments (vestige base, vestige data, security, listener port) got " + args.length);
@@ -533,7 +551,7 @@ public class StandardEditionVestige implements Runnable {
 
                     @Override
                     public void vestigeSystemRun(final PublicVestigeSystem vestigeSystem) {
-                        final StandardEditionVestige standardEditionVestige = new StandardEditionVestige(baseFile, dataFile, vestigeSystem);
+                        final StandardEditionVestige standardEditionVestige = new StandardEditionVestige(baseFile, dataFile, vestigeSystem, privilegedClassloaders, bootstrapObject);
                         standardEditionVestige.setVestigeExecutor(vestigeExecutor);
                         standardEditionVestige.setVestigePlatform(vestigePlatform);
                         standardEditionVestige.setVestigeStateListener(vestigeStateListener);
@@ -555,7 +573,7 @@ public class StandardEditionVestige implements Runnable {
     public static void vestigeEnhancedCoreMain(final VestigeExecutor vestigeExecutor, final Function<Thread, Void, RuntimeException> addShutdownHook,
             final Function<Thread, Void, RuntimeException> removeShutdownHook, final String[] args) {
         VestigePlatform vestigePlatform = new DefaultVestigePlatform(vestigeExecutor);
-        vestigeMain(vestigeExecutor, vestigePlatform, addShutdownHook, removeShutdownHook, args);
+        vestigeMain(vestigeExecutor, vestigePlatform, addShutdownHook, removeShutdownHook, null, null, args);
     }
 
     public static void vestigeCoreMain(final VestigeExecutor vestigeExecutor, final String[] args) {

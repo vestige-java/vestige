@@ -6,49 +6,13 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>vestige.jvm_enhancer</artifactId>
-  <packaging>jar</packaging>
+  <packaging>pom</packaging>
   <name>Vestige :: JVM Enhancer</name>
   <build>
     <defaultGoal>install</defaultGoal>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <configuration>
-          <archive>
-            <manifestEntries>
-              <StartStop-Class>fr.gaellalire.vestige.jvm_enhancer.JVMEnhancer</StartStop-Class>
-            </manifestEntries>
-          </archive>
-        </configuration>
-      </plugin>
-    </plugins>
   </build>
-  <dependencies>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>vestige.core</artifactId>
-      <version>${vestige.core.version}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>fr.gaellalire.vestige</groupId>
-      <artifactId>proxy_vole</artifactId>
-    </dependency>
-  </dependencies>
+  <modules>
+    <module>runtime</module>
+    <module>boot</module>
+  </modules>
 </project>

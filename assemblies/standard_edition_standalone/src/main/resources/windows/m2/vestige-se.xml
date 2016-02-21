@@ -1,5 +1,4 @@
 <mavenLauncher xmlns="http://gaellalire.fr/vestige/MAVEN_LAUNCHER" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://gaellalire.fr/vestige/MAVEN_LAUNCHER http://gaellalire.fr/vestige/mavenLauncher-1.0.0.xsd">
-  <attach version="${project.version}" groupId="fr.gaellalire.vestige" artifactId="vestige.jvm_enhancer" />
   <launch class="fr.gaellalire.vestige.edition.standard.StandardEditionVestige" groupId="fr.gaellalire.vestige" artifactId="vestige.edition.standard" version="${project.version}"
     mode="FIXED_DEPENDENCIES" />
   <config superPomRepositoriesUsed="false" pomRepositoriesIgnored="true">

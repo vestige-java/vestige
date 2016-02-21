@@ -47,6 +47,10 @@ public class VestigeCommandExecutor {
         }
     }
 
+    public void addCommand(final Command command) {
+        commandByNames.put(command.getName(), command);
+    }
+
     public Map<String, Command> getCommandByNames() {
         return commandByNames;
     }

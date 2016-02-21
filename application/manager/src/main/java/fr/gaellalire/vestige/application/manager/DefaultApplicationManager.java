@@ -161,9 +161,23 @@ public class DefaultApplicationManager implements ApplicationManager {
         ApplicationDescriptor applicationDescriptor = applicationDescriptorFactory.createApplicationDescriptor(context, repoName, appName, version);
 
         File basefile = new File(appBaseFile, installName);
+        if (basefile.exists()) {
+            try {
+                FileUtils.forceDelete(basefile);
+            } catch (IOException e) {
+                throw new ApplicationException("Base directory already exists and cannot be deleted", e);
+            }
+        }
         basefile.mkdirs();
 
         File dataFile = new File(appDataFile, installName);
+        if (dataFile.exists()) {
+            try {
+                FileUtils.forceDelete(dataFile);
+            } catch (IOException e) {
+                throw new ApplicationException("Data directory already exists and cannot be deleted", e);
+            }
+        }
         dataFile.mkdirs();
 
         Set<List<Integer>> supportedMigrationVersion = applicationDescriptor.getSupportedMigrationVersions();
