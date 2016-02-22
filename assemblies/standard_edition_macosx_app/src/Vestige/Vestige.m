@@ -168,9 +168,9 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
     }
     if (vapp->atLoginStarted != atLoginStarted) {
         if (atLoginStarted) {
-            [vapp->startsAtLoginItem setState:NSOnState];
+            [vapp->startAtLoginItem setState:NSOnState];
         } else {
-            [vapp->startsAtLoginItem setState:NSOffState];
+            [vapp->startAtLoginItem setState:NSOffState];
         }
         vapp->atLoginStarted = atLoginStarted;
     }
@@ -221,7 +221,7 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
 
     [statusMenu addItemWithTitle:@"Show command line output" action:@selector(showCommandLineOutput) keyEquivalent:@""];
 
-    startsAtLoginItem = [statusMenu addItemWithTitle:@"Starts at login" action:@selector(toggleLoginStart) keyEquivalent:@""];
+    startAtLoginItem = [statusMenu addItemWithTitle:@"Start at login" action:@selector(toggleLoginStart) keyEquivalent:@""];
     
     loginItemsListRef = LSSharedFileListCreate(NULL,
                                                kLSSharedFileListSessionLoginItems,

@@ -5,7 +5,7 @@
     NSMenu *statusMenu;
     NSMenuItem *openWebAdminItem;
     NSMenuItem *openBaseFolderItem;
-    NSMenuItem *startsAtLoginItem;
+    NSMenuItem *startAtLoginItem;
     NSStatusItem * statusItem;
 	NSTask *task;
     NSFileHandle * fileHandle;
