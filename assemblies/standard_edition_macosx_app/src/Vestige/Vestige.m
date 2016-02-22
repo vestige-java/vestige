@@ -114,6 +114,68 @@ static void handleConnect(CFSocketRef socket,
     [win orderFrontRegardless];
 }
 
+- (void)toggleLoginStart {
+    NSURL *bundleURL = [NSURL fileURLWithPath:[[NSBundle mainBundle] bundlePath]];
+    
+    if (atLoginStarted) {
+        CFArrayRef loginItemsRef = LSSharedFileListCopySnapshot(loginItemsListRef, NULL);
+        NSArray *loginItems = CFBridgingRelease(loginItemsRef);
+        for (id item in loginItems) {
+            LSSharedFileListItemRef itemRef = (LSSharedFileListItemRef)item;
+            CFURLRef itemURLRef;
+            
+            if (LSSharedFileListItemResolve(itemRef, 0, &itemURLRef, NULL) == noErr) {
+                NSURL *itemURL = (NSURL *)[NSMakeCollectable(itemURLRef) autorelease];
+                if ([itemURL isEqual:bundleURL]) {
+                    LSSharedFileListItemRemove(loginItemsListRef, itemRef);
+                    break;
+                }
+            }
+        }
+    } else {
+        LSSharedFileListItemRef itemRef = LSSharedFileListInsertItemURL(loginItemsListRef,
+                                                kLSSharedFileListItemLast,
+                                                NULL,
+                                                NULL,
+                                                (CFURLRef)bundleURL,
+                                                NULL,
+                                                NULL);
+        if (itemRef) {
+            CFRelease(itemRef);
+        }
+    }
+}
+
+static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
+{
+    Vestige * vapp = (Vestige *) context;
+    bool atLoginStarted = NO;
+    CFArrayRef loginItemsRef = LSSharedFileListCopySnapshot(listRef, NULL);
+    NSArray *loginItems = CFBridgingRelease(loginItemsRef);
+    
+    NSURL *bundleURL = [NSURL fileURLWithPath:[[NSBundle mainBundle] bundlePath]];
+    for (id item in loginItems) {
+        LSSharedFileListItemRef itemRef = (LSSharedFileListItemRef)item;
+        CFURLRef itemURLRef;
+        
+        if (LSSharedFileListItemResolve(itemRef, 0, &itemURLRef, NULL) == noErr) {
+            NSURL *itemURL = (NSURL *)[NSMakeCollectable(itemURLRef) autorelease];
+            if ([itemURL isEqual:bundleURL]) {
+                atLoginStarted = true;
+                break;
+            }
+        }
+    }
+    if (vapp->atLoginStarted != atLoginStarted) {
+        if (atLoginStarted) {
+            [vapp->startsAtLoginItem setState:NSOnState];
+        } else {
+            [vapp->startsAtLoginItem setState:NSOffState];
+        }
+        vapp->atLoginStarted = atLoginStarted;
+    }
+}
+
 - (void)quitVestige {
 	[task terminate];
 }
@@ -158,6 +220,20 @@ static void handleConnect(CFSocketRef socket,
     [openBaseFolderItem setEnabled:FALSE];
 
     [statusMenu addItemWithTitle:@"Show command line output" action:@selector(showCommandLineOutput) keyEquivalent:@""];
+
+    startsAtLoginItem = [statusMenu addItemWithTitle:@"Starts at login" action:@selector(toggleLoginStart) keyEquivalent:@""];
+    
+    loginItemsListRef = LSSharedFileListCreate(NULL,
+                                               kLSSharedFileListSessionLoginItems,
+                                               NULL);
+    if (loginItemsListRef) {
+        LSSharedFileListAddObserver(loginItemsListRef,
+                                    CFRunLoopGetMain(),
+                                    kCFRunLoopCommonModes,
+                                    loginItemsChanged,
+                                    self);
+        loginItemsChanged(loginItemsListRef, self);
+    }
     
     [statusMenu addItem:[NSMenuItem separatorItem]];
     
