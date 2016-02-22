@@ -30,7 +30,6 @@ Source: "C:\target\vestige\*"; DestDir: "{app}"; Flags: ignoreversion recursesub
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
-Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 
