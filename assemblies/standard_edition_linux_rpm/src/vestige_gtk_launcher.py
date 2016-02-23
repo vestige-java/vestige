@@ -21,7 +21,8 @@ class Vestige(dbus.service.Object):
         self.running = False
         self.url = None
         self.loadStatusIcon = False
-        self.consoleWinShown = False
+        self.consoleWinShown = False            
+        self.autostartPath = os.getenv("HOME") + "/.config/autostart/vestige.desktop"
         
         if not os.environ.get("DESKTOP_SESSION", "").lower().startswith("gnome") or not "deprecated" in os.environ.get("GNOME_DESKTOP_SESSION_ID", ""):
             try:
@@ -89,6 +90,11 @@ class Vestige(dbus.service.Object):
         consoleItem.connect("activate", lambda e : self.showWin())
         self.menu.append(consoleItem)
         
+        self.startAtLoginItem = gtk.CheckMenuItem("Start at login")
+        self.startAtLoginItem.set_active(os.path.isfile(self.autostartPath))
+        self.startAtLoginItem.connect("activate", self.toggleStartAtLogin);
+        self.menu.append(self.startAtLoginItem)
+
         self.menu.append(gtk.SeparatorMenuItem())
 
         quitItem = gtk.MenuItem("Quit")
@@ -120,6 +126,19 @@ class Vestige(dbus.service.Object):
                 self.proc.terminate();
         except:
             pass
+        
+    def toggleStartAtLogin(self, widget):
+        # seems that widget change its state before calling activate
+        if widget.active:
+            autostartPathDirname = os.path.dirname(self.autostartPath);
+            if not os.path.exists(autostartPathDirname):
+                os.makedirs(autostartPathDirname);
+            os.symlink('/usr/share/applications/vestige.desktop', self.autostartPath);
+        else:
+            try:
+                os.remove(self.autostartPath);
+            except:
+                pass
             
     def openFolder(self):
         env = os.environ.copy()

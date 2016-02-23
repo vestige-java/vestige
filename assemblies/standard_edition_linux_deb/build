@@ -18,6 +18,7 @@ mv target/vestige/m2 target/vestige_deb/usr/share/vestige/m2
 mv target/vestige/unix-classpath.txt target/vestige_deb/usr/share/vestige/
 mv target/vestige/vestige target/vestige_deb/usr/share/vestige/vestige
 chmod +x target/vestige_deb/usr/share/vestige/vestige
+mv target/vestige/jvm_enhancer.properties target/vestige_deb/usr/share/vestige/
 rm target/vestige/README
 mv target/vestige/* target/vestige_deb/etc/vestige/
 sed -e 's/Version: .*/Version: '$VESTIGE_VERSION'/' src/control > target/vestige_deb/DEBIAN/control
