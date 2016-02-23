@@ -19,6 +19,8 @@ HANDLE vestigeProc;
 DWORD vestigePid;
 BOOL consoleWinShown;
 TCHAR szPath[MAX_PATH];
+TCHAR szPathDirectory[MAX_PATH];
+TCHAR szPathBat[MAX_PATH];
 HKEY hKey;
 int atLoginStarted;
 
@@ -77,7 +79,7 @@ HANDLE launchVestige(HANDLE g_hChildStd_OUT_Wr) {
     PROCESS_INFORMATION pi;
     ZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
 
-    CreateProcess(NULL, TEXT("cmd.exe /c vestige.bat"), NULL, NULL, TRUE, 0, NULL, NULL, &siStartInfo, &pi);
+    CreateProcess(NULL, szPathBat, NULL, NULL, TRUE, 0, NULL, NULL, &siStartInfo, &pi);
     vestigePid = pi.dwProcessId;
     return pi.hProcess;
 }
@@ -95,8 +97,7 @@ void toggleStartAtLogin() {
 }
 
 int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
-        LPSTR lpCmdLine, int nCmdShow)
-{
+        LPSTR lpCmdLine, int nCmdShow) {
     MSG msg;
     WNDCLASS wc;
     DWORD pid;
@@ -116,8 +117,12 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
     }
 
     GetModuleFileName(NULL, szPath, MAX_PATH);
+    GetModuleFileName(NULL, szPathDirectory, MAX_PATH);
+    char * lastSep = strrchr(szPathDirectory, '\\');
+    *lastSep = 0;
+    snprintf(szPathBat, MAX_PATH, "cmd /c \"%s\\vestige.bat\"", szPathDirectory);
     RegOpenKey(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", &hKey);
-    if (RegQueryValueEx(hKey, "vestige", NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
+    if (RegQueryValueEx(hKey, "Vestige", NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
         atLoginStarted = 1;
     } else {
         atLoginStarted = 0;
