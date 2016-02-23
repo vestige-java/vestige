@@ -10,6 +10,7 @@ cp -r src/Vestige.app target/wc/
 unzip -d target/wc/Vestige.app/Contents/Resources/vestige_home ../standard_edition_standalone/target/vestige.assemblies.standard_edition_standalone-$VESTIGE_VERSION-unix.zip
 sed -i~ -e 's/-Djava.util.logging.manager/-Dapple.awt.UIElement=true -Djava.util.logging.manager/' -e 's/VESTIGE_BASE=.*/VESTIGE_BASE="$HOME\/Vestige"/' -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="$HOME\/Library\/Application Support\/Vestige"/' -e 's/$VESTIGE_BASE\/logs/$HOME\/Library\/Logs\/Vestige/' target/wc/Vestige.app/Contents/Resources/vestige_home/vestige
 rm target/wc/Vestige.app/Contents/Resources/vestige_home/vestige~
+rm target/wc/Vestige.app/Contents/Resources/vestige_home/lib/*.so
 find target -name .svn -exec rm -rf {} \;
 hdiutil detach `hdiutil info | grep "target/wc"  | grep "Apple_HFS" | cut -d$'\t' -f 1` -quiet -force
 hdiutil convert target/wc.dmg -quiet -format UDZO -imagekey zlib-level=9 -o target/vestige-$VESTIGE_VERSION.dmg

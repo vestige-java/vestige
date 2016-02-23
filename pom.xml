@@ -137,7 +137,7 @@
     <javax-servlet.version>3.0.0.v201112011016</javax-servlet.version>
     <bouncycastle.version>1.50</bouncycastle.version>
     <httpcomponents.version>4.4.1</httpcomponents.version>
-    <proxy_vole.version>0.0.4</proxy_vole.version>
+    <proxy_vole.version>0.0.6</proxy_vole.version>
   </properties>
   <dependencyManagement>
     <dependencies>

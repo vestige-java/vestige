@@ -34,6 +34,8 @@ import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 
+import com.btr.proxy.search.desktop.gnome.ProxySchemasGSettingsAccess;
+import com.btr.proxy.search.desktop.win.Win32ProxyUtils;
 import com.btr.proxy.util.Logger;
 import com.btr.proxy.util.Logger.LogBackEnd;
 
@@ -262,9 +264,46 @@ public final class JVMEnhancer {
                 // ignore
             }
 
+            String osName = System.getProperty("os.name").toLowerCase();
+            boolean windows = osName.contains("windows");
+            boolean mac = osName.contains("mac");
+            String arch = "x86";
+            if (!System.getProperty("os.arch").equals("w32")) {
+                arch = System.getProperty("os.arch");
+                if (arch.equals("x86_64")) {
+                    arch = "amd64";
+                }
+            }
+
             // install proxy selector
             try {
                 synchronized (ProxySelector.class) {
+                    if (windows) {
+                        String proxyUtilPath = properties.getProperty("proxy_vole.proxy_util." + arch);
+                        if (proxyUtilPath != null) {
+                            File proxyUtilFile = new File(directory, proxyUtilPath);
+                            Class<?> win32ProxyUtilsClass = vestigeClassLoader.loadClass(Win32ProxyUtils.class.getName());
+                            Method method = win32ProxyUtilsClass.getMethod("init", String.class);
+                            try {
+                                vestigeExecutor.invoke(vestigeClassLoader, method, null, proxyUtilFile.getAbsolutePath());
+                            } catch (Exception e) {
+                                // strange windows
+                            }
+                        }
+                    } else if (!mac) {
+                        String gsettingsPath = properties.getProperty("proxy_vole.gsettings." + arch);
+                        if (gsettingsPath != null) {
+                            File gsettingsFile = new File(directory, gsettingsPath);
+                            Class<?> proxySchemasGSettingsAccessClass = vestigeClassLoader.loadClass(ProxySchemasGSettingsAccess.class.getName());
+                            Method method = proxySchemasGSettingsAccessClass.getMethod("init", String.class);
+                            try {
+                                vestigeExecutor.invoke(vestigeClassLoader, method, null, gsettingsFile.getAbsolutePath());
+                            } catch (Exception e) {
+                                // no gsettings support on this OS
+                            }
+                        }
+                    }
+
                     // redirect log to JUL
                     Class<?> julBackendClass = vestigeClassLoader.loadClass(JULBackend.class.getName());
                     Class<?> loggerClass = vestigeClassLoader.loadClass(Logger.class.getName());
@@ -282,15 +321,7 @@ public final class JVMEnhancer {
 
             // install exit handler
             try {
-                String osName = System.getProperty("os.name");
-                if (osName.toLowerCase().contains("windows")) {
-                    String arch = "w32";
-                    if (!System.getProperty("os.arch").equals("x86")) {
-                        arch = System.getProperty("os.arch");
-                        if (arch.equals("x86_64")) {
-                            arch = "amd64";
-                        }
-                    }
+                if (windows) {
                     String shutdownHookPath = properties.getProperty("shutdownHook." + arch);
                     if (shutdownHookPath != null) {
                         File shutdownHookFile = new File(directory, shutdownHookPath);

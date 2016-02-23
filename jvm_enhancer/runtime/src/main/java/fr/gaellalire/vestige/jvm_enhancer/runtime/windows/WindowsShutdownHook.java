@@ -58,7 +58,7 @@ public final class WindowsShutdownHook {
                 runHooks();
             }
         });
-    };
+    }
 
     private static native void nativeRegister();
 
