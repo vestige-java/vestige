@@ -6,6 +6,7 @@
 #define MY_WM_NOTIFYICON WM_USER+1
 #define WM_SOCKET WM_USER+2
 #define VESTIGE_CLASSNAME "fr.gaellalire.vestige"
+#define VESTIGE_VALUE_NAME "Vestige"
 
 NOTIFYICONDATA TrayIcon;
 HINSTANCE hinst;
@@ -86,11 +87,11 @@ HANDLE launchVestige(HANDLE g_hChildStd_OUT_Wr) {
 
 void toggleStartAtLogin() {
     if (atLoginStarted) {
-        RegDeleteValue(hKey, "vestige");
+        RegDeleteValue(hKey, VESTIGE_VALUE_NAME);
         atLoginStarted = 0;
         CheckMenuItem(hmenu, IDM_START_LOGIN, MF_UNCHECKED);
     } else {
-        RegSetValueEx(hKey, "vestige", 0, REG_SZ, (LPBYTE) szPath, sizeof(szPath));
+        RegSetValueEx(hKey, VESTIGE_VALUE_NAME, 0, REG_SZ, (LPBYTE) szPath, sizeof(szPath));
         atLoginStarted = 1;
         CheckMenuItem(hmenu, IDM_START_LOGIN, MF_CHECKED);
     }
@@ -122,7 +123,7 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
     *lastSep = 0;
     snprintf(szPathBat, MAX_PATH, "cmd /c \"%s\\vestige.bat\"", szPathDirectory);
     RegOpenKey(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", &hKey);
-    if (RegQueryValueEx(hKey, "Vestige", NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
+    if (RegQueryValueEx(hKey, VESTIGE_VALUE_NAME, NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
         atLoginStarted = 1;
     } else {
         atLoginStarted = 0;
