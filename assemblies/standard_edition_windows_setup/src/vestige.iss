@@ -19,6 +19,7 @@ DisableProgramGroupPage=yes
 OutputBaseFilename=vestige-setup
 Compression=lzma
 SolidCompression=yes
+UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
