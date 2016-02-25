@@ -161,24 +161,7 @@ public class DefaultApplicationManager implements ApplicationManager {
         ApplicationDescriptor applicationDescriptor = applicationDescriptorFactory.createApplicationDescriptor(context, repoName, appName, version);
 
         File basefile = new File(appBaseFile, installName);
-        if (basefile.exists()) {
-            try {
-                FileUtils.forceDelete(basefile);
-            } catch (IOException e) {
-                throw new ApplicationException("Base directory already exists and cannot be deleted", e);
-            }
-        }
-        basefile.mkdirs();
-
         File dataFile = new File(appDataFile, installName);
-        if (dataFile.exists()) {
-            try {
-                FileUtils.forceDelete(dataFile);
-            } catch (IOException e) {
-                throw new ApplicationException("Data directory already exists and cannot be deleted", e);
-            }
-        }
-        dataFile.mkdirs();
 
         Set<List<Integer>> supportedMigrationVersion = applicationDescriptor.getSupportedMigrationVersions();
         Set<List<Integer>> uninterruptedMigrationVersion = applicationDescriptor.getUninterruptedMigrationVersions();
@@ -232,6 +215,25 @@ public class DefaultApplicationManager implements ApplicationManager {
         boolean successful = false;
         try {
             applicationContext = createApplicationContext(repoName, appName, version, installName);
+            final File base = applicationContext.getBase();
+            if (base.exists()) {
+                try {
+                    FileUtils.forceDelete(base);
+                } catch (IOException e) {
+                    throw new ApplicationException("Base directory already exists and cannot be deleted", e);
+                }
+            }
+            base.mkdirs();
+            final File data = applicationContext.getData();
+            if (data.exists()) {
+                try {
+                    FileUtils.forceDelete(data);
+                } catch (IOException e) {
+                    throw new ApplicationException("Data directory already exists and cannot be deleted", e);
+                }
+            }
+            data.mkdirs();
+
             ClassLoaderConfiguration installerResolve = applicationContext.getInstallerResolve();
             if (installerResolve != null) {
                 int installerAttach = vestigePlatform.attach(installerResolve);
@@ -240,11 +242,9 @@ public class DefaultApplicationManager implements ApplicationManager {
 
                     Set<Permission> additionnalPermissions = new HashSet<Permission>();
                     additionnalPermissions.addAll(installerResolve.getPermissions());
-                    final File base = applicationContext.getBase();
-                    additionnalPermissions.add(new FilePermission(base.getPath(), "read,write,delete"));
+                    additionnalPermissions.add(new FilePermission(base.getPath(), "read,write"));
                     additionnalPermissions.add(new FilePermission(base.getPath() + File.separator + "-", "read,write,delete"));
-                    final File data = applicationContext.getData();
-                    additionnalPermissions.add(new FilePermission(data.getPath(), "read,write,delete"));
+                    additionnalPermissions.add(new FilePermission(data.getPath(), "read,write"));
                     additionnalPermissions.add(new FilePermission(data.getPath() + File.separator + "-", "read,write,delete"));
                     additionnalPermissions.addAll(applicationContext.getInstallerPermissions());
 
@@ -325,9 +325,9 @@ public class DefaultApplicationManager implements ApplicationManager {
 
                         Set<Permission> additionnalPermissions = new HashSet<Permission>();
                         additionnalPermissions.addAll(installerResolve.getPermissions());
-                        additionnalPermissions.add(new FilePermission(base.getPath(), "read,write,delete"));
+                        additionnalPermissions.add(new FilePermission(base.getPath(), "read,write"));
                         additionnalPermissions.add(new FilePermission(base.getPath() + File.separator + "-", "read,write,delete"));
-                        additionnalPermissions.add(new FilePermission(data.getPath(), "read,write,delete"));
+                        additionnalPermissions.add(new FilePermission(data.getPath(), "read,write"));
                         additionnalPermissions.add(new FilePermission(data.getPath() + File.separator + "-", "read,write,delete"));
                         additionnalPermissions.addAll(applicationContext.getInstallerPermissions());
                         final PublicVestigeSystem vestigeSystem;
@@ -544,9 +544,9 @@ public class DefaultApplicationManager implements ApplicationManager {
                         additionnalPermissions.addAll(installerResolve.getPermissions());
                         final File base = fromApplicationContext.getBase();
                         final File data = fromApplicationContext.getData();
-                        additionnalPermissions.add(new FilePermission(base.getPath(), "read,write,delete"));
+                        additionnalPermissions.add(new FilePermission(base.getPath(), "read,write"));
                         additionnalPermissions.add(new FilePermission(base.getPath() + File.separator + "-", "read,write,delete"));
-                        additionnalPermissions.add(new FilePermission(data.getPath(), "read,write,delete"));
+                        additionnalPermissions.add(new FilePermission(data.getPath(), "read,write"));
                         additionnalPermissions.add(new FilePermission(data.getPath() + File.separator + "-", "read,write,delete"));
                         additionnalPermissions.addAll(fromApplicationContext.getResolve().getPermissions());
                         additionnalPermissions.addAll(toApplicationContext.getResolve().getPermissions());
@@ -615,9 +615,9 @@ public class DefaultApplicationManager implements ApplicationManager {
                     additionnalPermissions.addAll(installerResolve.getPermissions());
                     final File base = fromApplicationContext.getBase();
                     final File data = fromApplicationContext.getData();
-                    additionnalPermissions.add(new FilePermission(base.getPath(), "read,write,delete"));
+                    additionnalPermissions.add(new FilePermission(base.getPath(), "read,write"));
                     additionnalPermissions.add(new FilePermission(base.getPath() + File.separator + "-", "read,write,delete"));
-                    additionnalPermissions.add(new FilePermission(data.getPath(), "read,write,delete"));
+                    additionnalPermissions.add(new FilePermission(data.getPath(), "read,write"));
                     additionnalPermissions.add(new FilePermission(data.getPath() + File.separator + "-", "read,write,delete"));
                     additionnalPermissions.addAll(migratorApplicationContext.getInstallerPermissions());
                     final PublicVestigeSystem vestigeSystem;
@@ -810,10 +810,10 @@ public class DefaultApplicationManager implements ApplicationManager {
 
             Set<Permission> additionnalPermissions = new HashSet<Permission>();
             additionnalPermissions.addAll(resolve.getPermissions());
-            additionnalPermissions.add(new FilePermission(applicationContext.getBase().getPath(), "read,write,delete"));
+            additionnalPermissions.add(new FilePermission(applicationContext.getBase().getPath(), "read,write"));
             additionnalPermissions.add(new FilePermission(applicationContext.getBase().getPath() + File.separator + "-", "read,write,delete"));
             additionnalPermissions.addAll(applicationContext.getPermissions());
-            additionnalPermissions.add(new FilePermission(applicationContext.getData().getPath(), "read,write,delete"));
+            additionnalPermissions.add(new FilePermission(applicationContext.getData().getPath(), "read,write"));
             additionnalPermissions.add(new FilePermission(applicationContext.getData().getPath() + File.separator + "-", "read,write,delete"));
             Thread thread = vestigeSecureExecutor.execute(additionnalPermissions, null, applicationContext.getName(), vestigeSystem, new Callable<Void>() {
                 @Override
