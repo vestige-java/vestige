@@ -21,9 +21,10 @@ class Vestige(dbus.service.Object):
         self.running = False
         self.url = None
         self.loadStatusIcon = False
-        self.consoleWinShown = False            
+        self.consoleWinShown = False
+        self.forceQuit = False
         self.autostartPath = os.getenv("HOME") + "/.config/autostart/vestige.desktop"
-        
+
         if not os.environ.get("DESKTOP_SESSION", "").lower().startswith("gnome") or not "deprecated" in os.environ.get("GNOME_DESKTOP_SESSION_ID", ""):
             try:
                 import appindicator
@@ -36,18 +37,18 @@ class Vestige(dbus.service.Object):
         else:
             # gnome 3 status icon has a scrolling bug which occurs with appindicator fallback implementation
             self.loadStatusIcon = True
-                  
+
         if self.loadStatusIcon:
             self.statusicon = gtk.StatusIcon()
             self.statusicon.set_from_icon_name("vestige")
             self.statusicon.connect("popup-menu", self.right_click_event)
             self.statusicon.connect("activate", self.left_click_event)
             self.statusicon.set_tooltip("Vestige")
-        
-            
+
+
         self.consoleWin = gtk.Window()
         self.consoleWin.set_title("Vestige: command line output")
-        self.consoleWin.set_default_size(700,500)
+        self.consoleWin.set_default_size(700, 500)
         self.consoleWin.set_position(gtk.WIN_POS_CENTER_ALWAYS)
         self.consoleWin.connect('delete-event', lambda w, e : self.hideWin())
         self.console = gtk.TextView()
@@ -55,17 +56,17 @@ class Vestige(dbus.service.Object):
         scroller = gtk.ScrolledWindow()
         scroller.add(self.console)
         self.consoleWin.add(scroller)
-    
+
         serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         serversocket.bind(('127.0.0.1', 0))
         serversocket.listen(1)
-        gobject.io_add_watch(serversocket, gobject.IO_IN, self.listener)        
+        gobject.io_add_watch(serversocket, gobject.IO_IN, self.listener)
 
         procenv = os.environ.copy()
-        
+
         procenv["VESTIGE_LISTENER_PORT"] = str(serversocket.getsockname()[1]);
         try:
-            self.proc = subprocess.Popen("/usr/share/vestige/vestige", env = procenv, shell = False, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+            self.proc = subprocess.Popen("/usr/share/vestige/vestige", env=procenv, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             gobject.io_add_watch(self.proc.stdout, gobject.IO_IN, self.write_to_buffer)
             gobject.io_add_watch(self.proc.stderr, gobject.IO_IN, self.write_to_buffer)
             gobject.child_watch_add(self.proc.pid, lambda pid, condition: self.processQuit())
@@ -75,7 +76,7 @@ class Vestige(dbus.service.Object):
             self.processQuit();
 
         self.menu = gtk.Menu()
-        
+
         self.adminItem = gtk.MenuItem("Open web administration")
         self.adminItem.connect("activate", lambda e : self.showAdmin())
         self.menu.append(self.adminItem)
@@ -89,7 +90,7 @@ class Vestige(dbus.service.Object):
         consoleItem = gtk.MenuItem("Show command line output")
         consoleItem.connect("activate", lambda e : self.showWin())
         self.menu.append(consoleItem)
-        
+
         self.startAtLoginItem = gtk.CheckMenuItem("Start at login")
         self.startAtLoginItem.set_active(os.path.isfile(self.autostartPath))
         self.startAtLoginItem.connect("activate", self.toggleStartAtLogin);
@@ -97,16 +98,16 @@ class Vestige(dbus.service.Object):
 
         self.menu.append(gtk.SeparatorMenuItem())
 
-        quitItem = gtk.MenuItem("Quit")
-        quitItem.connect("activate", lambda e : self.terminateProc())
-        self.menu.append(quitItem)
+        self.quitItem = gtk.MenuItem("Quit")
+        self.quitItem.connect("activate", lambda e : self.quitVestige())
+        self.menu.append(self.quitItem)
 
         self.menu.show_all()
-        
+
         if not self.loadStatusIcon:
             self.ind.set_menu(self.menu)
 
-        
+
     def processQuit(self):
         if self.consoleWinShown or self.procState < 2:
             # user show console or starting failed
@@ -119,14 +120,19 @@ class Vestige(dbus.service.Object):
             self.showWin();
         else:
             gtk.main_quit()
-            
-    def terminateProc(self):
+
+    def quitVestige(self):
         try:
             if self.proc is not None:
-                self.proc.terminate();
+                if self.forceQuit:
+                    self.proc.kill();
+                else:
+                    self.proc.terminate();
+                    self.quitItem.set_label("Force quit");
+                    self.forceQuit = True;
         except:
             pass
-        
+
     def toggleStartAtLogin(self, widget):
         # seems that widget change its state before calling activate
         if widget.active:
@@ -139,7 +145,7 @@ class Vestige(dbus.service.Object):
                 os.remove(self.autostartPath);
             except:
                 pass
-            
+
     def openFolder(self):
         env = os.environ.copy()
         self.openCount += 1
@@ -151,7 +157,7 @@ class Vestige(dbus.service.Object):
         self.openCount += 1
         env["DESKTOP_STARTUP_ID"] = "vestige-xdg_open-%d_TIME%d" % (self.openCount, time.time())
         subprocess.Popen(["xdg-open", self.url], env=env)
-            
+
     def showWin(self):
         self.consoleWinShown = True
         self.consoleWin.show_all()
@@ -165,12 +171,12 @@ class Vestige(dbus.service.Object):
             self.consoleWinShown = False
             self.consoleWin.hide();
         return True
-            
+
     def listener(self, sock, arg):
         conn, addr = sock.accept()
         gobject.io_add_watch(conn, gobject.IO_IN, self.handler)
-        return True    
-    
+        return True
+
     def handler(self, conn, args):
         lines = conn.recv(1024)
         if not len(lines):
@@ -191,9 +197,9 @@ class Vestige(dbus.service.Object):
                 self.procState = 3
             elif line == "Stopped":
                 self.procState = 4
-                
+
         return True
-        
+
     def write_to_buffer(self, fd, condition):
         if condition == gobject.IO_IN:
             char = fd.read(1)
@@ -209,19 +215,20 @@ class Vestige(dbus.service.Object):
 
     def right_click_event(self, icon, button, activate_time):
         self.menu.popup(None, None, None, button, activate_time, icon)
-        
+
     @dbus.service.method("fr.gaellalire.vestige", in_signature='', out_signature='')
     def handleFiles(self):
         # TODO add file name array
         pass
-     
+
 app = None
 def signalHandler(signal, frame):
     if app is not None:
-        app.terminateProc();
+        app.quitVestige();
 
 signal.signal(signal.SIGTERM, signalHandler)
-try:     
+signal.signal(signal.SIGINT, signalHandler)
+try:
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
     bus = dbus.SessionBus()
     local = False
@@ -232,12 +239,12 @@ try:
     else:
         object = bus.get_object("fr.gaellalire.vestige", "/")
         app = dbus.Interface(object, "fr.gaellalire.vestige")
-    
+
     app.handleFiles()
     gtk.gdk.notify_startup_complete()
-    
+
     if local:
         gtk.main()
 except KeyboardInterrupt:
     if app is not None:
-        app.terminateProc();
+        app.quitVestige();
