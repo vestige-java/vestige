@@ -2,6 +2,7 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <signal.h>
 
 @implementation Vestige
 
@@ -177,7 +178,14 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
 }
 
 - (void)quitVestige {
-	[task terminate];
+    if (forceQuit) {
+        int pid = [task processIdentifier];
+        kill(pid, SIGKILL);
+    } else {
+	    [task terminate];
+        [quitItem setTitle:@"Force quit"];
+        forceQuit = true;
+    }
 }
 
 - (void) applicationWillTerminate:(NSNotification *)notification {
@@ -208,6 +216,7 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
 - (void)finishLaunching {
     url = NULL;
     procState = 0;
+    forceQuit = false;
     
     statusItem = [[[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength] retain];
     statusMenu = [[NSMenu alloc] init];
@@ -237,7 +246,7 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
     
     [statusMenu addItem:[NSMenuItem separatorItem]];
     
-    [statusMenu addItemWithTitle:@"Quit" action:@selector(quitVestige) keyEquivalent:@""];
+    quitItem = [statusMenu addItemWithTitle:@"Quit" action:@selector(quitVestige) keyEquivalent:@""];
     
     NSImage *statusItemImage = [NSImage imageNamed:@"vestige.png"];
     if (!statusItemImage) {

@@ -6,6 +6,7 @@
     NSMenuItem *openWebAdminItem;
     NSMenuItem *openBaseFolderItem;
     NSMenuItem *startAtLoginItem;
+    NSMenuItem *quitItem;
     NSStatusItem * statusItem;
 	NSTask *task;
     NSFileHandle * fileHandle;
@@ -16,6 +17,7 @@
     bool consoleWinShown;
     LSSharedFileListRef loginItemsListRef;
     bool atLoginStarted;
+    bool forceQuit;
 }
 
 - (void)stream:(NSStream *)stream handleEvent:(NSStreamEvent)streamEvent;
