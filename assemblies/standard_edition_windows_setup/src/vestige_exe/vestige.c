@@ -1,3 +1,5 @@
+#define _WIN32_WINNT 0x05010000
+
 #include <windows.h>
 #include <winsock2.h>
 #include "resources.h"
@@ -7,6 +9,8 @@
 #define WM_SOCKET WM_USER+2
 #define VESTIGE_CLASSNAME "fr.gaellalire.vestige"
 #define VESTIGE_VALUE_NAME "Vestige"
+
+#define C_KEY 0x43
 
 NOTIFYICONDATA TrayIcon;
 HINSTANCE hinst;
@@ -24,6 +28,8 @@ TCHAR szPathDirectory[MAX_PATH];
 TCHAR szPathBat[MAX_PATH];
 HKEY hKey;
 int atLoginStarted;
+int forceQuit;
+HANDLE hjob;
 
 char * url, *base;
 
@@ -35,7 +41,12 @@ BOOL CALLBACK TerminateAppEnum(HWND hWnd, LPARAM lParam) {
     GetWindowThreadProcessId(hWnd, &dwID);
 
     if (dwID == (DWORD) lParam) {
-        PostMessage(hWnd, WM_CLOSE, 0, 0);
+        if (SetForegroundWindow(hWnd)) {
+            keybd_event(VK_LCONTROL, 0, 0, 0);
+            keybd_event(C_KEY, 0, 0, 0);
+            keybd_event(C_KEY, 0, KEYEVENTF_KEYUP, 0);
+            keybd_event(VK_LCONTROL, 0, KEYEVENTF_KEYUP, 0);
+        }
     }
 
     return TRUE;
@@ -67,6 +78,7 @@ DWORD WINAPI WaitForBatCommand(void * param) {
 }
 
 HANDLE launchVestige(HANDLE g_hChildStd_OUT_Wr) {
+    hjob = CreateJobObject(NULL, NULL);
 
     STARTUPINFO siStartInfo;
 
@@ -80,7 +92,9 @@ HANDLE launchVestige(HANDLE g_hChildStd_OUT_Wr) {
     PROCESS_INFORMATION pi;
     ZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
 
-    CreateProcess(NULL, szPathBat, NULL, NULL, TRUE, 0, NULL, NULL, &siStartInfo, &pi);
+    CreateProcess(NULL, szPathBat, NULL, NULL, TRUE, CREATE_SUSPENDED | CREATE_BREAKAWAY_FROM_JOB, NULL, NULL, &siStartInfo, &pi);
+    AssignProcessToJobObject(hjob, pi.hProcess);
+    ResumeThread(pi.hThread);
     vestigePid = pi.dwProcessId;
     return pi.hProcess;
 }
@@ -117,11 +131,12 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
         return 0;
     }
 
+    forceQuit = 0;
     GetModuleFileName(NULL, szPath, MAX_PATH);
     GetModuleFileName(NULL, szPathDirectory, MAX_PATH);
     char * lastSep = strrchr(szPathDirectory, '\\');
     *lastSep = 0;
-    snprintf(szPathBat, MAX_PATH, "cmd /c \"%s\\vestige.bat\"", szPathDirectory);
+    snprintf(szPathBat, MAX_PATH, "cmd /c \"%s\\vestige.bat\" < nul", szPathDirectory);
     RegOpenKey(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", &hKey);
     if (RegQueryValueEx(hKey, VESTIGE_VALUE_NAME, NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
         atLoginStarted = 1;
@@ -241,6 +256,7 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
 
     return msg.wParam;
 }
+
 /******************************************************************************/
 
 LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
@@ -264,7 +280,6 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case MY_WM_NOTIFYICON:
         if (lParam == WM_LBUTTONUP || lParam == WM_RBUTTONUP) {
-
             HMENU hpopup;
             POINT pos;
             GetCursorPos(&pos);
@@ -277,7 +292,18 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_COMMAND:
         switch (LOWORD(wParam)) {
         case IDM_QUIT:
-            EnumWindows((WNDENUMPROC) TerminateAppEnum, (LPARAM) vestigePid);
+            if (forceQuit) {
+                TerminateJobObject(hjob, 0);
+            } else {
+                EnumWindows((WNDENUMPROC) TerminateAppEnum, (LPARAM) vestigePid);
+                MENUITEMINFO info;
+                info.cbSize = sizeof(MENUITEMINFO);
+                info.fMask = MIIM_ID;
+                HMENU hpopup = GetSubMenu(hmenu, 0);
+                GetMenuItemInfo(hpopup, 5, TRUE, &info);
+                ModifyMenu(hpopup, info.wID, MF_BYCOMMAND | MF_STRING, info.wID, "Force quit");
+                forceQuit = 1;
+            }
             break;
         case IDM_OPEN_WEB:
             sprintf(cbuf, "url.dll,FileProtocolHandler %s", url);
