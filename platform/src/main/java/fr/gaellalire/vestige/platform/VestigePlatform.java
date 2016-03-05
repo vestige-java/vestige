@@ -18,6 +18,7 @@
 package fr.gaellalire.vestige.platform;
 
 import java.io.Serializable;
+import java.lang.ref.WeakReference;
 import java.util.List;
 import java.util.Set;
 
@@ -49,5 +50,9 @@ public interface VestigePlatform {
     VestigeClassLoader<AttachedVestigeClassLoader> getClassLoader(int id);
 
     AttachedVestigeClassLoader getAttachedVestigeClassLoader(int id);
+
+    List<List<WeakReference<AttachedVestigeClassLoader>>> getAttachmentScopedAttachedClassLoaders();
+
+    List<WeakReference<AttachedVestigeClassLoader>> getAttachmentScopedUnattachedVestigeClassLoaders();
 
 }

@@ -175,11 +175,11 @@ public class DefaultApplicationManager implements ApplicationManager {
         applicationContext.setRepoApplicationName(appName);
         applicationContext.setRepoApplicationVersion(version);
         applicationContext.setInstallerClassName(applicationDescriptor.getInstallerClassName());
-        applicationContext.setInstallerResolve(applicationDescriptor.getInstallerClassLoaderConfiguration());
+        applicationContext.setInstallerResolve(applicationDescriptor.getInstallerClassLoaderConfiguration(installName + " installer"));
         applicationContext.setClassName(applicationDescriptor.getLauncherClassName());
         applicationContext.setInstallerPrivateSystem(applicationDescriptor.isInstallerPrivateSystem());
         applicationContext.setPrivateSystem(applicationDescriptor.isLauncherPrivateSystem());
-        applicationContext.setResolve(applicationDescriptor.getLauncherClassLoaderConfiguration());
+        applicationContext.setResolve(applicationDescriptor.getLauncherClassLoaderConfiguration(installName + " launcher"));
         applicationContext.setPermissions(applicationDescriptor.getPermissions());
         applicationContext.setInstallerPermissions(applicationDescriptor.getInstallerPermissions());
 
@@ -791,9 +791,11 @@ public class DefaultApplicationManager implements ApplicationManager {
             final int attach;
             final PublicVestigeSystem vestigeSystem;
             final VestigeClassLoader<AttachedVestigeClassLoader> classLoader;
-            final RuntimeApplicationContext previousRuntimeApplicationContext = applicationContext.getRuntimeApplicationContext();
+            RuntimeApplicationContext previousRuntimeApplicationContext = applicationContext.getRuntimeApplicationContext();
             final ClassLoaderConfiguration resolve = applicationContext.getResolve();
-            if (previousRuntimeApplicationContext == null) {
+            final RuntimeApplicationContext finalPreviousRuntimeApplicationContext;
+            if (resolve.isAttachmentScoped() || previousRuntimeApplicationContext == null) {
+                previousRuntimeApplicationContext = null;
                 attach = vestigePlatform.attach(resolve);
                 classLoader = vestigePlatform.getClassLoader(attach);
                 if (applicationContext.isPrivateSystem()) {
@@ -801,11 +803,13 @@ public class DefaultApplicationManager implements ApplicationManager {
                 } else {
                     vestigeSystem = rootVestigeSystem;
                 }
+                finalPreviousRuntimeApplicationContext = null;
             } else {
                 // reattach to platform
                 attach = vestigePlatform.attach(previousRuntimeApplicationContext.getClassLoader());
                 vestigeSystem = previousRuntimeApplicationContext.getVestigeSystem();
                 classLoader = previousRuntimeApplicationContext.getClassLoader();
+                finalPreviousRuntimeApplicationContext = previousRuntimeApplicationContext;
             }
 
             Set<Permission> additionnalPermissions = new HashSet<Permission>();
@@ -820,7 +824,7 @@ public class DefaultApplicationManager implements ApplicationManager {
                 public Void call() throws Exception {
                     final Runnable runnable;
                     RuntimeApplicationContext runtimeApplicationContext;
-                    if (previousRuntimeApplicationContext == null) {
+                    if (finalPreviousRuntimeApplicationContext == null) {
                         runnable = (Runnable) callConstructor(classLoader, classLoader.loadClass(applicationContext.getClassName()), applicationContext.getBase(),
                                 applicationContext.getData(), vestigeSystem);
                         runtimeApplicationContext = new RuntimeApplicationContext(classLoader, runnable, vestigeSystem, runMutex == null);
@@ -834,7 +838,7 @@ public class DefaultApplicationManager implements ApplicationManager {
                         }
                         classLoader.getData().addObject(new SoftReference<RuntimeApplicationContext>(runtimeApplicationContext));
                     } else {
-                        runtimeApplicationContext = previousRuntimeApplicationContext;
+                        runtimeApplicationContext = finalPreviousRuntimeApplicationContext;
                         runnable = runtimeApplicationContext.getRunnable();
                     }
                     if (runMutex != null) {

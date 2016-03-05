@@ -41,17 +41,20 @@ public class AttachedVestigeClassLoader {
 
     private String name;
 
+    private boolean attachmentScoped;
+
     public AttachedVestigeClassLoader(final List<AttachedVestigeClassLoader> dependencies) {
         this.dependencies = dependencies;
     }
 
     public AttachedVestigeClassLoader(final VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader, final List<AttachedVestigeClassLoader> dependencies,
-            final String urls, final List<String> startStopClasses, final String name) {
+            final String urls, final List<String> startStopClasses, final String name, final boolean attachmentScoped) {
         this.vestigeClassLoader = vestigeClassLoader;
         this.dependencies = dependencies;
         this.urls = urls;
         this.startStopClasses = startStopClasses;
         this.name = name;
+        this.attachmentScoped = attachmentScoped;
         objects = new ArrayList<Object>();
     }
 
@@ -89,6 +92,10 @@ public class AttachedVestigeClassLoader {
 
     public void removeObject(final Object o) {
         objects.remove(o);
+    }
+
+    public boolean isAttachmentScoped() {
+        return attachmentScoped;
     }
 
     @Override

@@ -25,6 +25,7 @@ import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -58,6 +59,10 @@ public class DefaultVestigePlatform implements VestigePlatform {
 
     private List<AttachedVestigeClassLoader> attached = new ArrayList<AttachedVestigeClassLoader>();
 
+    private List<List<WeakReference<AttachedVestigeClassLoader>>> attachedClassLoaders = new ArrayList<List<WeakReference<AttachedVestigeClassLoader>>>();
+
+    private List<WeakReference<AttachedVestigeClassLoader>> unattached = new ArrayList<WeakReference<AttachedVestigeClassLoader>>();
+
     private List<Boolean> started = new ArrayList<Boolean>();
 
     private Map<Serializable, WeakReference<AttachedVestigeClassLoader>> map = new HashMap<Serializable, WeakReference<AttachedVestigeClassLoader>>();
@@ -70,6 +75,13 @@ public class DefaultVestigePlatform implements VestigePlatform {
 
     public void clean() {
         Iterator<WeakReference<AttachedVestigeClassLoader>> iterator = map.values().iterator();
+        while (iterator.hasNext()) {
+            WeakReference<AttachedVestigeClassLoader> next = iterator.next();
+            if (next.get() == null) {
+                iterator.remove();
+            }
+        }
+        iterator = unattached.iterator();
         while (iterator.hasNext()) {
             WeakReference<AttachedVestigeClassLoader> next = iterator.next();
             if (next.get() == null) {
@@ -89,11 +101,22 @@ public class DefaultVestigePlatform implements VestigePlatform {
         }
         Map<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>> attachmentMap = new HashMap<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>>();
         AttachedVestigeClassLoader load = attachDependencies(attachmentMap, classLoaderConfiguration);
+        Collection<VestigeClassLoader<AttachedVestigeClassLoader>> values = attachmentMap.values();
+        int valueSize = values.size();
+        List<WeakReference<AttachedVestigeClassLoader>> list = null;
+        if (valueSize != 0) {
+            list = new ArrayList<WeakReference<AttachedVestigeClassLoader>>(valueSize);
+            for (VestigeClassLoader<AttachedVestigeClassLoader> classLoader : values) {
+                list.add(new WeakReference<AttachedVestigeClassLoader>(classLoader.getData()));
+            }
+        }
         if (id == size) {
             started.add(Boolean.FALSE);
+            attachedClassLoaders.add(list);
             attached.add(load);
         } else {
             started.set(id, Boolean.FALSE);
+            attachedClassLoaders.set(id, list);
             attached.set(id, load);
         }
         clean();
@@ -112,31 +135,39 @@ public class DefaultVestigePlatform implements VestigePlatform {
         AttachedVestigeClassLoader load = classLoader.getData();
         if (id == size) {
             started.add(Boolean.FALSE);
+            attachedClassLoaders.add(null);
             attached.add(load);
         } else {
             started.set(id, Boolean.FALSE);
+            attachedClassLoaders.set(id, null);
             attached.set(id, load);
         }
         clean();
         return id;
     }
 
-
     public void detach(final int id) {
         stop(id);
         int last = attached.size() - 1;
+        List<WeakReference<AttachedVestigeClassLoader>> unattachedVestigeClassLoaders;
         if (id == last) {
+            unattachedVestigeClassLoaders = attachedClassLoaders.remove(last);
             attached.remove(last);
             started.remove(last);
             last--;
             while (last >= 0 && attached.get(last) == null) {
+                attachedClassLoaders.remove(last);
                 attached.remove(last);
                 started.remove(last);
                 last--;
             }
         } else {
+            unattachedVestigeClassLoaders = attachedClassLoaders.set(id, null);
             attached.set(id, null);
             started.set(id, null);
+        }
+        if (unattachedVestigeClassLoaders != null) {
+            unattached.addAll(unattachedVestigeClassLoaders);
         }
         clean();
     }
@@ -320,7 +351,8 @@ public class DefaultVestigePlatform implements VestigePlatform {
                 classStringParser = new ClassesStringParser(resourceStringParser);
             }
 
-            // create classloader with executor to remove this protection domain from access control
+            // create classloader with executor to remove this protection domain
+            // from access control
             vestigeClassLoader = vestigeExecutor.createVestigeClassLoader(ClassLoader.getSystemClassLoader(), convert(attachedVestigeClassLoader, classLoaderConfiguration),
                     classStringParser, resourceStringParser, urls);
 
@@ -367,9 +399,10 @@ public class DefaultVestigePlatform implements VestigePlatform {
                 }
             }
             if (classLoaderConfiguration.isAttachmentScoped()) {
-                name = name + " @ " + Integer.toHexString(vestigeClassLoader.hashCode());
+                name = name + " @ " + Integer.toHexString(System.identityHashCode(attachmentMap));
             }
-            attachedVestigeClassLoader = new AttachedVestigeClassLoader(vestigeClassLoader, classLoaderDependencies, Arrays.toString(urls), classes, name);
+            attachedVestigeClassLoader = new AttachedVestigeClassLoader(vestigeClassLoader, classLoaderDependencies, Arrays.toString(urls), classes, name,
+                    classLoaderConfiguration.isAttachmentScoped());
             vestigeClassLoader.setData(attachedVestigeClassLoader);
             if (classLoaderConfiguration.isAttachmentScoped()) {
                 attachmentMap.put(key, vestigeClassLoader);
@@ -396,6 +429,15 @@ public class DefaultVestigePlatform implements VestigePlatform {
             return true;
         }
         return false;
+    }
+
+    public List<List<WeakReference<AttachedVestigeClassLoader>>> getAttachmentScopedAttachedClassLoaders() {
+        return attachedClassLoaders;
+    }
+
+    @Override
+    public List<WeakReference<AttachedVestigeClassLoader>> getAttachmentScopedUnattachedVestigeClassLoaders() {
+        return unattached;
     }
 
 }

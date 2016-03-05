@@ -19,6 +19,7 @@ package fr.gaellalire.vestige.admin.command;
 
 import java.io.PrintWriter;
 import java.io.Serializable;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -85,7 +86,8 @@ public class Platform implements Command {
             }
             classloadersByCount.put(count, integer + 1);
         }
-        out.println("Platform has " + vestigePlatform.getClassLoaderKeys().size() + " classloader(s) for " + attachments.size() + " attachment(s)");
+        List<Serializable> classLoaderKeys = vestigePlatform.getClassLoaderKeys();
+        out.println("Platform has " + classLoaderKeys.size() + " classloader(s) for " + attachments.size() + " attachment(s)");
         for (Entry<Integer, Integer> entry : classloadersByCount.entrySet()) {
             Integer key = entry.getKey();
             String classLoaders;
@@ -102,19 +104,34 @@ public class Platform implements Command {
         }
 
         List<AttachedVestigeClassLoader> unattached = new ArrayList<AttachedVestigeClassLoader>();
-        for (Serializable classLoaderKey : vestigePlatform.getClassLoaderKeys()) {
+        for (Serializable classLoaderKey : classLoaderKeys) {
             AttachedVestigeClassLoader attachedVestigeClassLoaderByKey = vestigePlatform.getAttachedVestigeClassLoaderByKey(classLoaderKey);
             if (attachedVestigeClassLoaderByKey != null && !map.containsKey(attachedVestigeClassLoaderByKey)) {
                 unattached.add(attachedVestigeClassLoaderByKey);
             }
         }
+
         if (unattached.size() != 0) {
-            out.println("Platform has " + unattached.size() + " classloader(s) without attachment:");
+            out.println("Platform has " + unattached.size() + " classloader(s) without attachment but reusable:");
             for (AttachedVestigeClassLoader attachedVestigeClassLoader : unattached) {
                 out.println("  " + attachedVestigeClassLoader);
             }
         }
 
+        List<WeakReference<AttachedVestigeClassLoader>> unattachedNonReusableVestigeClassLoadersRefs = vestigePlatform.getAttachmentScopedUnattachedVestigeClassLoaders();
+        List<AttachedVestigeClassLoader> unattachedNonReusableVestigeClassLoaders = new ArrayList<AttachedVestigeClassLoader>(unattachedNonReusableVestigeClassLoadersRefs.size());
+        for (WeakReference<AttachedVestigeClassLoader> weakReference : unattachedNonReusableVestigeClassLoadersRefs) {
+            AttachedVestigeClassLoader attachedVestigeClassLoader = weakReference.get();
+            if (attachedVestigeClassLoader != null) {
+                unattachedNonReusableVestigeClassLoaders.add(attachedVestigeClassLoader);
+            }
+        }
+        if (unattachedNonReusableVestigeClassLoaders.size() != 0) {
+            out.println("Platform has " + unattachedNonReusableVestigeClassLoaders.size() + " classloader(s) not reusable (memory leak or lazy garbage collection):");
+            for (AttachedVestigeClassLoader attachedVestigeClassLoader : unattachedNonReusableVestigeClassLoaders) {
+                out.println("  " + attachedVestigeClassLoader);
+            }
+        }
     }
 
 }

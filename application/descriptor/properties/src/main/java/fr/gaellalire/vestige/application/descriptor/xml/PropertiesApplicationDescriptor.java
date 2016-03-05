@@ -45,7 +45,7 @@ public class PropertiesApplicationDescriptor implements ApplicationDescriptor {
         return null;
     }
 
-    public ClassLoaderConfiguration getInstallerClassLoaderConfiguration() throws ApplicationException {
+    public ClassLoaderConfiguration getInstallerClassLoaderConfiguration(final String configurationName) throws ApplicationException {
         // TODO Auto-generated method stub
         return null;
     }
@@ -55,7 +55,7 @@ public class PropertiesApplicationDescriptor implements ApplicationDescriptor {
         return null;
     }
 
-    public ClassLoaderConfiguration getLauncherClassLoaderConfiguration() throws ApplicationException {
+    public ClassLoaderConfiguration getLauncherClassLoaderConfiguration(final String configurationName) throws ApplicationException {
         // TODO Auto-generated method stub
         return null;
     }

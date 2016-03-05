@@ -51,8 +51,6 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
 
     private MavenArtifactResolver mavenArtifactResolver;
 
-    private String appName;
-
     private List<Integer> version;
 
     private Application application;
@@ -61,10 +59,9 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
 
     private Set<Permission> permissions;
 
-    public XMLApplicationDescriptor(final MavenArtifactResolver mavenArtifactResolver, final String appName, final List<Integer> version, final Application application,
+    public XMLApplicationDescriptor(final MavenArtifactResolver mavenArtifactResolver, final List<Integer> version, final Application application,
             final MavenConfigResolved mavenConfigResolved, final Set<Permission> permissions) {
         this.mavenArtifactResolver = mavenArtifactResolver;
-        this.appName = appName;
         this.version = version;
         this.application = application;
         this.mavenConfigResolved = mavenConfigResolved;
@@ -149,12 +146,11 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
         throw new ApplicationException("missing child");
     }
 
-    public ClassLoaderConfiguration getInstallerClassLoaderConfiguration() throws ApplicationException {
+    public ClassLoaderConfiguration getInstallerClassLoaderConfiguration(final String configurationName) throws ApplicationException {
         Installer installer = application.getInstaller();
         if (installer == null) {
             return null;
         }
-        String appName = this.appName + "-installer";
         URLsClassType urlsInstaller = installer.getUrlsInstaller();
         if (urlsInstaller != null) {
             List<String> url = urlsInstaller.getUrl();
@@ -175,12 +171,12 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
                 name = url.toString();
             } else {
                 key = new URLClassLoaderConfigurationKey(false, urls);
-                name = appName;
+                name = configurationName;
             }
             return new ClassLoaderConfiguration(key, name, urlsInstaller.getScope() == fr.gaellalire.vestige.application.descriptor.xml.schema.application.Scope.ATTACHMENT, urls,
                     Collections.<ClassLoaderConfiguration> emptyList(), null, null, null);
         }
-        return resolve(appName, installer.getMavenInstaller());
+        return resolve(configurationName, installer.getMavenInstaller());
     }
 
     public String getLauncherClassName() throws ApplicationException {
@@ -212,7 +208,7 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
         return launcher.isPrivateSystem();
     }
 
-    public ClassLoaderConfiguration getLauncherClassLoaderConfiguration() throws ApplicationException {
+    public ClassLoaderConfiguration getLauncherClassLoaderConfiguration(final String configurationName) throws ApplicationException {
         Launcher launcher = application.getLauncher();
         URLsClassType urlsLauncher = launcher.getUrlsLauncher();
         if (urlsLauncher != null) {
@@ -234,15 +230,15 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
                 name = url.toString();
             } else {
                 key = new URLClassLoaderConfigurationKey(false, urls);
-                name = appName;
+                name = configurationName;
             }
             return new ClassLoaderConfiguration(key, name, urlsLauncher.getScope() == fr.gaellalire.vestige.application.descriptor.xml.schema.application.Scope.ATTACHMENT, urls,
                     Collections.<ClassLoaderConfiguration> emptyList(), null, null, null);
         }
-        return resolve(appName, launcher.getMavenLauncher());
+        return resolve(configurationName, launcher.getMavenLauncher());
     }
 
-    public ClassLoaderConfiguration resolve(final String appName, final MavenClassType mavenClassType) throws ApplicationException {
+    public ClassLoaderConfiguration resolve(final String configurationName, final MavenClassType mavenClassType) throws ApplicationException {
         ResolveMode resolveMode;
         Mode mode = mavenClassType.getMode();
         switch (mode) {
@@ -262,8 +258,8 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
         case ATTACHMENT:
             mavenScope = Scope.ATTACHMENT;
             break;
-        case APPLICATION:
-            mavenScope = Scope.APPLICATION;
+        case INSTALLATION:
+            mavenScope = Scope.INSTALLATION;
             break;
         case PLATFORM:
             mavenScope = Scope.PLATFORM;
@@ -273,7 +269,7 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
         }
 
         try {
-            return mavenArtifactResolver.resolve(appName, mavenClassType.getGroupId(), mavenClassType.getArtifactId(), mavenClassType.getVersion(), mavenConfigResolved.getAdditionalRepositories(),
+            return mavenArtifactResolver.resolve(configurationName, mavenClassType.getGroupId(), mavenClassType.getArtifactId(), mavenClassType.getVersion(), mavenConfigResolved.getAdditionalRepositories(),
                     mavenConfigResolved.getDefaultDependencyModifier(), resolveMode, mavenScope, mavenConfigResolved.isSuperPomRepositoriesUsed(), mavenConfigResolved.isPomRepositoriesIgnored());
         } catch (Exception e) {
             throw new ApplicationException("Unable to resolve", e);

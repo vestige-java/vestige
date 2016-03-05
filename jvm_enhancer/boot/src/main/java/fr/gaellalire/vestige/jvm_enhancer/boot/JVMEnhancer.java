@@ -158,6 +158,12 @@ public final class JVMEnhancer {
         }
         try {
             // keep an exception in static field
+            vestigeExecutor.classForName(systemClassLoader, "com.sun.org.apache.xml.internal.serialize.DOMSerializerImpl");
+        } catch (Exception e) {
+            // ignore
+        }
+        try {
+            // keep an exception in static field
             vestigeExecutor.classForName(systemClassLoader, "com.sun.org.apache.xerces.internal.parsers.AbstractDOMParser");
         } catch (Exception e) {
             // ignore
@@ -166,6 +172,19 @@ public final class JVMEnhancer {
             // keep an exception in static field
             vestigeExecutor.classForName(systemClassLoader, "javax.management.remote.JMXServiceURL");
         } catch (Exception e) {
+            // ignore
+        }
+        try {
+            // create thread
+            vestigeExecutor.classForName(systemClassLoader, "sun.java2d.Disposer");
+        } catch (Exception e) {
+            // ignore
+        }
+        try {
+            // keep the context classloader in static field
+            Class<?> configurationClass = vestigeExecutor.classForName(systemClassLoader, "javax.security.auth.login.Configuration");
+            vestigeExecutor.invoke(systemClassLoader, configurationClass.getMethod("getConfiguration"), null);
+        } catch (Throwable e) {
             // ignore
         }
         try {
@@ -212,8 +231,8 @@ public final class JVMEnhancer {
             StringParser stringParser = new NoStateStringParser(0);
             // create classloader with executor to remove this protection domain
             // from access control
-            VestigeClassLoader<Void> vestigeClassLoader = vestigeExecutor.createVestigeClassLoader(ClassLoader.getSystemClassLoader(), Collections.singletonList(Collections
-                    .<VestigeClassLoader<Void>> singletonList(null)), stringParser, stringParser, urls);
+            VestigeClassLoader<Void> vestigeClassLoader = vestigeExecutor.createVestigeClassLoader(ClassLoader.getSystemClassLoader(),
+                    Collections.singletonList(Collections.<VestigeClassLoader<Void>> singletonList(null)), stringParser, stringParser, urls);
 
             try {
                 Class<?> weakSoftCacheClass = Class.forName(WeakSoftCache.class.getName());

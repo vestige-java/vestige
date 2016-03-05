@@ -186,7 +186,7 @@ public final class VestigeMavenResolver {
                     mavenScope = Scope.ATTACHMENT;
                     break;
                 case APPLICATION:
-                    mavenScope = Scope.APPLICATION;
+                    mavenScope = Scope.INSTALLATION;
                     break;
                 case PLATFORM:
                     mavenScope = Scope.PLATFORM;
@@ -222,7 +222,7 @@ public final class VestigeMavenResolver {
                 mavenScope = Scope.ATTACHMENT;
                 break;
             case APPLICATION:
-                mavenScope = Scope.APPLICATION;
+                mavenScope = Scope.INSTALLATION;
                 break;
             case PLATFORM:
                 mavenScope = Scope.PLATFORM;
@@ -298,7 +298,7 @@ public final class VestigeMavenResolver {
             list.add(convertAttachedVestigeClassLoader(attachedVestigeClassLoaderConstructor, attachedVestigeClassLoaderAttachment, dependency));
         }
         Object convertedAttachedVestigeClassLoader = attachedVestigeClassLoaderConstructor.newInstance(attachedVestigeClassLoader.getVestigeClassLoader(), list,
-                attachedVestigeClassLoader.getUrls(), attachedVestigeClassLoader.getStartStopClasses(), attachedVestigeClassLoader.getName());
+                attachedVestigeClassLoader.getUrls(), attachedVestigeClassLoader.getStartStopClasses(), attachedVestigeClassLoader.getName(), attachedVestigeClassLoader.isAttachmentScoped());
         attachedVestigeClassLoaderAttachment.set(convertedAttachedVestigeClassLoader, attachedVestigeClassLoader.getAttachments());
 
         uncheckedVestigeClassLoader.setData(convertedAttachedVestigeClassLoader);
@@ -318,6 +318,16 @@ public final class VestigeMavenResolver {
         List<Object> attached = (List<Object>) attachedField.get(loadedVestigePlatform);
         attachedField.setAccessible(false);
 
+        Field unattachedField = vestigePlatformClass.getDeclaredField("unattached");
+        unattachedField.setAccessible(true);
+        List<Object> unattached = (List<Object>) unattachedField.get(loadedVestigePlatform);
+        unattachedField.setAccessible(false);
+
+        Field attachedClassLoadersField = vestigePlatformClass.getDeclaredField("attachedClassLoaders");
+        attachedClassLoadersField.setAccessible(true);
+        List<List<WeakReference<Object>>> attachedClassLoaders = (List<List<WeakReference<Object>>>) attachedClassLoadersField.get(loadedVestigePlatform);
+        attachedClassLoadersField.setAccessible(false);
+
         Field startedField = vestigePlatformClass.getDeclaredField("started");
         startedField.setAccessible(true);
         List<Boolean> started = (List<Boolean>) startedField.get(loadedVestigePlatform);
@@ -329,7 +339,7 @@ public final class VestigeMavenResolver {
         mapField.setAccessible(false);
 
         Class<?> attachedVestigeClassLoaderClass = Class.forName(AttachedVestigeClassLoader.class.getName(), false, mavenResolverClassLoader);
-        Constructor<?> attachedVestigeClassLoaderConstructor = attachedVestigeClassLoaderClass.getConstructor(VestigeClassLoader.class, List.class, String.class, List.class, String.class);
+        Constructor<?> attachedVestigeClassLoaderConstructor = attachedVestigeClassLoaderClass.getConstructor(VestigeClassLoader.class, List.class, String.class, List.class, String.class, boolean.class);
         Field attachedVestigeClassLoaderAttachment = attachedVestigeClassLoaderClass.getDeclaredField("attachments");
         attachedVestigeClassLoaderAttachment.setAccessible(true);
 
@@ -343,6 +353,32 @@ public final class VestigeMavenResolver {
             } else {
                 started.add(Boolean.FALSE);
             }
+        }
+
+        List<WeakReference<AttachedVestigeClassLoader>> unattachedVestigeClassLoaders = vestigePlatform.getAttachmentScopedUnattachedVestigeClassLoaders();
+        for (WeakReference<AttachedVestigeClassLoader> weakReference : unattachedVestigeClassLoaders) {
+            AttachedVestigeClassLoader unattachedVestigeClassLoader = weakReference.get();
+            if (unattachedVestigeClassLoader != null) {
+                unattached.add(new WeakReference<Object>(convertAttachedVestigeClassLoader(attachedVestigeClassLoaderConstructor, attachedVestigeClassLoaderAttachment,
+                        unattachedVestigeClassLoader)));
+            }
+        }
+
+        List<List<WeakReference<AttachedVestigeClassLoader>>> attachmentScopedAttachedClassLoaders = vestigePlatform.getAttachmentScopedAttachedClassLoaders();
+        for (List<WeakReference<AttachedVestigeClassLoader>> list : attachmentScopedAttachedClassLoaders) {
+            if (list == null) {
+                attachedClassLoaders.add(null);
+                continue;
+            }
+            List<WeakReference<Object>> destList = new ArrayList<WeakReference<Object>>(list.size());
+            for (WeakReference<AttachedVestigeClassLoader> weakReference : list) {
+                AttachedVestigeClassLoader attachedVestigeClassLoader = weakReference.get();
+                if (attachedVestigeClassLoader != null) {
+                    destList.add(new WeakReference<Object>(convertAttachedVestigeClassLoader(attachedVestigeClassLoaderConstructor, attachedVestigeClassLoaderAttachment,
+                            attachedVestigeClassLoader)));
+                }
+            }
+            attachedClassLoaders.add(destList);
         }
 
         List<Serializable> loadedArtifact = vestigePlatform.getClassLoaderKeys();

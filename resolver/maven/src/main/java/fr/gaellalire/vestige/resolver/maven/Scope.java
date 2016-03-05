@@ -22,6 +22,6 @@ package fr.gaellalire.vestige.resolver.maven;
  */
 public enum Scope {
 
-    ATTACHMENT, APPLICATION, PLATFORM;
+    ATTACHMENT, INSTALLATION, PLATFORM;
 
 }
