@@ -10,8 +10,6 @@
 #define VESTIGE_CLASSNAME "fr.gaellalire.vestige"
 #define VESTIGE_VALUE_NAME "Vestige"
 
-#define C_KEY 0x43
-
 NOTIFYICONDATA TrayIcon;
 HINSTANCE hinst;
 HWND hWnd;
