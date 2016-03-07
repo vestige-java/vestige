@@ -34,9 +34,11 @@ import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.btr.proxy.search.desktop.gnome.ProxySchemasGSettingsAccess;
 import com.btr.proxy.search.desktop.win.Win32ProxyUtils;
-import com.btr.proxy.util.Logger;
 import com.btr.proxy.util.Logger.LogBackEnd;
 
 import fr.gaellalire.vestige.core.StackedHandler;
@@ -57,6 +59,8 @@ import fr.gaellalire.vestige.jvm_enhancer.runtime.windows.WindowsShutdownHook;
  * @author Gael Lalire
  */
 public final class JVMEnhancer {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(JVMEnhancer.class);
 
     private JVMEnhancer() {
     }
@@ -137,56 +141,65 @@ public final class JVMEnhancer {
         Thread thread = vestigeExecutor.createWorker("bootstrap-sun-worker", true, 0);
 
         ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
+        LOGGER.debug("calling sun.awt.AppContext.getAppContext");
         try {
             // keep the context classloader in static field
             Class<?> appContextClass = vestigeExecutor.classForName(systemClassLoader, "sun.awt.AppContext");
             vestigeExecutor.invoke(systemClassLoader, appContextClass.getMethod("getAppContext"), null);
         } catch (Exception e) {
-            // ignore
+            LOGGER.trace("sun.awt.AppContext.getAppContext call failed", e);
         }
+        LOGGER.debug("loading javax.security.auth.Policy");
         try {
             // keep the context classloader in static field
             vestigeExecutor.classForName(systemClassLoader, "javax.security.auth.Policy");
         } catch (Exception e) {
-            // ignore
+            LOGGER.trace("javax.security.auth.Policy load failed", e);
         }
+        LOGGER.debug("loading com.sun.org.apache.xerces.internal.dom.DOMNormalizer");
         try {
             // keep an exception in static field
             vestigeExecutor.classForName(systemClassLoader, "com.sun.org.apache.xerces.internal.dom.DOMNormalizer");
         } catch (Exception e) {
-            // ignore
+            LOGGER.trace("com.sun.org.apache.xerces.internal.dom.DOMNormalizer load failed", e);
         }
+        LOGGER.debug("loading com.sun.org.apache.xml.internal.serialize.DOMSerializerImpl");
         try {
             // keep an exception in static field
             vestigeExecutor.classForName(systemClassLoader, "com.sun.org.apache.xml.internal.serialize.DOMSerializerImpl");
         } catch (Exception e) {
-            // ignore
+            LOGGER.trace("com.sun.org.apache.xml.internal.serialize.DOMSerializerImpl load failed", e);
         }
+        LOGGER.debug("loading com.sun.org.apache.xerces.internal.parsers.AbstractDOMParser");
         try {
             // keep an exception in static field
             vestigeExecutor.classForName(systemClassLoader, "com.sun.org.apache.xerces.internal.parsers.AbstractDOMParser");
         } catch (Exception e) {
-            // ignore
+            LOGGER.trace("com.sun.org.apache.xerces.internal.parsers.AbstractDOMParser load failed", e);
         }
+        LOGGER.debug("loading javax.management.remote.JMXServiceURL");
         try {
             // keep an exception in static field
             vestigeExecutor.classForName(systemClassLoader, "javax.management.remote.JMXServiceURL");
         } catch (Exception e) {
-            // ignore
+            LOGGER.trace("javax.management.remote.JMXServiceURL load failed", e);
         }
+        LOGGER.debug("loading sun.java2d.Disposer");
         try {
             // create thread
             vestigeExecutor.classForName(systemClassLoader, "sun.java2d.Disposer");
         } catch (Exception e) {
-            // ignore
+            LOGGER.trace("sun.java2d.Disposer load failed", e);
         }
+        LOGGER.debug("calling javax.security.auth.login.Configuration.getConfiguration");
         try {
             // keep the context classloader in static field
             Class<?> configurationClass = vestigeExecutor.classForName(systemClassLoader, "javax.security.auth.login.Configuration");
             vestigeExecutor.invoke(systemClassLoader, configurationClass.getMethod("getConfiguration"), null);
         } catch (Throwable e) {
-            // ignore
+            LOGGER.trace("javax.security.auth.login.Configuration.getConfiguration call failed", e);
         }
+        LOGGER.debug("calling sun.security.jca.ProviderList.getService");
         try {
             // sun.security.pkcs11.SunPKCS11 create thread (with the context
             // classloader of parent thread) and sun.security.jca.Providers keep
@@ -196,23 +209,25 @@ public final class JVMEnhancer {
             Class<?> providerListClass = vestigeExecutor.classForName(systemClassLoader, "sun.security.jca.ProviderList");
             vestigeExecutor.invoke(systemClassLoader, providerListClass.getMethod("getService", String.class, String.class), providerList, "MessageDigest", "SHA");
         } catch (Exception e) {
-            // ignore
+            LOGGER.trace("sun.security.jca.ProviderList.getService call failed", e);
         }
+        LOGGER.debug("calling sun.misc.GC.requestLatency");
         try {
             // sun.misc.GC create thread (with the context classloader of parent
             // thread)
             Class<?> gcClass = vestigeExecutor.classForName(systemClassLoader, "sun.misc.GC");
             vestigeExecutor.invoke(systemClassLoader, gcClass.getMethod("requestLatency", long.class), null, Long.valueOf(Long.MAX_VALUE - 1));
         } catch (Exception e) {
-            // ignore
+            LOGGER.trace("sun.misc.GC.requestLatency call failed", e);
         }
+        LOGGER.debug("loading com.sun.jndi.ldap.LdapPoolManager");
         try {
             // com.sun.jndi.ldap.LdapPoolManager may create thread (with the
             // context
             // classloader of parent thread)
             vestigeExecutor.classForName(systemClassLoader, "com.sun.jndi.ldap.LdapPoolManager");
         } catch (Exception e) {
-            // ignore
+            LOGGER.trace("com.sun.jndi.ldap.LdapPoolManager load failed", e);
         }
 
         List<? extends ClassLoader> privilegedClassloaders;
@@ -234,24 +249,27 @@ public final class JVMEnhancer {
             VestigeClassLoader<Void> vestigeClassLoader = vestigeExecutor.createVestigeClassLoader(ClassLoader.getSystemClassLoader(),
                     Collections.singletonList(Collections.<VestigeClassLoader<Void>> singletonList(null)), stringParser, stringParser, urls);
 
+            LOGGER.debug("replacing java.lang.Thread.subclassAudits");
             try {
                 Class<?> weakSoftCacheClass = Class.forName(WeakSoftCache.class.getName());
                 setField(Thread.class.getDeclaredField("subclassAudits"), weakSoftCacheClass.newInstance());
             } catch (Exception e) {
-                // ignore
+                LOGGER.trace("java.lang.Thread.subclassAudits replacement failed", e);
             }
 
+            // keep levels in static field
+            LOGGER.debug("replacing java.util.logging.Level.known");
             try {
-                // keep levels in static field
-                try {
-                    Field declaredField = Level.class.getDeclaredField("known");
-                    List<Level> known = (List<Level>) getField(declaredField);
+                Field declaredField = Level.class.getDeclaredField("known");
+                List<Level> known = (List<Level>) getField(declaredField);
 
-                    Class<?> weakArrayListClass = vestigeClassLoader.loadClass(WeakArrayList.class.getName());
-                    List<Level> weakArrayList = (List<Level>) weakArrayListClass.getConstructor(Level.class).newInstance(Level.OFF);
-                    weakArrayList.addAll(known);
-                    setField(declaredField, weakArrayList);
-                } catch (NoSuchFieldException e) {
+                Class<?> weakArrayListClass = vestigeClassLoader.loadClass(WeakArrayList.class.getName());
+                List<Level> weakArrayList = (List<Level>) weakArrayListClass.getConstructor(Level.class).newInstance(Level.OFF);
+                weakArrayList.addAll(known);
+                setField(declaredField, weakArrayList);
+            } catch (NoSuchFieldException nsfe) {
+                LOGGER.debug("replacing java.util.logging.Level$KnownLevel");
+                try {
                     Class<?> forName = Class.forName("java.util.logging.Level$KnownLevel");
                     Field nameToLevelsField = forName.getDeclaredField("nameToLevels");
                     Field intToLevelsField = forName.getDeclaredField("intToLevels");
@@ -278,9 +296,11 @@ public final class JVMEnhancer {
                     }
                     setField(nameToLevelsField, nameToLevels);
                     setField(intToLevelsField, intToLevels);
+                } catch (Exception e) {
+                    LOGGER.trace("java.util.logging.Level$KnownLevel replacement failed", e);
                 }
             } catch (Exception e) {
-                // ignore
+                LOGGER.trace("java.util.logging.Level.known replacement failed", e);
             }
 
             String osName = System.getProperty("os.name").toLowerCase();
@@ -306,7 +326,7 @@ public final class JVMEnhancer {
                             try {
                                 vestigeExecutor.invoke(vestigeClassLoader, method, null, proxyUtilFile.getAbsolutePath());
                             } catch (Exception e) {
-                                // strange windows
+                                LOGGER.warn("Unable to load windows proxy accessor", e);
                             }
                         }
                     } else if (!mac) {
@@ -318,14 +338,14 @@ public final class JVMEnhancer {
                             try {
                                 vestigeExecutor.invoke(vestigeClassLoader, method, null, gsettingsFile.getAbsolutePath());
                             } catch (Exception e) {
-                                // no gsettings support on this OS
+                                LOGGER.warn("Unable to load linux proxy accessor", e);
                             }
                         }
                     }
 
                     // redirect log to JUL
                     Class<?> julBackendClass = vestigeClassLoader.loadClass(JULBackend.class.getName());
-                    Class<?> loggerClass = vestigeClassLoader.loadClass(Logger.class.getName());
+                    Class<?> loggerClass = vestigeClassLoader.loadClass(com.btr.proxy.util.Logger.class.getName());
                     loggerClass.getMethod("setBackend", vestigeClassLoader.loadClass(LogBackEnd.class.getName())).invoke(null, julBackendClass.newInstance());
 
                     ProxySelector proxySelector = ProxySelector.getDefault();
@@ -335,30 +355,25 @@ public final class JVMEnhancer {
                     ProxySelector.setDefault((ProxySelector) systemProxySelector);
                 }
             } catch (Throwable e) {
-                // ignore
+                LOGGER.warn("Unable to install proxy vole", e);
             }
 
             // install exit handler
-            try {
-                if (windows) {
+            if (windows) {
+                try {
                     String shutdownHookPath = properties.getProperty("shutdownHook." + arch);
                     if (shutdownHookPath != null) {
                         File shutdownHookFile = new File(directory, shutdownHookPath);
 
                         Class<?> windowsShutdownHookClass = vestigeClassLoader.loadClass(WindowsShutdownHook.class.getName());
                         Method method = windowsShutdownHookClass.getMethod("init", String.class);
-                        try {
-                            vestigeExecutor.invoke(vestigeClassLoader, method, null, shutdownHookFile.getAbsolutePath());
-                            addShutdownHook = (Function<Thread, Void, RuntimeException>) windowsShutdownHookClass.getField("ADD_SHUTDOWN_HOOK_FUNCTION").get(null);
-                            removeShutdownHook = (Function<Thread, Void, RuntimeException>) windowsShutdownHookClass.getField("REMOVE_SHUTDOWN_HOOK_FUNCTION").get(null);
-                        } catch (Exception e) {
-                            // use JVM shutdown hook
-                        }
+                        vestigeExecutor.invoke(vestigeClassLoader, method, null, shutdownHookFile.getAbsolutePath());
+                        addShutdownHook = (Function<Thread, Void, RuntimeException>) windowsShutdownHookClass.getField("ADD_SHUTDOWN_HOOK_FUNCTION").get(null);
+                        removeShutdownHook = (Function<Thread, Void, RuntimeException>) windowsShutdownHookClass.getField("REMOVE_SHUTDOWN_HOOK_FUNCTION").get(null);
                     }
-
+                } catch (Throwable e) {
+                    LOGGER.warn("Unable to install windows shutdown hook", e);
                 }
-            } catch (ClassNotFoundException e) {
-                // ignore
             }
             privilegedClassloaders = Collections.singletonList(vestigeClassLoader);
         }

@@ -45,11 +45,6 @@ public abstract class VestigePolicy extends Policy implements StackedHandler<Pol
     public VestigePolicy(final Policy nextHandler) {
         this.nextHandler = nextHandler;
         insideImplies = new ThreadLocal<Boolean>();
-//        try {
-//            Class.forName(Boolean.class.getName(), true, Boolean.class.getClassLoader());
-//        } catch (ClassNotFoundException e) {
-//            LOGGER.error("Boolean class not found", e);
-//        }
     }
 
     public abstract Policy getCurrentPolicy();
