@@ -31,6 +31,7 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.gaellalire.vestige.admin.command.VestigeCommandExecutor;
 import fr.gaellalire.vestige.admin.web.VestigeServlet;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
 import fr.gaellalire.vestige.edition.standard.schema.Bind;
@@ -47,13 +48,16 @@ public class WebServerFactory implements Callable<VestigeServer> {
 
     private ApplicationManager applicationManager;
 
+    private VestigeCommandExecutor vestigeCommandExecutor;
+
     @SuppressWarnings("unused")
     private File appHomeFile;
 
-    public WebServerFactory(final Web web, final ApplicationManager applicationManager, final File appHomeFile) {
+    public WebServerFactory(final Web web, final ApplicationManager applicationManager, final File appHomeFile, final VestigeCommandExecutor vestigeCommandExecutor) {
         this.web = web;
         this.applicationManager = applicationManager;
         this.appHomeFile = appHomeFile;
+        this.vestigeCommandExecutor = vestigeCommandExecutor;
     }
 
     public VestigeServer call() throws Exception {
@@ -82,7 +86,7 @@ public class WebServerFactory implements Callable<VestigeServer> {
         }
         webServer.setConnectors(connectors.toArray(new Connector[connectors.size()]));
         ServletHandler servletHandler = new ServletHandler();
-        servletHandler.addServletWithMapping(new ServletHolder(new VestigeServlet(applicationManager)), "/");
+        servletHandler.addServletWithMapping(new ServletHolder(new VestigeServlet(applicationManager, vestigeCommandExecutor)), "/");
 
 //        String contextPath = "webdav";
 //        HttpManagerBuilder httpManagerBuilder = new HttpManagerBuilder();

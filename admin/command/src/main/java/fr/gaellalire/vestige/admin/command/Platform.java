@@ -87,19 +87,29 @@ public class Platform implements Command {
             classloadersByCount.put(count, integer + 1);
         }
         List<Serializable> classLoaderKeys = vestigePlatform.getClassLoaderKeys();
-        out.println("Platform has " + classLoaderKeys.size() + " classloader(s) for " + attachments.size() + " attachment(s)");
+        int classLoaderKeysSize = classLoaderKeys.size();
+        out.print("Platform has " + classLoaderKeysSize + " classLoader");
+        if (classLoaderKeysSize > 1) {
+            out.print("s");
+        }
+        int attachmentsSize = attachments.size();
+        out.print(" for " + attachmentsSize + " attachment");
+        if (attachmentsSize > 1) {
+            out.print("s");
+        }
+        out.println();
         for (Entry<Integer, Integer> entry : classloadersByCount.entrySet()) {
             Integer key = entry.getKey();
             String classLoaders;
             if (entry.getValue().intValue() > 1) {
-                classLoaders = entry.getValue() + " classLoaders";
+                classLoaders = entry.getValue() + " classLoaders are";
             } else {
-                classLoaders = entry.getValue() + " classLoader";
+                classLoaders = entry.getValue() + " classLoader is";
             }
             if (key.intValue() == 1) {
-                out.println("  " + classLoaders + " are not shared");
+                out.println("  " + classLoaders + " not shared");
             } else {
-                out.println("  " + classLoaders + " are shared by " + key + " attachments");
+                out.println("  " + classLoaders + " shared by " + key + " attachments");
             }
         }
 
@@ -111,8 +121,13 @@ public class Platform implements Command {
             }
         }
 
-        if (unattached.size() != 0) {
-            out.println("Platform has " + unattached.size() + " classloader(s) without attachment but reusable:");
+        int unattachedSize = unattached.size();
+        if (unattachedSize != 0) {
+            out.print("Platform has " + unattachedSize + " classloader");
+            if (unattachedSize > 1) {
+                out.print("s");
+            }
+            out.println(" without attachment but reusable:");
             for (AttachedVestigeClassLoader attachedVestigeClassLoader : unattached) {
                 out.println("  " + attachedVestigeClassLoader);
             }

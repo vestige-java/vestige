@@ -33,6 +33,8 @@ import javax.servlet.http.HttpServletResponse;
 
 import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
+import net.minidev.json.JSONValue;
+import fr.gaellalire.vestige.admin.command.VestigeCommandExecutor;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
 import fr.gaellalire.vestige.application.manager.ApplicationManagerState;
@@ -47,8 +49,14 @@ public class VestigeServlet extends HttpServlet {
 
     private ApplicationManager applicationManager;
 
-    public VestigeServlet(final ApplicationManager applicationManager) {
+    private VestigeCommandExecutor vestigeCommandExecutor;
+
+    private WebTerminalCommandCompleter webTerminalCommandCompleter;
+
+    public VestigeServlet(final ApplicationManager applicationManager, final VestigeCommandExecutor vestigeCommandExecutor) {
         this.applicationManager = applicationManager;
+        this.vestigeCommandExecutor = vestigeCommandExecutor;
+        webTerminalCommandCompleter = new WebTerminalCommandCompleter(vestigeCommandExecutor.getCommandByNames());
     }
 
     @Override
@@ -192,6 +200,20 @@ public class VestigeServlet extends HttpServlet {
                         }
                     }
                     writer.print(jsonArray.toJSONString());
+                    writer.close();
+                    return;
+                } else if ("/complete".equals(requestURI)) {
+                    JSONArray candidates = new JSONArray();
+                    webTerminalCommandCompleter.complete(req.getParameter("buffer"), Integer.parseInt(req.getParameter("cursor")), candidates);
+                    PrintWriter writer = resp.getWriter();
+                    writer.print(candidates.toJSONString());
+                    writer.close();
+                    return;
+                } else if ("/execute".equals(requestURI)) {
+                    StringWriter outStringWriter = new StringWriter();
+                    vestigeCommandExecutor.exec(new PrintWriter(outStringWriter), req.getParameter("command").split("\\s+"));
+                    PrintWriter writer = resp.getWriter();
+                    writer.print(JSONValue.toJSONString(outStringWriter.toString()));
                     writer.close();
                     return;
                 }

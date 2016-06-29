@@ -56,6 +56,11 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>vestige.admin.command</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>vestige.resolver.maven</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>

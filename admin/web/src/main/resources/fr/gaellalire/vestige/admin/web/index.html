@@ -4,8 +4,10 @@
 <title>Vestige Admin</title>
 <link rel="icon" type="image/x-icon" href="favicon.ico" />
 <link rel="stylesheet" href="jquery-ui.css" />
+<link rel="stylesheet" href="jquery.terminal-0.10.12.css" />
 <script src="external/jquery/jquery.js"></script>
 <script src="jquery-ui.js"></script>
+<script src="jquery.terminal-0.10.12.js"></script>
 <!-- <script src="jqueryui-ext.js"></script> -->
 <script src="vestige.js"></script>
 <style>
@@ -94,6 +96,10 @@ body {
   <div id="loading-div" class="ui-corner-all">
     <img src="load.gif" alt="Loading.." />
   </div>
+  <div id="dialog-terminal" title="Terminal">
+    <div id="term_demo">
+    </div>
+  </div>
   <div id="dialog-message" title="Error"></div>
   <div id="dialog-addrepo" class="dialog" title="Add repository">
     <form>
@@ -125,6 +131,7 @@ body {
   <button id="refresh">Refresh</button>
   <button id="install_app">Install application...</button>
   <button id="update_all">Update all applications</button>
+  <button id="open_term">Open web terminal</button>
   <br>
   <br>
   <div id="tabs">

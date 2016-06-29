@@ -38,7 +38,24 @@ public class DefaultApplicationManagerState implements Serializable, Application
 
     private Map<String, ApplicationContext> applicationContextByInstallName = new TreeMap<String, ApplicationContext>();
 
-    private Map<String, URL> urlByRepo = new TreeMap<String, URL>();
+    /**
+     * @author Gael Lalire
+     */
+    private static class RepositoryContext implements Serializable {
+
+        private static final long serialVersionUID = 2258200173138779520L;
+
+        private URL url;
+
+        private int applicationCount;
+
+        public RepositoryContext(final URL url) {
+            this.url = url;
+        }
+
+    }
+
+    private Map<String, RepositoryContext> urlByRepo = new TreeMap<String, RepositoryContext>();
 
     // read only
 
@@ -51,7 +68,7 @@ public class DefaultApplicationManagerState implements Serializable, Application
     }
 
     public URL getRepositoryURL(final String repoName) {
-        return urlByRepo.get(repoName);
+        return urlByRepo.get(repoName).url;
     }
 
     public ApplicationContext getApplication(final String installName) throws ApplicationException {
@@ -73,26 +90,32 @@ public class DefaultApplicationManagerState implements Serializable, Application
     // state change
 
     public void removeRepository(final String name) throws ApplicationException {
-        URL remove = urlByRepo.remove(name);
+        RepositoryContext remove = urlByRepo.get(name);
         if (remove == null) {
             throw new ApplicationException("Repository do not exists");
         }
+        if (remove.applicationCount != 0) {
+            throw new ApplicationException("Cannot remove repository while at least one application use it");
+        }
+        urlByRepo.remove(name);
     }
 
     public void uninstall(final String installName) throws ApplicationException {
-        applicationContextByInstallName.remove(installName);
+        ApplicationContext applicationContext = applicationContextByInstallName.remove(installName);
+        urlByRepo.get(applicationContext.getRepoName()).applicationCount--;
     }
 
     public void install(final String installName, final ApplicationContext applicationContext) throws ApplicationException {
         applicationContextByInstallName.put(installName, applicationContext);
+        urlByRepo.get(applicationContext.getRepoName()).applicationCount++;
     }
 
 
     public void createRepository(final String name, final URL url) throws ApplicationException {
-        URL old = urlByRepo.put(name, url);
+        RepositoryContext old = urlByRepo.put(name, new RepositoryContext(url));
         if (old != null) {
             urlByRepo.put(name, old);
-            throw new ApplicationException("Repository with url " + url + " already exists");
+            throw new ApplicationException("Repository with name " + name + " already exists");
         }
     }
 

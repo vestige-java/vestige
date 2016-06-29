@@ -21,8 +21,8 @@ import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.List;
 
-import fr.gaellalire.vestige.admin.command.argument.LocalApplicationNameArgument;
 import fr.gaellalire.vestige.admin.command.argument.Argument;
+import fr.gaellalire.vestige.admin.command.argument.LocalApplicationNameArgument;
 import fr.gaellalire.vestige.admin.command.argument.VersionArgument;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
@@ -35,8 +35,6 @@ public class Migrate implements Command {
     private ApplicationManager applicationManager;
 
     private LocalApplicationNameArgument applicationArgument;
-
-    private VersionArgument fromVersionArgument;
 
     private VersionArgument toVersionArgument;
 
@@ -55,7 +53,7 @@ public class Migrate implements Command {
     }
 
     public List<Argument> getArguments() {
-        return Arrays.asList(applicationArgument, fromVersionArgument, toVersionArgument);
+        return Arrays.asList(applicationArgument, toVersionArgument);
     }
 
     public void execute(final PrintWriter out) {

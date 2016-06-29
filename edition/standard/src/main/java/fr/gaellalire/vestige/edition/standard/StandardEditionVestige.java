@@ -209,8 +209,10 @@ public class StandardEditionVestige implements Runnable {
             PrivateWhiteListVestigePolicy whiteListVestigePolicy = new PrivateWhiteListVestigePolicy();
             // So AccessController.doPrivileged will work in JVM and privileged classes
             whiteListVestigePolicy.addSafeClassLoader(ClassLoader.getSystemClassLoader());
-            for (ClassLoader privilegedClassloader : privilegedClassloaders) {
-                whiteListVestigePolicy.addSafeClassLoader(privilegedClassloader);
+            if (privilegedClassloaders != null) {
+                for (ClassLoader privilegedClassloader : privilegedClassloaders) {
+                    whiteListVestigePolicy.addSafeClassLoader(privilegedClassloader);
+                }
             }
 
             vestigeSystem.setWhiteListPolicy(whiteListVestigePolicy);
@@ -293,7 +295,7 @@ public class StandardEditionVestige implements Runnable {
         Future<VestigeServer> futureWebServer = null;
         Web web = admin.getWeb();
         if (web.isEnabled()) {
-            futureWebServer = executorService.submit(new WebServerFactory(web, defaultApplicationManager, baseFile));
+            futureWebServer = executorService.submit(new WebServerFactory(web, defaultApplicationManager, baseFile, vestigeCommandExecutor));
             List<Bind> binds = web.getBind();
             for (Bind bind : binds) {
                 String host = bind.getHost();

@@ -551,5 +551,61 @@ $(function() {
         }
         
     }
+    
+    var dialogTerminal = $("#dialog-terminal").dialog({
+    	width : 1000,
+    	height : 620,
+        autoOpen : false,
+        modal : true,
+    });
+
+    
+    var termVar = $('#term_demo').terminal(function(command, term) {
+        if (command !== '') {
+            $.ajax({
+                url : "execute",
+                type : "post",
+                data : {
+                    "command" : command
+                },
+                dataType : "json"
+            }).done(function(data) {
+                term.echo(data);
+            });
+        } else {
+           term.echo('');
+        }
+    }, {
+        greetings: null,
+        name: null,
+        prompt: 'vestige:~ admin$ ',
+        clear: null,
+        exit: null,
+        completion: function(term, buffer, pos, update) {
+            $.ajax({
+                url : "complete",
+                type : "post",
+                data : {
+                    "buffer" : buffer,
+                    "cursor" : pos
+                },
+                dataType : "json"
+            }).done(function(data) {
+                update(data);
+            });
+        },
+    }).attr({
+		tabIndex: 0
+	}).focusin(function() {
+    	termVar.focus(true);
+    }).focusout(function() {
+    	termVar.focus(false);
+    })
+    
+    $("#open_term").button().click(function(e) {
+    	dialogTerminal.dialog("open");
+        e.stopPropagation();
+    });
+    
 
 });
