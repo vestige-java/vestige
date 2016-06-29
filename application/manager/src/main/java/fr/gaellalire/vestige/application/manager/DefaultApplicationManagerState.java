@@ -41,7 +41,7 @@ public class DefaultApplicationManagerState implements Serializable, Application
     /**
      * @author Gael Lalire
      */
-    private static class RepositoryContext implements Serializable {
+    private static final class RepositoryContext implements Serializable {
 
         private static final long serialVersionUID = 2258200173138779520L;
 
@@ -49,7 +49,7 @@ public class DefaultApplicationManagerState implements Serializable, Application
 
         private int applicationCount;
 
-        public RepositoryContext(final URL url) {
+        private RepositoryContext(final URL url) {
             this.url = url;
         }
 
