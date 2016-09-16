@@ -29,6 +29,7 @@ import org.apache.sshd.server.ExitCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.gaellalire.vestige.admin.command.DefaultCommandContext;
 import fr.gaellalire.vestige.admin.command.VestigeCommandExecutor;
 
 /**
@@ -82,6 +83,8 @@ public class SSHExecCommand implements Command, Runnable {
     }
 
     public void run() {
+        DefaultCommandContext defaultCommandContext = new DefaultCommandContext();
+        defaultCommandContext.setOut(out);
         try {
             try {
                 String[] lineArray = lines.split("\\r?\\n");
@@ -90,7 +93,7 @@ public class SSHExecCommand implements Command, Runnable {
                     if (args.length == 0) {
                         continue;
                     }
-                    vestigeCommand.exec(out, args);
+                    vestigeCommand.exec(defaultCommandContext, args);
                 }
                 callback.onExit(0);
             } finally {

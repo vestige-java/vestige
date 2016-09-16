@@ -17,7 +17,6 @@
 
 package fr.gaellalire.vestige.admin.command;
 
-import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.List;
 
@@ -25,6 +24,7 @@ import fr.gaellalire.vestige.admin.command.argument.Argument;
 import fr.gaellalire.vestige.admin.command.argument.RepositoryArgument;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
+import fr.gaellalire.vestige.job.JobController;
 
 /**
  * @author Gael Lalire
@@ -52,12 +52,13 @@ public class RemoveRepo implements Command {
         return Collections.singletonList(repositoryArgument);
     }
 
-    public void execute(final PrintWriter out) {
+    public JobController execute(final CommandContext commandContext) {
         try {
             applicationManager.removeRepository(repositoryArgument.getRepository());
         } catch (ApplicationException e) {
-            e.printStackTrace(out);
+            e.printStackTrace(commandContext.getOut());
         }
+        return null;
     }
 
 }

@@ -37,7 +37,7 @@ public class AttachedVestigeClassLoader {
 
     private String urls;
 
-    private List<String> startStopClasses;
+    // private List<String> startStopClasses;
 
     private String name;
 
@@ -48,11 +48,11 @@ public class AttachedVestigeClassLoader {
     }
 
     public AttachedVestigeClassLoader(final VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader, final List<AttachedVestigeClassLoader> dependencies,
-            final String urls, final List<String> startStopClasses, final String name, final boolean attachmentScoped) {
+            final String urls, /* final List<String> startStopClasses,*/ final String name, final boolean attachmentScoped) {
         this.vestigeClassLoader = vestigeClassLoader;
         this.dependencies = dependencies;
         this.urls = urls;
-        this.startStopClasses = startStopClasses;
+        // this.startStopClasses = startStopClasses;
         this.name = name;
         this.attachmentScoped = attachmentScoped;
         objects = new ArrayList<Object>();
@@ -82,9 +82,11 @@ public class AttachedVestigeClassLoader {
         return urls;
     }
 
+    /*
     public List<String> getStartStopClasses() {
         return startStopClasses;
     }
+    */
 
     public void addObject(final Object o) {
         objects.add(o);

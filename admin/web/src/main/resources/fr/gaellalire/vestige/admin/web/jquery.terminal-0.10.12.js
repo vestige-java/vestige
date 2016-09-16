@@ -4989,6 +4989,9 @@
                 });*/
             }
             self.click(function(e) {
+        		if (self.paused()) {
+        			return;
+        		}
                 if (!self.enabled()) {
                     self.focus();
                 } else if (is_touch) {

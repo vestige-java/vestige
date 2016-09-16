@@ -27,6 +27,8 @@ import java.util.TreeMap;
 import fr.gaellalire.vestige.admin.command.argument.Argument;
 import fr.gaellalire.vestige.admin.command.argument.ParseException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
+import fr.gaellalire.vestige.job.JobController;
+import fr.gaellalire.vestige.job.JobManager;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 
 /**
@@ -36,11 +38,11 @@ public class VestigeCommandExecutor {
 
     private Map<String, Command> commandByNames;
 
-    public VestigeCommandExecutor(final ApplicationManager applicationManager, final VestigePlatform vestigePlatform) {
-        List<Command> commands = Arrays.asList(new Memory(), new GC(), new ForceGC(), new Install(applicationManager), new MakeRepo(applicationManager),
-                new RemoveRepo(applicationManager), new Start(applicationManager), new Stop(applicationManager), new Uninstall(
-                        applicationManager), new ListCommand(applicationManager), new AutoMigrate(applicationManager),
-                new AutoMigrateLevel(applicationManager), new Migrate(applicationManager), new ClassLoaders(applicationManager), new Platform(vestigePlatform), new AutoStart(applicationManager));
+    public VestigeCommandExecutor(final JobManager jobManager, final ApplicationManager applicationManager, final VestigePlatform vestigePlatform) {
+        List<Command> commands = Arrays.asList(new Memory(), new GC(), new ForceGC(), new Install(applicationManager), new MakeRepo(applicationManager), new RemoveRepo(
+                applicationManager), new Start(applicationManager), new Stop(applicationManager), new Uninstall(applicationManager), new ListCommand(applicationManager),
+                new AutoMigrate(applicationManager), new AutoMigrateLevel(applicationManager), new Migrate(applicationManager), new ClassLoaders(applicationManager), new Platform(
+                        vestigePlatform), new AutoStart(applicationManager), new PSCommand(jobManager), new Kill(jobManager));
         commandByNames = new TreeMap<String, Command>();
         for (Command command : commands) {
             commandByNames.put(command.getName(), command);
@@ -55,16 +57,17 @@ public class VestigeCommandExecutor {
         return commandByNames;
     }
 
-    public void exec(final PrintWriter out, final String... args) {
+    public JobController exec(final CommandContext commandContext, final String... args) {
         if (args.length == 0) {
-            return;
+            return null;
         }
+        PrintWriter out = commandContext.getOut();
         if (args[0].equals("help")) {
             if (args.length != 1) {
                 Command command = commandByNames.get(args[1]);
                 if (command == null) {
                     out.println("no help found for command: " + args[1]);
-                    return;
+                    return null;
                 }
                 out.print("SYNOPSIS: ");
                 out.print(command.getName());
@@ -89,49 +92,51 @@ public class VestigeCommandExecutor {
                 }
                 out.println("Type `help <command>' for more information");
             }
-            return;
+            return null;
         }
         Command command = commandByNames.get(args[0]);
         if (command == null) {
             out.println("command not found: " + args[0]);
             out.println("Type `help' for command listing");
-            return;
+            return null;
         }
-        int i = 1;
-        try {
-            for (Argument argument : command.getArguments()) {
-                if (i == args.length) {
-                    out.println("Missing arg : " + argument.getName());
-                    out.println("`help " + command.getName() + "' for more information");
-                    return;
-                }
-                try {
-                    argument.parse(args[i]);
-                } catch (ParseException e) {
-                    e.printStackTrace(out);
-                    Collection<String> propose;
-                    try {
-                        propose = argument.propose();
-                        if (propose != null) {
-                            if (propose.size() == 0) {
-                                out.println("No valid value");
-                            } else {
-                                out.println("Valid values are " + propose);
-                            }
-                        }
-                    } catch (ParseException pe) {
-                        out.println("Unable to get valid value");
-                        pe.printStackTrace(out);
+        synchronized (command) {
+            int i = 1;
+            try {
+                for (Argument argument : command.getArguments()) {
+                    if (i == args.length) {
+                        out.println("Missing arg : " + argument.getName());
+                        out.println("`help " + command.getName() + "' for more information");
+                        return null;
                     }
-                    out.println("`help " + command.getName() + "' for more information");
-                    return;
+                    try {
+                        argument.parse(args[i]);
+                    } catch (ParseException e) {
+                        e.printStackTrace(out);
+                        Collection<String> propose;
+                        try {
+                            propose = argument.propose();
+                            if (propose != null) {
+                                if (propose.size() == 0) {
+                                    out.println("No valid value");
+                                } else {
+                                    out.println("Valid values are " + propose);
+                                }
+                            }
+                        } catch (ParseException pe) {
+                            out.println("Unable to get valid value");
+                            pe.printStackTrace(out);
+                        }
+                        out.println("`help " + command.getName() + "' for more information");
+                        return null;
+                    }
+                    i++;
                 }
-                i++;
-            }
-            command.execute(out);
-        } finally {
-            for (Argument argument : command.getArguments()) {
-                argument.reset();
+                return command.execute(commandContext);
+            } finally {
+                for (Argument argument : command.getArguments()) {
+                    argument.reset();
+                }
             }
         }
     }

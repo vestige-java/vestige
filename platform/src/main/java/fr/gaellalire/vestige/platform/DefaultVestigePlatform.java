@@ -17,11 +17,8 @@
 
 package fr.gaellalire.vestige.platform;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.Serializable;
 import java.lang.ref.WeakReference;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,12 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.jar.Attributes;
-import java.util.jar.JarInputStream;
-import java.util.jar.Manifest;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import fr.gaellalire.vestige.core.VestigeClassLoader;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;
@@ -53,9 +44,9 @@ public class DefaultVestigePlatform implements VestigePlatform {
 
     private static final List<List<VestigeClassLoader<?>>> NO_DEPENDENCY_LIST = Collections.singletonList(Collections.<VestigeClassLoader<?>> singletonList(null));
 
-    public static final String STARTSTOP_CLASS = "StartStop-Class";
+    // public static final String STARTSTOP_CLASS = "StartStop-Class";
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultVestigePlatform.class);
+    // private static final Logger LOGGER = LoggerFactory.getLogger(DefaultVestigePlatform.class);
 
     private List<AttachedVestigeClassLoader> attached = new ArrayList<AttachedVestigeClassLoader>();
 
@@ -63,7 +54,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
 
     private List<WeakReference<AttachedVestigeClassLoader>> unattached = new ArrayList<WeakReference<AttachedVestigeClassLoader>>();
 
-    private List<Boolean> started = new ArrayList<Boolean>();
+    // private List<Boolean> started = new ArrayList<Boolean>();
 
     private Map<Serializable, WeakReference<AttachedVestigeClassLoader>> map = new HashMap<Serializable, WeakReference<AttachedVestigeClassLoader>>();
 
@@ -111,11 +102,11 @@ public class DefaultVestigePlatform implements VestigePlatform {
             }
         }
         if (id == size) {
-            started.add(Boolean.FALSE);
+            // started.add(Boolean.FALSE);
             attachedClassLoaders.add(list);
             attached.add(load);
         } else {
-            started.set(id, Boolean.FALSE);
+            // started.set(id, Boolean.FALSE);
             attachedClassLoaders.set(id, list);
             attached.set(id, load);
         }
@@ -134,11 +125,11 @@ public class DefaultVestigePlatform implements VestigePlatform {
         }
         AttachedVestigeClassLoader load = classLoader.getData();
         if (id == size) {
-            started.add(Boolean.FALSE);
+            // started.add(Boolean.FALSE);
             attachedClassLoaders.add(null);
             attached.add(load);
         } else {
-            started.set(id, Boolean.FALSE);
+            // started.set(id, Boolean.FALSE);
             attachedClassLoaders.set(id, null);
             attached.set(id, load);
         }
@@ -147,24 +138,23 @@ public class DefaultVestigePlatform implements VestigePlatform {
     }
 
     public void detach(final int id) {
-        stop(id);
         int last = attached.size() - 1;
         List<WeakReference<AttachedVestigeClassLoader>> unattachedVestigeClassLoaders;
         if (id == last) {
             unattachedVestigeClassLoaders = attachedClassLoaders.remove(last);
             attached.remove(last);
-            started.remove(last);
+            // started.remove(last);
             last--;
             while (last >= 0 && attached.get(last) == null) {
                 attachedClassLoaders.remove(last);
                 attached.remove(last);
-                started.remove(last);
+                // started.remove(last);
                 last--;
             }
         } else {
             unattachedVestigeClassLoaders = attachedClassLoaders.set(id, null);
             attached.set(id, null);
-            started.set(id, null);
+            // started.set(id, null);
         }
         if (unattachedVestigeClassLoaders != null) {
             unattached.addAll(unattachedVestigeClassLoaders);
@@ -172,11 +162,12 @@ public class DefaultVestigePlatform implements VestigePlatform {
         clean();
     }
 
+    /*
     public boolean isStarted(final int id) {
         return started.get(id);
     }
 
-    public void start(final int id) {
+    public void start(final int id) throws InterruptedException {
         AttachedVestigeClassLoader vestigeClassLoaders = attached.get(id);
         if (!started.get(id)) {
             load(vestigeClassLoaders);
@@ -184,13 +175,14 @@ public class DefaultVestigePlatform implements VestigePlatform {
         }
     }
 
-    public void stop(final int id) {
+    public void stop(final int id) throws InterruptedException {
         AttachedVestigeClassLoader vestigeClassLoaders = attached.get(id);
         if (started.get(id)) {
             unload(vestigeClassLoaders);
             started.set(id, Boolean.FALSE);
         }
     }
+    */
 
     public List<Serializable> getClassLoaderKeys() {
         clean();
@@ -225,7 +217,8 @@ public class DefaultVestigePlatform implements VestigePlatform {
         return attached.get(id);
     }
 
-    private void unload(final AttachedVestigeClassLoader attachedVestigeClassLoader) {
+    /*
+    private void unload(final AttachedVestigeClassLoader attachedVestigeClassLoader) throws InterruptedException {
         VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader = attachedVestigeClassLoader.getVestigeClassLoader();
         if (removeAttachment(vestigeClassLoader)) {
             // stop method
@@ -237,6 +230,8 @@ public class DefaultVestigePlatform implements VestigePlatform {
                         Class<?> loadClass = vestigeClassLoader.loadClass(startStopClass);
                         Method method = loadClass.getDeclaredMethod("stop");
                         vestigeExecutor.invoke(vestigeClassLoader, method, null);
+                    } catch (InterruptedException e) {
+                        throw e;
                     } catch (NoSuchMethodException e) {
                         LOGGER.debug("No stop method found", e);
                     } catch (Exception e) {
@@ -252,7 +247,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
         }
     }
 
-    private void load(final AttachedVestigeClassLoader attachedVestigeClassLoader) {
+    private void load(final AttachedVestigeClassLoader attachedVestigeClassLoader) throws InterruptedException {
         for (AttachedVestigeClassLoader dep : attachedVestigeClassLoader.getDependencies()) {
             load(dep);
         }
@@ -267,6 +262,8 @@ public class DefaultVestigePlatform implements VestigePlatform {
                         Class<?> loadClass = vestigeClassLoader.loadClass(startStopClass);
                         Method method = loadClass.getDeclaredMethod("start");
                         vestigeExecutor.invoke(vestigeClassLoader, method, null);
+                    } catch (InterruptedException e) {
+                        throw e;
                     } catch (NoSuchMethodException e) {
                         LOGGER.debug("No start method found", e);
                     } catch (Exception e) {
@@ -278,6 +275,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
             }
         }
     }
+    */
 
     public VestigeClassLoader<AttachedVestigeClassLoader> convertPath(final int path, final AttachedVestigeClassLoader attachedVestigeClassLoader,
             final ClassLoaderConfiguration conf) {
@@ -356,6 +354,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
             vestigeClassLoader = vestigeExecutor.createVestigeClassLoader(ClassLoader.getSystemClassLoader(), convert(attachedVestigeClassLoader, classLoaderConfiguration),
                     classStringParser, resourceStringParser, urls);
 
+            /*
             List<String> classes = new ArrayList<String>();
             for (URL url : urls) {
                 try {
@@ -398,10 +397,11 @@ public class DefaultVestigePlatform implements VestigePlatform {
                     LOGGER.warn("META-INF/MANIFEST.MF issue", e);
                 }
             }
+            */
             if (classLoaderConfiguration.isAttachmentScoped()) {
                 name = name + " @ " + Integer.toHexString(System.identityHashCode(attachmentMap));
             }
-            attachedVestigeClassLoader = new AttachedVestigeClassLoader(vestigeClassLoader, classLoaderDependencies, Arrays.toString(urls), classes, name,
+            attachedVestigeClassLoader = new AttachedVestigeClassLoader(vestigeClassLoader, classLoaderDependencies, Arrays.toString(urls), /*classes,*/ name,
                     classLoaderConfiguration.isAttachmentScoped());
             vestigeClassLoader.setData(attachedVestigeClassLoader);
             if (classLoaderConfiguration.isAttachmentScoped()) {

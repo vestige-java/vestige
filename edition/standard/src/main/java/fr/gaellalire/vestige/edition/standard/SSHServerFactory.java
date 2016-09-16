@@ -51,14 +51,17 @@ public class SSHServerFactory implements Callable<VestigeServer> {
 
     private File sshBase;
 
+    private File sshData;
+
     private SSH ssh;
 
     private File appHomeFile;
 
     private VestigeCommandExecutor vestigeCommandExecutor;
 
-    public SSHServerFactory(final File sshBase, final SSH ssh, final File appHomeFile, final VestigeCommandExecutor vestigeCommandExecutor) {
+    public SSHServerFactory(final File sshBase, final File sshData, final SSH ssh, final File appHomeFile, final VestigeCommandExecutor vestigeCommandExecutor) {
         this.sshBase = sshBase;
+        this.sshData = sshData;
         this.ssh = ssh;
         this.appHomeFile = appHomeFile;
         this.vestigeCommandExecutor = vestigeCommandExecutor;
@@ -89,7 +92,11 @@ public class SSHServerFactory implements Callable<VestigeServer> {
 
         sshServer.setSubsystemFactories(Collections.<NamedFactory<Command>> singletonList(new SftpSubsystem.Factory()));
 
-        sshServer.setShellFactory(new SSHShellCommandFactory(vestigeCommandExecutor));
+        if (!sshData.isDirectory()) {
+            sshData.mkdirs();
+        }
+
+        sshServer.setShellFactory(new SSHShellCommandFactory(vestigeCommandExecutor, new File(sshData, "history.txt")));
         sshServer.setKeyPairProvider(keyPairProvider);
         File authorizedKeysFile = new File(sshBase, "authorized_keys");
         if (!authorizedKeysFile.exists()) {

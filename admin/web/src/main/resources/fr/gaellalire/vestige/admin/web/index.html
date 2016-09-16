@@ -1,3 +1,4 @@
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -33,69 +34,25 @@ body {
 	width: 95%;
 }
 
-#loading-div-background {
-	display: none;
-	position: fixed;
-	top: 0;
-	left: 0;
-	background-color: #AAA;
-	width: 100%;
-	height: 100%;
-	opacity: 0.3;
-	z-index: 998;
+.ui-progressbar {
+    position: relative;
+    vertical-align: middle;
+    line-height: 2em;
 }
 
-* html #loading-div-background { /* only ie6 : hack position fixe */
-	filter: alpha(opacity = 30);
+.progress-label {
+    width: 100%;
 	position: absolute;
-	top: expression(( document.documentElement.scrollTop ||  
-		 document.body.scrollTop)+ this.offsetHeight- this.offsetHeight);
-	left: expression(( document.documentElement.scrollLeft ||  
-		 document.body.scrollLeft)+ this.offsetWidth- this.offsetWidth);
 }
 
-#loading-div {
-	display: none;
-	width: 32px;
-	height: 32px;
-	background-color: #ffffff;
-	text-align: center;
-	position: absolute;
-	left: 50%;
-	top: 50%;
-	margin-left: -16px;
-	margin-top: -16px;
-	z-index: 999;
+.no-close .ui-dialog-titlebar-close {
+    display: none;
 }
 
-.ui-combobox {
-	position: relative;
-	display: inline-block;
-}
-
-.ui-combobox-toggle {
-	position: absolute;
-	top: 0;
-	bottom: 0;
-	margin-left: -1px;
-	padding: 0;
-	/* adjust styles for IE 6/7 */
-	*height: 1.7em;
-	*top: 0.1em;
-}
-
-.ui-combobox-input {
-	margin: 0;
-	padding: 0.3em;
-}
 </style>
 </head>
 <body>
   <h1>Vestige Admin</h1>
-  <div id="loading-div-background"></div>
-  <div id="loading-div" class="ui-corner-all">
-    <img src="load.gif" alt="Loading.." />
-  </div>
   <div id="dialog-terminal" title="Terminal">
     <div id="term_demo">
     </div>
@@ -121,6 +78,10 @@ body {
         <label for="dialog-install-local">Choose local application name</label> <input  id="dialog-install-local" />
       </div>
   </div>
+  
+  <div id="dialog-job" title="Job">
+    <div id="dialog-job-progressbars"></div>
+  </div>
   <div id="dialog-migrate" class="dialog" title="Migrate">
     <form>
       <fieldset class="ui-helper-reset">
@@ -128,7 +89,6 @@ body {
       </fieldset>
     </form>
   </div>
-  <button id="refresh">Refresh</button>
   <button id="install_app">Install application...</button>
   <button id="update_all">Update all applications</button>
   <button id="open_term">Open web terminal</button>

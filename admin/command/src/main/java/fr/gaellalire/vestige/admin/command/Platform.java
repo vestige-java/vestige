@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 import fr.gaellalire.vestige.admin.command.argument.Argument;
+import fr.gaellalire.vestige.job.JobController;
 import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 
@@ -64,7 +65,8 @@ public class Platform implements Command {
         }
     }
 
-    public void execute(final PrintWriter out) {
+    public JobController execute(final CommandContext commandContext) {
+        PrintWriter out = commandContext.getOut();
         Map<AttachedVestigeClassLoader, Integer> map = new HashMap<AttachedVestigeClassLoader, Integer>();
         Set<Integer> attachments = vestigePlatform.getAttachments();
         for (Integer integer : attachments) {
@@ -147,6 +149,7 @@ public class Platform implements Command {
                 out.println("  " + attachedVestigeClassLoader);
             }
         }
+        return null;
     }
 
 }

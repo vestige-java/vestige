@@ -24,16 +24,12 @@ import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryMetadata;
+import fr.gaellalire.vestige.job.JobHelper;
 
 /**
  * @author Gael Lalire
  */
 public class PropertiesApplicationDescriptorFactory implements ApplicationRepositoryManager {
-
-    public ApplicationDescriptor createApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version)
-            throws ApplicationException {
-        return new PropertiesApplicationDescriptor();
-    }
 
     @Override
     public boolean hasApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version) throws ApplicationException {
@@ -43,6 +39,13 @@ public class PropertiesApplicationDescriptorFactory implements ApplicationReposi
 
     @Override
     public ApplicationRepositoryMetadata getMetadata(final URL context) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public ApplicationDescriptor createApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version, final JobHelper actionHelper)
+            throws ApplicationException {
         // TODO Auto-generated method stub
         return null;
     }

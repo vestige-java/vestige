@@ -17,11 +17,11 @@
 
 package fr.gaellalire.vestige.admin.command;
 
-import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.List;
 
 import fr.gaellalire.vestige.admin.command.argument.Argument;
+import fr.gaellalire.vestige.job.JobController;
 
 /**
  * @author Gael Lalire
@@ -53,12 +53,13 @@ public class Memory implements Command {
         return "Show used and free memory";
     }
 
-    public void execute(final PrintWriter out) {
+    public JobController execute(final CommandContext commandContext) {
         Runtime runtime = Runtime.getRuntime();
         long totalMemory = runtime.totalMemory();
         long freeMemory = runtime.freeMemory();
-        out.println(memory(totalMemory - freeMemory) + " / " + memory(totalMemory) + " (max "
+        commandContext.getOut().println(memory(totalMemory - freeMemory) + " / " + memory(totalMemory) + " (max "
                 + memory(runtime.maxMemory()) + ")");
+        return null;
     }
 
 }

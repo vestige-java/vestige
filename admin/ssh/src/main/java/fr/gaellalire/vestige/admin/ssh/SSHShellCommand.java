@@ -17,19 +17,31 @@
 
 package fr.gaellalire.vestige.admin.ssh;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 
 import jline.console.ConsoleReader;
+import jline.console.UserInterruptException;
+import jline.console.history.FileHistory;
 
+import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.sshd.server.Command;
 import org.apache.sshd.server.Environment;
 import org.apache.sshd.server.ExitCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import fr.gaellalire.vestige.admin.command.DefaultCommandContext;
+import fr.gaellalire.vestige.job.JobController;
+import fr.gaellalire.vestige.job.JobListener;
+import fr.gaellalire.vestige.job.TaskListener;
 
 /**
  * @author Gael Lalire
@@ -40,9 +52,11 @@ public class SSHShellCommand implements Command, Runnable {
 
     private static final AtomicInteger THREAD_COUNT = new AtomicInteger(0);
 
+    private static final AtomicInteger INPUT_STREAM_THREAD_COUNT = new AtomicInteger(0);
+
     private InputStream in;
 
-    private OutputStream outs;
+    private LineFilterOutputStream outs;
 
     private PrintWriter out;
 
@@ -54,14 +68,124 @@ public class SSHShellCommand implements Command, Runnable {
 
     private SSHShellCommandFactory commandFactory;
 
-    public SSHShellCommand(final SSHShellCommandFactory commandFactory) {
+    private File historyFile;
+
+    public SSHShellCommand(final SSHShellCommandFactory commandFactory, final File historyFile) {
         this.commandFactory = commandFactory;
+        this.historyFile = historyFile;
     }
 
+    public static final int CTRL_C = 3;
+
+    public static final int CTRL_Z = 26;
+
+    /**
+     * @author Gael Lalire
+     */
+    private class AsyncInputStream extends InputStream implements Runnable {
+
+        private volatile boolean asyncMode;
+
+        private ByteArrayOutputStream byteArrayOutputStream;
+
+        private Thread thread;
+
+        public AsyncInputStream() {
+            byteArrayOutputStream = new ByteArrayOutputStream();
+            thread = new Thread(this, "vestige-shell-stream" + INPUT_STREAM_THREAD_COUNT.incrementAndGet());
+            thread.start();
+        }
+
+        private volatile byte[] byteArray;
+
+        private volatile int pos;
+
+        private volatile boolean reading;
+
+        @Override
+        public void run() {
+            while (true) {
+                if (!asyncMode) {
+                    pos = 0;
+                    byteArray = byteArrayOutputStream.toByteArray();
+                    byteArrayOutputStream.reset();
+                    if (readThread != null) {
+                        LockSupport.unpark(readThread);
+                    }
+                    LockSupport.park();
+                    continue;
+                }
+                reading = true;
+                try {
+                    int read = in.read();
+                    if (!asyncMode) {
+                        byteArrayOutputStream.write(read);
+                        continue;
+                    }
+                    if (read == CTRL_C) {
+                        jobController.interrupt();
+                        out.println("^C");
+                        out.flush();
+                    } else if (read == CTRL_Z) {
+                        jobController = null;
+                        out.println("^Z");
+                        out.flush();
+                        asyncMode = false;
+                        LockSupport.unpark(SSHShellCommand.this.thread);
+                    } else if (jobController != null && read != -1) {
+                        out.write(read);
+                        out.flush();
+                        byteArrayOutputStream.write(read);
+                    }
+                } catch (IOException e) {
+                    LOGGER.error("Console reader exception", e);
+                } finally {
+                    reading = false;
+                }
+            }
+        }
+
+        private volatile Thread readThread;
+
+        @Override
+        public int read() throws IOException {
+            if (asyncMode && reading) {
+                asyncMode = false;
+                readThread = Thread.currentThread();
+                while (reading) {
+                    LockSupport.park();
+                }
+            }
+            if (byteArray != null) {
+                if (pos < byteArray.length) {
+                    int c = byteArray[pos];
+                    pos++;
+                    return c;
+                } else {
+                    byteArray = null;
+                }
+            }
+            return in.read();
+        }
+
+    }
+
+    private Thread thread;
+
+    private FileHistory history;
+
+    private AsyncInputStream asyncInputStream;
+
     public void start(final Environment env) throws IOException {
-        consoleReader = new ConsoleReader(in, outs, new SSHTerminal());
+        thread = new Thread(this, "vestige-shell-" + THREAD_COUNT.incrementAndGet());
+        asyncInputStream = new AsyncInputStream();
+        consoleReader = new ConsoleReader(asyncInputStream, outs, new SSHTerminal());
+        history = new FileHistory(historyFile);
+        consoleReader.setHistory(history);
+        consoleReader.setHistoryEnabled(true);
+        consoleReader.setHandleUserInterrupt(true);
         consoleReader.addCompleter(commandFactory.getCompleter());
-        new Thread(this, "vestige-shell-" + THREAD_COUNT.incrementAndGet()).start();
+        thread.start();
     }
 
     public void setOutputStream(final OutputStream out) {
@@ -82,15 +206,128 @@ public class SSHShellCommand implements Command, Runnable {
     }
 
     public void destroy() {
+        try {
+            history.flush();
+        } catch (IOException e) {
+            LOGGER.warn("Unable to save history", e);
+        }
+    }
 
+    private JobController jobController = null;
+
+    /**
+     * @author Gael Lalire
+     */
+    private static final class ProgressHolder {
+        private float progress = -1;
+
+        private ProgressHolder() {
+        }
     }
 
     public void run() {
+        final List<String> descriptions = new ArrayList<String>();
+        final List<ProgressHolder> progressHolders = new ArrayList<ProgressHolder>();
+        final DefaultCommandContext defaultCommandContext = new DefaultCommandContext();
+        defaultCommandContext.setOut(out);
+        StringBuilder sb = new StringBuilder();
+        int lastStringBuilderLength = 0;
         try {
             try {
                 String readLine = null;
                 do {
-                    readLine = consoleReader.readLine("vestige:~ admin$ ");
+                    while (jobController != null) {
+                        synchronized (descriptions) {
+                            for (String description : descriptions) {
+                                out.println(description);
+                            }
+                            boolean first = true;
+                            sb.setLength(0);
+                            for (ProgressHolder progressHolder : progressHolders) {
+                                if (progressHolder.progress < 0) {
+                                    continue;
+                                }
+                                if (first) {
+                                    first = false;
+                                } else {
+                                    sb.append(" ");
+                                }
+                                sb.append((int) (progressHolder.progress * 100));
+                                sb.append("%");
+                            }
+                            lastStringBuilderLength = sb.length();
+                            out.print(sb.toString());
+                            out.flush();
+                            descriptions.clear();
+                        }
+
+                        if (jobController.isDone()) {
+                            Exception exception = jobController.getException();
+                            if (exception != null) {
+                                exception.printStackTrace(out);
+                            }
+                            jobController = null;
+                        } else {
+                            asyncInputStream.asyncMode = true;
+                            LockSupport.unpark(asyncInputStream.thread);
+                            LockSupport.park();
+                        }
+                        outs.clear(lastStringBuilderLength);
+                    }
+                    defaultCommandContext.setJobListener(new JobListener() {
+
+                        @Override
+                        public void jobDone() {
+                            LockSupport.unpark(thread);
+                        }
+
+                        @Override
+                        public TaskListener taskAdded(final String description) {
+                            final JobListener thisJobListener = this;
+                            if (defaultCommandContext.getJobListener() == thisJobListener) {
+                                final ProgressHolder progressHolder = new ProgressHolder();
+                                synchronized (descriptions) {
+                                    descriptions.add(description);
+                                    progressHolders.add(progressHolder);
+                                }
+                                LockSupport.unpark(thread);
+                                TaskListener taskListener = new TaskListener() {
+
+                                    @Override
+                                    public void taskDone() {
+                                        if (defaultCommandContext.getJobListener() == thisJobListener) {
+                                            synchronized (descriptions) {
+                                                progressHolders.remove(progressHolder);
+                                            }
+                                            LockSupport.unpark(thread);
+                                        }
+                                    }
+
+                                    @Override
+                                    public void progressChanged(final float progress) {
+                                        if (defaultCommandContext.getJobListener() == thisJobListener) {
+                                            synchronized (descriptions) {
+                                                progressHolder.progress = progress;
+                                            }
+                                            LockSupport.unpark(thread);
+                                        }
+                                    }
+                                };
+                                return taskListener;
+                            }
+                            return null;
+                        }
+                    });
+                    synchronized (descriptions) {
+                        // clear after setDoneNotificationHandler which prevent old description to be added
+                        descriptions.clear();
+                        progressHolders.clear();
+                    }
+                    try {
+                        readLine = consoleReader.readLine("vestige:~ admin$ ");
+                    } catch (UserInterruptException e) {
+                        continue;
+                    }
                     if (readLine == null) {
                         out.println("logout");
                         break;
@@ -106,7 +343,7 @@ public class SSHShellCommand implements Command, Runnable {
                         out.println("logout");
                         break;
                     }
-                    commandFactory.getVestigeCommandExecutor().exec(out, split);
+                    jobController = commandFactory.getVestigeCommandExecutor().exec(defaultCommandContext, split);
                 } while (true);
                 callback.onExit(0);
             } finally {

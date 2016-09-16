@@ -21,10 +21,11 @@ import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.List;
 
-import fr.gaellalire.vestige.admin.command.argument.LocalApplicationNameArgument;
 import fr.gaellalire.vestige.admin.command.argument.Argument;
+import fr.gaellalire.vestige.admin.command.argument.LocalApplicationNameArgument;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
+import fr.gaellalire.vestige.job.JobController;
 
 /**
  * @author Gael Lalire
@@ -52,12 +53,14 @@ public class ClassLoaders implements Command {
         return Collections.<Argument> singletonList(applicationArgument);
     }
 
-    public void execute(final PrintWriter out) {
+    public JobController execute(final CommandContext commandContext) {
+        PrintWriter out = commandContext.getOut();
         try {
-            out.println(applicationManager.getClassLoaders(applicationArgument.getApplication()));
+            out .println(applicationManager.getClassLoaders(applicationArgument.getApplication()));
         } catch (ApplicationException e) {
             e.printStackTrace(out);
         }
+        return null;
     }
 
 }

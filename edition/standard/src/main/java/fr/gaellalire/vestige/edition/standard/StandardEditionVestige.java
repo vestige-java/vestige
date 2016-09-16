@@ -67,6 +67,8 @@ import fr.gaellalire.vestige.edition.standard.schema.ObjectFactory;
 import fr.gaellalire.vestige.edition.standard.schema.SSH;
 import fr.gaellalire.vestige.edition.standard.schema.Settings;
 import fr.gaellalire.vestige.edition.standard.schema.Web;
+import fr.gaellalire.vestige.job.DefaultJobManager;
+import fr.gaellalire.vestige.job.JobManager;
 import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
 import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
 import fr.gaellalire.vestige.platform.VestigePlatform;
@@ -219,7 +221,7 @@ public class StandardEditionVestige implements Runnable {
 
             ProxySelector defaultProxySelector = vestigeSystem.getDefaultProxySelector();
             if (defaultProxySelector != null) {
-                // standardEditionVestigeSystem has no yet a security manager
+                // standardEditionVestigeSystem has not yet a security manager
                 // standardEditionVestigeSystem.setDefaultProxySelector(new SecureProxySelector(vestigeSystem, defaultProxySelector));
                 applicationsVestigeSystem.setDefaultProxySelector(new SecureProxySelector(vestigeSystem, defaultProxySelector));
             }
@@ -270,7 +272,9 @@ public class StandardEditionVestige implements Runnable {
             return;
         }
 
-        defaultApplicationManager = new DefaultApplicationManager(appBaseFile, appDataFile, vestigePlatform, applicationsVestigeSystem, standardEditionVestigeSystem,
+        JobManager actionManager = new DefaultJobManager();
+
+        defaultApplicationManager = new DefaultApplicationManager(actionManager, appBaseFile, appDataFile, vestigePlatform, applicationsVestigeSystem, standardEditionVestigeSystem,
                 vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile);
         try {
             defaultApplicationManager.restoreState();
@@ -281,7 +285,7 @@ public class StandardEditionVestige implements Runnable {
         Admin admin = settings.getAdmin();
         SSH ssh = admin.getSsh();
 
-        VestigeCommandExecutor vestigeCommandExecutor = new VestigeCommandExecutor(defaultApplicationManager, vestigePlatform);
+        VestigeCommandExecutor vestigeCommandExecutor = new VestigeCommandExecutor(actionManager, defaultApplicationManager, vestigePlatform);
         if (bootstrapObject != null) {
             vestigeCommandExecutor.addCommand(new CheckBootstrap(bootstrapObject));
         }
@@ -289,7 +293,8 @@ public class StandardEditionVestige implements Runnable {
         Future<VestigeServer> futureSshServer = null;
         if (ssh.isEnabled()) {
             File sshBase = new File(baseFile, "ssh");
-            futureSshServer = executorService.submit(new SSHServerFactory(sshBase, ssh, baseFile, vestigeCommandExecutor));
+            File sshData = new File(dataFile, "ssh");
+            futureSshServer = executorService.submit(new SSHServerFactory(sshBase, sshData, ssh, baseFile, vestigeCommandExecutor));
         }
 
         Future<VestigeServer> futureWebServer = null;
@@ -398,6 +403,7 @@ public class StandardEditionVestige implements Runnable {
         // } catch (ApplicationException e) {
         // LOGGER.error("Automigration failed", e);
         // }
+        defaultApplicationManager.startStateListenerThread();
         defaultApplicationManager.autoStart();
         if (sshServer != null) {
             try {
@@ -435,6 +441,7 @@ public class StandardEditionVestige implements Runnable {
             }
         }
         defaultApplicationManager.stopAll();
+        defaultApplicationManager.stopStateListenerThread();
         workerThread.interrupt();
         workerThread.join();
         workerThread = null;

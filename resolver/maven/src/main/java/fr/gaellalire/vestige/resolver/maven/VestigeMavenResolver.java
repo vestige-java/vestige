@@ -55,6 +55,7 @@ import fr.gaellalire.vestige.core.VestigeClassLoader;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;
 import fr.gaellalire.vestige.core.executor.callable.InvokeMethod;
 import fr.gaellalire.vestige.core.function.Function;
+import fr.gaellalire.vestige.job.DummyJobHelper;
 import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
@@ -197,7 +198,7 @@ public final class VestigeMavenResolver {
                 }
 
                 ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve("vestige-attach-" + attachCount, mavenClassType.getGroupId(),
-                        mavenClassType.getArtifactId(), mavenClassType.getVersion(), additionalRepositories, defaultDependencyModifier, resolveMode, mavenScope, superPomRepositoriesUsed, pomRepositoriesIgnored);
+                        mavenClassType.getArtifactId(), mavenClassType.getVersion(), additionalRepositories, defaultDependencyModifier, resolveMode, mavenScope, superPomRepositoriesUsed, pomRepositoriesIgnored, DummyJobHelper.INSTANCE);
                 launchCaches.add(classLoaderConfiguration);
                 attachCount++;
             }
@@ -232,7 +233,7 @@ public final class VestigeMavenResolver {
                 break;
             }
             ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve("vestige", mavenClassType.getGroupId(), mavenClassType.getArtifactId(),
-                    mavenClassType.getVersion(), additionalRepositories, defaultDependencyModifier, resolveMode, mavenScope, superPomRepositoriesUsed, pomRepositoriesIgnored);
+                    mavenClassType.getVersion(), additionalRepositories, defaultDependencyModifier, resolveMode, mavenScope, superPomRepositoriesUsed, pomRepositoriesIgnored, DummyJobHelper.INSTANCE);
 
             mavenResolverCache = new MavenResolverCache(launchCaches, mavenClassType.getClazz(), classLoaderConfiguration, lastModified);
             try {
@@ -255,13 +256,14 @@ public final class VestigeMavenResolver {
 
         for (ClassLoaderConfiguration classLoaderConfiguration : mavenResolverCache.getClassLoaderConfigurations()) {
             LOGGER.debug("Attach:\n{}", classLoaderConfiguration);
-            int attach = vestigePlatform.attach(classLoaderConfiguration);
-            vestigePlatform.start(attach);
+            //int attach =
+            vestigePlatform.attach(classLoaderConfiguration);
+            // vestigePlatform.start(attach);
         }
 
         LOGGER.debug("Attach and run vestigeMain:\n{}", mavenResolverCache.getClassLoaderConfiguration());
         int load = vestigePlatform.attach(mavenResolverCache.getClassLoaderConfiguration());
-        vestigePlatform.start(load);
+        // vestigePlatform.start(load);
 
         final VestigeClassLoader<?> mavenResolverClassLoader = vestigePlatform.getClassLoader(load);
 
@@ -298,7 +300,7 @@ public final class VestigeMavenResolver {
             list.add(convertAttachedVestigeClassLoader(attachedVestigeClassLoaderConstructor, attachedVestigeClassLoaderAttachment, dependency));
         }
         Object convertedAttachedVestigeClassLoader = attachedVestigeClassLoaderConstructor.newInstance(attachedVestigeClassLoader.getVestigeClassLoader(), list,
-                attachedVestigeClassLoader.getUrls(), attachedVestigeClassLoader.getStartStopClasses(), attachedVestigeClassLoader.getName(), attachedVestigeClassLoader.isAttachmentScoped());
+                attachedVestigeClassLoader.getUrls(), /* attachedVestigeClassLoader.getStartStopClasses(), */ attachedVestigeClassLoader.getName(), attachedVestigeClassLoader.isAttachmentScoped());
         attachedVestigeClassLoaderAttachment.set(convertedAttachedVestigeClassLoader, attachedVestigeClassLoader.getAttachments());
 
         uncheckedVestigeClassLoader.setData(convertedAttachedVestigeClassLoader);
@@ -328,10 +330,12 @@ public final class VestigeMavenResolver {
         List<List<WeakReference<Object>>> attachedClassLoaders = (List<List<WeakReference<Object>>>) attachedClassLoadersField.get(loadedVestigePlatform);
         attachedClassLoadersField.setAccessible(false);
 
+        /*
         Field startedField = vestigePlatformClass.getDeclaredField("started");
         startedField.setAccessible(true);
         List<Boolean> started = (List<Boolean>) startedField.get(loadedVestigePlatform);
         startedField.setAccessible(false);
+        */
 
         Field mapField = vestigePlatformClass.getDeclaredField("map");
         mapField.setAccessible(true);
@@ -339,7 +343,7 @@ public final class VestigeMavenResolver {
         mapField.setAccessible(false);
 
         Class<?> attachedVestigeClassLoaderClass = Class.forName(AttachedVestigeClassLoader.class.getName(), false, mavenResolverClassLoader);
-        Constructor<?> attachedVestigeClassLoaderConstructor = attachedVestigeClassLoaderClass.getConstructor(VestigeClassLoader.class, List.class, String.class, List.class, String.class, boolean.class);
+        Constructor<?> attachedVestigeClassLoaderConstructor = attachedVestigeClassLoaderClass.getConstructor(VestigeClassLoader.class, List.class, String.class, /* List.class, */ String.class, boolean.class);
         Field attachedVestigeClassLoaderAttachment = attachedVestigeClassLoaderClass.getDeclaredField("attachments");
         attachedVestigeClassLoaderAttachment.setAccessible(true);
 
@@ -348,11 +352,13 @@ public final class VestigeMavenResolver {
         for (Integer id : attachments) {
             attached.add(convertAttachedVestigeClassLoader(attachedVestigeClassLoaderConstructor, attachedVestigeClassLoaderAttachment,
                     vestigePlatform.getAttachedVestigeClassLoader(id.intValue())));
+            /*
             if (vestigePlatform.isStarted(id.intValue())) {
                 started.add(Boolean.TRUE);
             } else {
                 started.add(Boolean.FALSE);
             }
+            */
         }
 
         List<WeakReference<AttachedVestigeClassLoader>> unattachedVestigeClassLoaders = vestigePlatform.getAttachmentScopedUnattachedVestigeClassLoaders();

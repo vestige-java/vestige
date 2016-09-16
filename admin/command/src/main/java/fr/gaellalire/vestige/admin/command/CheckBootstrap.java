@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 
 import fr.gaellalire.vestige.admin.command.argument.Argument;
+import fr.gaellalire.vestige.job.JobController;
 
 /**
  * @author Gael Lalire
@@ -47,12 +48,14 @@ public class CheckBootstrap implements Command {
         return Collections.emptyList();
     }
 
-    public void execute(final PrintWriter out) {
+    public JobController execute(final CommandContext commandContext) {
+        PrintWriter out = commandContext.getOut();
         if (bootstrapObject.get() != null) {
             out.println("Bootstrap is not GC");
         } else {
             out.println("Bootstrap has been GC");
         }
+        return null;
     }
 
 }

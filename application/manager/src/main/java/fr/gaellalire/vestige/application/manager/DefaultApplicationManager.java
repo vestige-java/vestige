@@ -46,6 +46,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import fr.gaellalire.vestige.core.VestigeClassLoader;
+import fr.gaellalire.vestige.job.Job;
+import fr.gaellalire.vestige.job.JobController;
+import fr.gaellalire.vestige.job.JobHelper;
+import fr.gaellalire.vestige.job.JobListener;
+import fr.gaellalire.vestige.job.JobManager;
+import fr.gaellalire.vestige.job.TaskHelper;
 import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.VestigePlatform;
@@ -81,9 +87,16 @@ public class DefaultApplicationManager implements ApplicationManager {
 
     private File nextResolverFile;
 
-    public DefaultApplicationManager(final File appBaseFile, final File appDataFile, final VestigePlatform vestigePlatform, final PublicVestigeSystem vestigeSystem,
-            final PublicVestigeSystem managerVestigeSystem, final PrivateVestigeSecurityManager vestigeSecurityManager,
+    private List<ApplicationManagerStateListener> applicationManagerStateListeners;
+
+    private ApplicationManagerState lastState;
+
+    private Thread stateListenerThread;
+
+    public DefaultApplicationManager(final JobManager actionManager, final File appBaseFile, final File appDataFile, final VestigePlatform vestigePlatform,
+            final PublicVestigeSystem vestigeSystem, final PublicVestigeSystem managerVestigeSystem, final PrivateVestigeSecurityManager vestigeSecurityManager,
             final ApplicationRepositoryManager applicationDescriptorFactory, final File resolverFile, final File nextResolverFile) {
+        this.actionManager = actionManager;
         this.appBaseFile = appBaseFile;
         this.appDataFile = appDataFile;
 
@@ -101,6 +114,7 @@ public class DefaultApplicationManager implements ApplicationManager {
         this.resolverFile = resolverFile;
         this.nextResolverFile = nextResolverFile;
         state = new DefaultApplicationManagerState();
+        applicationManagerStateListeners = new ArrayList<ApplicationManagerStateListener>();
     }
 
     private DefaultApplicationManagerState readDefaultApplicationManagerState(final File file) throws IOException, ClassNotFoundException {
@@ -149,16 +163,22 @@ public class DefaultApplicationManager implements ApplicationManager {
         } catch (IOException e) {
             throw new ApplicationException("Unable to save new state", e);
         }
+        synchronized (applicationManagerStateListeners) {
+            if (applicationManagerStateListeners.size() != 0) {
+                lastState = state.copy();
+                applicationManagerStateListeners.notify();
+            }
+        }
     }
 
-    public ApplicationContext createApplicationContext(final String repoName, final String appName, final List<Integer> version, final String installName)
+    public ApplicationContext createApplicationContext(final String repoName, final String appName, final List<Integer> version, final String installName, final JobHelper jobHelper)
             throws ApplicationException {
         URL context = state.getRepositoryURL(repoName);
         if (context == null) {
-            throw new ApplicationException("repo not found");
+            throw new ApplicationException("Repository not found");
         }
 
-        ApplicationDescriptor applicationDescriptor = applicationDescriptorFactory.createApplicationDescriptor(context, repoName, appName, version);
+        ApplicationDescriptor applicationDescriptor = applicationDescriptorFactory.createApplicationDescriptor(context, repoName, appName, version, jobHelper);
 
         File basefile = new File(appBaseFile, installName);
         File dataFile = new File(appDataFile, installName);
@@ -166,7 +186,7 @@ public class DefaultApplicationManager implements ApplicationManager {
         Set<List<Integer>> supportedMigrationVersion = applicationDescriptor.getSupportedMigrationVersions();
         Set<List<Integer>> uninterruptedMigrationVersion = applicationDescriptor.getUninterruptedMigrationVersions();
         if (!supportedMigrationVersion.containsAll(uninterruptedMigrationVersion)) {
-            throw new ApplicationException("some migration are uninterrupted but not supported");
+            throw new ApplicationException("Some migration are uninterrupted but not supported");
         }
 
         ApplicationContext applicationContext = new ApplicationContext();
@@ -194,13 +214,14 @@ public class DefaultApplicationManager implements ApplicationManager {
 
     private Set<String> lockedInstallNames = new HashSet<String>();
 
-    public void install(final String repoName, final String appName, final List<Integer> version, final String pinstallName) throws ApplicationException {
+    private JobManager actionManager;
 
+    public JobController install(final String repoName, final String appName, final List<Integer> version, final String pinstallName, final JobListener jobListener)
+            throws ApplicationException {
         String installName = pinstallName;
         if (installName == null || installName.length() == 0) {
             installName = appName;
         }
-
         synchronized (state) {
             if (state.hasContext(installName)) {
                 throw new ApplicationException("application already installed");
@@ -209,117 +230,60 @@ public class DefaultApplicationManager implements ApplicationManager {
                 throw new ApplicationException("application already installing");
             }
         }
-
-        ApplicationContext applicationContext = null;
-
-        boolean successful = false;
-        try {
-            applicationContext = createApplicationContext(repoName, appName, version, installName);
-            final File base = applicationContext.getBase();
-            if (base.exists()) {
-                try {
-                    FileUtils.forceDelete(base);
-                } catch (IOException e) {
-                    throw new ApplicationException("Base directory already exists and cannot be deleted", e);
-                }
-            }
-            base.mkdirs();
-            final File data = applicationContext.getData();
-            if (data.exists()) {
-                try {
-                    FileUtils.forceDelete(data);
-                } catch (IOException e) {
-                    throw new ApplicationException("Data directory already exists and cannot be deleted", e);
-                }
-            }
-            data.mkdirs();
-
-            ClassLoaderConfiguration installerResolve = applicationContext.getInstallerResolve();
-            if (installerResolve != null) {
-                int installerAttach = vestigePlatform.attach(installerResolve);
-                try {
-                    final VestigeClassLoader<?> installerClassLoader = vestigePlatform.getClassLoader(installerAttach);
-
-                    Set<Permission> additionnalPermissions = new HashSet<Permission>();
-                    additionnalPermissions.addAll(installerResolve.getPermissions());
-                    additionnalPermissions.add(new FilePermission(base.getPath(), "read,write"));
-                    additionnalPermissions.add(new FilePermission(base.getPath() + File.separator + "-", "read,write,delete"));
-                    additionnalPermissions.add(new FilePermission(data.getPath(), "read,write"));
-                    additionnalPermissions.add(new FilePermission(data.getPath() + File.separator + "-", "read,write,delete"));
-                    additionnalPermissions.addAll(applicationContext.getInstallerPermissions());
-
-                    final PublicVestigeSystem vestigeSystem;
-                    if (applicationContext.isInstallerPrivateSystem()) {
-                        vestigeSystem = rootVestigeSystem.createSubSystem();
-                    } else {
-                        vestigeSystem = rootVestigeSystem;
-                    }
-                    final String installerClassName = applicationContext.getInstallerClassName();
-                    Thread thread = vestigeSecureExecutor.execute(additionnalPermissions, null, applicationContext.getName() + "-installer", vestigeSystem, new Callable<Void>() {
-
-                        @Override
-                        public Void call() throws Exception {
-                            ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(callConstructor(installerClassLoader,
-                                    installerClassLoader.loadClass(installerClassName), base, data, vestigeSystem));
-                            applicationInstaller.install();
-                            return null;
-                        }
-
-                    }, managerVestigeSystem, new FutureDoneHandler<Void>() {
-                        @Override
-                        public void futureDone(final Future<Void> future) {
-                            try {
-                                future.get();
-                            } catch (InterruptedException e) {
-                                LOGGER.error("Unexpected InterruptedException", e);
-                            } catch (ExecutionException e) {
-                                LOGGER.error("Install ended with exception", e.getCause());
-                            }
-                        }
-                    });
-                    thread.setContextClassLoader(installerClassLoader);
-                    thread.start();
-                    thread.join();
-                } finally {
-                    vestigePlatform.detach(installerAttach);
-                }
-            }
-            successful = true;
-        } catch (Exception e) {
-            throw new ApplicationException("fail to install", e);
-        } finally {
-            synchronized (state) {
-                lockedInstallNames.remove(installName);
-                if (successful) {
-                    state.install(installName, applicationContext);
-                    saveState();
-                }
-            }
-        }
-
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Application {} version {} on repository {} installed", new Object[] {appName, VersionUtils.toString(version), repoName});
-        }
+        return actionManager.submitJob("install", "Installing " + installName, new InstallAction(repoName, appName, version, installName), jobListener);
     }
 
-    public static final List<Integer> LOCKED_VERSION = Collections.emptyList();
+    /**
+     * @author Gael Lalire
+     */
+    private class InstallAction implements Job {
 
-    public void uninstall(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext;
-        synchronized (state) {
-            applicationContext = state.getApplication(installName);
-            if (applicationContext.isStarted()) {
-                throw new ApplicationException("Application is started");
-            }
-            applicationContext.setMigrationRepoApplicationVersion(LOCKED_VERSION);
+        private String repoName;
+
+        private String appName;
+
+        private List<Integer> version;
+
+        private String installName;
+
+        public InstallAction(final String repoName, final String appName, final List<Integer> version, final String installName) {
+            this.repoName = repoName;
+            this.appName = appName;
+            this.version = version;
+            this.installName = installName;
         }
-        try {
-            final File base = applicationContext.getBase();
-            final File data = applicationContext.getData();
+
+        @Override
+        public void run(final JobHelper jobHelper) throws ApplicationException {
+            ApplicationContext applicationContext = null;
+
+            boolean successful = false;
             try {
+                applicationContext = createApplicationContext(repoName, appName, version, installName, jobHelper);
+                final File base = applicationContext.getBase();
+                if (base.exists()) {
+                    try {
+                        FileUtils.forceDelete(base);
+                    } catch (IOException e) {
+                        throw new ApplicationException("Base directory already exists and cannot be deleted", e);
+                    }
+                }
+                base.mkdirs();
+                final File data = applicationContext.getData();
+                if (data.exists()) {
+                    try {
+                        FileUtils.forceDelete(data);
+                    } catch (IOException e) {
+                        throw new ApplicationException("Data directory already exists and cannot be deleted", e);
+                    }
+                }
+                data.mkdirs();
+
                 ClassLoaderConfiguration installerResolve = applicationContext.getInstallerResolve();
                 if (installerResolve != null) {
+                    TaskHelper task = jobHelper.addTask("Attaching installer classLoader");
                     int installerAttach = vestigePlatform.attach(installerResolve);
+                    task.setDone();
                     try {
                         final VestigeClassLoader<?> installerClassLoader = vestigePlatform.getClassLoader(installerAttach);
 
@@ -330,20 +294,22 @@ public class DefaultApplicationManager implements ApplicationManager {
                         additionnalPermissions.add(new FilePermission(data.getPath(), "read,write"));
                         additionnalPermissions.add(new FilePermission(data.getPath() + File.separator + "-", "read,write,delete"));
                         additionnalPermissions.addAll(applicationContext.getInstallerPermissions());
+
                         final PublicVestigeSystem vestigeSystem;
                         if (applicationContext.isInstallerPrivateSystem()) {
                             vestigeSystem = rootVestigeSystem.createSubSystem();
                         } else {
                             vestigeSystem = rootVestigeSystem;
                         }
+                        final String installerClassName = applicationContext.getInstallerClassName();
                         Thread thread = vestigeSecureExecutor.execute(additionnalPermissions, null, applicationContext.getName() + "-installer", vestigeSystem,
                                 new Callable<Void>() {
 
                                     @Override
                                     public Void call() throws Exception {
                                         ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(callConstructor(installerClassLoader,
-                                                installerClassLoader.loadClass(applicationContext.getInstallerClassName()), base, data, vestigeSystem));
-                                        applicationInstaller.uninstall();
+                                                installerClassLoader.loadClass(installerClassName), base, data, vestigeSystem));
+                                        applicationInstaller.install();
                                         return null;
                                     }
 
@@ -355,44 +321,165 @@ public class DefaultApplicationManager implements ApplicationManager {
                                         } catch (InterruptedException e) {
                                             LOGGER.error("Unexpected InterruptedException", e);
                                         } catch (ExecutionException e) {
-                                            LOGGER.error("Uninstall ended with exception", e.getCause());
+                                            LOGGER.error("Install ended with exception", e.getCause());
                                         }
                                     }
                                 });
                         thread.setContextClassLoader(installerClassLoader);
+                        task = jobHelper.addTask("Calling install method");
                         thread.start();
-                        thread.join();
+                        try {
+                            thread.join();
+                        } catch (InterruptedException e) {
+                            thread.interrupt();
+                            throw e;
+                        } finally {
+                            task.setDone();
+                        }
                     } finally {
                         vestigePlatform.detach(installerAttach);
                     }
                 }
+                successful = true;
+            } catch (Exception e) {
+                throw new ApplicationException("fail to install", e);
             } finally {
-                if (base.exists()) {
-                    try {
-                        FileUtils.forceDelete(base);
-                    } catch (IOException e) {
-                        LOGGER.error("Unable to remove base application directory", e);
-                    }
-                }
-                if (data.exists()) {
-                    try {
-                        FileUtils.forceDelete(data);
-                    } catch (IOException e) {
-                        LOGGER.error("Unable to remove data application directory", e);
+                synchronized (state) {
+                    lockedInstallNames.remove(installName);
+                    if (successful) {
+                        state.install(installName, applicationContext);
+                        saveState();
                     }
                 }
             }
-        } catch (Exception e) {
-            LOGGER.error("fail to uninstall properly", e);
-        } finally {
-            synchronized (state) {
-                state.uninstall(installName);
-                saveState();
+
+            if (LOGGER.isInfoEnabled()) {
+                LOGGER.info("Application {} version {} on repository {} installed", new Object[] {appName, VersionUtils.toString(version), repoName});
             }
         }
+    }
 
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Application {} uninstalled", installName);
+    public static final List<Integer> LOCKED_VERSION = Collections.emptyList();
+
+    public JobController uninstall(final String installName, final JobListener jobListener) throws ApplicationException {
+        final ApplicationContext applicationContext;
+        synchronized (state) {
+            applicationContext = state.getApplication(installName);
+            if (applicationContext.isStarted()) {
+                throw new ApplicationException("Application is started");
+            }
+            applicationContext.setMigrationRepoApplicationVersion(LOCKED_VERSION);
+        }
+        return actionManager.submitJob("uninstall", "Uninstalling " + installName, new UninstallAction(applicationContext, installName), jobListener);
+    }
+
+    /**
+     * @author Gael Lalire
+     */
+    private class UninstallAction implements Job {
+
+        private ApplicationContext applicationContext;
+
+        private String installName;
+
+        public UninstallAction(final ApplicationContext applicationContext, final String installName) {
+            this.applicationContext = applicationContext;
+            this.installName = installName;
+        }
+
+        @Override
+        public void run(final JobHelper jobHelper) throws ApplicationException {
+            try {
+                final File base = applicationContext.getBase();
+                final File data = applicationContext.getData();
+                try {
+                    ClassLoaderConfiguration installerResolve = applicationContext.getInstallerResolve();
+                    if (installerResolve != null) {
+                        TaskHelper task = jobHelper.addTask("Attaching installer classLoader");
+                        int installerAttach = vestigePlatform.attach(installerResolve);
+                        task.setDone();
+                        try {
+                            final VestigeClassLoader<?> installerClassLoader = vestigePlatform.getClassLoader(installerAttach);
+
+                            Set<Permission> additionnalPermissions = new HashSet<Permission>();
+                            additionnalPermissions.addAll(installerResolve.getPermissions());
+                            additionnalPermissions.add(new FilePermission(base.getPath(), "read,write"));
+                            additionnalPermissions.add(new FilePermission(base.getPath() + File.separator + "-", "read,write,delete"));
+                            additionnalPermissions.add(new FilePermission(data.getPath(), "read,write"));
+                            additionnalPermissions.add(new FilePermission(data.getPath() + File.separator + "-", "read,write,delete"));
+                            additionnalPermissions.addAll(applicationContext.getInstallerPermissions());
+                            final PublicVestigeSystem vestigeSystem;
+                            if (applicationContext.isInstallerPrivateSystem()) {
+                                vestigeSystem = rootVestigeSystem.createSubSystem();
+                            } else {
+                                vestigeSystem = rootVestigeSystem;
+                            }
+                            Thread thread = vestigeSecureExecutor.execute(additionnalPermissions, null, applicationContext.getName() + "-installer", vestigeSystem,
+                                    new Callable<Void>() {
+
+                                        @Override
+                                        public Void call() throws Exception {
+                                            ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(callConstructor(installerClassLoader,
+                                                    installerClassLoader.loadClass(applicationContext.getInstallerClassName()), base, data, vestigeSystem));
+                                            applicationInstaller.uninstall();
+                                            return null;
+                                        }
+
+                                    }, managerVestigeSystem, new FutureDoneHandler<Void>() {
+                                        @Override
+                                        public void futureDone(final Future<Void> future) {
+                                            try {
+                                                future.get();
+                                            } catch (InterruptedException e) {
+                                                LOGGER.error("Unexpected InterruptedException", e);
+                                            } catch (ExecutionException e) {
+                                                LOGGER.error("Uninstall ended with exception", e.getCause());
+                                            }
+                                        }
+                                    });
+                            thread.setContextClassLoader(installerClassLoader);
+                            task = jobHelper.addTask("Calling uninstall method");
+                            thread.start();
+                            try {
+                                thread.join();
+                            } catch (InterruptedException e) {
+                                thread.interrupt();
+                                throw e;
+                            } finally {
+                                task.setDone();
+                            }
+                        } finally {
+                            vestigePlatform.detach(installerAttach);
+                        }
+                    }
+                } finally {
+                    if (base.exists()) {
+                        try {
+                            FileUtils.forceDelete(base);
+                        } catch (IOException e) {
+                            LOGGER.error("Unable to remove base application directory", e);
+                        }
+                    }
+                    if (data.exists()) {
+                        try {
+                            FileUtils.forceDelete(data);
+                        } catch (IOException e) {
+                            LOGGER.error("Unable to remove data application directory", e);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.error("fail to uninstall properly", e);
+            } finally {
+                synchronized (state) {
+                    state.uninstall(installName);
+                    saveState();
+                }
+            }
+
+            if (LOGGER.isInfoEnabled()) {
+                LOGGER.info("Application {} uninstalled", installName);
+            }
         }
     }
 
@@ -447,233 +534,287 @@ public class DefaultApplicationManager implements ApplicationManager {
         }
     }
 
-    public void migrate(final String installName, final List<Integer> toVersion) throws ApplicationException {
-        migrate(installName, toVersion, false, false);
-    }
-
-    public void migrate(final String installName, final List<Integer> toVersion, final boolean ignoreIfUnsupported, final boolean stopIfMigrationPossible) throws ApplicationException {
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("migrating {} to version {} ", installName, VersionUtils.toString(toVersion));
-        }
+    public JobController migrate(final String installName, final List<Integer> toVersion, final JobListener jobListener) throws ApplicationException {
         final ApplicationContext fromApplicationContext;
         synchronized (state) {
             fromApplicationContext = state.getApplication(installName);
             fromApplicationContext.setMigrationRepoApplicationVersion(toVersion);
         }
-        ApplicationContext toApplicationContext = createApplicationContext(fromApplicationContext.getRepoName(), fromApplicationContext.getRepoApplicationName(), toVersion,
-                installName);
+        return actionManager.submitJob("migrate", "Migrating " + installName, new MigrateAction(fromApplicationContext, installName, toVersion, false, false), jobListener);
+    }
 
-        int level = fromApplicationContext.getAutoMigrateLevel();
-        // migration target inherits autoMigrateLevel
-        toApplicationContext.setAutoMigrateLevel(level);
+    /**
+     * @author Gael Lalire
+     */
+    private class MigrateAction implements Job {
 
-        final List<Integer> fromVersion = fromApplicationContext.getRepoApplicationVersion();
-        final ApplicationContext migratorApplicationContext = findMigratorApplicationContext(fromVersion, fromApplicationContext, toVersion, toApplicationContext,
-                ignoreIfUnsupported);
-        if (migratorApplicationContext == null) {
-            synchronized (state) {
-                fromApplicationContext.setMigrationRepoApplicationVersion(null);
-            }
-            return;
+        private ApplicationContext fromApplicationContext;
+
+        private String installName;
+
+        private List<Integer> toVersion;
+
+        private boolean ignoreIfUnsupported;
+
+        // private boolean stopIfMigrationPossible;
+
+        public MigrateAction(final ApplicationContext fromApplicationContext, final String installName, final List<Integer> toVersion, final boolean ignoreIfUnsupported,
+                final boolean stopIfMigrationPossible) {
+            this.fromApplicationContext = fromApplicationContext;
+            this.installName = installName;
+            this.toVersion = toVersion;
+            this.ignoreIfUnsupported = ignoreIfUnsupported;
+            // this.stopIfMigrationPossible = stopIfMigrationPossible;
         }
-        ClassLoaderConfiguration installerResolve = migratorApplicationContext.getInstallerResolve();
 
-        final RuntimeApplicationContext runtimeApplicationContext = fromApplicationContext.getRuntimeApplicationContext();
-        // && runtimeApplicationContext != null should be redondant
-        if (fromApplicationContext.isStarted() && runtimeApplicationContext != null) {
-            if (fromApplicationContext == migratorApplicationContext) {
-                if (!migratorApplicationContext.getUninterruptedMigrationVersion().contains(toVersion)) {
-                    synchronized (state) {
-                        fromApplicationContext.setMigrationRepoApplicationVersion(null);
-                    }
-                    LOGGER.info("Uninterrupted migration not supported and application running");
+        @Override
+        public void run(final JobHelper jobHelper) throws ApplicationException {
+            if (LOGGER.isInfoEnabled()) {
+                LOGGER.info("Migrating {} to version {} ", installName, VersionUtils.toString(toVersion));
+            }
+            try {
+                ApplicationContext toApplicationContext = createApplicationContext(fromApplicationContext.getRepoName(), fromApplicationContext.getRepoApplicationName(),
+                        toVersion, installName, jobHelper);
+
+                int level = fromApplicationContext.getAutoMigrateLevel();
+                // migration target inherits autoMigrateLevel
+                toApplicationContext.setAutoMigrateLevel(level);
+
+                final List<Integer> fromVersion = fromApplicationContext.getRepoApplicationVersion();
+                final ApplicationContext migratorApplicationContext = findMigratorApplicationContext(fromVersion, fromApplicationContext, toVersion, toApplicationContext,
+                        ignoreIfUnsupported);
+                if (migratorApplicationContext == null) {
                     return;
                 }
-            } else {
-                if (!migratorApplicationContext.getUninterruptedMigrationVersion().contains(fromVersion)) {
-                    synchronized (state) {
-                        fromApplicationContext.setMigrationRepoApplicationVersion(null);
-                    }
-                    LOGGER.info("Uninterrupted migration not supported and application running");
-                    return;
-                }
-            }
+                ClassLoaderConfiguration installerResolve = migratorApplicationContext.getInstallerResolve();
 
-            try {
-                final Object runMutex = new Object();
-                RuntimeApplicationContext toRuntimeApplicationContext = toApplicationContext.getRuntimeApplicationContext();
-                Object constructorMutex = null;
-                if (toRuntimeApplicationContext == null) {
-                    constructorMutex = new Object();
-                } else {
-                    toRuntimeApplicationContext.setRunAllowed(false);
-                }
-                start(toApplicationContext, runMutex, constructorMutex);
-                if (constructorMutex != null) {
-                    synchronized (constructorMutex) {
-                        toRuntimeApplicationContext = toApplicationContext.getRuntimeApplicationContext();
-                        while (toRuntimeApplicationContext == null && toApplicationContext.getThread() != null) {
-                            constructorMutex.wait();
-                            toRuntimeApplicationContext = toApplicationContext.getRuntimeApplicationContext();
+                final RuntimeApplicationContext runtimeApplicationContext = fromApplicationContext.getRuntimeApplicationContext();
+                // && runtimeApplicationContext != null should be redondant
+                if (fromApplicationContext.isStarted() && runtimeApplicationContext != null) {
+                    if (fromApplicationContext == migratorApplicationContext) {
+                        if (!migratorApplicationContext.getUninterruptedMigrationVersion().contains(toVersion)) {
+                            LOGGER.info("Uninterrupted migration not supported and application running");
+                            return;
                         }
-                    }
-                }
-                if (toRuntimeApplicationContext == null) {
-                    // fail on object construction
-                    throw new ApplicationException("Cannot create application instance");
-                }
-
-                final RuntimeApplicationContext notNullToRuntimeApplicationContext = toRuntimeApplicationContext;
-
-                final Runnable notifyRunMutex = new Runnable() {
-
-                    @Override
-                    public void run() {
-                        synchronized (runMutex) {
-                            notNullToRuntimeApplicationContext.setRunAllowed(true);
-                            runMutex.notify();
-                        }
-                    }
-                };
-                try {
-                    int installerAttach = vestigePlatform.attach(installerResolve);
-                    try {
-                        final VestigeClassLoader<?> installerClassLoader = vestigePlatform.getClassLoader(installerAttach);
-
-                        Set<Permission> additionnalPermissions = new HashSet<Permission>();
-                        additionnalPermissions.addAll(installerResolve.getPermissions());
-                        final File base = fromApplicationContext.getBase();
-                        final File data = fromApplicationContext.getData();
-                        additionnalPermissions.add(new FilePermission(base.getPath(), "read,write"));
-                        additionnalPermissions.add(new FilePermission(base.getPath() + File.separator + "-", "read,write,delete"));
-                        additionnalPermissions.add(new FilePermission(data.getPath(), "read,write"));
-                        additionnalPermissions.add(new FilePermission(data.getPath() + File.separator + "-", "read,write,delete"));
-                        additionnalPermissions.addAll(fromApplicationContext.getResolve().getPermissions());
-                        additionnalPermissions.addAll(toApplicationContext.getResolve().getPermissions());
-                        additionnalPermissions.addAll(migratorApplicationContext.getInstallerPermissions());
-                        final PublicVestigeSystem vestigeSystem;
-                        if (migratorApplicationContext.isInstallerPrivateSystem()) {
-                            vestigeSystem = rootVestigeSystem.createSubSystem();
-                        } else {
-                            vestigeSystem = rootVestigeSystem;
-                        }
-                        Thread thread = vestigeSecureExecutor.execute(additionnalPermissions,
-                                Arrays.asList(fromApplicationContext.getThread().getThreadGroup(), toApplicationContext.getThread().getThreadGroup()),
-                                migratorApplicationContext.getName() + "-installer", vestigeSystem, new Callable<Void>() {
-
-                                    @Override
-                                    public Void call() throws Exception {
-                                        ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(callConstructor(installerClassLoader,
-                                                installerClassLoader.loadClass(fromApplicationContext.getInstallerClassName()), base, data, vestigeSystem));
-                                        if (migratorApplicationContext == fromApplicationContext) {
-                                            applicationInstaller.uninterruptedMigrateTo(runtimeApplicationContext.getRunnable(), toVersion,
-                                                    notNullToRuntimeApplicationContext.getRunnable(), notifyRunMutex);
-                                        } else {
-                                            applicationInstaller.uninterruptedMigrateFrom(fromVersion, runtimeApplicationContext.getRunnable(),
-                                                    notNullToRuntimeApplicationContext.getRunnable(), notifyRunMutex);
-                                        }
-                                        return null;
-                                    }
-
-                                }, managerVestigeSystem, new FutureDoneHandler<Void>() {
-                                    @Override
-                                    public void futureDone(final Future<Void> future) {
-                                        try {
-                                            future.get();
-                                        } catch (InterruptedException e) {
-                                            LOGGER.error("Unexpected InterruptedException", e);
-                                        } catch (ExecutionException e) {
-                                            LOGGER.error("UninterruptedMigrate ended with exception", e.getCause());
-                                        }
-                                    }
-                                });
-                        thread.setContextClassLoader(installerClassLoader);
-                        thread.start();
-                        thread.join();
-                    } finally {
-                        vestigePlatform.detach(installerAttach);
-                    }
-                } finally {
-                    notifyRunMutex.run();
-                }
-
-                stop(fromApplicationContext);
-
-            } catch (Exception e) {
-                synchronized (state) {
-                    fromApplicationContext.setMigrationRepoApplicationVersion(null);
-                }
-                throw new ApplicationException("fail to uninterrupted migrate", e);
-            }
-        } else {
-            try {
-                int installerAttach = vestigePlatform.attach(installerResolve);
-                try {
-                    final VestigeClassLoader<?> installerClassLoader = vestigePlatform.getClassLoader(installerAttach);
-
-                    Set<Permission> additionnalPermissions = new HashSet<Permission>();
-                    additionnalPermissions.addAll(installerResolve.getPermissions());
-                    final File base = fromApplicationContext.getBase();
-                    final File data = fromApplicationContext.getData();
-                    additionnalPermissions.add(new FilePermission(base.getPath(), "read,write"));
-                    additionnalPermissions.add(new FilePermission(base.getPath() + File.separator + "-", "read,write,delete"));
-                    additionnalPermissions.add(new FilePermission(data.getPath(), "read,write"));
-                    additionnalPermissions.add(new FilePermission(data.getPath() + File.separator + "-", "read,write,delete"));
-                    additionnalPermissions.addAll(migratorApplicationContext.getInstallerPermissions());
-                    final PublicVestigeSystem vestigeSystem;
-                    if (migratorApplicationContext.isInstallerPrivateSystem()) {
-                        vestigeSystem = rootVestigeSystem.createSubSystem();
                     } else {
-                        vestigeSystem = rootVestigeSystem;
+                        if (!migratorApplicationContext.getUninterruptedMigrationVersion().contains(fromVersion)) {
+                            LOGGER.info("Uninterrupted migration not supported and application running");
+                            return;
+                        }
                     }
-                    Thread thread = vestigeSecureExecutor.execute(additionnalPermissions, null, migratorApplicationContext.getName() + "-installer", vestigeSystem,
-                            new Callable<Void>() {
 
-                                @Override
-                                public Void call() throws Exception {
-                                    ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(callConstructor(installerClassLoader,
-                                            installerClassLoader.loadClass(fromApplicationContext.getInstallerClassName()), base, data, vestigeSystem));
-                                    if (migratorApplicationContext == fromApplicationContext) {
-                                        applicationInstaller.migrateTo(toVersion);
-                                    } else {
-                                        applicationInstaller.migrateFrom(fromVersion);
-                                    }
-                                    return null;
+                    try {
+                        final Object runMutex = new Object();
+                        RuntimeApplicationContext toRuntimeApplicationContext = toApplicationContext.getRuntimeApplicationContext();
+                        Object constructorMutex = null;
+                        if (toRuntimeApplicationContext == null) {
+                            constructorMutex = new Object();
+                        } else {
+                            toRuntimeApplicationContext.setRunAllowed(false);
+                        }
+                        start(toApplicationContext, runMutex, constructorMutex);
+                        if (constructorMutex != null) {
+                            synchronized (constructorMutex) {
+                                toRuntimeApplicationContext = toApplicationContext.getRuntimeApplicationContext();
+                                while (toRuntimeApplicationContext == null && toApplicationContext.getThread() != null) {
+                                    constructorMutex.wait();
+                                    toRuntimeApplicationContext = toApplicationContext.getRuntimeApplicationContext();
                                 }
+                            }
+                        }
+                        if (toRuntimeApplicationContext == null) {
+                            // fail on object construction
+                            throw new ApplicationException("Cannot create application instance");
+                        }
 
-                            }, managerVestigeSystem, new FutureDoneHandler<Void>() {
-                                @Override
-                                public void futureDone(final Future<Void> future) {
-                                    try {
-                                        future.get();
-                                    } catch (InterruptedException e) {
-                                        LOGGER.error("Unexpected InterruptedException", e);
-                                    } catch (ExecutionException e) {
-                                        LOGGER.error("Migrate ended with exception", e.getCause());
-                                    }
+                        final RuntimeApplicationContext notNullToRuntimeApplicationContext = toRuntimeApplicationContext;
+
+                        final Runnable notifyRunMutex = new Runnable() {
+
+                            @Override
+                            public void run() {
+                                synchronized (runMutex) {
+                                    notNullToRuntimeApplicationContext.setRunAllowed(true);
+                                    runMutex.notify();
                                 }
-                            });
-                    thread.setContextClassLoader(installerClassLoader);
-                    thread.start();
-                    thread.join();
-                } finally {
-                    vestigePlatform.detach(installerAttach);
+                            }
+                        };
+                        try {
+                            TaskHelper task;
+                            if (migratorApplicationContext == fromApplicationContext) {
+                                task = jobHelper.addTask("Attaching installer classLoader of version " + VersionUtils.toString(fromVersion));
+                            } else {
+                                task = jobHelper.addTask("Attaching installer classLoader of version " + VersionUtils.toString(toVersion));
+                            }
+                            int installerAttach = vestigePlatform.attach(installerResolve);
+                            task.setDone();
+                            try {
+                                final VestigeClassLoader<?> installerClassLoader = vestigePlatform.getClassLoader(installerAttach);
+
+                                Set<Permission> additionnalPermissions = new HashSet<Permission>();
+                                additionnalPermissions.addAll(installerResolve.getPermissions());
+                                final File base = fromApplicationContext.getBase();
+                                final File data = fromApplicationContext.getData();
+                                additionnalPermissions.add(new FilePermission(base.getPath(), "read,write"));
+                                additionnalPermissions.add(new FilePermission(base.getPath() + File.separator + "-", "read,write,delete"));
+                                additionnalPermissions.add(new FilePermission(data.getPath(), "read,write"));
+                                additionnalPermissions.add(new FilePermission(data.getPath() + File.separator + "-", "read,write,delete"));
+                                additionnalPermissions.addAll(fromApplicationContext.getResolve().getPermissions());
+                                additionnalPermissions.addAll(toApplicationContext.getResolve().getPermissions());
+                                additionnalPermissions.addAll(migratorApplicationContext.getInstallerPermissions());
+                                final PublicVestigeSystem vestigeSystem;
+                                if (migratorApplicationContext.isInstallerPrivateSystem()) {
+                                    vestigeSystem = rootVestigeSystem.createSubSystem();
+                                } else {
+                                    vestigeSystem = rootVestigeSystem;
+                                }
+                                Thread thread = vestigeSecureExecutor.execute(additionnalPermissions,
+                                        Arrays.asList(fromApplicationContext.getThread().getThreadGroup(), toApplicationContext.getThread().getThreadGroup()),
+                                        migratorApplicationContext.getName() + "-installer", vestigeSystem, new Callable<Void>() {
+
+                                            @Override
+                                            public Void call() throws Exception {
+                                                ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(callConstructor(installerClassLoader,
+                                                        installerClassLoader.loadClass(fromApplicationContext.getInstallerClassName()), base, data, vestigeSystem));
+                                                if (migratorApplicationContext == fromApplicationContext) {
+                                                    applicationInstaller.uninterruptedMigrateTo(runtimeApplicationContext.getRunnable(), toVersion,
+                                                            notNullToRuntimeApplicationContext.getRunnable(), notifyRunMutex);
+                                                } else {
+                                                    applicationInstaller.uninterruptedMigrateFrom(fromVersion, runtimeApplicationContext.getRunnable(),
+                                                            notNullToRuntimeApplicationContext.getRunnable(), notifyRunMutex);
+                                                }
+                                                return null;
+                                            }
+
+                                        }, managerVestigeSystem, new FutureDoneHandler<Void>() {
+                                            @Override
+                                            public void futureDone(final Future<Void> future) {
+                                                try {
+                                                    future.get();
+                                                } catch (InterruptedException e) {
+                                                    LOGGER.error("Unexpected InterruptedException", e);
+                                                } catch (ExecutionException e) {
+                                                    LOGGER.error("UninterruptedMigrate ended with exception", e.getCause());
+                                                }
+                                            }
+                                        });
+                                thread.setContextClassLoader(installerClassLoader);
+                                if (migratorApplicationContext == fromApplicationContext) {
+                                    task = jobHelper.addTask("Calling uninterruptedMigrateTo method");
+                                } else {
+                                    task = jobHelper.addTask("Calling uninterruptedMigrateFrom method");
+                                }
+                                thread.start();
+                                try {
+                                    thread.join();
+                                } catch (InterruptedException e) {
+                                    thread.interrupt();
+                                    throw e;
+                                } finally {
+                                    task.setDone();
+                                }
+                            } finally {
+                                vestigePlatform.detach(installerAttach);
+                            }
+                        } finally {
+                            notifyRunMutex.run();
+                        }
+
+                        stop(fromApplicationContext);
+
+                    } catch (Exception e) {
+                        throw new ApplicationException("fail to uninterrupted migrate", e);
+                    }
+                } else {
+                    try {
+                        TaskHelper task;
+                        if (migratorApplicationContext == fromApplicationContext) {
+                            task = jobHelper.addTask("Attaching installer classLoader of version " + VersionUtils.toString(fromVersion));
+                        } else {
+                            task = jobHelper.addTask("Attaching installer classLoader of version " + VersionUtils.toString(toVersion));
+                        }
+                        int installerAttach = vestigePlatform.attach(installerResolve);
+                        task.setDone();
+                        try {
+                            final VestigeClassLoader<?> installerClassLoader = vestigePlatform.getClassLoader(installerAttach);
+
+                            Set<Permission> additionnalPermissions = new HashSet<Permission>();
+                            additionnalPermissions.addAll(installerResolve.getPermissions());
+                            final File base = fromApplicationContext.getBase();
+                            final File data = fromApplicationContext.getData();
+                            additionnalPermissions.add(new FilePermission(base.getPath(), "read,write"));
+                            additionnalPermissions.add(new FilePermission(base.getPath() + File.separator + "-", "read,write,delete"));
+                            additionnalPermissions.add(new FilePermission(data.getPath(), "read,write"));
+                            additionnalPermissions.add(new FilePermission(data.getPath() + File.separator + "-", "read,write,delete"));
+                            additionnalPermissions.addAll(migratorApplicationContext.getInstallerPermissions());
+                            final PublicVestigeSystem vestigeSystem;
+                            if (migratorApplicationContext.isInstallerPrivateSystem()) {
+                                vestigeSystem = rootVestigeSystem.createSubSystem();
+                            } else {
+                                vestigeSystem = rootVestigeSystem;
+                            }
+                            Thread thread = vestigeSecureExecutor.execute(additionnalPermissions, null, migratorApplicationContext.getName() + "-installer", vestigeSystem,
+                                    new Callable<Void>() {
+
+                                        @Override
+                                        public Void call() throws Exception {
+                                            ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(callConstructor(installerClassLoader,
+                                                    installerClassLoader.loadClass(fromApplicationContext.getInstallerClassName()), base, data, vestigeSystem));
+                                            if (migratorApplicationContext == fromApplicationContext) {
+                                                applicationInstaller.migrateTo(toVersion);
+                                            } else {
+                                                applicationInstaller.migrateFrom(fromVersion);
+                                            }
+                                            return null;
+                                        }
+
+                                    }, managerVestigeSystem, new FutureDoneHandler<Void>() {
+                                        @Override
+                                        public void futureDone(final Future<Void> future) {
+                                            try {
+                                                future.get();
+                                            } catch (InterruptedException e) {
+                                                LOGGER.error("Unexpected InterruptedException", e);
+                                            } catch (ExecutionException e) {
+                                                LOGGER.error("Migrate ended with exception", e.getCause());
+                                            }
+                                        }
+                                    });
+                            thread.setContextClassLoader(installerClassLoader);
+                            if (migratorApplicationContext == fromApplicationContext) {
+                                task = jobHelper.addTask("Calling migrateTo method");
+                            } else {
+                                task = jobHelper.addTask("Calling migrateFrom method");
+                            }
+                            thread.start();
+                            try {
+                                thread.join();
+                            } catch (InterruptedException e) {
+                                thread.interrupt();
+                                throw e;
+                            } finally {
+                                task.setDone();
+                            }
+                        } finally {
+                            vestigePlatform.detach(installerAttach);
+                        }
+                    } catch (Exception e) {
+                        throw new ApplicationException("fail to migrate", e);
+                    }
                 }
-            } catch (Exception e) {
+                synchronized (state) {
+                    state.install(installName, toApplicationContext);
+                    saveState();
+                }
+            } finally {
                 synchronized (state) {
                     fromApplicationContext.setMigrationRepoApplicationVersion(null);
                 }
-                throw new ApplicationException("fail to migrate", e);
+            }
+            if (LOGGER.isInfoEnabled()) {
+                LOGGER.info("Application {} migrated to version {}", installName, VersionUtils.toString(toVersion));
             }
         }
-        synchronized (state) {
-            state.install(installName, toApplicationContext);
-            saveState();
-        }
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Application {} migrated to version {}", installName, VersionUtils.toString(toVersion));
-        }
-
     }
 
     public void start(final String installName) throws ApplicationException {
@@ -874,11 +1015,25 @@ public class DefaultApplicationManager implements ApplicationManager {
                     }
                     // allow external start to run
                     applicationContext.setStarted(false);
+                    // notify after stop
+                    synchronized (applicationManagerStateListeners) {
+                        if (applicationManagerStateListeners.size() != 0) {
+                            lastState = state.copy();
+                            applicationManagerStateListeners.notify();
+                        }
+                    }
                 }
             });
             thread.setContextClassLoader(classLoader);
             applicationContext.setThread(thread);
             applicationContext.setStarted(true);
+            // notify after start
+            synchronized (applicationManagerStateListeners) {
+                if (applicationManagerStateListeners.size() != 0) {
+                    lastState = state.copy();
+                    applicationManagerStateListeners.notify();
+                }
+            }
             thread.start();
         } catch (Exception e) {
             throw new ApplicationException("Unable to start", e);
@@ -933,45 +1088,74 @@ public class DefaultApplicationManager implements ApplicationManager {
         }
     }
 
-    public void autoMigrate() throws ApplicationException {
-        final List<String> failedMigration = Collections.synchronizedList(new ArrayList<String>());
-        Set<String> applicationNames;
-        synchronized (state) {
-            // create a new set because migration cause concurent modification
-            applicationNames = new TreeSet<String>(state.getApplicationsName());
-        }
-        List<Thread> threads = new ArrayList<Thread>(applicationNames.size());
-        for (final String applicationName : applicationNames) {
-            Thread thread = new Thread("automigrate-" + applicationName) {
-                public void run() {
-                    try {
-                        autoMigrate(applicationName);
-                    } catch (ApplicationException e) {
-                        failedMigration.add(applicationName);
-                        LOGGER.warn("Unable to auto-migrate " + applicationName, e);
+    /**
+     * @author Gael Lalire
+     */
+    private class AutoMigrateJob implements Job {
+
+        @Override
+        public void run(final JobHelper jobHelper) throws Exception {
+            final List<String> failedMigration = Collections.synchronizedList(new ArrayList<String>());
+            Set<String> applicationNames;
+            synchronized (state) {
+                // create a new set because migration cause concurrent
+                // modification
+                applicationNames = new TreeSet<String>(state.getApplicationsName());
+            }
+            List<Thread> threads = new ArrayList<Thread>(applicationNames.size());
+            for (final String applicationName : applicationNames) {
+                Thread thread = new Thread("automigrate-" + applicationName) {
+                    public void run() {
+                        try {
+                            autoMigrate(new JobHelper() {
+
+                                @Override
+                                public TaskHelper addTask(final String taskDescription) {
+                                    return jobHelper.addTask("[" + applicationName + "] " + taskDescription);
+                                }
+                            }, applicationName);
+                        } catch (ApplicationException e) {
+                            failedMigration.add(applicationName);
+                            LOGGER.warn("Unable to auto-migrate " + applicationName, e);
+                        }
                     }
+                };
+                threads.add(thread);
+                thread.start();
+            }
+            try {
+                for (Thread thread : threads) {
+                    thread.join();
                 }
-            };
-            threads.add(thread);
-            thread.start();
-        }
-        try {
-            for (Thread thread : threads) {
-                thread.join();
+            } catch (InterruptedException e) {
+                LOGGER.warn("Interrupted auto-migrate ", e);
+                for (Thread thread : threads) {
+                    thread.interrupt();
+                }
+                return;
             }
-        } catch (InterruptedException e) {
-            LOGGER.warn("Interrupted auto-migrate ", e);
-            for (Thread thread : threads) {
-                thread.interrupt();
+            if (failedMigration.size() != 0) {
+                throw new ApplicationException("Following migration failed " + failedMigration);
             }
-            return;
         }
-        if (failedMigration.size() != 0) {
-            throw new ApplicationException("Following migration failed " + failedMigration);
-        }
+
     }
 
-    public void autoMigrate(final String installName) throws ApplicationException {
+    public JobController autoMigrate(final JobListener jobListener) throws ApplicationException {
+        return actionManager.submitJob("automigrate", "Automatic migration", new AutoMigrateJob(), jobListener);
+    }
+
+    public JobController autoMigrate(final String installName, final JobListener jobListener) throws ApplicationException {
+        return actionManager.submitJob("automigrate", "Automatic migration", new Job() {
+
+            @Override
+            public void run(final JobHelper jobHelper) throws Exception {
+                autoMigrate(jobHelper, installName);
+            }
+        }, jobListener);
+    }
+
+    public void autoMigrate(final JobHelper jobHelper, final String installName) throws ApplicationException {
         ApplicationContext applicationContext;
         URL context;
         String repoName;
@@ -1030,7 +1214,7 @@ public class DefaultApplicationManager implements ApplicationManager {
             throw new ApplicationException("Unexpected autoMigrateLevel" + autoMigrateLevel);
         }
         if (!newerVersion.equals(version)) {
-            migrate(applicationContext.getName(), newerVersion, true, true);
+            new MigrateAction(applicationContext, applicationContext.getName(), newerVersion, true, true).run(jobHelper);
         } else {
             synchronized (state) {
                 applicationContext.setMigrationRepoApplicationVersion(null);
@@ -1165,6 +1349,52 @@ public class DefaultApplicationManager implements ApplicationManager {
     @Override
     public ApplicationRepositoryMetadata getRepositoryMetadata(final String repoName) {
         return applicationDescriptorFactory.getMetadata(getRepositoryURL(repoName));
+    }
+
+    public void startStateListenerThread() {
+        stateListenerThread = new Thread("DefaultApplicationManager-stateListener") {
+            @Override
+            public void run() {
+                try {
+                    while (true) {
+                        ApplicationManagerState state;
+                        synchronized (applicationManagerStateListeners) {
+                            while (lastState == null) {
+                                applicationManagerStateListeners.wait();
+                            }
+                            state = lastState;
+                            lastState = null;
+                        }
+                        for (ApplicationManagerStateListener applicationManagerStateListener : applicationManagerStateListeners) {
+                            applicationManagerStateListener.stateChanged(state);
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        stateListenerThread.start();
+    }
+
+    public void stopStateListenerThread() throws InterruptedException {
+        stateListenerThread.interrupt();
+        stateListenerThread.join();
+        stateListenerThread = null;
+    }
+
+    @Override
+    public void addStateListener(final ApplicationManagerStateListener listener) {
+        synchronized (state) {
+            applicationManagerStateListeners.add(listener);
+        }
+    }
+
+    @Override
+    public void removeStateListener(final ApplicationManagerStateListener listener) {
+        synchronized (state) {
+            applicationManagerStateListeners.remove(listener);
+        }
     }
 
 }

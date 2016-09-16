@@ -17,7 +17,6 @@
 
 package fr.gaellalire.vestige.admin.command;
 
-import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.List;
 
@@ -26,6 +25,7 @@ import fr.gaellalire.vestige.admin.command.argument.LocalApplicationNameArgument
 import fr.gaellalire.vestige.admin.command.argument.OnOffArgument;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
+import fr.gaellalire.vestige.job.JobController;
 
 /**
  * @author Gael Lalire
@@ -56,15 +56,16 @@ public class AutoStart implements Command {
         return Arrays.asList(applicationArgument, onOffArgument);
     }
 
-    public void execute(final PrintWriter out) {
+    public JobController execute(final CommandContext commandContext) {
         try {
             Boolean active = onOffArgument.getActive();
             if (active != null) {
                 applicationManager.setAutoStarted(applicationArgument.getApplication(), active.booleanValue());
             }
         } catch (ApplicationException e) {
-            e.printStackTrace(out);
+            e.printStackTrace(commandContext.getOut());
         }
+        return null;
     }
 
 }

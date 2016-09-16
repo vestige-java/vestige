@@ -27,6 +27,7 @@ import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
 import fr.gaellalire.vestige.application.manager.ApplicationManagerState;
 import fr.gaellalire.vestige.application.manager.VersionUtils;
+import fr.gaellalire.vestige.job.JobController;
 
 /**
  * @author Gael Lalire
@@ -51,7 +52,8 @@ public class ListCommand implements Command {
         return Collections.emptyList();
     }
 
-    public void execute(final PrintWriter out) {
+    public JobController execute(final CommandContext commandContext) {
+        PrintWriter out = commandContext.getOut();
         try {
             ApplicationManagerState applicationManagerState = applicationManager.copyState();
             Set<String> repositoriesName = applicationManagerState.getRepositoriesName();
@@ -115,6 +117,7 @@ public class ListCommand implements Command {
         } catch (ApplicationException e) {
             e.printStackTrace(out);
         }
+        return null;
     }
 
 }

@@ -37,14 +37,24 @@ public class LineFilterOutputStream extends FilterOutputStream {
         if (!crReaded && b == '\n') {
             out.write('\r');
             out.write('\n');
-        } else {
+        } else if (b != '\n') {
             out.write(b);
         }
         if (b == '\r') {
             crReaded = true;
+            out.write('\n');
         } else {
             crReaded = false;
         }
+    }
+
+    public void clear(final int size) throws IOException {
+        out.write('\r');
+        for (int i = 0; i < size; i++) {
+            out.write(' ');
+        }
+        out.write('\r');
+        out.flush();
     }
 
 }

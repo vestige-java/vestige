@@ -17,6 +17,7 @@
 
 package fr.gaellalire.vestige.admin.ssh;
 
+import java.io.File;
 import java.util.Map;
 
 import jline.console.completer.Completer;
@@ -35,14 +36,17 @@ public class SSHShellCommandFactory implements Factory<Command> {
 
     private Completer completer;
 
-    public SSHShellCommandFactory(final VestigeCommandExecutor vestigeCommandExecutor) {
+    private File historyFile;
+
+    public SSHShellCommandFactory(final VestigeCommandExecutor vestigeCommandExecutor, final File historyFile) {
         this.vestigeCommandExecutor = vestigeCommandExecutor;
+        this.historyFile = historyFile;
         Map<String, fr.gaellalire.vestige.admin.command.Command> commandByNames = vestigeCommandExecutor.getCommandByNames();
         completer = new SSHCommandCompleter(commandByNames);
     }
 
     public Command create() {
-        return new SSHShellCommand(this);
+        return new SSHShellCommand(this, historyFile);
     }
 
     public Completer getCompleter() {

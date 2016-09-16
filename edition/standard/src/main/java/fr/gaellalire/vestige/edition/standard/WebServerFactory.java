@@ -25,7 +25,7 @@ import java.util.concurrent.Callable;
 
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.bio.SocketConnector;
+import org.eclipse.jetty.server.nio.SelectChannelConnector;
 import org.eclipse.jetty.servlet.ServletHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
@@ -67,7 +67,7 @@ public class WebServerFactory implements Callable<VestigeServer> {
         for (final Bind bind : binds) {
             final String host = bind.getHost();
 
-            Connector connector = new SocketConnector() {
+            Connector connector = new SelectChannelConnector() {
                 @Override
                 public void open() throws IOException {
                     super.open();

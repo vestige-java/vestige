@@ -51,6 +51,7 @@ import org.eclipse.aether.RepositorySystem;
 import org.eclipse.aether.artifact.Artifact;
 import org.eclipse.aether.artifact.DefaultArtifact;
 import org.eclipse.aether.collection.CollectRequest;
+import org.eclipse.aether.collection.DependencySelector;
 import org.eclipse.aether.connector.basic.BasicRepositoryConnectorFactory;
 import org.eclipse.aether.graph.Dependency;
 import org.eclipse.aether.graph.DependencyNode;
@@ -81,6 +82,7 @@ import org.eclipse.aether.util.repository.AuthenticationBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.gaellalire.vestige.job.JobHelper;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.MinimalStringParserFactory;
 import fr.gaellalire.vestige.platform.StringParserFactory;
@@ -94,8 +96,6 @@ public class MavenArtifactResolver {
 
     private StringParserFactory stringParserFactory;
 
-    private DefaultRepositorySystemSession session;
-
     private RepositorySystem repoSystem;
 
     private ModifiedDependencyCollector modifiedDependencyCollector;
@@ -106,10 +106,23 @@ public class MavenArtifactResolver {
 
     private List<RemoteRepository> superPomRemoteRepositories;
 
+    private boolean offline;
+
+    private LocalRepository localRepository;
+
+    private SimpleLocalRepositoryManagerFactory simpleLocalRepositoryManagerFactory = new SimpleLocalRepositoryManagerFactory();
+
+    /**
+     * Reusable because stateless.
+     */
+    private DependencySelector initialDependencySelector = new AndDependencySelector(new ScopeDependencySelector("test", "provided"),
+            new OptionalDependencySelector());
+
+    private ProxySelector proxySelector;
+
     public MavenArtifactResolver(final File settingsFile) throws NoLocalRepositoryManagerException {
         stringParserFactory = new MinimalStringParserFactory();
-        boolean offline = false;
-        File localRepository = new File(System.getProperty("user.home"), ".m2" + File.separator + "repository");
+        File localRepositoryFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "repository");
         try {
             DefaultSettingsBuilder defaultSettingsBuilder = new DefaultSettingsBuilderFactory().newInstance();
             DefaultSettingsBuildingRequest request = new DefaultSettingsBuildingRequest();
@@ -129,13 +142,15 @@ public class MavenArtifactResolver {
             }
             String settingsLocalRepository = settings.getLocalRepository();
             if (settingsLocalRepository != null && settingsLocalRepository.length() != 0) {
-                localRepository = new File(settingsLocalRepository);
+                localRepositoryFile = new File(settingsLocalRepository);
             }
             offline = settings.isOffline();
         } catch (SettingsBuildingException e) {
             LOGGER.warn("Unable to read settings.xml, use default values", e);
         }
-        LOGGER.info("Use m2 repository {}", localRepository);
+        LOGGER.info("Use m2 repository {}", localRepositoryFile);
+
+        this.localRepository = new LocalRepository(localRepositoryFile);
 
         DefaultServiceLocator locator = new DefaultServiceLocator();
         locator.addService(VersionResolver.class, DefaultVersionResolver.class);
@@ -150,19 +165,11 @@ public class MavenArtifactResolver {
 
         repoSystem = locator.getService(RepositorySystem.class);
 
-        session = MavenRepositorySystemUtils.newSession();
-        session.setTransferListener(new VestigeTransferListener());
-        session.setOffline(offline);
-        session.setLocalRepositoryManager(new SimpleLocalRepositoryManagerFactory().newInstance(session, new LocalRepository(localRepository)));
-        AndDependencySelector andDependencySelector = new AndDependencySelector(new ScopeDependencySelector("test", "provided"),
-                new OptionalDependencySelector());
-        session.setDependencySelector(andDependencySelector);
 
         modifiedDependencyCollector = ((ModifiedDependencyCollector) locator.getService(DependencyCollector.class));
         descriptorReader = locator.getService(ArtifactDescriptorReader.class);
 
-
-        session.setProxySelector(new ProxySelector() {
+        proxySelector = new ProxySelector() {
 
             public Proxy getProxy(final RemoteRepository repository) {
                 if (proxy == null) {
@@ -174,7 +181,7 @@ public class MavenArtifactResolver {
                 }
                 return proxy;
             }
-        });
+        };
 
         // read central repositories
         final SuperPomProvider[] superPomProviderArray = new SuperPomProvider[1];
@@ -191,6 +198,17 @@ public class MavenArtifactResolver {
         for (Repository repository : repositories) {
             superPomRemoteRepositories.add(ArtifactDescriptorUtils.toRemoteRepository(repository));
         }
+    }
+
+    public DefaultRepositorySystemSession createSession(final JobHelper actionHelper) throws NoLocalRepositoryManagerException {
+        DefaultRepositorySystemSession session = MavenRepositorySystemUtils.newSession();
+        session.setTransferListener(new VestigeTransferListener(actionHelper));
+        session.setOffline(offline);
+        session.setLocalRepositoryManager(simpleLocalRepositoryManagerFactory.newInstance(session, localRepository));
+        session.setDependencySelector(initialDependencySelector);
+
+        session.setProxySelector(proxySelector);
+        return session;
     }
 
     public static final List<String> NON_PROXY_URI_SCHEMES = Arrays.asList("file");
@@ -226,7 +244,7 @@ public class MavenArtifactResolver {
         return null;
     }
 
-    public ClassLoaderConfiguration resolve(final String appName, final String groupId, final String artifactId, final String version, final List<MavenRepository> additionalRepositories, final DependencyModifier dependencyModifier, final ResolveMode resolveMode, final Scope scope, final boolean useSuperPomRepositories, final boolean ignorePomRepositories) throws Exception {
+    public ClassLoaderConfiguration resolve(final String appName, final String groupId, final String artifactId, final String version, final List<MavenRepository> additionalRepositories, final DependencyModifier dependencyModifier, final ResolveMode resolveMode, final Scope scope, final boolean useSuperPomRepositories, final boolean ignorePomRepositories, final JobHelper actionHelper) throws Exception {
 
         Map<String, Map<String, MavenArtifact>> runtimeDependencies = new HashMap<String, Map<String, MavenArtifact>>();
 
@@ -246,6 +264,8 @@ public class MavenArtifactResolver {
             }
             collectRequest.addRepository(repositoryBuilder.build());
         }
+
+        DefaultRepositorySystemSession session = createSession(actionHelper);
 
         session.setIgnoreArtifactDescriptorRepositories(ignorePomRepositories);
 

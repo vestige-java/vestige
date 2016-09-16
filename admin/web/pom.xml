@@ -38,6 +38,11 @@
       <artifactId>jetty-servlet</artifactId>
     </dependency>
     <dependency>
+        <groupId>org.eclipse.jetty</groupId>
+        <artifactId>jetty-websocket</artifactId>
+        <version>${jetty.version}</version>
+    </dependency>
+    <dependency>
       <groupId>net.minidev</groupId>
       <artifactId>json-smart</artifactId>
     </dependency>
@@ -76,5 +81,18 @@
       <artifactId>vestige.core</artifactId>
       <scope>test</scope>
     </dependency>
+<!--   <dependency> -->
+<!--     <artifactId>jWebSocketServer</artifactId> -->
+<!--     <groupId>org.jwebsocket</groupId> -->
+<!--     <version>1.0</version> -->
+<!--     <type>jar</type> -->
+<!--   </dependency> -->
   </dependencies>
+<!-- <repositories> -->
+<!--   <repository> -->
+<!--     <id>jWebSocket-Repo</id> -->
+<!--     <name>jWebSocket Repository</name> -->
+<!--     <url>http://mvn.jwebsocket.org/</url> -->
+<!--   </repository> -->
+<!-- </repositories> -->
 </project>

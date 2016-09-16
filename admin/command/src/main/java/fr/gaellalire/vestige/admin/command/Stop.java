@@ -17,7 +17,6 @@
 
 package fr.gaellalire.vestige.admin.command;
 
-import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.List;
 
@@ -25,6 +24,7 @@ import fr.gaellalire.vestige.admin.command.argument.Argument;
 import fr.gaellalire.vestige.admin.command.argument.LocalApplicationNameArgument;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
+import fr.gaellalire.vestige.job.JobController;
 
 /**
  * @author Gael Lalire
@@ -52,12 +52,13 @@ public class Stop implements Command {
         return Arrays.asList(applicationArgument);
     }
 
-    public void execute(final PrintWriter out) {
+    public JobController execute(final CommandContext commandContext) {
         try {
             applicationManager.stop(applicationArgument.getApplication());
         } catch (ApplicationException e) {
-            e.printStackTrace(out);
+            e.printStackTrace(commandContext.getOut());
         }
+        return null;
     }
 
 

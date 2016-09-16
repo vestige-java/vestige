@@ -24,6 +24,7 @@ import java.io.PrintWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.gaellalire.vestige.admin.command.DefaultCommandContext;
 import fr.gaellalire.vestige.admin.command.VestigeCommandExecutor;
 
 /**
@@ -61,6 +62,8 @@ public class TelnetSession implements Runnable {
     }
 
     public void run() {
+        DefaultCommandContext defaultCommandContext = new DefaultCommandContext();
+        defaultCommandContext.setOut(printWriter);
         try {
             String readLine = bufferedReader.readLine();
             while (readLine != null) {
@@ -72,7 +75,7 @@ public class TelnetSession implements Runnable {
                 if (args[0].equals("exit")) {
                     break;
                 }
-                commandExecutor.exec(printWriter, args);
+                commandExecutor.exec(defaultCommandContext, args);
                 readLine = bufferedReader.readLine();
             }
         } catch (IOException e) {

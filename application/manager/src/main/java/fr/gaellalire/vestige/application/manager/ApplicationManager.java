@@ -20,6 +20,9 @@ package fr.gaellalire.vestige.application.manager;
 import java.net.URL;
 import java.util.List;
 
+import fr.gaellalire.vestige.job.JobController;
+import fr.gaellalire.vestige.job.JobListener;
+
 /**
  * @author Gael Lalire
  */
@@ -31,11 +34,11 @@ public interface ApplicationManager extends ApplicationManagerState {
 
     void removeRepository(String name) throws ApplicationException;
 
-    void install(String repoName, String appName, List<Integer> version, String installName) throws ApplicationException;
+    JobController install(String repoName, String appName, List<Integer> version, String installName, JobListener jobListener) throws ApplicationException;
 
-    void uninstall(String installName) throws ApplicationException;
+    JobController uninstall(String installName, JobListener jobListener) throws ApplicationException;
 
-    void migrate(String installName, List<Integer> toVersion) throws ApplicationException;
+    JobController migrate(String installName, List<Integer> toVersion, JobListener jobListener) throws ApplicationException;
 
     void start(String installName) throws ApplicationException;
 
@@ -45,10 +48,14 @@ public interface ApplicationManager extends ApplicationManagerState {
 
     void setAutoStarted(String installName, boolean autoStarted) throws ApplicationException;
 
-    void autoMigrate() throws ApplicationException;
+    JobController autoMigrate(JobListener jobListener) throws ApplicationException;
 
-    void autoMigrate(final String installName) throws ApplicationException;
+    JobController autoMigrate(final String installName, JobListener jobListener) throws ApplicationException;
 
     ApplicationRepositoryMetadata getRepositoryMetadata(String repoName);
+
+    void addStateListener(ApplicationManagerStateListener listener);
+
+    void removeStateListener(ApplicationManagerStateListener listener);
 
 }

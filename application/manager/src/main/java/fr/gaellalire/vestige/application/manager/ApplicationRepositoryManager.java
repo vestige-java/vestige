@@ -20,6 +20,8 @@ package fr.gaellalire.vestige.application.manager;
 import java.net.URL;
 import java.util.List;
 
+import fr.gaellalire.vestige.job.JobHelper;
+
 /**
  * @author Gael Lalire
  */
@@ -27,7 +29,7 @@ public interface ApplicationRepositoryManager {
 
     boolean hasApplicationDescriptor(URL context, String repoName, String appName, List<Integer> version) throws ApplicationException;
 
-    ApplicationDescriptor createApplicationDescriptor(URL context, String repoName, String appName, List<Integer> version) throws ApplicationException;
+    ApplicationDescriptor createApplicationDescriptor(URL context, String repoName, String appName, List<Integer> version, JobHelper jobHelper) throws ApplicationException;
 
     ApplicationRepositoryMetadata getMetadata(URL context);
 

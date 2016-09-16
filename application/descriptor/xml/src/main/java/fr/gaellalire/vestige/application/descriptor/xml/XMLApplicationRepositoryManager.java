@@ -62,6 +62,8 @@ import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryMetadata;
 import fr.gaellalire.vestige.application.manager.VersionUtils;
+import fr.gaellalire.vestige.job.JobHelper;
+import fr.gaellalire.vestige.job.TaskHelper;
 import fr.gaellalire.vestige.resolver.maven.DefaultDependencyModifier;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
 import fr.gaellalire.vestige.resolver.maven.MavenRepository;
@@ -128,8 +130,9 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         return ((JAXBElement<Application>) unMarshaller.unmarshal(inputStream)).getValue();
     }
 
-    public ApplicationDescriptor createApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version)
+    public ApplicationDescriptor createApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version, final JobHelper jobHelper)
             throws ApplicationException {
+        TaskHelper task = jobHelper.addTask("Reading application descriptor");
         URL url;
         try {
             url = new URL(context, appName + "/" + appName + "-" + VersionUtils.toString(version) + ".xml");
@@ -141,10 +144,11 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         try {
             application = getApplication(url.openStream());
         } catch (IOException e) {
-            throw new ApplicationException("unable to unmarshall application xml", e);
+            throw new ApplicationException("Unable to unmarshall application xml", e);
         } catch (JAXBException e) {
-            throw new ApplicationException("unable to unmarshall application xml", e);
+            throw new ApplicationException("Unable to unmarshall application xml", e);
         }
+        task.setDone();
 
         Config configurations = application.getConfigurations();
         Set<Permission> installerPermissionSet = new HashSet<Permission>();
@@ -173,7 +177,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         } else {
             mavenConfigResolved = new MavenConfigResolved();
         }
-        return new XMLApplicationDescriptor(mavenArtifactResolver, version, application, mavenConfigResolved, launcherPermissionSet);
+        return new XMLApplicationDescriptor(mavenArtifactResolver, version, application, mavenConfigResolved, launcherPermissionSet, jobHelper);
     }
 
     public void readPermissions(final Permissions permissions, final Set<Permission> result) {
@@ -284,7 +288,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         try {
             repository = ((JAXBElement<Repository>) unMarshaller.unmarshal(url)).getValue();
         } catch (JAXBException e) {
-            LOGGER.warn("unable to unmarshall repository xml", e);
+            LOGGER.warn("Unable to unmarshall repository xml", e);
             return new XMLApplicationRepositoryMetadata(versionsByNames);
         }
         for (fr.gaellalire.vestige.application.descriptor.xml.schema.repository.Repository.Application application : repository.getApplication()) {

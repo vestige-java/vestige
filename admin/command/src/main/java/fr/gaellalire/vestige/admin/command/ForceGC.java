@@ -17,12 +17,12 @@
 
 package fr.gaellalire.vestige.admin.command;
 
-import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.List;
 
 import fr.gaellalire.vestige.admin.command.argument.Argument;
 import fr.gaellalire.vestige.application.manager.GarbageCollectorUtils;
+import fr.gaellalire.vestige.job.JobController;
 
 /**
  * @author Gael Lalire
@@ -42,8 +42,9 @@ public class ForceGC implements Command {
         return "Force garbage collector to run and clean at least on soft reference";
     }
 
-    public void execute(final PrintWriter out) {
+    public JobController execute(final CommandContext commandContext) {
         GarbageCollectorUtils.forceSoftReferenceGC();
+        return null;
     }
 
 }

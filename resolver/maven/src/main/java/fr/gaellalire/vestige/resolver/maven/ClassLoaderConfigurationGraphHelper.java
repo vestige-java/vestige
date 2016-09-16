@@ -30,7 +30,6 @@ import org.eclipse.aether.RepositorySystemSession;
 import org.eclipse.aether.artifact.Artifact;
 import org.eclipse.aether.collection.CollectRequest;
 import org.eclipse.aether.collection.DependencyManager;
-import org.eclipse.aether.collection.DependencySelector;
 import org.eclipse.aether.graph.DefaultDependencyNode;
 import org.eclipse.aether.graph.Dependency;
 import org.eclipse.aether.impl.ArtifactDescriptorReader;
@@ -61,8 +60,6 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
     private Scope scope;
 
-    private DependencySelector dependencySelector;
-
     private DependencyModifier dependencyModifier;
 
     public ClassLoaderConfigurationGraphHelper(final String appName, final Map<MavenArtifact, URL> urlByKey,
@@ -75,7 +72,6 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
         this.descriptorReader = descriptorReader;
         this.collectRequest = collectRequest;
         this.session = session;
-        dependencySelector = session.getDependencySelector();
         this.dependencyModifier = dependencyModifier;
         this.runtimeDependencies = runtimeDependencies;
         this.scope = scope;
@@ -142,14 +138,13 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
             ArtifactDescriptorResult descriptorResult = descriptorReader.readArtifactDescriptor(session, descriptorRequest);
             List<Dependency> managedDependencies = mergeDeps(nodeAndState.getManagedDependencies(), descriptorResult.getManagedDependencies());
             DefaultDependencyCollectionContext context = new DefaultDependencyCollectionContext(session, null, nodeAndState.getDependencyNode().getDependency(), managedDependencies);
-            // use root dependencySelector to avoid deletion of already included dependency
-            DependencySelector dependencySelector = this.dependencySelector.deriveChildSelector(context);
             DependencyManager dependencyManager = nodeAndState.getDependencyManager().deriveChildManager(context);
 
             List<Dependency> dependencies = descriptorResult.getDependencies();
             ListIterator<Dependency> dependencyIterator = dependencies.listIterator();
+            // remove only test scope (provided and optional are ignored only if not repeated by another dependency)
             while (dependencyIterator.hasNext()) {
-                if (!dependencySelector.selectDependency(dependencyIterator.next())) {
+                if ("test".equals(dependencyIterator.next().getScope())) {
                     dependencyIterator.remove();
                 }
             }

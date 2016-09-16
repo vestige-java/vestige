@@ -37,6 +37,7 @@ import fr.gaellalire.vestige.application.descriptor.xml.schema.application.URLsC
 import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.VersionUtils;
+import fr.gaellalire.vestige.job.JobHelper;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
 import fr.gaellalire.vestige.resolver.maven.ResolveMode;
@@ -59,13 +60,16 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
 
     private Set<Permission> permissions;
 
+    private JobHelper actionHelper;
+
     public XMLApplicationDescriptor(final MavenArtifactResolver mavenArtifactResolver, final List<Integer> version, final Application application,
-            final MavenConfigResolved mavenConfigResolved, final Set<Permission> permissions) {
+            final MavenConfigResolved mavenConfigResolved, final Set<Permission> permissions, final JobHelper actionHelper) {
         this.mavenArtifactResolver = mavenArtifactResolver;
         this.version = version;
         this.application = application;
         this.mavenConfigResolved = mavenConfigResolved;
         this.permissions = permissions;
+        this.actionHelper = actionHelper;
     }
 
     public Set<List<Integer>> getSupportedMigrationVersions() throws ApplicationException {
@@ -176,7 +180,7 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
             return new ClassLoaderConfiguration(key, name, urlsInstaller.getScope() == fr.gaellalire.vestige.application.descriptor.xml.schema.application.Scope.ATTACHMENT, urls,
                     Collections.<ClassLoaderConfiguration> emptyList(), null, null, null);
         }
-        return resolve(configurationName, installer.getMavenInstaller());
+        return resolve(configurationName, installer.getMavenInstaller(), actionHelper);
     }
 
     public String getLauncherClassName() throws ApplicationException {
@@ -235,10 +239,10 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
             return new ClassLoaderConfiguration(key, name, urlsLauncher.getScope() == fr.gaellalire.vestige.application.descriptor.xml.schema.application.Scope.ATTACHMENT, urls,
                     Collections.<ClassLoaderConfiguration> emptyList(), null, null, null);
         }
-        return resolve(configurationName, launcher.getMavenLauncher());
+        return resolve(configurationName, launcher.getMavenLauncher(), actionHelper);
     }
 
-    public ClassLoaderConfiguration resolve(final String configurationName, final MavenClassType mavenClassType) throws ApplicationException {
+    public ClassLoaderConfiguration resolve(final String configurationName, final MavenClassType mavenClassType, final JobHelper actionHelper) throws ApplicationException {
         ResolveMode resolveMode;
         Mode mode = mavenClassType.getMode();
         switch (mode) {
@@ -270,7 +274,7 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
 
         try {
             return mavenArtifactResolver.resolve(configurationName, mavenClassType.getGroupId(), mavenClassType.getArtifactId(), mavenClassType.getVersion(), mavenConfigResolved.getAdditionalRepositories(),
-                    mavenConfigResolved.getDefaultDependencyModifier(), resolveMode, mavenScope, mavenConfigResolved.isSuperPomRepositoriesUsed(), mavenConfigResolved.isPomRepositoriesIgnored());
+                    mavenConfigResolved.getDefaultDependencyModifier(), resolveMode, mavenScope, mavenConfigResolved.isSuperPomRepositoriesUsed(), mavenConfigResolved.isPomRepositoriesIgnored(), actionHelper);
         } catch (Exception e) {
             throw new ApplicationException("Unable to resolve", e);
         }

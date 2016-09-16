@@ -17,17 +17,17 @@
 
 package fr.gaellalire.vestige.admin.command;
 
-import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.List;
 
-import fr.gaellalire.vestige.admin.command.argument.LocalApplicationNameArgument;
 import fr.gaellalire.vestige.admin.command.argument.Argument;
+import fr.gaellalire.vestige.admin.command.argument.LocalApplicationNameArgument;
 import fr.gaellalire.vestige.admin.command.argument.RepositoryApplicationNameArgument;
-import fr.gaellalire.vestige.admin.command.argument.RepositoryArgument;
 import fr.gaellalire.vestige.admin.command.argument.RepositoryApplicationVersionArgument;
+import fr.gaellalire.vestige.admin.command.argument.RepositoryArgument;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
+import fr.gaellalire.vestige.job.JobController;
 
 /**
  * @author Gael Lalire
@@ -64,11 +64,12 @@ public class Install implements Command {
         return Arrays.asList(repositoryArgument, applicationArgument, versionArgument, installNameArgument);
     }
 
-    public void execute(final PrintWriter out) {
+    public JobController execute(final CommandContext commandContext) {
         try {
-            applicationManager.install(repositoryArgument.getRepository(), applicationArgument.getApplication(), versionArgument.getVersion(), installNameArgument.getApplication());
+            return applicationManager.install(repositoryArgument.getRepository(), applicationArgument.getApplication(), versionArgument.getVersion(), installNameArgument.getApplication(), commandContext.getJobListener());
         } catch (ApplicationException e) {
-            e.printStackTrace(out);
+            e.printStackTrace(commandContext.getOut());
+            return null;
         }
     }
 

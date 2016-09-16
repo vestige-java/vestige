@@ -17,11 +17,11 @@
 
 package fr.gaellalire.vestige.admin.command;
 
-import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.List;
 
 import fr.gaellalire.vestige.admin.command.argument.Argument;
+import fr.gaellalire.vestige.job.JobController;
 
 /**
  * @author Gael Lalire
@@ -41,8 +41,9 @@ public class GC implements Command {
         return "Run garbage collector";
     }
 
-    public void execute(final PrintWriter out) {
+    public JobController execute(final CommandContext commandContext) {
         System.gc();
+        return null;
     }
 
 }

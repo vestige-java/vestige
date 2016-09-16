@@ -17,10 +17,10 @@
 
 package fr.gaellalire.vestige.admin.command;
 
-import java.io.PrintWriter;
 import java.util.List;
 
 import fr.gaellalire.vestige.admin.command.argument.Argument;
+import fr.gaellalire.vestige.job.JobController;
 
 /**
  * @author Gael Lalire
@@ -33,5 +33,6 @@ public interface Command {
 
     String getDesc();
 
-    void execute(PrintWriter out);
+    JobController execute(CommandContext commandContext);
+
 }

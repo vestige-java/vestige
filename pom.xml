@@ -334,6 +334,7 @@
   </prerequisites>
   <modules>
     <module>utils</module>
+    <module>job</module>
     <module>jvm_enhancer</module>
     <module>platform</module>
     <module>resolver</module>

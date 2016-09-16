@@ -17,11 +17,18 @@
 
 package fr.gaellalire.vestige.resolver.maven;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.eclipse.aether.transfer.AbstractTransferListener;
 import org.eclipse.aether.transfer.TransferCancelledException;
 import org.eclipse.aether.transfer.TransferEvent;
+import org.eclipse.aether.transfer.TransferResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import fr.gaellalire.vestige.job.JobHelper;
+import fr.gaellalire.vestige.job.TaskHelper;
 
 /**
  * @author Gael Lalire
@@ -30,9 +37,45 @@ public class VestigeTransferListener extends AbstractTransferListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VestigeTransferListener.class);
 
+    private JobHelper actionHelper;
+
+    public VestigeTransferListener(final JobHelper actionHelper) {
+        this.actionHelper = actionHelper;
+    }
+
+    private Map<TransferResource, TaskHelper> taskByResource = new HashMap<TransferResource, TaskHelper>();
+
     @Override
     public void transferInitiated(final TransferEvent event) throws TransferCancelledException {
-        LOGGER.info("Transfering " + event.getResource().getResourceName());
+        TransferResource resource = event.getResource();
+        LOGGER.info("Transfering " + resource.getResourceName());
+        TaskHelper addTask = actionHelper.addTask("Transfering " + resource.getResourceName());
+        addTask.setProgress(0);
+        taskByResource.put(resource, addTask);
+    }
+
+    @Override
+    public void transferProgressed(final TransferEvent event) throws TransferCancelledException {
+        TransferResource resource = event.getResource();
+        long contentLength = resource.getContentLength();
+        if (contentLength >= 0) {
+            taskByResource.get(resource).setProgress(((float) event.getTransferredBytes()) / contentLength);
+        }
+    }
+
+    @Override
+    public void transferSucceeded(final TransferEvent event) {
+        taskByResource.remove(event.getResource()).setDone();
+    }
+
+    @Override
+    public void transferFailed(final TransferEvent event) {
+        taskByResource.remove(event.getResource()).setDone();
+    }
+
+    @Override
+    public void transferCorrupted(final TransferEvent event) throws TransferCancelledException {
+        taskByResource.remove(event.getResource()).setDone();
     }
 
 }
