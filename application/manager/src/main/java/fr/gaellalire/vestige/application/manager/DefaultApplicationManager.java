@@ -1018,7 +1018,9 @@ public class DefaultApplicationManager implements ApplicationManager {
                     // notify after stop
                     synchronized (applicationManagerStateListeners) {
                         if (applicationManagerStateListeners.size() != 0) {
-                            lastState = state.copy();
+                            synchronized (state) {
+                                lastState = state.copy();
+                            }
                             applicationManagerStateListeners.notify();
                         }
                     }
@@ -1030,7 +1032,9 @@ public class DefaultApplicationManager implements ApplicationManager {
             // notify after start
             synchronized (applicationManagerStateListeners) {
                 if (applicationManagerStateListeners.size() != 0) {
-                    lastState = state.copy();
+                    synchronized (state) {
+                        lastState = state.copy();
+                    }
                     applicationManagerStateListeners.notify();
                 }
             }

@@ -328,7 +328,7 @@ public class VestigeServlet extends WebSocketServlet {
                     }
                 }, true);
                 connection.setMaxIdleTime(0);
-                Thread updater = new Thread() {
+                updater = new Thread() {
                     @Override
                     public void run() {
                         synchronized (jsonObject) {
