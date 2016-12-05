@@ -17,6 +17,7 @@
 
 package fr.gaellalire.vestige.application.manager;
 
+import java.io.File;
 import java.net.URL;
 import java.util.List;
 
@@ -57,5 +58,9 @@ public interface ApplicationManager extends ApplicationManagerState {
     void addStateListener(ApplicationManagerStateListener listener);
 
     void removeStateListener(ApplicationManagerStateListener listener);
+
+    void open(final File file);
+
+    void open(final URL url);
 
 }

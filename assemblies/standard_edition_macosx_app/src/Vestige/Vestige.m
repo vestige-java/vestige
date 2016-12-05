@@ -178,13 +178,23 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
 }
 
 - (void)quitVestige {
-    if (forceQuit) {
+    quit = true;
+    if (procState == 5) {
+        [NSApp terminate:nil];
+    } else {
+        [self stopVestige];
+    }
+}
+
+
+- (void)stopVestige {
+    if (forceStop) {
         int pid = [task processIdentifier];
         kill(pid, SIGKILL);
     } else {
 	    [task terminate];
-        [quitItem setTitle:@"Force quit"];
-        forceQuit = true;
+        [quitItem setTitle:@"Force stop"];
+        forceStop = true;
     }
 }
 
@@ -200,7 +210,7 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
 }
 
 - (void)processQuit {
-    if (consoleWinShown || procState < 2)  {
+    if (!quit && (consoleWinShown || procState < 2))  {
         // user show console or starting failed
         procState = 5;
         NSStatusBar *bar = [NSStatusBar systemStatusBar];
@@ -212,11 +222,26 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
 
 }
 
-
 - (void)finishLaunching {
+
+    [super finishLaunching];
+
+    NSMenu * mainMenu = [[NSMenu alloc] init];
+    NSMenuItem * mainMenuFirstItem = [mainMenu addItemWithTitle:@"" action:NULL keyEquivalent:@""];
+    
+    NSMenu * mainSubMenu = [[NSMenu alloc] init];
+    [mainMenu setSubmenu:mainSubMenu forItem:mainMenuFirstItem];
+    [mainSubMenu addItemWithTitle: @"Quit" action:@selector(quitVestige) keyEquivalent: @"q"];
+    [mainSubMenu addItemWithTitle: @"Copy" action:@selector(copy:) keyEquivalent: @"c"];
+    [mainSubMenu addItemWithTitle: @"Select All" action:@selector(selectAll:) keyEquivalent: @"a"];
+    [mainSubMenu addItemWithTitle: @"Close" action:@selector(performClose:) keyEquivalent: @"w"];
+    [mainSubMenu addItemWithTitle: @"Minimize" action:@selector(performMiniaturize:) keyEquivalent: @"m"];
+    [self setMainMenu:mainMenu];
+    
     url = NULL;
     procState = 0;
-    forceQuit = false;
+    forceStop = false;
+    quit = false;
     
     statusItem = [[[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength] retain];
     statusMenu = [[NSMenu alloc] init];
@@ -246,7 +271,7 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
     
     [statusMenu addItem:[NSMenuItem separatorItem]];
     
-    quitItem = [statusMenu addItemWithTitle:@"Quit" action:@selector(quitVestige) keyEquivalent:@""];
+    quitItem = [statusMenu addItemWithTitle:@"Stop" action:@selector(stopVestige) keyEquivalent:@""];
     
     NSImage *statusItemImage = [NSImage imageNamed:@"vestige.png"];
     if (!statusItemImage) {
@@ -283,7 +308,7 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
     [textView setEditable:false];
     
     [[textView textContainer]
-     setContainerSize:NSMakeSize(FLT_MAX, FLT_MAX)];
+    setContainerSize:NSMakeSize(FLT_MAX, FLT_MAX)];
     [[textView textContainer] setWidthTracksTextView:NO];
     
     [scrollview setDocumentView:textView];

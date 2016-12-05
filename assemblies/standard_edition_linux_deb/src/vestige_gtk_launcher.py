@@ -22,7 +22,8 @@ class Vestige(dbus.service.Object):
         self.url = None
         self.loadStatusIcon = False
         self.consoleWinShown = False
-        self.forceQuit = False
+        self.quit = False
+        self.forceStop = False
         self.autostartPath = os.getenv("HOME") + "/.config/autostart/vestige.desktop"
 
         if not os.environ.get("DESKTOP_SESSION", "").lower().startswith("gnome") or not "deprecated" in os.environ.get("GNOME_DESKTOP_SESSION_ID", ""):
@@ -98,9 +99,9 @@ class Vestige(dbus.service.Object):
 
         self.menu.append(gtk.SeparatorMenuItem())
 
-        self.quitItem = gtk.MenuItem("Quit")
-        self.quitItem.connect("activate", lambda e : self.quitVestige())
-        self.menu.append(self.quitItem)
+        self.stopItem = gtk.MenuItem("Stop")
+        self.stopItem.connect("activate", lambda e : self.stopVestige())
+        self.menu.append(self.stopItem)
 
         self.menu.show_all()
 
@@ -109,7 +110,7 @@ class Vestige(dbus.service.Object):
 
 
     def processQuit(self):
-        if self.consoleWinShown or self.procState < 2:
+        if not self.quit and (self.consoleWinShown or self.procState < 2):
             # user show console or starting failed
             self.procState = 5
             if self.loadStatusIcon:
@@ -122,14 +123,21 @@ class Vestige(dbus.service.Object):
             gtk.main_quit()
 
     def quitVestige(self):
+        self.quit = True
+        if self.procState == 5:
+            gtk.main_quit()
+        else:
+            self.stopVestige()
+
+    def stopVestige(self):
         try:
             if self.proc is not None:
-                if self.forceQuit:
+                if self.forceStop:
                     self.proc.kill();
                 else:
                     self.proc.terminate();
-                    self.quitItem.set_label("Force quit");
-                    self.forceQuit = True;
+                    self.stopItem.set_label("Force stop");
+                    self.forceStop = True;
         except:
             pass
 

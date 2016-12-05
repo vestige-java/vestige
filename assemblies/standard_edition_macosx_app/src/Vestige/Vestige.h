@@ -17,7 +17,8 @@
     bool consoleWinShown;
     LSSharedFileListRef loginItemsListRef;
     bool atLoginStarted;
-    bool forceQuit;
+    bool forceStop;
+    bool quit;
 }
 
 - (void)stream:(NSStream *)stream handleEvent:(NSStreamEvent)streamEvent;
@@ -32,6 +33,9 @@
 
 - (void)quitVestige;
 
+- (void)stopVestige;
+
 - (void)toggleLoginStart;
+
 
 @end

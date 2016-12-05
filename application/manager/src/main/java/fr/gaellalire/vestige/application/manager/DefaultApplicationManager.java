@@ -1401,4 +1401,16 @@ public class DefaultApplicationManager implements ApplicationManager {
         }
     }
 
+    @Override
+    public void open(final File file) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void open(final URL url) {
+        // TODO Auto-generated method stub
+
+    }
+
 }

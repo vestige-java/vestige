@@ -26,7 +26,7 @@ TCHAR szPathDirectory[MAX_PATH];
 TCHAR szPathBat[MAX_PATH];
 HKEY hKey;
 int atLoginStarted;
-int forceQuit;
+int forceStop;
 HANDLE hjob;
 
 char * url, *base;
@@ -69,7 +69,7 @@ DWORD WINAPI WaitForBatCommand(void * param) {
         Shell_NotifyIcon(NIM_DELETE, &TrayIcon);
         ShowWindow(hWnd, SW_SHOW);
     } else {
-        // quit
+        // stop
         procState = 5;
         PostMessage(hWnd, WM_CLOSE, 0, 0);
     }
@@ -115,6 +115,7 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
     WNDCLASS wc;
     DWORD pid;
     HANDLE g_hChildStd_OUT_Wr;
+    HACCEL hAccel;
 
     SECURITY_ATTRIBUTES saAttr;
 
@@ -131,7 +132,7 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
         return 0;
     }
 
-    forceQuit = 0;
+    forceStop = 0;
     GetModuleFileName(NULL, szPath, MAX_PATH);
     GetModuleFileName(NULL, szPathDirectory, MAX_PATH);
     char * lastSep = strrchr(szPathDirectory, '\\');
@@ -244,10 +245,13 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
             0,// default startup flags
             &dwThreadID);
 
-    while (GetMessage(&msg, NULL, 0, 0))
-    {
+    hAccel = LoadAccelerators(hinstance, "VESTIGE_ACCELERATORS") ;
+
+    while (GetMessage(&msg, NULL, 0, 0)) {
+      if (!TranslateAccelerator (hWnd, hAccel, &msg)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
+      }
     }
 
     int numProcs = 10;
@@ -300,8 +304,8 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_COMMAND:
         switch (LOWORD(wParam)) {
-        case IDM_QUIT:
-            if (forceQuit) {
+        case IDM_STOP:
+            if (forceStop) {
                 TerminateJobObject(hjob, 0);
             } else {
                 int numProcs = 10;
@@ -319,8 +323,8 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 info.fMask = MIIM_ID;
                 HMENU hpopup = GetSubMenu(hmenu, 0);
                 GetMenuItemInfo(hpopup, 5, TRUE, &info);
-                ModifyMenu(hpopup, info.wID, MF_BYCOMMAND | MF_STRING, info.wID, "Force quit");
-                forceQuit = 1;
+                ModifyMenu(hpopup, info.wID, MF_BYCOMMAND | MF_STRING, info.wID, "Force stop");
+                forceStop = 1;
             }
             break;
         case IDM_OPEN_WEB:
@@ -337,6 +341,10 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             break;
         case IDM_START_LOGIN:
             toggleStartAtLogin();
+            break;
+        case IDM_SELECT_ALL:
+            SetFocus(hEditIn);
+            SendMessage(hEditIn, EM_SETSEL, 0, -1) ;
             break;
         }
         return 0;
