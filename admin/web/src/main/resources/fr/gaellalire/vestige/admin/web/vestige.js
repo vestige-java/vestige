@@ -1,37 +1,60 @@
 $(function() {
 
+  var dialogDisconnect = $("#dialog-disconnect").dialog({
+    dialogClass : "no-close",
+    closeOnEscape : false,
+    autoOpen : false,
+    height : "auto",
+    width : "auto",
+    modal : true,
+    buttons : {
+      Reconnect : function() {
+        comm.reconnect();
+      }
+    },
+  });
+
+  
   var comm = new function() {
     var location = document.location.toString().replace('http://', 'ws://')
 
     var ws = new WebSocket(location);
-
     var opened = false;
-
     var callbackByCommand = {};
+    
+    function init() {
+      ws.onclose = function(e) {
+        if (opened) {
+          opened = false;
+          dialogDisconnect.dialog("open");
+        }
+      };
 
-    ws.onclose = function(e) {
-      alert("Websocket closed")
-      opened = false;
-    };
+      ws.onopen = function() {
+        opened = true;
+        dialogDisconnect.dialog("close");
+      };
 
-    ws.onopen = function() {
-      opened = true;
-    };
+      ws.onerror = function(e) {
+        if (opened) {
+          opened = false;
+          dialogDisconnect.dialog("open");
+        }
+      };
 
-    ws.onerror = function(e) {
-      alert("Websocket error")
-      opened = false;
-    };
-
-    ws.onmessage = function(event) {
-      var o = $.parseJSON(event.data);
-      for (command in o) {
-        var callback = callbackByCommand[command];
-        if (callback != null) {
-          callback(o[command]);
+      ws.onmessage = function(event) {
+        var o = $.parseJSON(event.data);
+        for (command in o) {
+          var callback = callbackByCommand[command];
+          if (callback != null) {
+            callback(o[command]);
+          }
         }
       }
+      
     }
+
+    init();
 
     this.register = function(command, callback) {
       callbackByCommand[command] = callback;
@@ -40,6 +63,13 @@ $(function() {
     this.send = function(commands) {
       if (opened) {
         ws.send(JSON.stringify(commands));
+      }
+    }
+    
+    this.reconnect = function() {
+      if (!opened) {
+        ws = new WebSocket(location);
+        init();
       }
     }
 
