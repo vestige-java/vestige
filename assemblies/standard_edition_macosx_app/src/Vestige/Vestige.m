@@ -182,7 +182,9 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
     if (procState == 5) {
         [NSApp terminate:nil];
     } else {
-        [self stopVestige];
+        [task terminate];
+        [quitItem setTitle:@"Force stop"];
+        forceStop = true;
     }
 }
 
@@ -223,7 +225,6 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
 }
 
 - (void)finishLaunching {
-
     [super finishLaunching];
 
     NSMenu * mainMenu = [[NSMenu alloc] init];

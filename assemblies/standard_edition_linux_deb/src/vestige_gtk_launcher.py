@@ -127,7 +127,9 @@ class Vestige(dbus.service.Object):
         if self.procState == 5:
             gtk.main_quit()
         else:
-            self.stopVestige()
+            self.proc.terminate();
+            self.stopItem.set_label("Force stop");
+            self.forceStop = True;
 
     def stopVestige(self):
         try:
