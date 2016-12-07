@@ -141,4 +141,20 @@ public class ClassLoaderConfiguration implements Serializable {
         return permissions;
     }
 
+    public boolean areAllURLConnectable() {
+        for (URL url : urls) {
+            try {
+                url.openConnection().connect();
+            } catch (IOException e) {
+                return false;
+            }
+        }
+        for (ClassLoaderConfiguration dependency : dependencies) {
+            if (!dependency.areAllURLConnectable()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
 }

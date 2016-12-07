@@ -104,7 +104,7 @@ public final class VestigeMavenResolver {
         }
 
         long lastModified = mavenLauncherFile.lastModified();
-        if (mavenResolverCache == null || lastModified != mavenResolverCache.getLastModified()) {
+        if (mavenResolverCache == null || lastModified != mavenResolverCache.getLastModified() || !mavenResolverCache.areAllURLConnectable()) {
             JAXBContext jc = JAXBContext.newInstance(ObjectFactory.class.getPackage().getName());
             Unmarshaller unMarshaller = jc.createUnmarshaller();
 

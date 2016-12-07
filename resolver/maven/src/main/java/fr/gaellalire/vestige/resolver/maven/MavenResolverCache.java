@@ -60,4 +60,16 @@ public class MavenResolverCache implements Serializable {
         return classLoaderConfiguration;
     }
 
+    public boolean areAllURLConnectable() {
+        if (!classLoaderConfiguration.areAllURLConnectable()) {
+            return false;
+        }
+        for (ClassLoaderConfiguration launchCache : launchCaches) {
+            if (launchCache.areAllURLConnectable()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
 }
