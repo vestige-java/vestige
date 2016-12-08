@@ -32,7 +32,7 @@ import fr.gaellalire.vestige.platform.system.PublicVestigeSystem;
  */
 public class SLF4JOutputStream extends OutputStream {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(System.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SLF4JOutputStream.class);
 
     private PublicVestigeSystem privilegedVestigeSystem;
 

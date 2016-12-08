@@ -1374,7 +1374,7 @@ public class DefaultApplicationManager implements ApplicationManager {
                         }
                     }
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    LOGGER.trace("State listener interrupted", e);
                 }
             }
         };
