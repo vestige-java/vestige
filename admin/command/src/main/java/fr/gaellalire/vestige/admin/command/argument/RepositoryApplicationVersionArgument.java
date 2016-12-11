@@ -53,7 +53,12 @@ public class RepositoryApplicationVersionArgument implements Argument {
     }
 
     public void parse(final String s) throws ParseException {
-        List<Integer> fromString = VersionUtils.fromString(s);
+        List<Integer> fromString;
+        try {
+            fromString = VersionUtils.fromString(s);
+        } catch (IllegalArgumentException e) {
+            throw new ParseException(e);
+        }
         if (!applicationManager.getRepositoryMetadata(repositoryArgument.getRepository()).listApplicationVersions(repositoryApplicationArgument.getApplication())
                 .contains(fromString)) {
             throw new ParseException("Application not found in repository");
