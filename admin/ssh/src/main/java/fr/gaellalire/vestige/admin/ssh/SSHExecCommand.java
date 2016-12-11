@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.sshd.server.Command;
@@ -29,6 +31,7 @@ import org.apache.sshd.server.ExitCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.gaellalire.vestige.admin.command.CommandLineParser;
 import fr.gaellalire.vestige.admin.command.DefaultCommandContext;
 import fr.gaellalire.vestige.admin.command.VestigeCommandExecutor;
 
@@ -85,15 +88,27 @@ public class SSHExecCommand implements Command, Runnable {
     public void run() {
         DefaultCommandContext defaultCommandContext = new DefaultCommandContext();
         defaultCommandContext.setOut(out);
+        CommandLineParser commandLineParser = new CommandLineParser();
         try {
             try {
                 String[] lineArray = lines.split("\\r?\\n");
                 for (String line : lineArray) {
-                    String[] args = line.split("\\s+");
-                    if (args.length == 0) {
+                    commandLineParser.setCommandLine(line);
+                    List<String> arguments = new ArrayList<String>();
+                    if (commandLineParser.nextArgument()) {
+                        String argument = commandLineParser.getUnescapedValue();
+                        if ("exit".equals(argument)) {
+                            out.println("logout");
+                            break;
+                        }
+                        arguments.add(argument);
+                        while (commandLineParser.nextArgument()) {
+                            arguments.add(commandLineParser.getUnescapedValue());
+                        }
+                    } else {
                         continue;
                     }
-                    vestigeCommand.exec(defaultCommandContext, args);
+                    vestigeCommand.exec(defaultCommandContext, arguments);
                 }
                 callback.onExit(0);
             } finally {

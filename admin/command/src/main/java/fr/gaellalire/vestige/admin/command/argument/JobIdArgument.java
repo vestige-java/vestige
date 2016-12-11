@@ -17,8 +17,6 @@
 
 package fr.gaellalire.vestige.admin.command.argument;
 
-import java.util.Collection;
-
 import fr.gaellalire.vestige.job.JobManager;
 
 /**
@@ -39,9 +37,10 @@ public class JobIdArgument implements Argument {
         jobId = s;
     }
 
-    @Override
-    public Collection<String> propose() throws ParseException {
-        return jobManager.getJobIds();
+    public void propose(final ProposeContext proposeContext) {
+        for (String proposition : jobManager.getJobIds()) {
+            proposeContext.addProposition(proposition);
+        }
     }
 
     @Override

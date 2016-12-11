@@ -17,10 +17,7 @@
 
 package fr.gaellalire.vestige.admin.command.argument;
 
-import java.util.Collection;
 import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
 
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
@@ -39,8 +36,7 @@ public class VersionArgument implements Argument {
 
     private LocalApplicationNameArgument applicationArgument;
 
-    public VersionArgument(final String name, final ApplicationManager applicationManager,
-            final LocalApplicationNameArgument applicationArgument) {
+    public VersionArgument(final String name, final ApplicationManager applicationManager, final LocalApplicationNameArgument applicationArgument) {
         this.name = name;
         this.applicationManager = applicationManager;
         this.applicationArgument = applicationArgument;
@@ -64,15 +60,14 @@ public class VersionArgument implements Argument {
         this.version = version;
     }
 
-    public Collection<String> propose() throws ParseException {
+    public void propose(final ProposeContext proposeContext) throws ParseException {
         try {
             String installName = applicationArgument.getApplication();
-            Set<List<Integer>> versions = applicationManager.getRepositoryMetadata(applicationManager.getRepositoryName(installName)).listApplicationVersions(applicationManager.getRepositoryApplicationName(installName));
-            Set<String> set = new TreeSet<String>();
-            for (List<Integer> version : versions) {
-                set.add(VersionUtils.toString(version));
+            for (List<Integer> version : applicationManager.getRepositoryMetadata(applicationManager.getRepositoryName(installName)).listApplicationVersions(
+                    applicationManager.getRepositoryApplicationName(installName))) {
+                String proposition = VersionUtils.toString(version);
+                proposeContext.addProposition(proposition);
             }
-            return set;
         } catch (ApplicationException e) {
             throw new ParseException(e);
         }

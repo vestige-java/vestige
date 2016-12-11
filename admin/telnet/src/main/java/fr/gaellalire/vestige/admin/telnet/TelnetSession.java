@@ -20,10 +20,13 @@ package fr.gaellalire.vestige.admin.telnet;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.gaellalire.vestige.admin.command.CommandLineParser;
 import fr.gaellalire.vestige.admin.command.DefaultCommandContext;
 import fr.gaellalire.vestige.admin.command.VestigeCommandExecutor;
 
@@ -63,19 +66,27 @@ public class TelnetSession implements Runnable {
 
     public void run() {
         DefaultCommandContext defaultCommandContext = new DefaultCommandContext();
+        CommandLineParser commandLineParser = new CommandLineParser();
         defaultCommandContext.setOut(printWriter);
         try {
             String readLine = bufferedReader.readLine();
             while (readLine != null) {
-                String[] args = readLine.split("\\s+");
-                if (args.length == 0) {
-                    readLine = bufferedReader.readLine();
+                commandLineParser.setCommandLine(readLine);
+                List<String> arguments = new ArrayList<String>();
+                if (commandLineParser.nextArgument()) {
+                    String argument = commandLineParser.getUnescapedValue();
+                    if ("exit".equals(argument)) {
+                        printWriter.println("logout");
+                        break;
+                    }
+                    arguments.add(argument);
+                    while (commandLineParser.nextArgument()) {
+                        arguments.add(commandLineParser.getUnescapedValue());
+                    }
+                } else {
                     continue;
                 }
-                if (args[0].equals("exit")) {
-                    break;
-                }
-                commandExecutor.exec(defaultCommandContext, args);
+                commandExecutor.exec(defaultCommandContext, arguments);
                 readLine = bufferedReader.readLine();
             }
         } catch (IOException e) {

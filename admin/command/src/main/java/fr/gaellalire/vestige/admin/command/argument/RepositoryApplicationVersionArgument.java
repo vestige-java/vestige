@@ -17,8 +17,6 @@
 
 package fr.gaellalire.vestige.admin.command.argument;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
@@ -56,18 +54,19 @@ public class RepositoryApplicationVersionArgument implements Argument {
 
     public void parse(final String s) throws ParseException {
         List<Integer> fromString = VersionUtils.fromString(s);
-        if (!applicationManager.getRepositoryMetadata(repositoryArgument.getRepository()).listApplicationVersions(repositoryApplicationArgument.getApplication()).contains(fromString)) {
+        if (!applicationManager.getRepositoryMetadata(repositoryArgument.getRepository()).listApplicationVersions(repositoryApplicationArgument.getApplication())
+                .contains(fromString)) {
             throw new ParseException("Application not found in repository");
         }
         version = fromString;
     }
 
-    public Collection<String> propose() throws ParseException {
-        List<String> strings = new ArrayList<String>();
-        for (List<Integer> version : applicationManager.getRepositoryMetadata(repositoryArgument.getRepository()).listApplicationVersions(repositoryApplicationArgument.getApplication())) {
-            strings.add(VersionUtils.toString(version));
+    public void propose(final ProposeContext proposeContext) {
+        for (List<Integer> version : applicationManager.getRepositoryMetadata(repositoryArgument.getRepository()).listApplicationVersions(
+                repositoryApplicationArgument.getApplication())) {
+            String proposition = VersionUtils.toString(version);
+            proposeContext.addProposition(proposition);
         }
-        return strings;
     }
 
     public void reset() {

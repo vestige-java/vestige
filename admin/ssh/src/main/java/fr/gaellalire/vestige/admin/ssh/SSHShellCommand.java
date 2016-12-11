@@ -29,6 +29,7 @@ import java.util.concurrent.locks.LockSupport;
 
 import jline.console.ConsoleReader;
 import jline.console.UserInterruptException;
+import jline.console.completer.CandidateListCompletionHandler;
 import jline.console.history.FileHistory;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
@@ -38,6 +39,7 @@ import org.apache.sshd.server.ExitCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.gaellalire.vestige.admin.command.CommandLineParser;
 import fr.gaellalire.vestige.admin.command.DefaultCommandContext;
 import fr.gaellalire.vestige.job.JobController;
 import fr.gaellalire.vestige.job.JobListener;
@@ -180,6 +182,9 @@ public class SSHShellCommand implements Command, Runnable {
         thread = new Thread(this, "vestige-shell-" + THREAD_COUNT.incrementAndGet());
         asyncInputStream = new AsyncInputStream();
         consoleReader = new ConsoleReader(asyncInputStream, outs, new SSHTerminal());
+        CandidateListCompletionHandler handler = new CandidateListCompletionHandler();
+        handler.setPrintSpaceAfterFullCompletion(false);
+        consoleReader.setCompletionHandler(handler);
         history = new FileHistory(historyFile);
         consoleReader.setHistory(history);
         consoleReader.setHistoryEnabled(true);
@@ -229,6 +234,7 @@ public class SSHShellCommand implements Command, Runnable {
         final List<String> descriptions = new ArrayList<String>();
         final List<ProgressHolder> progressHolders = new ArrayList<ProgressHolder>();
         final DefaultCommandContext defaultCommandContext = new DefaultCommandContext();
+        CommandLineParser commandLineParser = new CommandLineParser();
         defaultCommandContext.setOut(out);
         StringBuilder sb = new StringBuilder();
         int lastStringBuilderLength = 0;
@@ -335,15 +341,22 @@ public class SSHShellCommand implements Command, Runnable {
                     if (readLine.length() == 0) {
                         continue;
                     }
-                    String[] split = readLine.split("\\s+");
-                    if (split.length == 0) {
+                    commandLineParser.setCommandLine(readLine);
+                    List<String> arguments = new ArrayList<String>();
+                    if (commandLineParser.nextArgument()) {
+                        String argument = commandLineParser.getUnescapedValue();
+                        if ("exit".equals(argument)) {
+                            out.println("logout");
+                            break;
+                        }
+                        arguments.add(argument);
+                        while (commandLineParser.nextArgument()) {
+                            arguments.add(commandLineParser.getUnescapedValue());
+                        }
+                    } else {
                         continue;
                     }
-                    if (split[0].equals("exit")) {
-                        out.println("logout");
-                        break;
-                    }
-                    jobController = commandFactory.getVestigeCommandExecutor().exec(defaultCommandContext, split);
+                    jobController = commandFactory.getVestigeCommandExecutor().exec(defaultCommandContext, arguments);
                 } while (true);
                 callback.onExit(0);
             } finally {

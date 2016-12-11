@@ -17,13 +17,14 @@
 
 package fr.gaellalire.vestige.admin.web;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
 import net.minidev.json.JSONArray;
 import fr.gaellalire.vestige.admin.command.Command;
+import fr.gaellalire.vestige.admin.command.CommandLineParser;
 import fr.gaellalire.vestige.admin.command.argument.Argument;
+import fr.gaellalire.vestige.admin.command.argument.DefaultProposeContext;
 import fr.gaellalire.vestige.admin.command.argument.ParseException;
 
 /**
@@ -33,63 +34,65 @@ public class WebTerminalCommandCompleter {
 
     private Map<String, Command> commandByName;
 
+    private CommandLineParser commandLineParser;
+
+    private DefaultProposeContext defaultProposeContext;
+
     public WebTerminalCommandCompleter(final Map<String, Command> commandByName) {
         this.commandByName = commandByName;
+        commandLineParser = new CommandLineParser();
+        defaultProposeContext = new DefaultProposeContext(commandLineParser);
     }
 
     public int complete(final String totalBuffer, final int cursor, final JSONArray candidates) {
-        String buffer = totalBuffer.substring(0, cursor);
-        if (buffer.length() == 0) {
-            candidates.addAll(commandByName.keySet());
-            candidates.add("help");
+        commandLineParser.setCommandLine(totalBuffer.substring(0, cursor));
+
+        if (!commandLineParser.nextArgument(true)) {
+            defaultProposeContext.reset("");
+            for (String match : commandByName.keySet()) {
+                defaultProposeContext.addProposition(match);
+            }
+            defaultProposeContext.addProposition("help");
+            defaultProposeContext.addProposition("exit");
+            candidates.addAll(defaultProposeContext.getPropositions());
             return 0;
         }
-        String[] split = buffer.split("\\s+");
-        if (split.length == 0) {
-            return -1;
-        }
-        if (split.length == 1 && buffer.length() == split[0].length()) {
+        String commandString = commandLineParser.getUnescapedValue();
+        String lastString = "";
+        boolean hasArgument = commandLineParser.nextArgument(true);
+        if (!hasArgument) {
+            defaultProposeContext.reset(commandString);
+            // complete the command
             for (String match : commandByName.keySet()) {
-                if (!match.startsWith(buffer)) {
-                    continue;
-                }
-                candidates.add(match);
+                defaultProposeContext.addProposition(match);
             }
-            if ("help".startsWith(buffer)) {
-                candidates.add("help");
-            }
-            if (candidates.size() == 1) {
-                candidates.set(0, candidates.get(0) + " ");
-            }
+            defaultProposeContext.addProposition("help");
+            defaultProposeContext.addProposition("exit");
+            candidates.addAll(defaultProposeContext.getPropositions());
             if (candidates.isEmpty()) {
                 return -1;
             }
-            return 0;
+            return commandLineParser.getStart();
+        } else {
+            lastString = commandLineParser.getUnescapedValue();
         }
-        if (split[0].equals("help")) {
-            String lastString;
-            if (split.length == 1) {
-                lastString = "";
-            } else if (split.length == 2) {
-                lastString = split[1];
-            } else {
-                return -1;
-            }
+        if (commandString.equals("help")) {
+            defaultProposeContext.reset(lastString);
+
             for (String match : commandByName.keySet()) {
-                if (!match.startsWith(lastString)) {
-                    continue;
-                }
-                candidates.add(match);
+                defaultProposeContext.addProposition(match);
             }
-            if (candidates.size() == 1) {
-                candidates.set(0, candidates.get(0) + " ");
-            }
+            candidates.addAll(defaultProposeContext.getPropositions());
             if (candidates.isEmpty()) {
                 return -1;
             }
-            return buffer.lastIndexOf(lastString);
+            if (!hasArgument) {
+                return cursor;
+            }
+            return commandLineParser.getStart();
         }
-        Command command = commandByName.get(split[0]);
+
+        Command command = commandByName.get(commandString);
         if (command == null) {
             return -1;
         }
@@ -99,77 +102,55 @@ public class WebTerminalCommandCompleter {
         if (size == 0) {
             return -1;
         }
-        int argumentsLength = split.length - 1;
         try {
-            String lastString;
-            Argument lastArgument;
-
-            if (argumentsLength == 0) {
-                lastString = "";
-                lastArgument = arguments.get(0);
-            } else {
-                // each args expect the last
-                for (int i = 0; i < argumentsLength - 1; i++) {
-                    if (i == size) {
-                        return -1;
-                    }
-                    Argument argument = arguments.get(i);
-                    try {
-                        argument.parse(split[i + 1]);
-                    } catch (ParseException e) {
-                        return -1;
-                    }
-                }
-                if (argumentsLength - 1 == size) {
+            Argument lastArgument = arguments.get(0);
+            int argumentPos = 1;
+            if (commandLineParser.nextArgument(true)) {
+                // there is another argument or spaces after
+                // => lastString argument is complete => we can call parse method
+                if (argumentPos == size) {
                     return -1;
                 }
-                // last arg
-                lastString = split[argumentsLength];
-                lastArgument = arguments.get(argumentsLength - 1);
-
-                if (buffer.endsWith(" ")) {
-                    // last arg is valid
+                try {
+                    lastArgument.parse(lastString);
+                } catch (ParseException e) {
+                    return -1;
+                }
+                lastArgument = arguments.get(argumentPos);
+                lastString = commandLineParser.getUnescapedValue();
+                while (commandLineParser.nextArgument(true)) {
+                    argumentPos++;
+                    if (argumentPos == size) {
+                        return -1;
+                    }
                     try {
                         lastArgument.parse(lastString);
                     } catch (ParseException e) {
                         return -1;
                     }
-                    if (argumentsLength == size) {
-                        return -1;
-                    }
-                    lastString = "";
-                    lastArgument = arguments.get(argumentsLength);
+                    lastArgument = arguments.get(argumentPos);
+                    lastString = commandLineParser.getUnescapedValue();
                 }
             }
-            Collection<String> propose;
+
+            defaultProposeContext.reset(lastString);
             try {
-                propose = lastArgument.propose();
+                lastArgument.propose(defaultProposeContext);
             } catch (ParseException e) {
                 return -1;
             }
-            if (propose == null) {
-                return -1;
-            }
-            for (String match : propose) {
-                if (!match.startsWith(lastString)) {
-                    continue;
-                }
-                candidates.add(match);
-            }
-            if (candidates.size() == 1) {
-                candidates.set(0, candidates.get(0) + " ");
-            }
+            int hiddenContext = defaultProposeContext.getEscapePrefixHiddenLength();
+            candidates.addAll(defaultProposeContext.getPropositions());
 
             if (candidates.isEmpty()) {
                 return -1;
             }
-            return buffer.lastIndexOf(lastString);
+            return commandLineParser.getStart() + hiddenContext;
         } finally {
             for (Argument argument : arguments) {
                 argument.reset();
             }
         }
-
     }
 
 }

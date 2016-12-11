@@ -43,6 +43,7 @@ import org.eclipse.jetty.websocket.WebSocketServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.gaellalire.vestige.admin.command.CommandLineParser;
 import fr.gaellalire.vestige.admin.command.DefaultCommandContext;
 import fr.gaellalire.vestige.admin.command.VestigeCommandExecutor;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
@@ -645,6 +646,7 @@ public class VestigeServlet extends WebSocketServlet {
                 String termCommand = (String) parsedJsonObject.get("termCommand");
                 if (termCommand != null) {
                     final DefaultCommandContext commandContext = new DefaultCommandContext();
+                    final CommandLineParser commandLineParser = new CommandLineParser();
                     commandContext.setOut(termPrintWriter);
                     commandContext.setJobListener(new JobListener() {
 
@@ -683,7 +685,13 @@ public class VestigeServlet extends WebSocketServlet {
                             }
                         }
                     });
-                    JobController termJobController = vestigeCommandExecutor.exec(commandContext, termCommand.split("\\s+"));
+                    commandLineParser.setCommandLine(termCommand);
+                    List<String> arguments = new ArrayList<String>();
+                    while (commandLineParser.nextArgument()) {
+                        arguments.add(commandLineParser.getUnescapedValue());
+                    }
+
+                    JobController termJobController = vestigeCommandExecutor.exec(commandContext, arguments);
                     synchronized (jsonObject) {
                         if (termJobController == null) {
                             try {

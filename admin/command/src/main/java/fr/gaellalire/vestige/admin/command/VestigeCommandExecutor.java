@@ -18,6 +18,7 @@
 package fr.gaellalire.vestige.admin.command;
 
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import fr.gaellalire.vestige.admin.command.argument.Argument;
+import fr.gaellalire.vestige.admin.command.argument.DefaultProposeContext;
 import fr.gaellalire.vestige.admin.command.argument.ParseException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
 import fr.gaellalire.vestige.job.JobController;
@@ -57,16 +59,16 @@ public class VestigeCommandExecutor {
         return commandByNames;
     }
 
-    public JobController exec(final CommandContext commandContext, final String... args) {
-        if (args.length == 0) {
+    public JobController exec(final CommandContext commandContext, final List<String> args) {
+        if (args.size() == 0) {
             return null;
         }
         PrintWriter out = commandContext.getOut();
-        if (args[0].equals("help")) {
-            if (args.length != 1) {
-                Command command = commandByNames.get(args[1]);
+        if (args.get(0).equals("help")) {
+            if (args.size() != 1) {
+                Command command = commandByNames.get(args.get(1));
                 if (command == null) {
-                    out.println("no help found for command: " + args[1]);
+                    out.println("no help found for command: " + args.get(1));
                     return null;
                 }
                 out.print("SYNOPSIS: ");
@@ -94,9 +96,9 @@ public class VestigeCommandExecutor {
             }
             return null;
         }
-        Command command = commandByNames.get(args[0]);
+        Command command = commandByNames.get(args.get(0));
         if (command == null) {
-            out.println("command not found: " + args[0]);
+            out.println("command not found: " + args.get(0));
             out.println("Type `help' for command listing");
             return null;
         }
@@ -104,24 +106,25 @@ public class VestigeCommandExecutor {
             int i = 1;
             try {
                 for (Argument argument : command.getArguments()) {
-                    if (i == args.length) {
+                    if (i == args.size()) {
                         out.println("Missing arg : " + argument.getName());
                         out.println("`help " + command.getName() + "' for more information");
                         return null;
                     }
                     try {
-                        argument.parse(args[i]);
+                        argument.parse(args.get(i));
                     } catch (ParseException e) {
                         e.printStackTrace(out);
-                        Collection<String> propose;
                         try {
-                            propose = argument.propose();
-                            if (propose != null) {
-                                if (propose.size() == 0) {
-                                    out.println("No valid value");
-                                } else {
-                                    out.println("Valid values are " + propose);
-                                }
+                            DefaultProposeContext defaultProposeContext = commandContext.getDefaultProposeContext();
+                            defaultProposeContext.reset("");
+                            argument.propose(defaultProposeContext);
+                            List<CharSequence> propositions = new ArrayList<CharSequence>();
+                            defaultProposeContext.addPropositions(propositions);
+                            if (propositions.size() == 0) {
+                                out.println("No valid value");
+                            } else {
+                                out.println("Valid values are " + propositions);
                             }
                         } catch (ParseException pe) {
                             out.println("Unable to get valid value");

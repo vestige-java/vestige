@@ -19,7 +19,6 @@ package fr.gaellalire.vestige.admin.command.argument;
 
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Collection;
 
 /**
  * @author Gael Lalire
@@ -56,8 +55,7 @@ public class URLArgument implements Argument {
         }
     }
 
-    public Collection<String> propose() {
-        return null;
+    public void propose(final ProposeContext proposeContext) {
     }
 
     public void reset() {

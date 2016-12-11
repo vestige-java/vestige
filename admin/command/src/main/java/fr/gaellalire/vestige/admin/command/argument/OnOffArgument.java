@@ -18,7 +18,7 @@
 package fr.gaellalire.vestige.admin.command.argument;
 
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.List;
 
 /**
  * @author Gael Lalire
@@ -26,6 +26,8 @@ import java.util.Collection;
 public class OnOffArgument implements Argument {
 
     private static final String NAME = "<on | off>";
+
+    private static final List<String> ON_OFF = Arrays.asList("on", "off");
 
     public String getName() {
         return NAME;
@@ -50,8 +52,10 @@ public class OnOffArgument implements Argument {
         }
     }
 
-    public Collection<String> propose() {
-        return Arrays.asList("on", "off");
+    public void propose(final ProposeContext proposeContext) {
+        for (String proposition : ON_OFF) {
+            proposeContext.addProposition(proposition);
+        }
     }
 
     public void reset() {

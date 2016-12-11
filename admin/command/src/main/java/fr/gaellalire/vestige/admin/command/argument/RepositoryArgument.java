@@ -17,9 +17,6 @@
 
 package fr.gaellalire.vestige.admin.command.argument;
 
-import java.util.Collection;
-import java.util.Collections;
-
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
 
@@ -70,15 +67,15 @@ public class RepositoryArgument implements Argument {
         repository = s;
     }
 
-    public Collection<String> propose() {
+    public void propose(final ProposeContext proposeContext) {
         if (installed != null && installed) {
             try {
-                return applicationManager.getRepositoriesName();
+                for (String proposition : applicationManager.getRepositoriesName()) {
+                    proposeContext.addProposition(proposition);
+                }
             } catch (ApplicationException e) {
-                return Collections.emptySet();
+                // ignore
             }
-        } else {
-            return null;
         }
     }
 

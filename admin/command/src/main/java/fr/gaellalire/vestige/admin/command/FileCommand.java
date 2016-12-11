@@ -17,43 +17,39 @@
 
 package fr.gaellalire.vestige.admin.command;
 
-import java.io.PrintWriter;
+import java.util.Collections;
+import java.util.List;
 
-import fr.gaellalire.vestige.admin.command.argument.DefaultProposeContext;
-import fr.gaellalire.vestige.job.JobListener;
+import fr.gaellalire.vestige.admin.command.argument.Argument;
+import fr.gaellalire.vestige.admin.command.argument.FileArgument;
+import fr.gaellalire.vestige.job.JobController;
 
 /**
  * @author Gael Lalire
  */
-public class DefaultCommandContext implements CommandContext {
-
-    private PrintWriter out;
-
-    private JobListener jobListener;
-
-    private DefaultProposeContext defaultProposeContext;
+public class FileCommand implements Command {
 
     @Override
-    public PrintWriter getOut() {
-        return out;
+    public String getName() {
+        return "file";
     }
 
-    public void setOut(final PrintWriter out) {
-        this.out = out;
+    private FileArgument fileArgument = new FileArgument();
+
+    @Override
+    public List<? extends Argument> getArguments() {
+        return Collections.singletonList(fileArgument);
     }
 
     @Override
-    public JobListener getJobListener() {
-        return jobListener;
-    }
-
-    public void setJobListener(final JobListener jobListener) {
-        this.jobListener = jobListener;
+    public String getDesc() {
+        return "";
     }
 
     @Override
-    public DefaultProposeContext getDefaultProposeContext() {
-        return defaultProposeContext;
+    public JobController execute(final CommandContext commandContext) {
+        commandContext.getOut().println(fileArgument.getFile());
+        return null;
     }
 
 }

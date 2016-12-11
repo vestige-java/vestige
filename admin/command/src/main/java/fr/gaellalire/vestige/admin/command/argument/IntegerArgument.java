@@ -17,8 +17,6 @@
 
 package fr.gaellalire.vestige.admin.command.argument;
 
-import java.util.Collection;
-import java.util.Collections;
 
 /**
  * @author Gael Lalire
@@ -48,8 +46,7 @@ public class IntegerArgument implements Argument {
         }
     }
 
-    public Collection<String> propose() {
-        return Collections.emptyList();
+    public void propose(final ProposeContext proposeContext) {
     }
 
     public void reset() {

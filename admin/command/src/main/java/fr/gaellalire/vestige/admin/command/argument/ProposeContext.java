@@ -17,18 +17,17 @@
 
 package fr.gaellalire.vestige.admin.command.argument;
 
-
 /**
  * @author Gael Lalire
  */
-public interface Argument {
+public interface ProposeContext {
 
-    void parse(String s) throws ParseException;
+    String getPrefix();
 
-    void propose(ProposeContext proposeContext) throws ParseException;
+    void setUnescapePrefixHiddenLength(int length);
 
-    void reset();
+    void addProposition(String proposition);
 
-    String getName();
+    void addUnterminatedProposition(String proposition);
 
 }

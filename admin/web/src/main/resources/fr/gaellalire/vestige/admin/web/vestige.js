@@ -490,9 +490,11 @@ $(function() {
     appli.dom.major.prop('checked', appli.major);
     appli.dom.buttonset.buttonset("refresh");
   }
-
+  
+  var appId = 0;
+  
   function createApplication(appli, afterAppli) {
-    var vid = "app-" + appli.name;
+    var vid = "app-" + (appId++);
     var state;
     var icon;
     if (appli.started) {

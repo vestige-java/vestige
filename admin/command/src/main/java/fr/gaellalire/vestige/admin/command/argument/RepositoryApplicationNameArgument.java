@@ -17,8 +17,6 @@
 
 package fr.gaellalire.vestige.admin.command.argument;
 
-import java.util.Collection;
-
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
 
 /**
@@ -54,8 +52,10 @@ public class RepositoryApplicationNameArgument implements Argument {
         application = s;
     }
 
-    public Collection<String> propose() throws ParseException {
-        return applicationManager.getRepositoryMetadata(repositoryArgument.getRepository()).listApplicationsName();
+    public void propose(final ProposeContext proposeContext) {
+        for (String proposition : applicationManager.getRepositoryMetadata(repositoryArgument.getRepository()).listApplicationsName()) {
+            proposeContext.addProposition(proposition);
+        }
     }
 
     public void reset() {

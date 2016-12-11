@@ -18,7 +18,7 @@
 package fr.gaellalire.vestige.admin.command.argument;
 
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.List;
 
 /**
  * @author Gael Lalire
@@ -26,6 +26,8 @@ import java.util.Collection;
 public class LevelArgument implements Argument {
 
     private static final String NAME = "<level>";
+
+    private static final List<String> LEVELS = Arrays.asList("0", "1", "2", "3");
 
     public String getName() {
         return NAME;
@@ -53,8 +55,10 @@ public class LevelArgument implements Argument {
         this.level = level;
     }
 
-    public Collection<String> propose() {
-        return Arrays.asList("0", "1", "2", "3");
+    public void propose(final ProposeContext proposeContext) {
+        for (String proposition : LEVELS) {
+            proposeContext.addProposition(proposition);
+        }
     }
 
     public void reset() {

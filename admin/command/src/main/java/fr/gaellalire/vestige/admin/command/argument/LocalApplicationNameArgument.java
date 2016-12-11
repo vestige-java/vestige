@@ -17,8 +17,6 @@
 
 package fr.gaellalire.vestige.admin.command.argument;
 
-import java.util.Collection;
-
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
 
@@ -71,15 +69,15 @@ public class LocalApplicationNameArgument implements Argument {
         application = s;
     }
 
-    public Collection<String> propose() throws ParseException {
+    public void propose(final ProposeContext proposeContext) throws ParseException {
         if (used) {
             try {
-                return applicationManager.getApplicationsName();
+                for (String proposition : applicationManager.getApplicationsName()) {
+                    proposeContext.addProposition(proposition);
+                }
             } catch (ApplicationException e) {
                 throw new ParseException(e);
             }
-        } else {
-            return null;
         }
     }
 
