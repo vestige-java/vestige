@@ -25,6 +25,8 @@ mv target/vestige/* target/vestige_deb/etc/vestige/
 sed -e 's/Version: .*/Version: '$VESTIGE_VERSION'/' src/control > target/vestige_deb/DEBIAN/control
 cp src/lintian_vestige target/vestige_deb/usr/share/lintian/overrides/vestige
 cp src/conffiles target/vestige_deb/DEBIAN/
+cp src/postinst target/vestige_deb/DEBIAN/
+chmod +x target/vestige_deb/DEBIAN/postinst
 cp src/vestige.desktop target/vestige_deb/usr/share/applications/
 cp src/vestige_gtk_launcher.py target/vestige_deb/usr/bin/vestige
 cp -r src/hicolor target/vestige_deb/usr/share/icons/

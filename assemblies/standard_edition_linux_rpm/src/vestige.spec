@@ -29,6 +29,8 @@ make
 rm -rf $RPM_BUILD_ROOT
 %make_install
 
+%posttrans
+/usr/bin/gtk-update-icon-cache -q -t -f %{_datadir}/icons/hicolor || :
 
 %files
 %{_datadir}/applications/vestige.desktop
