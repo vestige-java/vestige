@@ -27,7 +27,7 @@ import fr.gaellalire.vestige.admin.command.CommandLineParser;
 /**
  * @author Gael Lalire
  */
-public class DefaultProposeContext implements ProposeContext {
+public class CommandLineProposeContext implements ProposeContext {
 
     private String prefix;
 
@@ -41,7 +41,7 @@ public class DefaultProposeContext implements ProposeContext {
 
     private boolean allUnterminated = true;
 
-    public DefaultProposeContext(final CommandLineParser commandLineParser) {
+    public CommandLineProposeContext(final CommandLineParser commandLineParser) {
         this.commandLineParser = commandLineParser;
     }
 
@@ -60,9 +60,29 @@ public class DefaultProposeContext implements ProposeContext {
         return commandLineParser.getEnd() - commandLineParser.getStart() - escapeSuffixValue.length();
     }
 
+    public boolean canBeAdded(final String proposition) {
+        if (!proposition.startsWith(prefix)) {
+            return false;
+        }
+        if (commandLineParser.getMode() == 4) {
+            int prefixLength = prefix.length();
+            if (proposition.length() > prefixLength) {
+                switch (proposition.charAt(prefixLength)) {
+                case '\\':
+                    break;
+                case '\"':
+                    break;
+                default:
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     @Override
     public void addProposition(final String proposition) {
-        if (proposition.startsWith(prefix)) {
+        if (canBeAdded(proposition)) {
             propositions.add(escapeSuffixValue + CommandLineParser.escape(commandLineParser.getMode(), proposition.substring(prefix.length())));
             allUnterminated = false;
         }
@@ -70,7 +90,7 @@ public class DefaultProposeContext implements ProposeContext {
 
     @Override
     public void addUnterminatedProposition(final String proposition) {
-        if (proposition.startsWith(prefix)) {
+        if (canBeAdded(proposition)) {
             propositions.add(escapeSuffixValue + CommandLineParser.escape(commandLineParser.getMode(), proposition.substring(prefix.length())));
         }
     }

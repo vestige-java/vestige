@@ -81,6 +81,8 @@ public class CommandLineParser {
                     unescape.append(commandLine.substring(from, i));
                     mode = 0;
                     from = i + 1;
+                } else if (mode == 3) {
+                    mode = 0;
                 } else if (mode == 4) {
                     mode = 2;
                 }
@@ -160,35 +162,9 @@ public class CommandLineParser {
         return unescapeValue;
     }
 
-//    public static void main(final String[] args) {
-//        commandLineParser = new CommandLineParser();
-//
-//        /*
-//         * check("abc", "abc"); check("abc ", "abc", ""); check("  abc", "abc");
-//         * check("  'abc k'", "abc k"); check("  'abc\\ k'", "abc\\ k");
-//         * check("  'abc\\k'", "abc\\k"); check("  'abc\\\\k'", "abc\\\\k");
-//         * check("  \"abc\\ k\"", "abc\\ k"); check("  \"abc\\k\"", "abc\\k");
-//         * check("  \"abc\\\\k\"", "abc\\k"); check("  abc\\ k", "abc k");
-//         * check("  abc\\k", "abck"); check("  abc\\\\k", "abc\\k");
-//         * check("  abc  k", "abc", "k"); check("  \"abc\\\"  k\"", "abc\"  k");
-//         * check("  'abc\\'  k''", "abc\\", "k"); check("  'abc'\\''  k'",
-//         * "abc'  k"); check("  'abc'\\'klo'  k'", "abc'klo  k"); //
-//         * check("  \"abc\\", "abc\\");
-//         * check("file /Informations\\ sur\\ l’utilisateur/", "file",
-//         * "/Informations sur l’utilisateur/"); check("file \\\\k", "file",
-//         * "\\k"); check("file \\\\\\\\k", "file", "\\\\k");
-//         */
-//        // commandLineParser.setCommandLine("ab\\ cd");
-//        // commandLineParser.nextArgument();
-//        // System.out.println(commandLineParser.getEscapePosition(6));
-//
-//        System.out.println("ALL OK");
-//
-//    }
-
     public static String escape(final int mode, final String s) {
         StringBuilder escape = new StringBuilder();
-        if (mode == 0) {
+        if (mode == 0 || mode == 3) {
             for (int i = 0; i < s.length(); i++) {
                 char charAt = s.charAt(i);
                 switch (charAt) {
@@ -201,7 +177,9 @@ public class CommandLineParser {
                 case '\n':
                 case '\f':
                 case '\r':
-                    escape.append('\\');
+                    if (mode != 3 || i != 0) {
+                        escape.append('\\');
+                    }
                     break;
                 default:
                     break;
@@ -222,16 +200,16 @@ public class CommandLineParser {
                 escape.append(charAt);
             }
             escape.append('\'');
-        } else if (mode == 2) {
+        } else if (mode == 2 || mode == 4) {
             // double quote
             for (int i = 0; i < s.length(); i++) {
                 char charAt = s.charAt(i);
                 switch (charAt) {
                 case '"':
-                    escape.append("\\");
-                    break;
                 case '\\':
-                    escape.append("\\");
+                    if (mode != 4 || i != 0) {
+                        escape.append('\\');
+                    }
                     break;
                 default:
                     break;
@@ -243,36 +221,6 @@ public class CommandLineParser {
         return escape.toString();
     }
 
-//    private static CommandLineParser commandLineParser;
-//
-//    static void check(final String commandLine, final String... expecteds) {
-//        System.out.println("echo " + commandLine);
-//        commandLineParser.setCommandLine(commandLine);
-//        boolean first = true;
-//        for (String expected : expecteds) {
-//            if (first) {
-//                first = false;
-//            } else {
-//                System.out.print(" ");
-//            }
-//            if (!commandLineParser.nextArgument(true)) {
-//                System.out.flush();
-//                throw new RuntimeException("expected " + expected + " got nothing");
-//            }
-//            String unescapedValue = commandLineParser.getUnescapedValue();
-//            if (!expected.equals(unescapedValue)) {
-//                System.out.println(unescapedValue);
-//                System.out.flush();
-//                throw new RuntimeException("expected " + expected + " got " + unescapedValue);
-//            }
-//            System.out.print(expected);
-//        }
-//        System.out.println();
-//        System.out.println();
-//        if (commandLineParser.nextArgument(true)) {
-//            throw new RuntimeException("expected nothing got " + commandLineParser.getUnescapedValue());
-//        }
-//    }
 
     public String getEscapeSuffixValue(final int unescapePosition) {
         if (unescapePosition == 0) {
@@ -307,6 +255,9 @@ public class CommandLineParser {
                 if (mode == 0) {
                     mode = 2;
                 } else if (mode == 2) {
+                    mode = 0;
+                } else if (mode == 3) {
+                    unescapeCurrentPosition++;
                     mode = 0;
                 } else if (mode == 4) {
                     unescapeCurrentPosition++;

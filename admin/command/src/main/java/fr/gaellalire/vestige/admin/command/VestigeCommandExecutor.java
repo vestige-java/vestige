@@ -18,16 +18,16 @@
 package fr.gaellalire.vestige.admin.command;
 
 import java.io.PrintWriter;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import fr.gaellalire.vestige.admin.command.argument.Argument;
-import fr.gaellalire.vestige.admin.command.argument.DefaultProposeContext;
 import fr.gaellalire.vestige.admin.command.argument.ParseException;
+import fr.gaellalire.vestige.admin.command.argument.SimpleProposeContext;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
 import fr.gaellalire.vestige.job.JobController;
 import fr.gaellalire.vestige.job.JobManager;
@@ -116,11 +116,10 @@ public class VestigeCommandExecutor {
                     } catch (ParseException e) {
                         e.printStackTrace(out);
                         try {
-                            DefaultProposeContext defaultProposeContext = commandContext.getDefaultProposeContext();
-                            defaultProposeContext.reset("");
-                            argument.propose(defaultProposeContext);
-                            List<CharSequence> propositions = new ArrayList<CharSequence>();
-                            defaultProposeContext.addPropositions(propositions);
+                            SimpleProposeContext simpleProposeContext = commandContext.getSimpleProposeContext();
+                            simpleProposeContext.reset();
+                            argument.propose(simpleProposeContext);
+                            Set<String> propositions = simpleProposeContext.getPropositions();
                             if (propositions.size() == 0) {
                                 out.println("No valid value");
                             } else {

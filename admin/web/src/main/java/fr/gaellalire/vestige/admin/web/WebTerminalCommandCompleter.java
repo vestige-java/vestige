@@ -24,7 +24,7 @@ import net.minidev.json.JSONArray;
 import fr.gaellalire.vestige.admin.command.Command;
 import fr.gaellalire.vestige.admin.command.CommandLineParser;
 import fr.gaellalire.vestige.admin.command.argument.Argument;
-import fr.gaellalire.vestige.admin.command.argument.DefaultProposeContext;
+import fr.gaellalire.vestige.admin.command.argument.CommandLineProposeContext;
 import fr.gaellalire.vestige.admin.command.argument.ParseException;
 
 /**
@@ -36,12 +36,12 @@ public class WebTerminalCommandCompleter {
 
     private CommandLineParser commandLineParser;
 
-    private DefaultProposeContext defaultProposeContext;
+    private CommandLineProposeContext defaultProposeContext;
 
     public WebTerminalCommandCompleter(final Map<String, Command> commandByName) {
         this.commandByName = commandByName;
         commandLineParser = new CommandLineParser();
-        defaultProposeContext = new DefaultProposeContext(commandLineParser);
+        defaultProposeContext = new CommandLineProposeContext(commandLineParser);
     }
 
     public int complete(final String totalBuffer, final int cursor, final JSONArray candidates) {

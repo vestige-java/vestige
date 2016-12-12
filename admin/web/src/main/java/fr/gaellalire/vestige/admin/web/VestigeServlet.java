@@ -442,7 +442,7 @@ public class VestigeServlet extends WebSocketServlet {
                             } catch (IOException e) {
                                 LOGGER.error("Updater exception", e);
                             } catch (InterruptedException e) {
-                                LOGGER.info("Updater interrupted, quit", e);
+                                LOGGER.debug("Updater interrupted, quit", e);
                             } finally {
                                 jsonObject.clear();
                             }

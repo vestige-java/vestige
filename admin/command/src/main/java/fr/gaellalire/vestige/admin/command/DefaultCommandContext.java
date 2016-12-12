@@ -19,7 +19,7 @@ package fr.gaellalire.vestige.admin.command;
 
 import java.io.PrintWriter;
 
-import fr.gaellalire.vestige.admin.command.argument.DefaultProposeContext;
+import fr.gaellalire.vestige.admin.command.argument.SimpleProposeContext;
 import fr.gaellalire.vestige.job.JobListener;
 
 /**
@@ -31,7 +31,7 @@ public class DefaultCommandContext implements CommandContext {
 
     private JobListener jobListener;
 
-    private DefaultProposeContext defaultProposeContext;
+    private SimpleProposeContext simpleProposeContext = new SimpleProposeContext();
 
     @Override
     public PrintWriter getOut() {
@@ -52,8 +52,8 @@ public class DefaultCommandContext implements CommandContext {
     }
 
     @Override
-    public DefaultProposeContext getDefaultProposeContext() {
-        return defaultProposeContext;
+    public SimpleProposeContext getSimpleProposeContext() {
+        return simpleProposeContext;
     }
 
 }
