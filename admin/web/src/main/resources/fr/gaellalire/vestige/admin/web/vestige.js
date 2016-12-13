@@ -219,7 +219,7 @@ $(function() {
         afterAddRepo = clickOnInstall;
       } else {
         for (var i = 0; i < data.length; i++) {
-          dialogInstallRepo.append($("<option value=" + data[i].name + ">" + data[i].name + " (" + data[i].url + ")</option>"));
+          dialogInstallRepo.append($("<option>" + data[i].name + " (" + data[i].url + ")</option>").attr("value", data[i].name));
         }
         dialogInstallRepo.selectmenu("refresh");
         dialogInstall.dialog("open");
