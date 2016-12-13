@@ -53,7 +53,6 @@ public class WebTerminalCommandCompleter {
                 defaultProposeContext.addProposition(match);
             }
             defaultProposeContext.addProposition("help");
-            defaultProposeContext.addProposition("exit");
             candidates.addAll(defaultProposeContext.getPropositions());
             return 0;
         }
@@ -67,7 +66,6 @@ public class WebTerminalCommandCompleter {
                 defaultProposeContext.addProposition(match);
             }
             defaultProposeContext.addProposition("help");
-            defaultProposeContext.addProposition("exit");
             candidates.addAll(defaultProposeContext.getPropositions());
             if (candidates.isEmpty()) {
                 return -1;
