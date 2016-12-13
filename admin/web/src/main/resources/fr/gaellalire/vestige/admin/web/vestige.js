@@ -143,7 +143,10 @@ $(function() {
 
   comm.register("guiTasks", function(tasks) {
     for (var i = 0; i < tasks.descriptions.length; i++) {
-      var progressbar = dialogJobProgressbars.append("<div><div class='progress-label'>" + tasks.descriptions[i] + "</div></div>").children().eq(-1);
+      var pla = $("<div/>", {
+        "class" : "progress-label"
+      }).text(tasks.descriptions[i]);
+      var progressbar = dialogJobProgressbars.append($("<div/>").append(pla)).children().eq(-1);
       progressbar.progressbar({
         value : false,
       });
@@ -206,7 +209,9 @@ $(function() {
 
   comm.register("guiError", function(description) {
     dialogMessage.children().remove();
-    dialogMessage.append("<pre>" + description + "</pre>");
+    var pre = $("<pre/>");
+    pre.text(description);
+    dialogMessage.append(pre);
     dialogMessage.dialog("open");
   });
 
@@ -219,7 +224,11 @@ $(function() {
         afterAddRepo = clickOnInstall;
       } else {
         for (var i = 0; i < data.length; i++) {
-          dialogInstallRepo.append($("<option>" + data[i].name + " (" + data[i].url + ")</option>").attr("value", data[i].name));
+          var opt = $("<option/>", {
+            value : data[i].name
+          });
+          opt.text(data[i].name + " (" + data[i].url + ")");
+          dialogInstallRepo.append(opt);
         }
         dialogInstallRepo.selectmenu("refresh");
         dialogInstall.dialog("open");
@@ -429,7 +438,9 @@ $(function() {
     // unlockFrame();
     if (state.error != null) {
       $("#dialog-message").children().remove();
-      $("#dialog-message").append("<pre>" + state.error + "</pre>");
+      var pre = $("<pre/>");
+      pre.text(state.error);
+      $("#dialog-message").append(pre);
       $("#dialog-message").dialog("open");
       afterError = afterUpdate;
       afterUpdate = null;
@@ -439,9 +450,6 @@ $(function() {
       afterUpdate();
     }
   }
-
-  var tabCounter = 1;
-  var tabTemplate = "<li><a href='#{href}'>#{label}</a> </li>";
 
   function versionComparator(version1, version2) {
     var v1 = version1.value.split(".");
@@ -491,10 +499,22 @@ $(function() {
     appli.dom.buttonset.buttonset("refresh");
   }
   
-  var appId = 0;
+  function appendUpdateInput(element, id, text) {
+    var input = $("<input/>", {
+      type: "checkbox",
+      id : id
+    });
+    element.append(input);
+    var label = $("<label/>", {
+      "for" : id
+    });
+    label.text(text);
+    element.append(label);
+    return input;
+  }
   
   function createApplication(appli, afterAppli) {
-    var vid = "app-" + (appId++);
+    var vid = "app-" + appli.name;
     var state;
     var icon;
     if (appli.started) {
@@ -516,14 +536,11 @@ $(function() {
       });
     });
 
-    var bugfix = $("<input type='checkbox' id='" + vid + "bf' /><label for='" + vid + "bf'>bugfix</label>");
-    var minor = $("<input type='checkbox' id='" + vid + "mi' /><label for='" + vid + "mi'>minor evolution</label>");
-    var major = $("<input type='checkbox' id='" + vid + "ma' /><label for='" + vid + "ma'>major evolution</label>");
-
-    var buttonset = $("<span>Update on </span>").append(bugfix, minor, major);
-    bugfix = $(bugfix[0]);
-    minor = $(minor[0]);
-    major = $(major[0]);
+    var buttonset = $("<span>Update on </span>");
+    var bugfix = appendUpdateInput(buttonset, vid + "bf", "bugfix");
+    var minor = appendUpdateInput(buttonset, vid + "mi", "minor evolution");
+    var major = appendUpdateInput(buttonset, vid + "ma", "major evolution");
+    
     bugfix.prop('checked', appli.bugfix);
     minor.prop('checked', appli.minor);
     major.prop('checked', appli.major);
@@ -549,13 +566,19 @@ $(function() {
       });
     });
 
-    var autoStart = $("<input type='checkbox' id='" + vid + "check'>");
+    var autoStart = $("<input/>", {
+      type : "checkbox",
+      id : vid + "check"
+    });
     autoStart.prop('checked', appli.autoStarted);
 
-    var textSpan = $("<span>" + appli.name + " (" + appli.path + ") </span>")
+    var textSpan = $("<span/>");
+    textSpan.text(appli.name + " (" + appli.path + ") ");
 
-    var content = $("<p></p>").append(
-        $("<span class='ui-widget-header ui-corner-all toolbar'></span>").append(textSpan, startStop, autoStart, $("<label for='" + vid + "check'>AutoStart</label>"), buttonset,
+    var content = $("<p/>").append(
+        $("<span class='ui-widget-header ui-corner-all toolbar'></span>").append(textSpan, startStop, autoStart, $("<label/>", {
+          "for" : vid + "check"
+        }).text("AutoStart"), buttonset,
             $("<button>migrate...</button>").button().click(function() {
               migrateData.appli = appli.name;
               dialogMigrate.dialog("open");
