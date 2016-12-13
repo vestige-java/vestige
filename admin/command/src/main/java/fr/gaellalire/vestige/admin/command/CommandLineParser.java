@@ -11,6 +11,7 @@ public class CommandLineParser {
         this.commandLine = commandLine;
         start = 0;
         end = 0;
+        mode = 0;
         unescapeValue = "";
     }
 
