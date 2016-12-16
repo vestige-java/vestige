@@ -24,6 +24,7 @@ import java.net.URLClassLoader;
 import java.security.AccessController;
 import java.security.Permission;
 import java.security.Permissions;
+import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -94,8 +95,9 @@ public class VestigeSecureExecutor {
         threadGroupDestroyer.start();
     }
 
-    public <E> Thread execute(final Set<Permission> additionnalPermissions, final List<ThreadGroup> threadGroups, final String name, final PublicVestigeSystem appVestigeSystem, final Callable<E> callable,
-            final PublicVestigeSystem handlerVestigeSystem, final FutureDoneHandler<E> done) {
+    public <E> VestigeSecureExecution<E> execute(final ClassLoader contextClassLoader, final Set<Permission> additionnalPermissions, final List<ThreadGroup> threadGroups,
+            final String name, final PublicVestigeSystem appVestigeSystem, final Callable<E> callable, final PublicVestigeSystem handlerVestigeSystem,
+            final FutureDoneHandler<E> doneHandler) {
         final ThreadGroup threadGroup = new ThreadGroup(name);
         FutureTask<E> futureTask = new FutureTask<E>(new Callable<E>() {
             @Override
@@ -130,15 +132,19 @@ public class VestigeSecureExecutor {
                         vestigePolicy.setPermissionCollection(permissions);
                     }
                     if (vestigeSecurityManager != null) {
-                        return AccessController.doPrivileged(new PrivilegedExceptionAction<E>() {
-                            @Override
-                            public E run() throws Exception {
-                                if (appVestigeSystem != null) {
-                                    appVestigeSystem.setCurrentSystem();
+                        try {
+                            return AccessController.doPrivileged(new PrivilegedExceptionAction<E>() {
+                                @Override
+                                public E run() throws Exception {
+                                    if (appVestigeSystem != null) {
+                                        appVestigeSystem.setCurrentSystem();
+                                    }
+                                    return callable.call();
                                 }
-                                return callable.call();
-                            }
-                        });
+                            });
+                        } catch (PrivilegedActionException e) {
+                            throw e.getException();
+                        }
                     } else {
                         if (appVestigeSystem != null) {
                             appVestigeSystem.setCurrentSystem();
@@ -156,14 +162,19 @@ public class VestigeSecureExecutor {
         }) {
             @Override
             protected void done() {
-                if (done != null) {
-                    done.futureDone(this);
+                try {
+                    if (doneHandler != null) {
+                        doneHandler.futureDone(this);
+                    }
+                } finally {
+                    threadGroupDestroyer.destroy(Thread.currentThread(), threadGroup);
+                    MDC.remove(VESTIGE_APP_NAME);
                 }
-                threadGroupDestroyer.destroy(Thread.currentThread(), threadGroup);
-                MDC.remove(VESTIGE_APP_NAME);
             }
         };
-        return new Thread(threadGroup, futureTask, "main");
+        Thread thread = new Thread(threadGroup, futureTask, "main");
+        thread.setContextClassLoader(contextClassLoader);
+        return new VestigeSecureExecution<E>(thread, futureTask);
     }
 
     public void stop() {

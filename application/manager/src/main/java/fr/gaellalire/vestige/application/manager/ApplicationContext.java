@@ -114,7 +114,7 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     private transient WeakReference<RuntimeApplicationContext> runtimeApplicationContext;
 
-    private transient Thread thread;
+    private transient VestigeSecureExecution<Void> vestigeSecureExecution;
 
     private transient boolean started;
 
@@ -161,12 +161,12 @@ public class ApplicationContext implements Serializable, Cloneable {
         this.runtimeApplicationContext = new WeakReference<RuntimeApplicationContext>(runtimeApplicationContext);
     }
 
-    public Thread getThread() {
-        return thread;
+    public VestigeSecureExecution<Void> getVestigeSecureExecution() {
+        return vestigeSecureExecution;
     }
 
-    public void setThread(final Thread thread) {
-        this.thread = thread;
+    public void setVestigeSecureExecution(final VestigeSecureExecution<Void> vestigeSecureExecution) {
+        this.vestigeSecureExecution = vestigeSecureExecution;
     }
 
     public String getClassName() {
