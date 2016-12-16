@@ -17,7 +17,8 @@ $(function() {
   var termTmp = false;
   var termVar = null;
   var focused = false;
-
+  var dialogJob = $("#dialog-job");
+  
   var comm = new function() {
     var location = document.location.toString().replace('http://', 'ws://')
 
@@ -46,6 +47,7 @@ $(function() {
             termVar.disable();
           }
         }
+        dialogJob.dialog("close");
         dialogDisconnect.dialog("close");
       };
 
@@ -88,8 +90,6 @@ $(function() {
     }
 
   };
-
-  var dialogJob = $("#dialog-job");
 
   dialogJob.dialog({
     dialogClass : "no-close",
