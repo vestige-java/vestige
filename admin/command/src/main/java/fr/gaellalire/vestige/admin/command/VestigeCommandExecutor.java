@@ -42,7 +42,7 @@ public class VestigeCommandExecutor {
 
     public VestigeCommandExecutor(final JobManager jobManager, final ApplicationManager applicationManager, final VestigePlatform vestigePlatform) {
         List<Command> commands = Arrays.asList(new Memory(), new GC(), new ForceGC(), new Install(applicationManager), new MakeRepo(applicationManager), new RemoveRepo(
-                applicationManager), new Start(applicationManager), new State(applicationManager), new Stop(applicationManager), new Uninstall(applicationManager), new ListCommand(applicationManager),
+                applicationManager), new Start(applicationManager), new Status(applicationManager), new Stop(applicationManager), new Uninstall(applicationManager), new ListCommand(applicationManager),
                 new AutoMigrate(applicationManager), new AutoMigrateLevel(applicationManager), new Migrate(applicationManager), new ClassLoaders(applicationManager), new Platform(
                         vestigePlatform), new AutoStart(applicationManager), new PSCommand(jobManager), new Kill(jobManager));
         commandByNames = new TreeMap<String, Command>();

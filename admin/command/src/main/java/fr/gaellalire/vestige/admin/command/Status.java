@@ -31,23 +31,23 @@ import fr.gaellalire.vestige.job.JobController;
 /**
  * @author Gael Lalire
  */
-public class State implements Command {
+public class Status implements Command {
 
     private ApplicationManager applicationManager;
 
     private LocalApplicationNameArgument applicationArgument;
 
-    public State(final ApplicationManager applicationManager) {
+    public Status(final ApplicationManager applicationManager) {
         this.applicationManager = applicationManager;
         applicationArgument = new LocalApplicationNameArgument(applicationManager);
     }
 
     public String getName() {
-        return "state";
+        return "status";
     }
 
     public String getDesc() {
-        return "Get state of an application";
+        return "Get the status of an application";
     }
 
     public List<? extends Argument> getArguments() {
