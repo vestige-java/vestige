@@ -118,6 +118,8 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     private transient boolean started;
 
+    private transient Exception exception;
+
     public ClassLoaderConfiguration getResolve() {
         return resolve;
     }
@@ -140,6 +142,14 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     public void setStarted(final boolean started) {
         this.started = started;
+    }
+
+    public Exception getException() {
+        return exception;
+    }
+
+    public void setException(final Exception exception) {
+        this.exception = exception;
     }
 
     public File getBase() {

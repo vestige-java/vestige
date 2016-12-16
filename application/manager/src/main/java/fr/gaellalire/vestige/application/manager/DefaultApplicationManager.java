@@ -650,11 +650,11 @@ public class DefaultApplicationManager implements ApplicationManager {
                                                 ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(callConstructor(installerClassLoader,
                                                         installerClassLoader.loadClass(fromApplicationContext.getInstallerClassName()), base, data, vestigeSystem));
                                                 if (migratorApplicationContext == fromApplicationContext) {
-                                                    applicationInstaller.uninterruptedMigrateTo(runtimeApplicationContext.getRunnable(), toVersion,
-                                                            notNullToRuntimeApplicationContext.getRunnable(), notifyRunMutex);
+                                                    applicationInstaller.uninterruptedMigrateTo(runtimeApplicationContext.getApplicationCallable(), toVersion,
+                                                            notNullToRuntimeApplicationContext.getApplicationCallable(), notifyRunMutex);
                                                 } else {
-                                                    applicationInstaller.uninterruptedMigrateFrom(fromVersion, runtimeApplicationContext.getRunnable(),
-                                                            notNullToRuntimeApplicationContext.getRunnable(), notifyRunMutex);
+                                                    applicationInstaller.uninterruptedMigrateFrom(fromVersion, runtimeApplicationContext.getApplicationCallable(),
+                                                            notNullToRuntimeApplicationContext.getApplicationCallable(), notifyRunMutex);
                                                 }
                                                 return null;
                                             }
@@ -906,12 +906,23 @@ public class DefaultApplicationManager implements ApplicationManager {
             VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(classLoader, additionnalPermissions, null, applicationContext.getName(), vestigeSystem, new Callable<Void>() {
                 @Override
                 public Void call() throws Exception {
-                    final Runnable runnable;
+                    final Callable<?> applicationCallable;
                     RuntimeApplicationContext runtimeApplicationContext;
                     if (finalPreviousRuntimeApplicationContext == null) {
-                        runnable = (Runnable) callConstructor(classLoader, classLoader.loadClass(applicationContext.getClassName()), applicationContext.getBase(),
+                        Object applicationObject = callConstructor(classLoader, classLoader.loadClass(applicationContext.getClassName()), applicationContext.getBase(),
                                 applicationContext.getData(), vestigeSystem);
-                        runtimeApplicationContext = new RuntimeApplicationContext(classLoader, runnable, vestigeSystem, runMutex == null);
+                        if (applicationObject instanceof Callable<?>) {
+                            applicationCallable = (Callable<?>) applicationObject;
+                        } else {
+                            final Runnable runnable = (Runnable) applicationObject;
+                            applicationCallable = new Callable<Void>() {
+                                public Void call() {
+                                    runnable.run();
+                                    return null;
+                                }
+                            };
+                        }
+                        runtimeApplicationContext = new RuntimeApplicationContext(classLoader, applicationCallable, vestigeSystem, runMutex == null);
                         if (constructorMutex != null) {
                             synchronized (constructorMutex) {
                                 applicationContext.setRuntimeApplicationContext(runtimeApplicationContext);
@@ -923,7 +934,7 @@ public class DefaultApplicationManager implements ApplicationManager {
                         classLoader.getData().addObject(new SoftReference<RuntimeApplicationContext>(runtimeApplicationContext));
                     } else {
                         runtimeApplicationContext = finalPreviousRuntimeApplicationContext;
-                        runnable = runtimeApplicationContext.getRunnable();
+                        applicationCallable = runtimeApplicationContext.getApplicationCallable();
                     }
                     if (runMutex != null) {
                         synchronized (runMutex) {
@@ -932,7 +943,7 @@ public class DefaultApplicationManager implements ApplicationManager {
                             }
                         }
                     }
-                    runnable.run();
+                    applicationCallable.call();
                     return null;
                 }
             }, managerVestigeSystem, new FutureDoneHandler<Void>() {
@@ -944,6 +955,12 @@ public class DefaultApplicationManager implements ApplicationManager {
                     } catch (InterruptedException e) {
                         LOGGER.error("Unexpected InterruptedException", e);
                     } catch (ExecutionException e) {
+                        Throwable cause = e.getCause();
+                        if (cause instanceof Exception) {
+                            applicationContext.setException((Exception) cause);
+                        } else {
+                            applicationContext.setException(e);
+                        }
                         LOGGER.error("Application ended with exception", e.getCause());
                     }
                     vestigePlatform.detach(attach);
@@ -971,6 +988,7 @@ public class DefaultApplicationManager implements ApplicationManager {
             });
             applicationContext.setVestigeSecureExecution(vestigeSecureExecution);
             applicationContext.setStarted(true);
+            applicationContext.setException(null);
             // notify after start
             synchronized (applicationManagerStateListeners) {
                 if (applicationManagerStateListeners.size() != 0) {
@@ -1001,7 +1019,7 @@ public class DefaultApplicationManager implements ApplicationManager {
     }
 
     /**
-     * Stop all applications without modifing its states.
+     * Stop all applications without modifying its states.
      */
     public void stopAll() {
         for (ApplicationContext applicationContext : state.getApplicationContexts()) {
@@ -1228,6 +1246,13 @@ public class DefaultApplicationManager implements ApplicationManager {
     public boolean isStarted(final String installName) throws ApplicationException {
         synchronized (state) {
             return state.isStarted(installName);
+        }
+    }
+
+    @Override
+    public Exception getException(final String installName) throws ApplicationException {
+        synchronized (state) {
+            return state.getException(installName);
         }
     }
 

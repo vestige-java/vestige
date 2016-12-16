@@ -17,6 +17,8 @@
 
 package fr.gaellalire.vestige.application.manager;
 
+import java.util.concurrent.Callable;
+
 import fr.gaellalire.vestige.core.VestigeClassLoader;
 import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
 import fr.gaellalire.vestige.platform.system.PublicVestigeSystem;
@@ -28,15 +30,15 @@ public class RuntimeApplicationContext {
 
     private VestigeClassLoader<AttachedVestigeClassLoader> classLoader;
 
-    private Runnable runnable;
+    private Callable<?> applicationCallable;
 
     private PublicVestigeSystem vestigeSystem;
 
     private boolean runAllowed;
 
-    public RuntimeApplicationContext(final VestigeClassLoader<AttachedVestigeClassLoader> classLoader, final Runnable runnable, final PublicVestigeSystem vestigeSystem, final boolean runAllowed) {
+    public RuntimeApplicationContext(final VestigeClassLoader<AttachedVestigeClassLoader> classLoader, final Callable<?> applicationCallable, final PublicVestigeSystem vestigeSystem, final boolean runAllowed) {
         this.classLoader = classLoader;
-        this.runnable = runnable;
+        this.applicationCallable = applicationCallable;
         this.vestigeSystem = vestigeSystem;
         this.runAllowed = runAllowed;
     }
@@ -45,8 +47,8 @@ public class RuntimeApplicationContext {
         return classLoader;
     }
 
-    public Runnable getRunnable() {
-        return runnable;
+    public Callable<?> getApplicationCallable() {
+        return applicationCallable;
     }
 
     public PublicVestigeSystem getVestigeSystem() {

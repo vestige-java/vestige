@@ -164,6 +164,12 @@ public class DefaultApplicationManagerState implements Serializable, Application
         return applicationContext.getAutoMigrateLevel();
     }
 
+    @Override
+    public Exception getException(final String installName) throws ApplicationException {
+        final ApplicationContext applicationContext = getApplication(installName);
+        return applicationContext.getException();
+    }
+
     public ApplicationManagerState copy() {
         DefaultApplicationManagerState defaultApplicationManagerState = new DefaultApplicationManagerState();
         defaultApplicationManagerState.urlByRepo.putAll(urlByRepo);
