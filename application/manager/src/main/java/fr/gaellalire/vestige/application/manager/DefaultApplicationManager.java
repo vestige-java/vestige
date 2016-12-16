@@ -589,17 +589,20 @@ public class DefaultApplicationManager implements ApplicationManager {
                 ClassLoaderConfiguration installerResolve = migratorApplicationContext.getInstallerResolve();
 
                 final RuntimeApplicationContext runtimeApplicationContext = fromApplicationContext.getRuntimeApplicationContext();
-                // && runtimeApplicationContext != null should be redondant
+                // && runtimeApplicationContext != null should be redundant
                 if (fromApplicationContext.isStarted() && runtimeApplicationContext != null) {
-                    if (fromApplicationContext == migratorApplicationContext) {
-                        if (!migratorApplicationContext.getUninterruptedMigrationVersion().contains(toVersion)) {
-                            LOGGER.info("Uninterrupted migration not supported and application running");
-                            return;
-                        }
+                    List<Integer> supportedVersion;
+                    if (migratorApplicationContext == fromApplicationContext) {
+                        supportedVersion = toVersion;
                     } else {
-                        if (!migratorApplicationContext.getUninterruptedMigrationVersion().contains(fromVersion)) {
+                        supportedVersion = fromVersion;
+                    }
+                    if (!migratorApplicationContext.getUninterruptedMigrationVersion().contains(supportedVersion)) {
+                        if (ignoreIfUnsupported) {
                             LOGGER.info("Uninterrupted migration not supported and application running");
                             return;
+                        } else {
+                            throw new ApplicationException("Uninterrupted migration not supported and application running");
                         }
                     }
 
