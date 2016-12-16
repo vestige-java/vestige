@@ -14,7 +14,10 @@ $(function() {
     },
   });
 
-  
+  var termTmp = false;
+  var termVar = null;
+  var focused = false;
+
   var comm = new function() {
     var location = document.location.toString().replace('http://', 'ws://')
 
@@ -32,6 +35,17 @@ $(function() {
 
       ws.onopen = function() {
         opened = true;
+        if (termVar != null) {
+          // release terminal to accept new commands
+          if (termTmp) {
+            termTmp = false;
+            termVar.update(-1, "");
+          }
+          termVar.resume();
+          if (!focused) {
+            termVar.disable();
+          }
+        }
         dialogDisconnect.dialog("close");
       };
 
@@ -626,8 +640,7 @@ $(function() {
     modal : true,
   });
 
-  var focused = false;
-  var termVar = $('#term_demo').terminal(function(command, term) {
+  termVar = $('#term_demo').terminal(function(command, term) {
     if (command !== '') {
       term.pause();
       comm.send({
@@ -661,8 +674,6 @@ $(function() {
       termVar.focus(false);
     }
   });
-
-  var termTmp = false;
 
   comm.register("termEcho", function(value) {
     var i = 0;
