@@ -177,7 +177,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         } else {
             mavenConfigResolved = new MavenConfigResolved();
         }
-        return new XMLApplicationDescriptor(mavenArtifactResolver, version, application, mavenConfigResolved, launcherPermissionSet, jobHelper);
+        return new XMLApplicationDescriptor(mavenArtifactResolver, version, application, mavenConfigResolved, launcherPermissionSet, installerPermissionSet, jobHelper);
     }
 
     public void readPermissions(final Permissions permissions, final Set<Permission> result) {

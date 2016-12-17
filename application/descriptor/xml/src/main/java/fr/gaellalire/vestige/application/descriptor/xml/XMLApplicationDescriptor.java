@@ -58,17 +58,20 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
 
     private MavenConfigResolved mavenConfigResolved;
 
+    private Set<Permission> installerPermissions;
+
     private Set<Permission> permissions;
 
     private JobHelper actionHelper;
 
     public XMLApplicationDescriptor(final MavenArtifactResolver mavenArtifactResolver, final List<Integer> version, final Application application,
-            final MavenConfigResolved mavenConfigResolved, final Set<Permission> permissions, final JobHelper actionHelper) {
+            final MavenConfigResolved mavenConfigResolved, final Set<Permission> permissions, final Set<Permission> installerPermissions, final JobHelper actionHelper) {
         this.mavenArtifactResolver = mavenArtifactResolver;
         this.version = version;
         this.application = application;
         this.mavenConfigResolved = mavenConfigResolved;
         this.permissions = permissions;
+        this.installerPermissions = installerPermissions;
         this.actionHelper = actionHelper;
     }
 
@@ -282,7 +285,7 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
 
     @Override
     public Set<Permission> getInstallerPermissions() throws ApplicationException {
-        return permissions;
+        return installerPermissions;
     }
 
     @Override
