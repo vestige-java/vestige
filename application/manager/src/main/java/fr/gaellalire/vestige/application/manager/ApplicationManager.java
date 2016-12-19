@@ -43,7 +43,7 @@ public interface ApplicationManager extends ApplicationManagerState {
 
     void start(String installName) throws ApplicationException;
 
-    void stop(String installName) throws ApplicationException;
+    JobController stop(String installName, JobListener jobListener) throws ApplicationException;
 
     void setAutoMigrateLevel(String installName, int level) throws ApplicationException;
 

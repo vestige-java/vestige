@@ -302,8 +302,8 @@ public class DefaultApplicationManager implements ApplicationManager {
                             vestigeSystem = rootVestigeSystem;
                         }
                         final String installerClassName = applicationContext.getInstallerClassName();
-                        VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader, additionnalPermissions, null, applicationContext.getName() + "-installer", vestigeSystem,
-                                new Callable<Void>() {
+                        VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader, additionnalPermissions, null,
+                                applicationContext.getName() + "-installer", vestigeSystem, new Callable<Void>() {
 
                                     @Override
                                     public Void call() throws Exception {
@@ -399,8 +399,8 @@ public class DefaultApplicationManager implements ApplicationManager {
                             } else {
                                 vestigeSystem = rootVestigeSystem;
                             }
-                            VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader, additionnalPermissions, null, applicationContext.getName() + "-installer", vestigeSystem,
-                                    new Callable<Void>() {
+                            VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader, additionnalPermissions, null,
+                                    applicationContext.getName() + "-installer", vestigeSystem, new Callable<Void>() {
 
                                         @Override
                                         public Void call() throws Exception {
@@ -612,6 +612,7 @@ public class DefaultApplicationManager implements ApplicationManager {
                                 }
                             }
                         };
+                        VestigeSecureExecution<Void> fromVestigeSecureExecution = fromApplicationContext.getVestigeSecureExecution();
                         try {
                             TaskHelper task;
                             if (migratorApplicationContext == fromApplicationContext) {
@@ -641,8 +642,8 @@ public class DefaultApplicationManager implements ApplicationManager {
                                 } else {
                                     vestigeSystem = rootVestigeSystem;
                                 }
-                                VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader, additionnalPermissions,
-                                        Arrays.asList(fromApplicationContext.getVestigeSecureExecution().getThreadGroup(), toApplicationContext.getVestigeSecureExecution().getThreadGroup()),
+                                VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader, additionnalPermissions, Arrays.asList(
+                                        fromVestigeSecureExecution.getThreadGroup(), toApplicationContext.getVestigeSecureExecution().getThreadGroup()),
                                         migratorApplicationContext.getName() + "-installer", vestigeSystem, new Callable<Void>() {
 
                                             @Override
@@ -678,7 +679,7 @@ public class DefaultApplicationManager implements ApplicationManager {
                             notifyRunMutex.run();
                         }
 
-                        stop(fromApplicationContext);
+                        fromVestigeSecureExecution.interrupt();
 
                     } catch (Exception e) {
                         throw new ApplicationException("fail to uninterrupted migrate", e);
@@ -711,8 +712,8 @@ public class DefaultApplicationManager implements ApplicationManager {
                             } else {
                                 vestigeSystem = rootVestigeSystem;
                             }
-                            VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader, additionnalPermissions, null, migratorApplicationContext.getName() + "-installer", vestigeSystem,
-                                    new Callable<Void>() {
+                            VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader, additionnalPermissions, null,
+                                    migratorApplicationContext.getName() + "-installer", vestigeSystem, new Callable<Void>() {
 
                                         @Override
                                         public Void call() throws Exception {
@@ -771,13 +772,32 @@ public class DefaultApplicationManager implements ApplicationManager {
         LOGGER.info("Application {} started", installName);
     }
 
-    public void stop(final String installName) throws ApplicationException {
+    public JobController stop(final String installName, final JobListener jobListener) throws ApplicationException {
         ApplicationContext applicationContext;
         synchronized (state) {
             applicationContext = state.getApplication(installName);
         }
-        stop(applicationContext);
-        LOGGER.info("Application {} stopped", installName);
+        final VestigeSecureExecution<Void> vestigeSecureExecution = applicationContext.getVestigeSecureExecution();
+        if (vestigeSecureExecution == null) {
+            // already stopped
+            return null;
+        }
+        vestigeSecureExecution.interrupt();
+        return actionManager.submitJob("stop", "Stop application", new Job() {
+
+            @Override
+            public void run(final JobHelper jobHelper) throws Exception {
+                TaskHelper task = jobHelper.addTask("Waiting for application to stop");
+                try {
+                    vestigeSecureExecution.join();
+                } catch (InterruptedException e) {
+                    throw new ApplicationException("Unable to stop", e);
+                } finally {
+                    task.setDone();
+                }
+                LOGGER.info("Application {} stopped", installName);
+            }
+        }, jobListener);
     }
 
     public void start(final ApplicationContext applicationContext) throws ApplicationException {
@@ -903,89 +923,90 @@ public class DefaultApplicationManager implements ApplicationManager {
             additionnalPermissions.addAll(applicationContext.getPermissions());
             additionnalPermissions.add(new FilePermission(applicationContext.getData().getPath(), "read,write"));
             additionnalPermissions.add(new FilePermission(applicationContext.getData().getPath() + File.separator + "-", "read,write,delete"));
-            VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(classLoader, additionnalPermissions, null, applicationContext.getName(), vestigeSystem, new Callable<Void>() {
-                @Override
-                public Void call() throws Exception {
-                    final Callable<?> applicationCallable;
-                    RuntimeApplicationContext runtimeApplicationContext;
-                    if (finalPreviousRuntimeApplicationContext == null) {
-                        Object applicationObject = callConstructor(classLoader, classLoader.loadClass(applicationContext.getClassName()), applicationContext.getBase(),
-                                applicationContext.getData(), vestigeSystem);
-                        if (applicationObject instanceof Callable<?>) {
-                            applicationCallable = (Callable<?>) applicationObject;
-                        } else {
-                            final Runnable runnable = (Runnable) applicationObject;
-                            applicationCallable = new Callable<Void>() {
-                                public Void call() {
-                                    runnable.run();
-                                    return null;
+            VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(classLoader, additionnalPermissions, null, applicationContext.getName(),
+                    vestigeSystem, new Callable<Void>() {
+                        @Override
+                        public Void call() throws Exception {
+                            final Callable<?> applicationCallable;
+                            RuntimeApplicationContext runtimeApplicationContext;
+                            if (finalPreviousRuntimeApplicationContext == null) {
+                                Object applicationObject = callConstructor(classLoader, classLoader.loadClass(applicationContext.getClassName()), applicationContext.getBase(),
+                                        applicationContext.getData(), vestigeSystem);
+                                if (applicationObject instanceof Callable<?>) {
+                                    applicationCallable = (Callable<?>) applicationObject;
+                                } else {
+                                    final Runnable runnable = (Runnable) applicationObject;
+                                    applicationCallable = new Callable<Void>() {
+                                        public Void call() {
+                                            runnable.run();
+                                            return null;
+                                        }
+                                    };
                                 }
-                            };
-                        }
-                        runtimeApplicationContext = new RuntimeApplicationContext(classLoader, applicationCallable, vestigeSystem, runMutex == null);
-                        if (constructorMutex != null) {
-                            synchronized (constructorMutex) {
-                                applicationContext.setRuntimeApplicationContext(runtimeApplicationContext);
-                                constructorMutex.notify();
+                                runtimeApplicationContext = new RuntimeApplicationContext(classLoader, applicationCallable, vestigeSystem, runMutex == null);
+                                if (constructorMutex != null) {
+                                    synchronized (constructorMutex) {
+                                        applicationContext.setRuntimeApplicationContext(runtimeApplicationContext);
+                                        constructorMutex.notify();
+                                    }
+                                } else {
+                                    applicationContext.setRuntimeApplicationContext(runtimeApplicationContext);
+                                }
+                                classLoader.getData().addObject(new SoftReference<RuntimeApplicationContext>(runtimeApplicationContext));
+                            } else {
+                                runtimeApplicationContext = finalPreviousRuntimeApplicationContext;
+                                applicationCallable = runtimeApplicationContext.getApplicationCallable();
                             }
-                        } else {
-                            applicationContext.setRuntimeApplicationContext(runtimeApplicationContext);
-                        }
-                        classLoader.getData().addObject(new SoftReference<RuntimeApplicationContext>(runtimeApplicationContext));
-                    } else {
-                        runtimeApplicationContext = finalPreviousRuntimeApplicationContext;
-                        applicationCallable = runtimeApplicationContext.getApplicationCallable();
-                    }
-                    if (runMutex != null) {
-                        synchronized (runMutex) {
-                            while (!runtimeApplicationContext.isRunAllowed()) {
-                                runMutex.wait();
+                            if (runMutex != null) {
+                                synchronized (runMutex) {
+                                    while (!runtimeApplicationContext.isRunAllowed()) {
+                                        runMutex.wait();
+                                    }
+                                }
                             }
+                            applicationCallable.call();
+                            return null;
                         }
-                    }
-                    applicationCallable.call();
-                    return null;
-                }
-            }, managerVestigeSystem, new FutureDoneHandler<Void>() {
+                    }, managerVestigeSystem, new FutureDoneHandler<Void>() {
 
-                @Override
-                public void futureDone(final Future<Void> future) {
-                    try {
-                        future.get();
-                    } catch (InterruptedException e) {
-                        LOGGER.error("Unexpected InterruptedException", e);
-                    } catch (ExecutionException e) {
-                        Throwable cause = e.getCause();
-                        if (cause instanceof Exception) {
-                            applicationContext.setException((Exception) cause);
-                        } else {
-                            applicationContext.setException(e);
-                        }
-                        LOGGER.error("Application ended with exception", e.getCause());
-                    }
-                    vestigePlatform.detach(attach);
-                    // allow inner start to run
-                    if (constructorMutex != null) {
-                        synchronized (constructorMutex) {
-                            applicationContext.setVestigeSecureExecution(null);
-                            constructorMutex.notify();
-                        }
-                    } else {
-                        applicationContext.setVestigeSecureExecution(null);
-                    }
-                    // allow external start to run
-                    applicationContext.setStarted(false);
-                    // notify after stop
-                    synchronized (applicationManagerStateListeners) {
-                        if (applicationManagerStateListeners.size() != 0) {
-                            synchronized (state) {
-                                lastState = state.copy();
+                        @Override
+                        public void futureDone(final Future<Void> future) {
+                            try {
+                                future.get();
+                            } catch (InterruptedException e) {
+                                LOGGER.error("Unexpected InterruptedException", e);
+                            } catch (ExecutionException e) {
+                                Throwable cause = e.getCause();
+                                if (cause instanceof Exception) {
+                                    applicationContext.setException((Exception) cause);
+                                } else {
+                                    applicationContext.setException(e);
+                                }
+                                LOGGER.error("Application ended with exception", e.getCause());
                             }
-                            applicationManagerStateListeners.notify();
+                            vestigePlatform.detach(attach);
+                            // allow inner start to run
+                            if (constructorMutex != null) {
+                                synchronized (constructorMutex) {
+                                    applicationContext.setVestigeSecureExecution(null);
+                                    constructorMutex.notify();
+                                }
+                            } else {
+                                applicationContext.setVestigeSecureExecution(null);
+                            }
+                            // allow external start to run
+                            applicationContext.setStarted(false);
+                            // notify after stop
+                            synchronized (applicationManagerStateListeners) {
+                                if (applicationManagerStateListeners.size() != 0) {
+                                    synchronized (state) {
+                                        lastState = state.copy();
+                                    }
+                                    applicationManagerStateListeners.notify();
+                                }
+                            }
                         }
-                    }
-                }
-            });
+                    });
             applicationContext.setVestigeSecureExecution(vestigeSecureExecution);
             applicationContext.setStarted(true);
             applicationContext.setException(null);
@@ -1004,34 +1025,27 @@ public class DefaultApplicationManager implements ApplicationManager {
         }
     }
 
-    public void stop(final ApplicationContext applicationContext) throws ApplicationException {
-        VestigeSecureExecution<Void> vestigeSecureExecution = applicationContext.getVestigeSecureExecution();
-        if (vestigeSecureExecution == null) {
-            // already stopped
-            return;
-        }
-        vestigeSecureExecution.interrupt();
-        try {
-            vestigeSecureExecution.join();
-        } catch (InterruptedException e) {
-            throw new ApplicationException("Unable to stop", e);
-        }
-    }
-
     /**
      * Stop all applications without modifying its states.
      */
     public void stopAll() {
+        List<VestigeSecureExecution<Void>> vestigeSecureExecutions = new ArrayList<VestigeSecureExecution<Void>>();
         for (ApplicationContext applicationContext : state.getApplicationContexts()) {
             if (applicationContext.isStarted()) {
-                try {
-                    stop(applicationContext);
-                } catch (ApplicationException e) {
-                    LOGGER.error("Unable to stop", e);
-                }
+                VestigeSecureExecution<Void> vestigeSecureExecution = applicationContext.getVestigeSecureExecution();
+                vestigeSecureExecution.interrupt();
+                vestigeSecureExecutions.add(vestigeSecureExecution);
             }
         }
         this.vestigeSecureExecutor.stop();
+        for (VestigeSecureExecution<Void> vestigeSecureExecution : vestigeSecureExecutions) {
+            try {
+                vestigeSecureExecution.join();
+            } catch (InterruptedException e) {
+                LOGGER.warn("Stop all interrupted", e);
+                return;
+            }
+        }
     }
 
     public void autoStart() {

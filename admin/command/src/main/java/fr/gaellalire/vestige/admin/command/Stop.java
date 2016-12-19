@@ -54,11 +54,11 @@ public class Stop implements Command {
 
     public JobController execute(final CommandContext commandContext) {
         try {
-            applicationManager.stop(applicationArgument.getApplication());
+            return applicationManager.stop(applicationArgument.getApplication(), commandContext.getJobListener());
         } catch (ApplicationException e) {
             e.printStackTrace(commandContext.getOut());
+            return null;
         }
-        return null;
     }
 
 
