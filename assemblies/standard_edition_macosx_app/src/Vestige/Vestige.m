@@ -347,8 +347,9 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
     NSData *addr = [(NSData *)CFSocketCopyAddress(ipv4cfsock) autorelease];
     memcpy(&sin, [addr bytes], [addr length]);
     int port = ntohs(sin.sin_port);
-    NSDictionary* env = [[NSProcessInfo processInfo] environment];
-    [env setValue:[@(port) stringValue] forKey:@"VESTIGE_LISTENER_PORT"];
+    NSMutableDictionary *env = [[NSMutableDictionary alloc] init];
+    [env addEntriesFromDictionary:[[NSProcessInfo processInfo] environment]];
+    [env setObject:[@(port) stringValue] forKey:@"VESTIGE_LISTENER_PORT"];
     [task setEnvironment:env];
     
     CFRunLoopSourceRef socketsource = CFSocketCreateRunLoopSource(kCFAllocatorDefault, ipv4cfsock, 0);
