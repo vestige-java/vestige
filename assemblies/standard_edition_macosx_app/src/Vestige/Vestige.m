@@ -301,7 +301,7 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
     [scrollview setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
     
     textView = [[NSTextView alloc] initWithFrame:NSMakeRect(0, 0, contentSize.width, contentSize.height)];
-    [textView setMinSize:NSMakeSize(0.0, contentSize.height)];
+    [textView setMinSize:NSMakeSize(contentSize.width, contentSize.height)];
     [textView setMaxSize:NSMakeSize(FLT_MAX, FLT_MAX)];
     [textView setVerticallyResizable:YES];
     [textView setHorizontallyResizable:YES];
