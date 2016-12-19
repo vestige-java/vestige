@@ -268,6 +268,9 @@ $(function() {
           "url" : $("#tab_url").val()
         });
         $(this).dialog("close");
+        if (p != null) {
+          p();
+        }
       },
       Cancel : function() {
         $(this).dialog("close");
