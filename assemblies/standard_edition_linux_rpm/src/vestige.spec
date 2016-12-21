@@ -10,7 +10,7 @@ Source0:        vestige.tar.gz
 
 BuildArchitectures: noarch
 
-Requires:  bash java >= 1.6.0 pygtk2 >= 2.6.0 python-appindicator
+Requires:  bash java >= 1.6.0 pygtk2 >= 2.6.0 python-appindicator python-dbus
 
 %define __jar_repack %{nil}
 %define _binaries_in_noarch_packages_terminate_build 0

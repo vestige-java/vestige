@@ -6,4 +6,4 @@ Maintainer: Gael Lalire <vestige@gaellalire.fr>
 Description: Java Application Manager
 Homepage: http://gaellalire.fr/vestige
 Installed-Size: 15360
-Depends: bash, java6-runtime, python-gtk2 (>= 2.6), python-appindicator
+Depends: bash, java6-runtime, python-gtk2 (>= 2.6), python-appindicator, python-dbus
