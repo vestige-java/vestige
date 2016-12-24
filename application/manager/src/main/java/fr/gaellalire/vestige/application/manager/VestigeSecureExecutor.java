@@ -71,6 +71,15 @@ public class VestigeSecureExecutor {
             }
         } catch (Exception e) {
             LOGGER.debug("Unable to add permission to system classloader", e);
+            String classPath = System.getProperty("java.class.path");
+            if (classPath != null) {
+                StringTokenizer extensionsTok = new StringTokenizer(classPath, File.pathSeparator);
+                while (extensionsTok.hasMoreTokens()) {
+                    String path = new File(extensionsTok.nextToken()).getPath();
+                    resourcesPermissions.add(new FilePermission(path, "read"));
+                    resourcesPermissions.add(new FilePermission(path + File.separator + "*", "read"));
+                }
+            }
         }
         String extdir = System.getProperty("java.ext.dirs");
         if (extdir != null) {
@@ -185,4 +194,5 @@ public class VestigeSecureExecutor {
             LOGGER.warn("Interrupted while stopping", e);
         }
     }
+
 }

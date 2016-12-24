@@ -255,6 +255,8 @@ public final class JVMEnhancer {
                 setField(Thread.class.getDeclaredField("subclassAudits"), weakSoftCacheClass.newInstance());
             } catch (Exception e) {
                 LOGGER.trace("java.lang.Thread.subclassAudits replacement failed", e);
+            } catch (NoClassDefFoundError e) {
+                LOGGER.trace("java.lang.Thread.subclassAudits replacement failed", e);
             }
 
             // keep levels in static field

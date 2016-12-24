@@ -86,6 +86,14 @@ public abstract class VestigeHashMap<K, V> extends HashMap<K, V> implements Stac
         return getHashMap().get(key);
     }
 
+    public V getOrDefault(final Object key, final V defaultValue) {
+        HashMap<K, V> hashMap = getHashMap();
+        if (!hashMap.containsKey(key)) {
+            return defaultValue;
+        }
+        return hashMap.get(key);
+    }
+
     @Override
     public int hashCode() {
         return getHashMap().hashCode();
