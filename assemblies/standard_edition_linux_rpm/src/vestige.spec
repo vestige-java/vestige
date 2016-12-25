@@ -3,7 +3,7 @@ Version:        0.0.1
 Release:        1
 Summary:        Java Application Manager
 
-License:        GPL
+License:        GPLv3+
 URL:            http://gaellalire.fr/vestige/
 
 Source0:        vestige.tar.gz
