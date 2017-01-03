@@ -513,6 +513,8 @@ $(function() {
     appli.dom.bugfix.prop('checked', appli.bugfix);
     appli.dom.minor.prop('checked', appli.minor);
     appli.dom.major.prop('checked', appli.major);
+    appli.dom.autoStart.prop('checked', appli.autoStarted);
+    appli.dom.autoStart.button("refresh");
     appli.dom.buttonset.buttonset("refresh");
   }
   
@@ -563,23 +565,29 @@ $(function() {
     major.prop('checked', appli.major);
 
     bugfix.button().click(function() {
+      var checked = $(this).is(':checked');
+      $(this).prop('checked', !checked);
       startJob("bugfix", {
         "name" : appli.name,
-        "value" : $(this).is(':checked')
+        "value" : checked
       });
     });
 
     minor.button().click(function() {
+      var checked = $(this).is(':checked');
+      $(this).prop('checked', !checked);
       startJob("minor-evolution", {
         "name" : appli.name,
-        "value" : $(this).is(':checked')
+        "value" : checked
       });
     });
 
     major.button().click(function() {
+      var checked = $(this).is(':checked');
+      $(this).prop('checked', !checked);
       startJob("major-evolution", {
         "name" : appli.name,
-        "value" : $(this).is(':checked')
+        "value" : checked
       });
     });
 
@@ -611,9 +619,11 @@ $(function() {
             })));
 
     autoStart.button().click(function() {
+      var checked = $(this).is(':checked');
+      $(this).prop('checked', !checked);
       startJob("auto-start", {
         "name" : appli.name,
-        "value" : $(this).is(':checked')
+        "value" : checked
       });
     });
     buttonset.buttonset();
@@ -625,7 +635,8 @@ $(function() {
       "minor" : minor,
       "major" : major,
       "buttonset" : buttonset,
-      "textSpan" : textSpan
+      "textSpan" : textSpan,
+      "autoStart" : autoStart
     };
 
     if (afterAppli == null) {

@@ -59,6 +59,10 @@ public class DefaultApplicationManagerState implements Serializable, Application
 
     // read only
 
+    public Set<Entry<String, ApplicationContext>> applicationContextByInstallNameEntrySet() {
+        return applicationContextByInstallName.entrySet();
+    }
+
     public Collection<ApplicationContext> getApplicationContexts() {
         return applicationContextByInstallName.values();
     }
@@ -71,10 +75,18 @@ public class DefaultApplicationManagerState implements Serializable, Application
         return urlByRepo.get(repoName).url;
     }
 
-    public ApplicationContext getApplication(final String installName) throws ApplicationException {
+    public ApplicationContext getApplicationContext(final String installName) throws ApplicationException {
         ApplicationContext applicationContext = applicationContextByInstallName.get(installName);
         if (applicationContext == null) {
             throw new ApplicationException("Application " + installName + " is not installed");
+        }
+        return applicationContext;
+    }
+
+    public ApplicationContext getUnlockedApplicationContext(final String installName) throws ApplicationException {
+        ApplicationContext applicationContext = getApplicationContext(installName);
+        if (applicationContext.isLocked()) {
+            throw new ApplicationException("Application " + installName + " is locked");
         }
         return applicationContext;
     }
@@ -121,52 +133,46 @@ public class DefaultApplicationManagerState implements Serializable, Application
 
     @Override
     public String getRepositoryName(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = getApplication(installName);
+        final ApplicationContext applicationContext = getApplicationContext(installName);
         return applicationContext.getRepoName();
     }
 
     @Override
     public String getRepositoryApplicationName(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = getApplication(installName);
+        final ApplicationContext applicationContext = getApplicationContext(installName);
         return applicationContext.getRepoApplicationName();
     }
 
     @Override
     public List<Integer> getRepositoryApplicationVersion(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = getApplication(installName);
+        final ApplicationContext applicationContext = getApplicationContext(installName);
         return applicationContext.getRepoApplicationVersion();
     }
 
     @Override
-    public List<Integer> getMigrationRepositoryApplicationVersion(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = getApplication(installName);
-        return applicationContext.getMigrationRepoApplicationVersion();
-    }
-
-    @Override
     public boolean isAutoStarted(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = getApplication(installName);
+        final ApplicationContext applicationContext = getApplicationContext(installName);
         return applicationContext.isAutoStarted();
     }
 
     public boolean isStarted(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = getApplication(installName);
+        final ApplicationContext applicationContext = getApplicationContext(installName);
         return applicationContext.isStarted();
     }
 
     public ClassLoaderConfiguration getClassLoaders(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = getApplication(installName);
+        final ApplicationContext applicationContext = getApplicationContext(installName);
         return applicationContext.getResolve();
     }
 
     public int getAutoMigrateLevel(final String installName) throws ApplicationException {
-        ApplicationContext applicationContext = getApplication(installName);
+        ApplicationContext applicationContext = getApplicationContext(installName);
         return applicationContext.getAutoMigrateLevel();
     }
 
     @Override
     public Exception getException(final String installName) throws ApplicationException {
-        final ApplicationContext applicationContext = getApplication(installName);
+        final ApplicationContext applicationContext = getApplicationContext(installName);
         return applicationContext.getException();
     }
 
@@ -177,6 +183,16 @@ public class DefaultApplicationManagerState implements Serializable, Application
             defaultApplicationManagerState.applicationContextByInstallName.put(entry.getKey(), entry.getValue().copy());
         }
         return defaultApplicationManagerState;
+    }
+
+    @Override
+    public List<Integer> getMigrationRepositoryApplicationVersion(final String installName) throws ApplicationException {
+        ApplicationContext applicationContext = getApplicationContext(installName);
+        ApplicationContext migrationApplicationContext = applicationContext.getMigrationApplicationContext();
+        if (migrationApplicationContext != null && !applicationContext.isUncommitted()) {
+            return migrationApplicationContext.getRepoApplicationVersion();
+        }
+        return null;
     }
 
 }

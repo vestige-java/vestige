@@ -66,6 +66,26 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     private boolean autoStarted;
 
+    private boolean uncommitted;
+
+    private transient boolean locked;
+
+    public boolean isLocked() {
+        return locked;
+    }
+
+    public void setLocked(final boolean locked) {
+        this.locked = locked;
+    }
+
+    public boolean isUncommitted() {
+        return uncommitted;
+    }
+
+    public void setUncommitted(final boolean uncommitted) {
+        this.uncommitted = uncommitted;
+    }
+
     public boolean isAutoStarted() {
         return autoStarted;
     }
@@ -90,14 +110,14 @@ public class ApplicationContext implements Serializable, Cloneable {
         this.repoApplicationName = repoApplicationName;
     }
 
-    private transient List<Integer> migrationRepoApplicationVersion;
+    private ApplicationContext migrationApplicationContext;
 
-    public List<Integer> getMigrationRepoApplicationVersion() {
-        return migrationRepoApplicationVersion;
+    public void setMigrationApplicationContext(final ApplicationContext migrationApplicationContext) {
+        this.migrationApplicationContext = migrationApplicationContext;
     }
 
-    public void setMigrationRepoApplicationVersion(final List<Integer> migrationRepoApplicationVersion) {
-        this.migrationRepoApplicationVersion = migrationRepoApplicationVersion;
+    public ApplicationContext getMigrationApplicationContext() {
+        return migrationApplicationContext;
     }
 
     public List<Integer> getRepoApplicationVersion() {
@@ -111,6 +131,8 @@ public class ApplicationContext implements Serializable, Cloneable {
     private String repoApplicationName;
 
     private List<Integer> repoApplicationVersion;
+
+    private transient WeakReference<RuntimeApplicationInstallerContext> runtimeApplicationInstallerContext;
 
     private transient WeakReference<RuntimeApplicationContext> runtimeApplicationContext;
 
@@ -158,6 +180,17 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     public void setBase(final File base) {
         this.base = base;
+    }
+
+    public RuntimeApplicationInstallerContext getRuntimeApplicationInstallerContext() {
+        if (runtimeApplicationInstallerContext == null) {
+            return null;
+        }
+        return runtimeApplicationInstallerContext.get();
+    }
+
+    public void setRuntimeApplicationInstallerContext(final RuntimeApplicationInstallerContext runtimeApplicationInstallerContext) {
+        this.runtimeApplicationInstallerContext = new WeakReference<RuntimeApplicationInstallerContext>(runtimeApplicationInstallerContext);
     }
 
     public RuntimeApplicationContext getRuntimeApplicationContext() {

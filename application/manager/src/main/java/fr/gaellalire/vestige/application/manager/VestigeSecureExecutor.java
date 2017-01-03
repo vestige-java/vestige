@@ -105,42 +105,75 @@ public class VestigeSecureExecutor {
     }
 
     public <E> VestigeSecureExecution<E> execute(final ClassLoader contextClassLoader, final Set<Permission> additionnalPermissions, final List<ThreadGroup> threadGroups,
-            final String name, final PublicVestigeSystem appVestigeSystem, final Callable<E> callable, final PublicVestigeSystem handlerVestigeSystem,
+            final String name, final PublicVestigeSystem appVestigeSystem, final VestigeSecureCallable<E> callable, final PublicVestigeSystem handlerVestigeSystem,
             final FutureDoneHandler<E> doneHandler) {
         final ThreadGroup threadGroup = new ThreadGroup(name);
+        final List<ThreadGroup> accessibleThreadGroups;
+        final Permissions permissions;
+
+        if (vestigeSecurityManager != null) {
+            if (threadGroups != null) {
+                accessibleThreadGroups = new ArrayList<ThreadGroup>(threadGroups.size() + 1);
+                accessibleThreadGroups.addAll(threadGroups);
+                accessibleThreadGroups.add(threadGroup);
+            } else {
+                accessibleThreadGroups = Collections.singletonList(threadGroup);
+            }
+            permissions = new Permissions();
+            // getResource for system jar
+            for (Permission permission : systemResourcePermissions) {
+                permissions.add(permission);
+            }
+            // access to tmp dir
+            String tmpdir = System.getProperty("java.io.tmpdir");
+            if (tmpdir != null) {
+                String path = new File(tmpdir).getPath();
+                permissions.add(new FilePermission(path, "read,write"));
+                permissions.add(new FilePermission(path + File.separator + "-", "read,write,delete"));
+            }
+            // additionnalPermissions
+            for (Permission permission : additionnalPermissions) {
+                permissions.add(permission);
+            }
+        } else {
+            accessibleThreadGroups = null;
+            permissions = null;
+        }
+
+
+
+        final PrivilegedExceptionActionExecutor privilegedExecutor;
+        if (appVestigeSystem != null && vestigeSecurityManager != null) {
+            privilegedExecutor = new PrivilegedExceptionActionExecutor() {
+
+                @Override
+                public <T> T doPrivileged(final PrivilegedExceptionAction<T> action) throws PrivilegedActionException {
+                    vestigePolicy.unsetPermissionCollection();
+                    vestigeSecurityManager.unsetThreadGroups();
+                    handlerVestigeSystem.setCurrentSystem();
+                    try {
+                        return action.run();
+                    } catch (Exception e) {
+                        throw new PrivilegedActionException(e);
+                    } finally {
+                        vestigeSecurityManager.setThreadGroups(accessibleThreadGroups);
+                        vestigePolicy.setPermissionCollection(permissions);
+                    }
+                }
+
+            };
+        } else {
+            privilegedExecutor = PrivilegedExceptionActionExecutor.DIRECT_EXECUTOR;
+        }
+
         FutureTask<E> futureTask = new FutureTask<E>(new Callable<E>() {
             @Override
             public E call() throws Exception {
                 MDC.put(VESTIGE_APP_NAME, name);
                 try {
                     if (vestigeSecurityManager != null) {
-                        if (threadGroups != null) {
-                            List<ThreadGroup> accessibleThreadGroups = new ArrayList<ThreadGroup>(threadGroups.size() + 1);
-                            accessibleThreadGroups.addAll(threadGroups);
-                            accessibleThreadGroups.add(threadGroup);
-                            vestigeSecurityManager.setThreadGroups(accessibleThreadGroups);
-                        } else {
-                            vestigeSecurityManager.setThreadGroups(Collections.singletonList(threadGroup));
-                        }
-                        Permissions permissions = new Permissions();
-                        // getResource for system jar
-                        for (Permission permission : systemResourcePermissions) {
-                            permissions.add(permission);
-                        }
-                        // access to tmp dir
-                        String tmpdir = System.getProperty("java.io.tmpdir");
-                        if (tmpdir != null) {
-                            String path = new File(tmpdir).getPath();
-                            permissions.add(new FilePermission(path, "read,write"));
-                            permissions.add(new FilePermission(path + File.separator + "-", "read,write,delete"));
-                        }
-                        // additionnalPermissions
-                        for (Permission permission : additionnalPermissions) {
-                            permissions.add(permission);
-                        }
+                        vestigeSecurityManager.setThreadGroups(accessibleThreadGroups);
                         vestigePolicy.setPermissionCollection(permissions);
-                    }
-                    if (vestigeSecurityManager != null) {
                         try {
                             return AccessController.doPrivileged(new PrivilegedExceptionAction<E>() {
                                 @Override
@@ -148,7 +181,7 @@ public class VestigeSecureExecutor {
                                     if (appVestigeSystem != null) {
                                         appVestigeSystem.setCurrentSystem();
                                     }
-                                    return callable.call();
+                                    return callable.call(privilegedExecutor);
                                 }
                             });
                         } catch (PrivilegedActionException e) {
@@ -158,7 +191,7 @@ public class VestigeSecureExecutor {
                         if (appVestigeSystem != null) {
                             appVestigeSystem.setCurrentSystem();
                         }
-                        return callable.call();
+                        return callable.call(privilegedExecutor);
                     }
                 } finally {
                     if (vestigeSecurityManager != null) {

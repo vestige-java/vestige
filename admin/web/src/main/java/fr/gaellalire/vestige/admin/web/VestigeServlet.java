@@ -414,7 +414,7 @@ public class VestigeServlet extends WebSocketServlet {
                                                         + VersionUtils.toString(lastState.getRepositoryApplicationVersion(appName));
                                                 List<Integer> migrationRepositoryApplicationVersion = lastState.getMigrationRepositoryApplicationVersion(appName);
                                                 if (migrationRepositoryApplicationVersion != null && migrationRepositoryApplicationVersion.size() != 0) {
-                                                    path += "-" + VersionUtils.toString(migrationRepositoryApplicationVersion);
+                                                    path += "->" + VersionUtils.toString(migrationRepositoryApplicationVersion);
                                                 }
 
                                                 jsonApp.put("path", path);
@@ -608,6 +608,7 @@ public class VestigeServlet extends WebSocketServlet {
                                 synchronized (jsonObject) {
                                     if (this == guiJobListener) {
                                         jsonObject.notify();
+                                        guiDescriptions.clear();
                                         guiProgressHolders.clear();
                                     }
                                 }

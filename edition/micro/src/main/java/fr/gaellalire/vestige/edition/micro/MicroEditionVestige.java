@@ -87,7 +87,7 @@ public class MicroEditionVestige {
         applicationDescriptorFactory = new PropertiesApplicationDescriptorFactory();
 
         final VestigeCommandExecutor vestigeCommandExecutor = new VestigeCommandExecutor(null, defaultApplicationManager, vestigePlatform);
-        server = new TelnetServer(vestigeCommandExecutor, 1984);
+        server = new TelnetServer(vestigeCommandExecutor, 8423);
     }
 
     public void start() throws Exception {

@@ -198,10 +198,8 @@ public class StandardEditionVestige implements Runnable {
 
         // Vestige dependencies can modify system, so we run isolated
         // vestigeSystem.setName("rootVestigeSystem");
-        PublicVestigeSystem standardEditionVestigeSystem = vestigeSystem.createSubSystem();
-        // standardEditionVestigeSystem.setName("standardEditionVestigeSystem");
-        PublicVestigeSystem applicationsVestigeSystem = vestigeSystem.createSubSystem();
-        // applicationsVestigeSystem.setName("applicationsVestigeSystem");
+        PublicVestigeSystem standardEditionVestigeSystem = vestigeSystem.createSubSystem("standardEditionVestigeSystem");
+        PublicVestigeSystem applicationsVestigeSystem = vestigeSystem.createSubSystem("applicationsVestigeSystem");
         standardEditionVestigeSystem.setCurrentSystem();
         // new threads are in subsystem
         PrivateVestigeSecurityManager vestigeSecurityManager = null;
@@ -345,7 +343,7 @@ public class StandardEditionVestige implements Runnable {
         boolean started = false;
         if (!interrupted) {
             try {
-                start();
+                start(actionManager);
                 started = true;
             } catch (Exception e) {
                 LOGGER.error("Unable to start Vestige SE", e);
@@ -393,7 +391,7 @@ public class StandardEditionVestige implements Runnable {
 
     private String webURL;
 
-    public void start() throws Exception {
+    public void start(final JobManager jobManager) throws Exception {
         if (workerThread != null) {
             return;
         }

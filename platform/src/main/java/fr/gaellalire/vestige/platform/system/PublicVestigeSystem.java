@@ -71,9 +71,9 @@ public interface PublicVestigeSystem {
 
     PublicVestigeSystem createSubSystem();
 
-    void setCurrentSystem();
+    PublicVestigeSystem createSubSystem(String name);
 
-//    void setName(String name);
+    void setCurrentSystem();
 
     <T> T doPrivileged(final PrivilegedAction<T> action);
 

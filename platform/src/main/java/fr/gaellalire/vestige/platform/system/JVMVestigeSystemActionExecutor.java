@@ -79,7 +79,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
 
     public void execute(final VestigeSystemAction vestigeSystemAction) {
         final VestigeSystemHolder vestigeSystemHolder = new VestigeSystemHolder();
-        final VestigeSystem vestigeSystem = new VestigeSystem(vestigeSystemHolder);
+        final VestigeSystem vestigeSystem = new VestigeSystem(vestigeSystemHolder, "rootVestigeSystem");
         vestigeSystemHolder.setFallbackVestigeSystem(vestigeSystem);
 
         // JDK log

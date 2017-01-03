@@ -93,6 +93,8 @@ public final class VestigeSystem implements PublicVestigeSystem {
 
     private HashMap<Integer, List<Object>> intToLevels;
 
+    private String name;
+
     private void init(final VestigeSystemSecurityManager previousVestigeSecurityManager) {
         this.securityManager = new VestigeSystemSecurityManager(vestigeSystemHolder, this, previousVestigeSecurityManager);
         this.whiteListPolicy = new VestigePolicy(null) {
@@ -157,8 +159,9 @@ public final class VestigeSystem implements PublicVestigeSystem {
         };
     }
 
-    public VestigeSystem(final VestigeSystemHolder vestigeSystemHolder) {
+    public VestigeSystem(final VestigeSystemHolder vestigeSystemHolder, final String name) {
         this.vestigeSystemHolder = vestigeSystemHolder;
+        this.name = name;
         init(null);
     }
 
@@ -184,7 +187,8 @@ public final class VestigeSystem implements PublicVestigeSystem {
     }
 
     @SuppressWarnings("unchecked")
-    public VestigeSystem(final VestigeSystem previousSystem) {
+    public VestigeSystem(final VestigeSystem previousSystem, final String name) {
+        this.name = name;
         vestigeSystemHolder = previousSystem.vestigeSystemHolder;
         init(previousSystem.securityManager);
         previousWhiteListPolicy = previousSystem.whiteListPolicy;
@@ -373,7 +377,12 @@ public final class VestigeSystem implements PublicVestigeSystem {
 
     @Override
     public PublicVestigeSystem createSubSystem() {
-        return new VestigeSystem(this);
+        return createSubSystem(null);
+    }
+
+    @Override
+    public PublicVestigeSystem createSubSystem(final String name) {
+        return new VestigeSystem(this, name);
     }
 
     @Override
@@ -424,16 +433,12 @@ public final class VestigeSystem implements PublicVestigeSystem {
         }
     }
 
-//    private String name;
-//
-//    @Override
-//    public void setName(final String name) {
-//        this.name = name;
-//    }
-//
-//    @Override
-//    public String toString() {
-//        return name;
-//    }
+    @Override
+    public String toString() {
+        if (name != null) {
+            return name;
+        }
+        return super.toString();
+    }
 
 }
