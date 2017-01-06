@@ -130,8 +130,12 @@ public class ClassLoaderConfigurationFactory {
 
         pathIdsList = new ArrayList<List<Integer>>(new HashSet<List<Integer>>(pathsByResourceName.values()));
         this.pathsByResourceName = new TreeMap<String, Integer>();
-        for (Entry<String, List<Integer>> entry : pathsByResourceName.entrySet()) {
-            this.pathsByResourceName.put(entry.getKey(), pathIdsList.indexOf(entry.getValue()));
+        if (pathIdsList.size() == 0) {
+            pathIdsList.add(null);
+        } else {
+            for (Entry<String, List<Integer>> entry : pathsByResourceName.entrySet()) {
+                this.pathsByResourceName.put(entry.getKey(), pathIdsList.indexOf(entry.getValue()));
+            }
         }
     }
 

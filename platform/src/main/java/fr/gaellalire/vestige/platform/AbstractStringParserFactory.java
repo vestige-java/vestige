@@ -48,6 +48,10 @@ public abstract class AbstractStringParserFactory implements StringParserFactory
     public abstract void createStates(final Map<String, Integer> valueByName, final StringParserFactoryHelper states);
 
     public StringParser createStringParser(final Map<String, Integer> valueByName, final int defaultValue) {
+        if (valueByName.size() == 0) {
+            return new NoStateStringParser(defaultValue);
+        }
+
         StringParserFactoryHelper stringParserFactoryHelper = new StringParserFactoryHelper();
         createStates(valueByName, stringParserFactoryHelper);
 
