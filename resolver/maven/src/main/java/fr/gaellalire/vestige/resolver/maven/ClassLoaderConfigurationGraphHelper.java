@@ -33,8 +33,8 @@ import org.eclipse.aether.collection.DependencyManager;
 import org.eclipse.aether.graph.DefaultDependencyNode;
 import org.eclipse.aether.graph.Dependency;
 import org.eclipse.aether.impl.ArtifactDescriptorReader;
-import org.eclipse.aether.internal.impl.DependencyModifier;
-import org.eclipse.aether.internal.impl.ModifiedDependencyCollector.PremanagedDependency;
+import org.eclipse.aether.impl.DependencyModifier;
+import org.eclipse.aether.internal.impl.DefaultDependencyCollector.PremanagedDependency;
 import org.eclipse.aether.resolution.ArtifactDescriptorException;
 import org.eclipse.aether.resolution.ArtifactDescriptorRequest;
 import org.eclipse.aether.resolution.ArtifactDescriptorResult;
@@ -78,7 +78,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
     }
 
     public ClassLoaderConfigurationFactory merge(final List<MavenArtifact> nodes,
-            final List<ClassLoaderConfigurationFactory> nexts) {
+            final List<ClassLoaderConfigurationFactory> nexts) throws Exception {
         List<MavenClassLoaderConfigurationKey> dependencies = new ArrayList<MavenClassLoaderConfigurationKey>();
 
         for (ClassLoaderConfigurationFactory classLoaderConfiguration : nexts) {
@@ -153,7 +153,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
             List<NodeAndState> children = new ArrayList<NodeAndState>(dependencies.size());
             for (Dependency dependency : dependencies) {
                 PremanagedDependency preManaged = PremanagedDependency.create(dependencyManager, dependency, false, false);
-                dependency = preManaged.managedDependency;
+                dependency = preManaged.getManagedDependency();
                 children.add(new NodeAndState(managedDependencies, new DefaultDependencyNode(dependency), dependencyManager));
             }
             return children;

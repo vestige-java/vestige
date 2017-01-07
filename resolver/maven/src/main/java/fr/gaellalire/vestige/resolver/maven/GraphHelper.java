@@ -27,7 +27,7 @@ import java.util.List;
  */
 public interface GraphHelper<Node, Key, RNode> {
 
-    RNode merge(List<Key> nodes, List<RNode> nexts);
+    RNode merge(List<Key> nodes, List<RNode> nexts) throws Exception;
 
     Key getKey(Node node);
 

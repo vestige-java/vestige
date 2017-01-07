@@ -26,7 +26,7 @@ import java.util.Set;
 
 import org.eclipse.aether.artifact.Artifact;
 import org.eclipse.aether.graph.Dependency;
-import org.eclipse.aether.internal.impl.DependencyModifier;
+import org.eclipse.aether.impl.DependencyModifier;
 
 /**
  * @author Gael Lalire

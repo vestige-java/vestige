@@ -86,11 +86,11 @@ public class GraphCycleRemover<Node, Key, RNode> {
 
     }
 
-    public RNode removeCycle(final Node node) {
+    public RNode removeCycle(final Node node) throws Exception {
         return removeCycle(node, new Context()).get(0);
     }
 
-    public List<RNode> removeCycle(final Node node, final Context context) {
+    public List<RNode> removeCycle(final Node node, final Context context) throws Exception {
         Key key = graphHelper.getKey(node);
 
         if (key == null || !context.pushNode(key)) {

@@ -293,7 +293,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
 
     public List<List<VestigeClassLoader<?>>> convert(final AttachedVestigeClassLoader attachedVestigeClassLoader, final ClassLoaderConfiguration conf) {
         List<List<Integer>> pathsData = conf.getPathIdsList();
-        if (pathsData == null) {
+        if (pathsData == null || pathsData.size() == 0) {
             return NO_DEPENDENCY_LIST;
         }
         List<List<VestigeClassLoader<?>>> data = new ArrayList<List<VestigeClassLoader<?>>>(pathsData.size());

@@ -33,7 +33,7 @@ public class GraphTest {
     private GraphCycleRemover<Node, Node, Node> graphCycleRemover = new GraphCycleRemover<Node, Node, Node>(new NodeGraphHelper());
 
     @Test
-    public void testCycle() {
+    public void testCycle() throws Exception {
         Node n1 = new Node("1");
         Node n2 = new Node("2");
         Node n3 = new Node("3");
@@ -52,7 +52,7 @@ public class GraphTest {
     }
 
     @Test
-    public void testDisjointCycles() {
+    public void testDisjointCycles() throws Exception {
         Node n1 = new Node("1");
         Node n2 = new Node("2");
         Node n3 = new Node("3");
@@ -71,7 +71,7 @@ public class GraphTest {
 
 
     @Test
-    public void testCycleIntersection() {
+    public void testCycleIntersection() throws Exception {
         Node n1 = new Node("1");
         Node n2 = new Node("2");
         Node n3 = new Node("3");
@@ -89,7 +89,7 @@ public class GraphTest {
     }
 
     @Test
-    public void testBiggerCycle() {
+    public void testBiggerCycle() throws Exception {
         Node n1 = new Node("1");
         Node n2 = new Node("2");
         Node n3 = new Node("3");
@@ -105,7 +105,7 @@ public class GraphTest {
     }
 
     @Test
-    public void testSmallerCycle() {
+    public void testSmallerCycle() throws Exception {
         Node n1 = new Node("1");
         Node n2 = new Node("2");
         Node n3 = new Node("3");
@@ -123,7 +123,7 @@ public class GraphTest {
     }
 
     @Test
-    public void testEdgedCycle() {
+    public void testEdgedCycle() throws Exception {
         Node n1 = new Node("1");
         Node n2 = new Node("2");
         Node n3 = new Node("3");
@@ -142,7 +142,7 @@ public class GraphTest {
 
 
     @Test
-    public void testCycleWithSameNext() {
+    public void testCycleWithSameNext() throws Exception {
         Node n1 = new Node("1");
         Node n2 = new Node("2");
         Node n3 = new Node("3");

@@ -78,7 +78,7 @@ public class ClassLoaderConfigurationFactory {
     }
 
     public ClassLoaderConfigurationFactory(final String appName, final MavenClassLoaderConfigurationKey classLoaderConfigurationKey, final Scope scope, final URL[] urls,
-            final List<ClassLoaderConfigurationFactory> dependencies) {
+            final List<ClassLoaderConfigurationFactory> dependencies) throws IOException {
         TreeMap<String, List<Integer>> pathsByResourceName = new TreeMap<String, List<Integer>>();
         this.appName = appName;
         this.urls = urls;
@@ -90,20 +90,16 @@ public class ClassLoaderConfigurationFactory {
 
         for (int i = urls.length - 1; i >= 0; i--) {
             URL url = urls[i];
+            JarInputStream openStream = new JarInputStream(url.openStream());
             try {
-                JarInputStream openStream = new JarInputStream(url.openStream());
-                try {
-                    ZipEntry nextEntry = openStream.getNextEntry();
-                    while (nextEntry != null) {
-                        String name = nextEntry.getName();
-                        pathsByResourceName.put(name, LOCAL_CLASSLOADER_PATH);
-                        nextEntry = openStream.getNextEntry();
-                    }
-                } finally {
-                    openStream.close();
+                ZipEntry nextEntry = openStream.getNextEntry();
+                while (nextEntry != null) {
+                    String name = nextEntry.getName();
+                    pathsByResourceName.put(name, LOCAL_CLASSLOADER_PATH);
+                    nextEntry = openStream.getNextEntry();
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
+            } finally {
+                openStream.close();
             }
         }
 
@@ -130,12 +126,8 @@ public class ClassLoaderConfigurationFactory {
 
         pathIdsList = new ArrayList<List<Integer>>(new HashSet<List<Integer>>(pathsByResourceName.values()));
         this.pathsByResourceName = new TreeMap<String, Integer>();
-        if (pathIdsList.size() == 0) {
-            pathIdsList.add(null);
-        } else {
-            for (Entry<String, List<Integer>> entry : pathsByResourceName.entrySet()) {
-                this.pathsByResourceName.put(entry.getKey(), pathIdsList.indexOf(entry.getValue()));
-            }
+        for (Entry<String, List<Integer>> entry : pathsByResourceName.entrySet()) {
+            this.pathsByResourceName.put(entry.getKey(), pathIdsList.indexOf(entry.getValue()));
         }
     }
 

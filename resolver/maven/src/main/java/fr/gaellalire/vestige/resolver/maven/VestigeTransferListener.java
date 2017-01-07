@@ -48,8 +48,8 @@ public class VestigeTransferListener extends AbstractTransferListener {
     @Override
     public void transferInitiated(final TransferEvent event) throws TransferCancelledException {
         TransferResource resource = event.getResource();
-        LOGGER.info("Transfering " + resource.getResourceName());
-        TaskHelper addTask = actionHelper.addTask("Transfering " + resource.getResourceName());
+        LOGGER.info("Transfering " + resource.getResourceName() + " from " + resource.getRepositoryId());
+        TaskHelper addTask = actionHelper.addTask("Transfering " + resource.getResourceName() + " from " + resource.getRepositoryId());
         addTask.setProgress(0);
         taskByResource.put(resource, addTask);
     }

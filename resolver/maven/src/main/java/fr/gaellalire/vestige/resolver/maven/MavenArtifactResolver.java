@@ -58,10 +58,10 @@ import org.eclipse.aether.graph.DependencyNode;
 import org.eclipse.aether.impl.ArtifactDescriptorReader;
 import org.eclipse.aether.impl.DefaultServiceLocator;
 import org.eclipse.aether.impl.DependencyCollector;
+import org.eclipse.aether.impl.DependencyModifier;
 import org.eclipse.aether.impl.VersionRangeResolver;
 import org.eclipse.aether.impl.VersionResolver;
-import org.eclipse.aether.internal.impl.DependencyModifier;
-import org.eclipse.aether.internal.impl.ModifiedDependencyCollector;
+import org.eclipse.aether.internal.impl.DefaultDependencyCollector;
 import org.eclipse.aether.internal.impl.SimpleLocalRepositoryManagerFactory;
 import org.eclipse.aether.repository.Authentication;
 import org.eclipse.aether.repository.LocalRepository;
@@ -98,7 +98,7 @@ public class MavenArtifactResolver {
 
     private RepositorySystem repoSystem;
 
-    private ModifiedDependencyCollector modifiedDependencyCollector;
+    private DependencyCollector dependencyCollector;
 
     private ArtifactDescriptorReader descriptorReader;
 
@@ -160,13 +160,13 @@ public class MavenArtifactResolver {
 
         locator.addService(TransporterFactory.class, HttpTransporterFactory.class);
         locator.addService(TransporterFactory.class, FileTransporterFactory.class);
-        locator.setService(DependencyCollector.class, ModifiedDependencyCollector.class);
+        locator.setService(DependencyCollector.class, DefaultDependencyCollector.class);
 
 
         repoSystem = locator.getService(RepositorySystem.class);
 
 
-        modifiedDependencyCollector = ((ModifiedDependencyCollector) locator.getService(DependencyCollector.class));
+        dependencyCollector = locator.getService(DependencyCollector.class);
         descriptorReader = locator.getService(ArtifactDescriptorReader.class);
 
         proxySelector = new ProxySelector() {
@@ -270,7 +270,7 @@ public class MavenArtifactResolver {
         session.setIgnoreArtifactDescriptorRepositories(ignorePomRepositories);
 
         LOGGER.info("Collecting dependencies for {}", appName);
-        DependencyNode node = modifiedDependencyCollector.collectDependencies(session, collectRequest, dependencyModifier).getRoot();
+        DependencyNode node = dependencyCollector.collectDependencies(session, collectRequest, dependencyModifier).getRoot();
 
         DependencyRequest dependencyRequest = new DependencyRequest(node, null);
 
