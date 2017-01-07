@@ -46,14 +46,13 @@
     </plugins>
   </build>
   <properties>
-    <maven-resolver.version>java6-1.2.0</maven-resolver.version>
     <maven.version>3.2.5</maven.version>
   </properties>
   <dependencies>
     <dependency>
-    <groupId>com.google.guava</groupId>
-    <artifactId>guava</artifactId>
-    <version>18.0</version>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>${guava.version}</version>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -127,6 +126,7 @@
         </exclusion>
       </exclusions>
     </dependency>
+
     <dependency>
       <groupId>org.apache.maven.resolver</groupId>
       <artifactId>maven-resolver-api</artifactId>

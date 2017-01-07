@@ -138,6 +138,8 @@
     <bouncycastle.version>1.50</bouncycastle.version>
     <httpcomponents.version>4.4.1</httpcomponents.version>
     <proxy_vole.version>0.0.6</proxy_vole.version>
+    <maven-resolver.version>java6-1.2.0</maven-resolver.version>
+    <guava.version>18.0</guava.version>
   </properties>
   <dependencyManagement>
     <dependencies>

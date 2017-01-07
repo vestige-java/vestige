@@ -103,6 +103,8 @@ public class DefaultJobManager implements JobManager {
                         action.run(actionHelper);
                     } catch (Exception e) {
                         result.exception = e;
+                    } catch (Throwable e) {
+                        result.exception = new Exception("Unexpected throwable", e);
                     } finally {
                         synchronized (jobs) {
                             jobs.remove(jobId);

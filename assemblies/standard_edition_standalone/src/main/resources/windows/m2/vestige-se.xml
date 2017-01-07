@@ -18,9 +18,21 @@
     <modifyDependency artifactId="logback-classic" groupId="ch.qos.logback">
       <addDependency artifactId="vestige.utils" groupId="fr.gaellalire.vestige" version="${project.version}" />
     </modifyDependency>
-    <modifyDependency artifactId="aether-impl" groupId="org.eclipse.aether">
-      <addDependency artifactId="vestige.resolver.maven" groupId="fr.gaellalire.vestige" version="${project.version}" />
+    <modifyDependency artifactId="maven-aether-provider" groupId="org.apache.maven">
+      <addDependency artifactId="guava" groupId="com.google.guava" version="${guava.version}" />
     </modifyDependency>
+    <replaceDependency artifactId="aether-impl" groupId="org.eclipse.aether">
+      <addDependency artifactId="maven-resolver-impl" groupId="org.apache.maven.resolver" version="${maven-resolver.version}" />
+    </replaceDependency>
+    <replaceDependency artifactId="aether-api" groupId="org.eclipse.aether">
+      <addDependency artifactId="maven-resolver-api" groupId="org.apache.maven.resolver" version="${maven-resolver.version}" />
+    </replaceDependency>
+    <replaceDependency artifactId="aether-spi" groupId="org.eclipse.aether">
+      <addDependency artifactId="maven-resolver-spi" groupId="org.apache.maven.resolver" version="${maven-resolver.version}" />
+    </replaceDependency>
+    <replaceDependency artifactId="aether-util" groupId="org.eclipse.aether">
+      <addDependency artifactId="maven-resolver-util" groupId="org.apache.maven.resolver" version="${maven-resolver.version}" />
+    </replaceDependency>
     <replaceDependency artifactId="commons-logging" groupId="commons-logging">
       <addDependency artifactId="jcl-over-slf4j" groupId="org.slf4j" version="${slf4j.version}" />
     </replaceDependency>
