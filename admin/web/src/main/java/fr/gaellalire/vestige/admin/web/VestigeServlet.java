@@ -268,6 +268,8 @@ public class VestigeServlet extends WebSocketServlet {
 
             private JobListener guiJobListener;
 
+            private JobListener termJobListener;
+
             private ApplicationManagerStateListener listener;
 
             @Override
@@ -643,15 +645,45 @@ public class VestigeServlet extends WebSocketServlet {
                     }
                 }
 
+                if (parsedJsonObject.get("termBackground") != null) {
+                    synchronized (jsonObject) {
+                        if (termJobController != null) {
+                            jsonObject.put("termDone", "1");
+                            try {
+                                connection.sendMessage(jsonObject.toJSONString());
+                            } catch (IOException e) {
+                                LOGGER.error("Unable to send guiDone", e);
+                            } finally {
+                                jsonObject.clear();
+                            }
+                            termJobController = null;
+                            termJobListener = null;
+                            termProgressHolders.clear();
+                        }
+                    }
+                }
+
+                if (parsedJsonObject.get("termInterrupt") != null) {
+                    synchronized (jsonObject) {
+                        if (termJobController != null) {
+                            termJobController.interrupt();
+                        }
+                    }
+                }
+
                 String termCommand = (String) parsedJsonObject.get("termCommand");
                 if (termCommand != null) {
                     final DefaultCommandContext commandContext = new DefaultCommandContext();
                     final CommandLineParser commandLineParser = new CommandLineParser();
                     commandContext.setOut(termPrintWriter);
-                    commandContext.setJobListener(new JobListener() {
+                    termJobListener = new JobListener() {
 
                         @Override
                         public TaskListener taskAdded(final String description) {
+                            final JobListener thisJobListener = this;
+                            if (thisJobListener != termJobListener) {
+                                return null;
+                            }
                             termPrintWriter.println(description);
                             final ProgressHolder progressHolder = new ProgressHolder();
                             synchronized (jsonObject) {
@@ -662,6 +694,9 @@ public class VestigeServlet extends WebSocketServlet {
 
                                 @Override
                                 public void taskDone() {
+                                    if (thisJobListener != termJobListener) {
+                                        return;
+                                    }
                                     synchronized (jsonObject) {
                                         termProgressHolders.remove(progressHolder);
                                         jsonObject.notify();
@@ -684,7 +719,8 @@ public class VestigeServlet extends WebSocketServlet {
                                 jsonObject.notify();
                             }
                         }
-                    });
+                    };
+                    commandContext.setJobListener(termJobListener);
                     commandLineParser.setCommandLine(termCommand);
                     List<String> arguments = new ArrayList<String>();
                     while (commandLineParser.nextArgument()) {

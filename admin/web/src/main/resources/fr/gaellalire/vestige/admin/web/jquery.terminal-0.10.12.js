@@ -1336,14 +1336,14 @@
         // ---------------------------------------------------------------------
         function keydown_event(e) {
             var result, pos, len;
+            if ($.isFunction(options.keydown)) {
+              result = options.keydown(e);
+              if (result !== undefined) {
+                  //prevent_keypress = true;
+                  return result;
+              }
+            }
             if (enabled) {
-                if ($.isFunction(options.keydown)) {
-                    result = options.keydown(e);
-                    if (result !== undefined) {
-                        //prevent_keypress = true;
-                        return result;
-                    }
-                }
                 if (e.which !== 38 &&
                     !(e.which === 80 && e.ctrlKey)) {
                     first_up_history = true;
@@ -1725,6 +1725,9 @@
                     redraw();
                     return self;
                 }
+            },
+            interrupt: function() {
+                settings.interrupt();
             },
             kill_text: function() {
                 return kill_text;
@@ -3588,6 +3591,11 @@
         function key_down(e) {
             // Prevent to be executed by cmd: CTRL+D, TAB, CTRL+TAB (if more
             // then one terminal)
+            if (e.which === 67 && e.ctrlKey) { // CTRL+C
+                settings.interrupt();
+            } else if (e.which === 90 && e.ctrlKey) { // CTRL+Z
+                settings.background();
+            }
             var result, i, top = interpreters.top();
             if (!self.paused() && self.enabled()) {
                 if ($.isFunction(top.keydown)) {
@@ -4926,6 +4934,7 @@
                 keydown: settings.keydown,
                 resize: settings.onResize,
                 greetings: settings.greetings,
+                interrupt: settings.interrupt,
                 mousewheel: settings.mousewheel
             }, itrp));
             // CREATE COMMAND LINE

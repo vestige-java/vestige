@@ -669,6 +669,16 @@ $(function() {
     prompt : 'vestige:~ admin$ ',
     clear : null,
     exit : null,
+    interrupt : function() {
+      comm.send({
+        "termInterrupt" : "1"
+      });
+    },
+    background : function() {
+      comm.send({
+        "termBackground" : "1"
+      });
+    },
     completion : function(term, buffer, pos, update) {
       complete("termComplete", {
         "buffer" : buffer,
