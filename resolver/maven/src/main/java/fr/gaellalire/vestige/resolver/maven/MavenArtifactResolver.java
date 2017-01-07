@@ -76,7 +76,6 @@ import org.eclipse.aether.transport.file.FileTransporterFactory;
 import org.eclipse.aether.transport.http.HttpTransporterFactory;
 import org.eclipse.aether.util.graph.selector.AndDependencySelector;
 import org.eclipse.aether.util.graph.selector.OptionalDependencySelector;
-import org.eclipse.aether.util.graph.selector.ScopeDependencySelector;
 import org.eclipse.aether.util.graph.visitor.PreorderNodeListGenerator;
 import org.eclipse.aether.util.repository.AuthenticationBuilder;
 import org.slf4j.Logger;
