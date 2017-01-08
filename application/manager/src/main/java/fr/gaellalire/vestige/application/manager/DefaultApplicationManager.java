@@ -542,7 +542,7 @@ public class DefaultApplicationManager implements ApplicationManager {
     }
 
     public RuntimeApplicationInstallerContext createRuntimeApplicationInstallerContext(final ApplicationContext applicationContext,
-            final Collection<Permission> installerResolvePermission, final VestigeClassLoader<AttachedVestigeClassLoader> installerClassLoader, final String installName) throws InterruptedException {
+            final Collection<Permission> installerResolvePermission, final VestigeClassLoader<AttachedVestigeClassLoader> installerClassLoader, final String installName) {
         Set<Permission> additionnalPermissions = new HashSet<Permission>();
         additionnalPermissions.addAll(installerResolvePermission);
         final File base = applicationContext.getBase();

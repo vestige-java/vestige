@@ -44,19 +44,20 @@ public class VestigeSecureExecution<E> {
     }
 
     public E get() throws Exception {
-        try {
-            return future.get();
-        } catch (InterruptedException e) {
-            thread.interrupt();
-            throw e;
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof Exception) {
-                throw (Exception) cause;
-            } else {
-                throw e;
+        do {
+            try {
+                return future.get();
+            } catch (InterruptedException e) {
+                thread.interrupt();
+            } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof Exception) {
+                    throw (Exception) cause;
+                } else {
+                    throw e;
+                }
             }
-        }
+        } while (true);
     }
 
     public void join() throws InterruptedException {
