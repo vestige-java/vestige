@@ -260,6 +260,8 @@ public class VestigeServlet extends WebSocketServlet {
 
             private List<String> guiDescriptions;
 
+            private List<String> termDescriptions;
+
             private JobController termJobController;
 
             private JobController guiJobController;
@@ -275,6 +277,7 @@ public class VestigeServlet extends WebSocketServlet {
             @Override
             public void onOpen(final Connection connection) {
                 guiDescriptions = new ArrayList<String>();
+                termDescriptions = new ArrayList<String>();
                 this.connection = connection;
                 listener = new ApplicationManagerStateListener() {
 
@@ -313,7 +316,9 @@ public class VestigeServlet extends WebSocketServlet {
                                 for (String s : split) {
                                     array.add(s);
                                 }
-                                jsonObject.put("termEcho", array);
+                                JSONArray echoArray = new JSONArray();
+                                echoArray.add(array);
+                                jsonObject.put("termEcho", echoArray);
                                 try {
                                     connection.sendMessage(jsonObject.toJSONString());
                                 } finally {
@@ -348,6 +353,17 @@ public class VestigeServlet extends WebSocketServlet {
                                     }
                                     lastSend = nsend;
                                     if (termJobController != null) {
+                                        JSONArray echoArray = null;
+                                        if (termDescriptions.size() != 0) {
+                                            JSONArray array = new JSONArray();
+                                            for (String description : termDescriptions) {
+                                                array.add(description);
+                                            }
+                                            termDescriptions.clear();
+                                            echoArray = new JSONArray();
+                                            echoArray.add(array);
+                                            jsonObject.put("termEcho", echoArray);
+                                        }
                                         if (termJobController.isDone()) {
                                             Exception exception = termJobController.getException();
                                             if (exception != null) {
@@ -357,6 +373,7 @@ public class VestigeServlet extends WebSocketServlet {
                                             termJobController = null;
                                         } else {
                                             sb.setLength(0);
+
                                             boolean first = true;
                                             for (ProgressHolder progressHolder : termProgressHolders) {
                                                 if (progressHolder.progress < 0) {
@@ -370,7 +387,12 @@ public class VestigeServlet extends WebSocketServlet {
                                                 sb.append((int) (progressHolder.progress * 100));
                                                 sb.append("%");
                                             }
-                                            jsonObject.put("termTmpEcho", sb.toString());
+                                            if (echoArray == null) {
+                                                echoArray = new JSONArray();
+                                                echoArray.add(null);
+                                                jsonObject.put("termEcho", echoArray);
+                                            }
+                                            echoArray.add(sb.toString());
                                         }
                                     }
                                     if (guiJobController != null) {
@@ -652,12 +674,13 @@ public class VestigeServlet extends WebSocketServlet {
                             try {
                                 connection.sendMessage(jsonObject.toJSONString());
                             } catch (IOException e) {
-                                LOGGER.error("Unable to send guiDone", e);
+                                LOGGER.error("Unable to send termDone", e);
                             } finally {
                                 jsonObject.clear();
                             }
                             termJobController = null;
                             termJobListener = null;
+                            termDescriptions.clear();
                             termProgressHolders.clear();
                         }
                     }
@@ -680,13 +703,14 @@ public class VestigeServlet extends WebSocketServlet {
 
                         @Override
                         public TaskListener taskAdded(final String description) {
+                            final ProgressHolder progressHolder;
                             final JobListener thisJobListener = this;
-                            if (thisJobListener != termJobListener) {
-                                return null;
-                            }
-                            termPrintWriter.println(description);
-                            final ProgressHolder progressHolder = new ProgressHolder();
                             synchronized (jsonObject) {
+                                if (thisJobListener != termJobListener) {
+                                    return null;
+                                }
+                                termDescriptions.add(description);
+                                progressHolder = new ProgressHolder();
                                 termProgressHolders.add(progressHolder);
                                 jsonObject.notify();
                             }

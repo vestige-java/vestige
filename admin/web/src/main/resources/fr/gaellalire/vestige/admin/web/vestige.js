@@ -700,23 +700,26 @@ $(function() {
   });
 
   comm.register("termEcho", function(value) {
-    var i = 0;
-    if (termTmp) {
-      termVar.update(-1, value[0]);
-      termTmp = false;
-      i++;
+    var tabEcho = value[0];
+    if (tabEcho != null && tabEcho.length != 0) {
+      var i = 0;
+      if (termTmp) {
+        termVar.update(-1, tabEcho[0]);
+        termTmp = false;
+        i++;
+      }
+      while (i < tabEcho.length) {
+        termVar.echo(tabEcho[i]);
+        i++;
+      }
     }
-    while (i < value.length) {
-      termVar.echo(value[i]);
-      i++;
-    }
-  });
-  comm.register("termTmpEcho", function(value) {
-    if (termTmp) {
-      termVar.update(-1, value);
-    } else {
-      termVar.echo(value);
-      termTmp = true;
+    if (value.length == 2) {
+      if (termTmp) {
+        termVar.update(-1, value[1]);
+      } else {
+        termVar.echo(value[1]);
+        termTmp = true;
+      }
     }
   });
   comm.register("termDone", function() {

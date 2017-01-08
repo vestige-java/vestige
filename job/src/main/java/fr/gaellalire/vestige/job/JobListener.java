@@ -23,6 +23,10 @@ package fr.gaellalire.vestige.job;
  */
 public interface JobListener {
 
+    /**
+     * This method shall work without any permission.
+     * This method shall not be interruption ({@link Thread#interrupt()}) sensitive.
+     */
     TaskListener taskAdded(String description);
 
     /**
