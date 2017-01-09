@@ -316,8 +316,9 @@ public class DefaultApplicationManager implements ApplicationManager {
                         final PublicVestigeSystem vestigeSystem = finalRuntimeApplicationInstallerContext.getVestigeSystem();
 
                         final String installerClassName = applicationContext.getInstallerClassName();
-                        VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader, finalRuntimeApplicationInstallerContext.getInstallerAdditionnalPermissions(), null,
-                                applicationContext.getName() + "-installer", vestigeSystem, new VestigeSecureCallable<Void>() {
+                        VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader,
+                                finalRuntimeApplicationInstallerContext.getInstallerAdditionnalPermissions(), null, applicationContext.getName() + "-installer", vestigeSystem,
+                                new VestigeSecureCallable<Void>() {
 
                                     @Override
                                     public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
@@ -408,8 +409,8 @@ public class DefaultApplicationManager implements ApplicationManager {
                             } else {
                                 installerAttach = vestigePlatform.attach(installerResolve);
                                 VestigeClassLoader<AttachedVestigeClassLoader> classLoader = vestigePlatform.getClassLoader(installerAttach);
-                                finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(applicationContext, installerResolve.getPermissions(), classLoader,
-                                        installName);
+                                finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(applicationContext, installerResolve.getPermissions(),
+                                        classLoader, installName);
                                 classLoader.getData().addObject(new SoftReference<RuntimeApplicationInstallerContext>(finalRuntimeApplicationInstallerContext));
                             }
                         } else {
@@ -424,8 +425,9 @@ public class DefaultApplicationManager implements ApplicationManager {
                         try {
                             final VestigeClassLoader<?> installerClassLoader = finalRuntimeApplicationInstallerContext.getClassLoader();
                             final PublicVestigeSystem vestigeSystem = finalRuntimeApplicationInstallerContext.getVestigeSystem();
-                            VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader, finalRuntimeApplicationInstallerContext.getInstallerAdditionnalPermissions(), null,
-                                    applicationContext.getName() + "-installer", vestigeSystem, new VestigeSecureCallable<Void>() {
+                            VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader,
+                                    finalRuntimeApplicationInstallerContext.getInstallerAdditionnalPermissions(), null, applicationContext.getName() + "-installer", vestigeSystem,
+                                    new VestigeSecureCallable<Void>() {
 
                                         @Override
                                         public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
@@ -809,6 +811,7 @@ public class DefaultApplicationManager implements ApplicationManager {
                             }
                         };
 
+                        boolean successfulMigration = false;
                         VestigeSecureExecution<Void> fromVestigeSecureExecution = fromApplicationContext.getVestigeSecureExecution();
                         try {
                             final RuntimeApplicationInstallerContext finalRuntimeApplicationInstallerContext;
@@ -932,15 +935,20 @@ public class DefaultApplicationManager implements ApplicationManager {
                                         }, managerVestigeSystem, null);
                                 vestigeSecureExecution.start();
                                 vestigeSecureExecution.get();
+                                notifyRunMutex.run();
+                                fromVestigeSecureExecution.interrupt();
+                                successfulMigration = true;
                             } finally {
                                 vestigePlatform.detach(installerAttach);
                             }
                         } finally {
-                            notifyRunMutex.run();
+                            if (!successfulMigration) {
+                                VestigeSecureExecution<Void> vestigeSecureExecution = toApplicationContext.getVestigeSecureExecution();
+                                if (vestigeSecureExecution != null) {
+                                    vestigeSecureExecution.interrupt();
+                                }
+                            }
                         }
-
-                        fromVestigeSecureExecution.interrupt();
-
                     } catch (Exception e) {
                         throw new ApplicationException("Fail to uninterrupted migrate", e);
                     }
@@ -1471,62 +1479,68 @@ public class DefaultApplicationManager implements ApplicationManager {
         synchronized (state) {
             applicationContext = state.getUnlockedApplicationContext(installName);
             repoName = applicationContext.getRepoName();
-            applicationContext.setLocked(true);
             context = state.getRepositoryURL(repoName);
+            applicationContext.setLocked(true);
         }
-        String appName = applicationContext.getRepoApplicationName();
-        List<Integer> version = applicationContext.getRepoApplicationVersion();
-        int autoMigrateLevel = applicationContext.getAutoMigrateLevel();
-        int majorVersion = version.get(0);
-        int minorVersion = version.get(1);
-        int bugfixVersion = version.get(2);
-        List<Integer> newerVersion = Arrays.asList(majorVersion, minorVersion, bugfixVersion);
-        switch (autoMigrateLevel) {
-        case 3:
-            newerVersion.set(0, majorVersion + 1);
-            newerVersion.set(1, 0);
-            newerVersion.set(2, 0);
-            if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion)) {
-                minorVersion = 0;
-                bugfixVersion = 0;
-                do {
-                    majorVersion++;
-                    newerVersion.set(0, majorVersion + 1);
-                } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion));
-            } else {
+        boolean migrating = false;
+        try {
+            String appName = applicationContext.getRepoApplicationName();
+            List<Integer> version = applicationContext.getRepoApplicationVersion();
+            int autoMigrateLevel = applicationContext.getAutoMigrateLevel();
+            int majorVersion = version.get(0);
+            int minorVersion = version.get(1);
+            int bugfixVersion = version.get(2);
+            List<Integer> newerVersion = Arrays.asList(majorVersion, minorVersion, bugfixVersion);
+            switch (autoMigrateLevel) {
+            case 3:
+                newerVersion.set(0, majorVersion + 1);
+                newerVersion.set(1, 0);
+                newerVersion.set(2, 0);
+                if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion)) {
+                    minorVersion = 0;
+                    bugfixVersion = 0;
+                    do {
+                        majorVersion++;
+                        newerVersion.set(0, majorVersion + 1);
+                    } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion));
+                } else {
+                    newerVersion.set(2, bugfixVersion);
+                }
+                newerVersion.set(0, majorVersion);
+            case 2:
+                newerVersion.set(1, minorVersion + 1);
+                newerVersion.set(2, 0);
+                if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion)) {
+                    bugfixVersion = 0;
+                    do {
+                        minorVersion++;
+                        newerVersion.set(1, minorVersion + 1);
+                    } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion));
+                }
+                newerVersion.set(1, minorVersion);
+            case 1:
+                newerVersion.set(2, bugfixVersion + 1);
+                if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion)) {
+                    do {
+                        bugfixVersion++;
+                        newerVersion.set(2, bugfixVersion + 1);
+                    } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion));
+                }
                 newerVersion.set(2, bugfixVersion);
+            case 0:
+                break;
+            default:
+                throw new ApplicationException("Unexpected autoMigrateLevel" + autoMigrateLevel);
             }
-            newerVersion.set(0, majorVersion);
-        case 2:
-            newerVersion.set(1, minorVersion + 1);
-            newerVersion.set(2, 0);
-            if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion)) {
-                bugfixVersion = 0;
-                do {
-                    minorVersion++;
-                    newerVersion.set(1, minorVersion + 1);
-                } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion));
+            if (!newerVersion.equals(version)) {
+                migrating = true;
+                new MigrateAction(applicationContext, applicationContext.getName(), newerVersion, true).run(jobHelper);
             }
-            newerVersion.set(1, minorVersion);
-        case 1:
-            newerVersion.set(2, bugfixVersion + 1);
-            if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion)) {
-                do {
-                    bugfixVersion++;
-                    newerVersion.set(2, bugfixVersion + 1);
-                } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion));
-            }
-            newerVersion.set(2, bugfixVersion);
-        case 0:
-            break;
-        default:
-            throw new ApplicationException("Unexpected autoMigrateLevel" + autoMigrateLevel);
-        }
-        if (!newerVersion.equals(version)) {
-            new MigrateAction(applicationContext, applicationContext.getName(), newerVersion, true).run(jobHelper);
-        } else {
-            synchronized (state) {
-                applicationContext.setLocked(false);
+        } finally {
+            if (!migrating) {
+                synchronized (state) {
+                    applicationContext.setLocked(false);
+                }
             }
         }
     }
