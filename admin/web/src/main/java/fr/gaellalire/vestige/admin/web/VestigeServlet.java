@@ -354,8 +354,9 @@ public class VestigeServlet extends WebSocketServlet {
                                     lastSend = nsend;
                                     if (termJobController != null) {
                                         JSONArray echoArray = null;
+                                        JSONArray array = null;
                                         if (termDescriptions.size() != 0) {
-                                            JSONArray array = new JSONArray();
+                                            array = new JSONArray();
                                             for (String description : termDescriptions) {
                                                 array.add(description);
                                             }
@@ -367,7 +368,18 @@ public class VestigeServlet extends WebSocketServlet {
                                         if (termJobController.isDone()) {
                                             Exception exception = termJobController.getException();
                                             if (exception != null) {
-                                                exception.printStackTrace(termPrintWriter);
+                                                StringWriter stringWriter = new StringWriter();
+                                                exception.printStackTrace(new PrintWriter(stringWriter, true));
+                                                String[] split = stringWriter.toString().split("\r?\n");
+                                                if (echoArray == null) {
+                                                    array = new JSONArray();
+                                                    echoArray = new JSONArray();
+                                                    echoArray.add(array);
+                                                    jsonObject.put("termEcho", echoArray);
+                                                }
+                                                for (String s : split) {
+                                                    array.add(s);
+                                                }
                                             }
                                             jsonObject.put("termDone", "1");
                                             termJobController = null;
