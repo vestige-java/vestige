@@ -29,7 +29,7 @@ class Vestige(dbus.service.Object):
         if not os.environ.get("DESKTOP_SESSION", "").lower().startswith("gnome") or not "deprecated" in os.environ.get("GNOME_DESKTOP_SESSION_ID", ""):
             try:
                 import appindicator
-                self.ind = appindicator.Indicator.new("vestige", "/usr/share/icons/hicolor/scalable/apps/vestige.svg", appindicator.CATEGORY_APPLICATION_STATUS)
+                self.ind = appindicator.Indicator("vestige", "/usr/share/icons/hicolor/scalable/apps/vestige.svg", appindicator.CATEGORY_APPLICATION_STATUS)
                 self.ind.set_status(appindicator.STATUS_ACTIVE)
                 self.ind.set_menu(gtk.Menu());
             except ImportError:
