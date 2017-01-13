@@ -56,7 +56,7 @@ public class ClassLoaders implements Command {
     public JobController execute(final CommandContext commandContext) {
         PrintWriter out = commandContext.getOut();
         try {
-            out .println(applicationManager.getClassLoaders(applicationArgument.getApplication()));
+            out.println(applicationManager.getClassLoaders(applicationArgument.getApplication()));
         } catch (ApplicationException e) {
             e.printStackTrace(out);
         }

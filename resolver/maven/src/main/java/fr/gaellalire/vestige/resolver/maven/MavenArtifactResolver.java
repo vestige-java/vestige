@@ -243,7 +243,7 @@ public class MavenArtifactResolver {
         return null;
     }
 
-    public ClassLoaderConfiguration resolve(final String appName, final String groupId, final String artifactId, final String version, final List<MavenRepository> additionalRepositories, final DependencyModifier dependencyModifier, final ResolveMode resolveMode, final Scope scope, final boolean useSuperPomRepositories, final boolean ignorePomRepositories, final JobHelper actionHelper) throws Exception {
+    public ClassLoaderConfiguration resolve(final String appName, final String groupId, final String artifactId, final String version, final List<MavenRepository> additionalRepositories, final DependencyModifier dependencyModifier, final ResolveMode resolveMode, final Scope scope, final ScopeModifier scopeModifier, final boolean useSuperPomRepositories, final boolean ignorePomRepositories, final JobHelper actionHelper) throws Exception {
 
         Map<String, Map<String, MavenArtifact>> runtimeDependencies = new HashMap<String, Map<String, MavenArtifact>>();
 
@@ -293,13 +293,11 @@ public class MavenArtifactResolver {
                 urls[i] = artifact.getFile().toURI().toURL();
                 i++;
             }
-            MavenClassLoaderConfigurationKey key;
+            MavenClassLoaderConfigurationKey key = new MavenClassLoaderConfigurationKey(mavenArtifacts, Collections.<MavenClassLoaderConfigurationKey> emptyList(), scope);
             String name;
             if (scope == Scope.PLATFORM) {
-                key = new MavenClassLoaderConfigurationKey(mavenArtifacts, Collections.<MavenClassLoaderConfigurationKey> emptyList(), true);
                 name = key.getArtifacts().toString();
             } else {
-                key = new MavenClassLoaderConfigurationKey(mavenArtifacts, Collections.<MavenClassLoaderConfigurationKey> emptyList(), false);
                 name = appName;
             }
             classLoaderConfiguration = new ClassLoaderConfiguration(key, name, scope == Scope.ATTACHMENT, urls, Collections.<ClassLoaderConfiguration> emptyList(), null, null, null);
@@ -318,7 +316,7 @@ public class MavenArtifactResolver {
                 urlByKey.put(mavenArtifact, artifact.getFile().toURI().toURL());
             }
 
-            ClassLoaderConfigurationGraphHelper classLoaderConfigurationGraphHelper = new ClassLoaderConfigurationGraphHelper(appName, urlByKey, descriptorReader, collectRequest, session, dependencyModifier, runtimeDependencies, scope);
+            ClassLoaderConfigurationGraphHelper classLoaderConfigurationGraphHelper = new ClassLoaderConfigurationGraphHelper(appName, urlByKey, descriptorReader, collectRequest, session, dependencyModifier, runtimeDependencies, scope, scopeModifier);
 
             GraphCycleRemover<NodeAndState, MavenArtifact, ClassLoaderConfigurationFactory> graphCycleRemover = new GraphCycleRemover<NodeAndState, MavenArtifact, ClassLoaderConfigurationFactory>(classLoaderConfigurationGraphHelper);
             classLoaderConfiguration = graphCycleRemover.removeCycle(new NodeAndState(null, node, session.getDependencyManager())).create(stringParserFactory);

@@ -46,7 +46,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
     private String appName;
 
-    private Map<MavenClassLoaderConfigurationKey, ClassLoaderConfigurationFactory> cachedClassLoaderConfigurationFactory;
+    private Map<List<MavenArtifact>, ClassLoaderConfigurationFactory> cachedClassLoaderConfigurationFactory;
 
     private Map<MavenArtifact, URL> urlByKey;
 
@@ -62,11 +62,12 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
     private DependencyModifier dependencyModifier;
 
-    public ClassLoaderConfigurationGraphHelper(final String appName, final Map<MavenArtifact, URL> urlByKey,
-            final ArtifactDescriptorReader descriptorReader, final CollectRequest collectRequest,
-            final RepositorySystemSession session, final DependencyModifier dependencyModifier,
-            final Map<String, Map<String, MavenArtifact>> runtimeDependencies, final Scope scope) {
-        cachedClassLoaderConfigurationFactory = new HashMap<MavenClassLoaderConfigurationKey, ClassLoaderConfigurationFactory>();
+    private ScopeModifier scopeModifier;
+
+    public ClassLoaderConfigurationGraphHelper(final String appName, final Map<MavenArtifact, URL> urlByKey, final ArtifactDescriptorReader descriptorReader,
+            final CollectRequest collectRequest, final RepositorySystemSession session, final DependencyModifier dependencyModifier,
+            final Map<String, Map<String, MavenArtifact>> runtimeDependencies, final Scope scope, final ScopeModifier scopeModifier) {
+        cachedClassLoaderConfigurationFactory = new HashMap<List<MavenArtifact>, ClassLoaderConfigurationFactory>();
         this.appName = appName;
         this.urlByKey = urlByKey;
         this.descriptorReader = descriptorReader;
@@ -75,27 +76,35 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
         this.dependencyModifier = dependencyModifier;
         this.runtimeDependencies = runtimeDependencies;
         this.scope = scope;
+        this.scopeModifier = scopeModifier;
     }
 
-    public ClassLoaderConfigurationFactory merge(final List<MavenArtifact> nodes,
-            final List<ClassLoaderConfigurationFactory> nexts) throws Exception {
+    /**
+     * Executed before any call to {@link ClassLoaderConfigurationFactory#create(fr.gaellalire.vestige.platform.StringParserFactory)}.
+     */
+    public ClassLoaderConfigurationFactory merge(final List<MavenArtifact> nodes, final List<ClassLoaderConfigurationFactory> nexts) throws Exception {
         List<MavenClassLoaderConfigurationKey> dependencies = new ArrayList<MavenClassLoaderConfigurationKey>();
 
         for (ClassLoaderConfigurationFactory classLoaderConfiguration : nexts) {
             dependencies.add(classLoaderConfiguration.getKey());
         }
 
-        MavenClassLoaderConfigurationKey key = new MavenClassLoaderConfigurationKey(nodes, dependencies, true);
-        ClassLoaderConfigurationFactory classLoaderConfigurationFactory = cachedClassLoaderConfigurationFactory.get(key);
+        MavenClassLoaderConfigurationKey key = new MavenClassLoaderConfigurationKey(nodes, dependencies, Scope.PLATFORM);
+        ClassLoaderConfigurationFactory classLoaderConfigurationFactory = cachedClassLoaderConfigurationFactory.get(key.getArtifacts());
+        // if artifacts are the same, dependencies too. With same artifacts dependencies can differ if they have different mavenConfig (not same application)
         if (classLoaderConfigurationFactory == null) {
             URL[] urls = new URL[nodes.size()];
             int i = 0;
+            Scope scope = this.scope;
             for (MavenArtifact artifact : nodes) {
                 urls[i] = urlByKey.get(artifact);
                 i++;
+                if (scopeModifier != null) {
+                    scope = scopeModifier.modify(scope, artifact.getGroupId(), artifact.getArtifactId());
+                }
             }
             classLoaderConfigurationFactory = new ClassLoaderConfigurationFactory(appName, key, scope, urls, nexts);
-            cachedClassLoaderConfigurationFactory.put(key, classLoaderConfigurationFactory);
+            cachedClassLoaderConfigurationFactory.put(key.getArtifacts(), classLoaderConfigurationFactory);
         }
         return classLoaderConfigurationFactory;
     }
@@ -137,7 +146,8 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
             descriptorRequest.setRequestContext(collectRequest.getRequestContext());
             ArtifactDescriptorResult descriptorResult = descriptorReader.readArtifactDescriptor(session, descriptorRequest);
             List<Dependency> managedDependencies = mergeDeps(nodeAndState.getManagedDependencies(), descriptorResult.getManagedDependencies());
-            DefaultDependencyCollectionContext context = new DefaultDependencyCollectionContext(session, null, nodeAndState.getDependencyNode().getDependency(), managedDependencies);
+            DefaultDependencyCollectionContext context = new DefaultDependencyCollectionContext(session, null, nodeAndState.getDependencyNode().getDependency(),
+                    managedDependencies);
             DependencyManager dependencyManager = nodeAndState.getDependencyManager().deriveChildManager(context);
 
             List<Dependency> dependencies = descriptorResult.getDependencies();
@@ -171,7 +181,8 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
             key = map.get(artifact.getArtifactId());
         }
         if (key == null) {
-            // key not known because dependency is optional, dependency is test scope for root, dependency is excluded by an exclude element
+            // key not known because dependency is optional, dependency is test
+            // scope for root, dependency is excluded by an exclude element
             return null;
         }
         return key;

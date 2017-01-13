@@ -198,7 +198,7 @@ public final class VestigeMavenResolver {
                 }
 
                 ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve("vestige-attach-" + attachCount, mavenClassType.getGroupId(),
-                        mavenClassType.getArtifactId(), mavenClassType.getVersion(), additionalRepositories, defaultDependencyModifier, resolveMode, mavenScope, superPomRepositoriesUsed, pomRepositoriesIgnored, DummyJobHelper.INSTANCE);
+                        mavenClassType.getArtifactId(), mavenClassType.getVersion(), additionalRepositories, defaultDependencyModifier, resolveMode, mavenScope, null, superPomRepositoriesUsed, pomRepositoriesIgnored, DummyJobHelper.INSTANCE);
                 launchCaches.add(classLoaderConfiguration);
                 attachCount++;
             }
@@ -233,7 +233,7 @@ public final class VestigeMavenResolver {
                 break;
             }
             ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve("vestige", mavenClassType.getGroupId(), mavenClassType.getArtifactId(),
-                    mavenClassType.getVersion(), additionalRepositories, defaultDependencyModifier, resolveMode, mavenScope, superPomRepositoriesUsed, pomRepositoriesIgnored, DummyJobHelper.INSTANCE);
+                    mavenClassType.getVersion(), additionalRepositories, defaultDependencyModifier, resolveMode, mavenScope, null, superPomRepositoriesUsed, pomRepositoriesIgnored, DummyJobHelper.INSTANCE);
 
             mavenResolverCache = new MavenResolverCache(launchCaches, mavenClassType.getClazz(), classLoaderConfiguration, lastModified);
             try {

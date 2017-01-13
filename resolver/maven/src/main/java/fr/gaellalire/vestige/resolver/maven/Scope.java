@@ -24,4 +24,11 @@ public enum Scope {
 
     ATTACHMENT, INSTALLATION, PLATFORM;
 
+    public Scope restrict(final Scope other) {
+        if (other.ordinal() < ordinal()) {
+            return other;
+        }
+        return this;
+    }
+
 }

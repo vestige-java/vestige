@@ -89,6 +89,9 @@
   </xs:simpleType>
 
   <xs:complexType name="MavenClassType">
+    <xs:sequence minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="modifyScope" type="ModifyScope" />
+    </xs:sequence>
     <xs:attribute name="class" type="xs:string" use="required" />
     <xs:attribute name="groupId" type="xs:string" use="required" />
     <xs:attribute name="artifactId" type="xs:string" use="required" />
@@ -103,6 +106,12 @@
       <xs:enumeration value="FIXED_DEPENDENCIES" />
     </xs:restriction>
   </xs:simpleType>
+
+  <xs:complexType name="ModifyScope">
+    <xs:attribute name="groupId" type="xs:string" use="required" />
+    <xs:attribute name="artifactId" type="xs:string" use="required" />
+    <xs:attribute name="scope" type="Scope" use="required" />
+  </xs:complexType>
 
   <xs:complexType name="AddDependency">
     <xs:attribute name="groupId" type="xs:string" use="required" />

@@ -77,6 +77,10 @@ public class ClassLoaderConfigurationFactory {
         return urls;
     }
 
+    public Scope getScope() {
+        return scope;
+    }
+
     public ClassLoaderConfigurationFactory(final String appName, final MavenClassLoaderConfigurationKey classLoaderConfigurationKey, final Scope scope, final URL[] urls,
             final List<ClassLoaderConfigurationFactory> dependencies) throws IOException {
         TreeMap<String, List<Integer>> pathsByResourceName = new TreeMap<String, List<Integer>>();
@@ -147,22 +151,23 @@ public class ClassLoaderConfigurationFactory {
 
     public ClassLoaderConfiguration create(final StringParserFactory stringParserFactory) {
         if (cachedClassLoaderConfiguration == null) {
+            List<MavenClassLoaderConfigurationKey> keyDependencies = new ArrayList<MavenClassLoaderConfigurationKey>(factoryDependencies.size());
             List<ClassLoaderConfiguration> dependencies = new ArrayList<ClassLoaderConfiguration>(factoryDependencies.size());
             for (ClassLoaderConfigurationFactory classLoaderConfigurationFactory : factoryDependencies) {
                 dependencies.add(classLoaderConfigurationFactory.create(stringParserFactory));
+                scope = scope.restrict(classLoaderConfigurationFactory.getScope());
+                keyDependencies.add(classLoaderConfigurationFactory.getKey());
             }
             LOGGER.trace("Creating classloader rules for {}", classLoaderConfigurationKey.getArtifacts());
             StringParser pathsByResourceName = stringParserFactory.createStringParser(this.pathsByResourceName, 0);
             String name;
-            MavenClassLoaderConfigurationKey key;
             if (scope == Scope.PLATFORM) {
-                key = classLoaderConfigurationKey;
-                name = key.getArtifacts().toString();
+                name = classLoaderConfigurationKey.getArtifacts().toString();
             } else {
-                key = new MavenClassLoaderConfigurationKey(classLoaderConfigurationKey.getArtifacts(), classLoaderConfigurationKey.getDependencies(), false);
-                name = key.getArtifacts().toString() + " of " + appName;
+                classLoaderConfigurationKey = new MavenClassLoaderConfigurationKey(classLoaderConfigurationKey.getArtifacts(), keyDependencies, scope);
+                name = classLoaderConfigurationKey.getArtifacts().toString() + " of " + appName;
             }
-            cachedClassLoaderConfiguration = new ClassLoaderConfiguration(key, name, scope == Scope.ATTACHMENT, urls, dependencies, paths, pathIdsList, pathsByResourceName);
+            cachedClassLoaderConfiguration = new ClassLoaderConfiguration(classLoaderConfigurationKey, name, scope == Scope.ATTACHMENT, urls, dependencies, paths, pathIdsList, pathsByResourceName);
             LOGGER.trace("Classloader rules created");
         }
         return cachedClassLoaderConfiguration;

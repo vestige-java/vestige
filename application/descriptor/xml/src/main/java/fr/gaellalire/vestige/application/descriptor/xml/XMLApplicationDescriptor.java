@@ -33,6 +33,7 @@ import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Insta
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Launcher;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.MavenClassType;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Mode;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ModifyScope;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.URLsClassType;
 import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
@@ -42,6 +43,7 @@ import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
 import fr.gaellalire.vestige.resolver.maven.ResolveMode;
 import fr.gaellalire.vestige.resolver.maven.Scope;
+import fr.gaellalire.vestige.resolver.maven.ScopeModifier;
 
 /**
  * @author Gael Lalire
@@ -245,6 +247,24 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
         return resolve(configurationName, launcher.getMavenLauncher(), actionHelper);
     }
 
+    public static Scope convertScope(final fr.gaellalire.vestige.application.descriptor.xml.schema.application.Scope scope) throws ApplicationException {
+        Scope mavenScope;
+        switch (scope) {
+        case ATTACHMENT:
+            mavenScope = Scope.ATTACHMENT;
+            break;
+        case INSTALLATION:
+            mavenScope = Scope.INSTALLATION;
+            break;
+        case PLATFORM:
+            mavenScope = Scope.PLATFORM;
+            break;
+        default:
+            throw new ApplicationException("Unknown scope " + scope);
+        }
+        return mavenScope;
+    }
+
     public ClassLoaderConfiguration resolve(final String configurationName, final MavenClassType mavenClassType, final JobHelper actionHelper) throws ApplicationException {
         ResolveMode resolveMode;
         Mode mode = mavenClassType.getMode();
@@ -259,25 +279,19 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
             throw new ApplicationException("Unknown launch mode " + mode);
         }
 
-        Scope mavenScope;
-        fr.gaellalire.vestige.application.descriptor.xml.schema.application.Scope scope = mavenClassType.getScope();
-        switch (scope) {
-        case ATTACHMENT:
-            mavenScope = Scope.ATTACHMENT;
-            break;
-        case INSTALLATION:
-            mavenScope = Scope.INSTALLATION;
-            break;
-        case PLATFORM:
-            mavenScope = Scope.PLATFORM;
-            break;
-        default:
-            throw new ApplicationException("Unknown scope " + mode);
+        ScopeModifier scopeModifier = null;
+        List<ModifyScope> modifyScopeList = mavenClassType.getModifyScope();
+        if (modifyScopeList.size() != 0) {
+            scopeModifier = new ScopeModifier();
+            for (ModifyScope modifyScope : modifyScopeList) {
+                scopeModifier.put(modifyScope.getGroupId(), modifyScope.getArtifactId(), convertScope(modifyScope.getScope()));
+            }
         }
 
         try {
-            return mavenArtifactResolver.resolve(configurationName, mavenClassType.getGroupId(), mavenClassType.getArtifactId(), mavenClassType.getVersion(), mavenConfigResolved.getAdditionalRepositories(),
-                    mavenConfigResolved.getDefaultDependencyModifier(), resolveMode, mavenScope, mavenConfigResolved.isSuperPomRepositoriesUsed(), mavenConfigResolved.isPomRepositoriesIgnored(), actionHelper);
+            return mavenArtifactResolver.resolve(configurationName, mavenClassType.getGroupId(), mavenClassType.getArtifactId(), mavenClassType.getVersion(),
+                    mavenConfigResolved.getAdditionalRepositories(), mavenConfigResolved.getDefaultDependencyModifier(), resolveMode, convertScope(mavenClassType.getScope()),
+                    scopeModifier, mavenConfigResolved.isSuperPomRepositoriesUsed(), mavenConfigResolved.isPomRepositoriesIgnored(), actionHelper);
         } catch (Exception e) {
             throw new ApplicationException("Unable to resolve", e);
         }
