@@ -37,6 +37,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -1440,16 +1441,23 @@ public class DefaultApplicationManager implements ApplicationManager {
                 threads.add(thread);
                 thread.start();
             }
-            try {
-                for (Thread thread : threads) {
+            Iterator<Thread> threadIterator = threads.iterator();
+            while (threadIterator.hasNext()) {
+                Thread thread = threadIterator.next();
+                try {
                     thread.join();
-                }
-            } catch (InterruptedException e) {
-                LOGGER.warn("Interrupted auto-migrate ", e);
-                for (Thread thread : threads) {
+                } catch (InterruptedException e) {
+                    LOGGER.warn("Interrupted auto-migrate", e);
+                    List<Thread> interrupted = new ArrayList<Thread>();
                     thread.interrupt();
+                    interrupted.add(thread);
+                    while (threadIterator.hasNext()) {
+                        thread = threadIterator.next();
+                        thread.interrupt();
+                        interrupted.add(thread);
+                    }
+                    threadIterator = interrupted.iterator();
                 }
-                return;
             }
             if (failedMigration.size() != 0) {
                 throw new ApplicationException("Following migration failed " + failedMigration);
