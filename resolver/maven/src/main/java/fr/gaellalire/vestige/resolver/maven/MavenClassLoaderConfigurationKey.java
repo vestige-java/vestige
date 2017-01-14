@@ -34,13 +34,13 @@ public class MavenClassLoaderConfigurationKey implements Serializable {
 
     private int hashCode;
 
-    private Scope shared;
+    private Scope scope;
 
-    public MavenClassLoaderConfigurationKey(final List<MavenArtifact> artifacts, final List<MavenClassLoaderConfigurationKey> dependencies, final Scope shared) {
+    public MavenClassLoaderConfigurationKey(final List<MavenArtifact> artifacts, final List<MavenClassLoaderConfigurationKey> dependencies, final Scope scope) {
         this.artifacts = artifacts;
         this.dependencies = dependencies;
         hashCode = artifacts.hashCode() + dependencies.hashCode();
-        this.shared = shared;
+        this.scope = scope;
     }
 
     public List<MavenArtifact> getArtifacts() {
@@ -65,7 +65,7 @@ public class MavenClassLoaderConfigurationKey implements Serializable {
 
     public void toString(final StringBuilder builder, final int indent) {
         builder.append(artifacts.toString());
-        switch (shared) {
+        switch (scope) {
         case ATTACHMENT:
             builder.append(" attachment scoped");
             break;
@@ -90,7 +90,7 @@ public class MavenClassLoaderConfigurationKey implements Serializable {
         if (this == obj) {
             return true;
         }
-        if (shared != Scope.PLATFORM) {
+        if (scope != Scope.PLATFORM) {
             return false;
         }
         if (obj == null) {
@@ -100,7 +100,7 @@ public class MavenClassLoaderConfigurationKey implements Serializable {
             return false;
         }
         MavenClassLoaderConfigurationKey other = (MavenClassLoaderConfigurationKey) obj;
-        if (other.shared != Scope.PLATFORM) {
+        if (other.scope != Scope.PLATFORM) {
             return false;
         }
         if (!artifacts.equals(other.artifacts)) {
