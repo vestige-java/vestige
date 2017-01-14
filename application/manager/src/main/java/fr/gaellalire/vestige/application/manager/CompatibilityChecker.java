@@ -17,20 +17,11 @@
 
 package fr.gaellalire.vestige.application.manager;
 
-import java.net.URL;
-import java.util.List;
-
-import fr.gaellalire.vestige.job.JobHelper;
-
 /**
  * @author Gael Lalire
  */
-public interface ApplicationRepositoryManager {
+public interface CompatibilityChecker {
 
-    boolean hasApplicationDescriptor(URL context, String repoName, String appName, List<Integer> version, CompatibilityChecker compatibilityChecker) throws ApplicationException;
-
-    ApplicationDescriptor createApplicationDescriptor(URL context, String repoName, String appName, List<Integer> version, JobHelper jobHelper) throws ApplicationException;
-
-    ApplicationRepositoryMetadata getMetadata(URL context);
+    boolean isJavaSpecificationVersionCompatible(String javaSpecificationVersion);
 
 }

@@ -28,6 +28,8 @@ import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
  */
 public interface ApplicationDescriptor {
 
+    String getJavaSpecificationVersion() throws ApplicationException;
+
     Set<List<Integer>> getSupportedMigrationVersions() throws ApplicationException;
 
     Set<List<Integer>> getUninterruptedMigrationVersions() throws ApplicationException;

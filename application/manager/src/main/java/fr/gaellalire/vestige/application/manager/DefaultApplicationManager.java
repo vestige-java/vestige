@@ -67,7 +67,7 @@ import fr.gaellalire.vestige.utils.FileUtils;
 /**
  * @author Gael Lalire
  */
-public class DefaultApplicationManager implements ApplicationManager {
+public class DefaultApplicationManager implements ApplicationManager, CompatibilityChecker {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultApplicationManager.class);
 
@@ -97,6 +97,8 @@ public class DefaultApplicationManager implements ApplicationManager {
 
     private Thread stateListenerThread;
 
+    private int currentJavaSpecificationVersion;
+
     public DefaultApplicationManager(final JobManager actionManager, final File appBaseFile, final File appDataFile, final VestigePlatform vestigePlatform,
             final PublicVestigeSystem vestigeSystem, final PublicVestigeSystem managerVestigeSystem, final PrivateVestigeSecurityManager vestigeSecurityManager,
             final ApplicationRepositoryManager applicationDescriptorFactory, final File resolverFile, final File nextResolverFile) {
@@ -119,6 +121,20 @@ public class DefaultApplicationManager implements ApplicationManager {
         this.nextResolverFile = nextResolverFile;
         state = new DefaultApplicationManagerState();
         applicationManagerStateListeners = new ArrayList<ApplicationManagerStateListener>();
+        String javaSpecificationVersion = System.getProperty("java.specification.version");
+        if (javaSpecificationVersion == null) {
+            LOGGER.warn("Property java.specification.version is not set, will accept all version");
+        } else {
+            try {
+                if (javaSpecificationVersion.startsWith("1.")) {
+                    currentJavaSpecificationVersion = Integer.parseInt(javaSpecificationVersion.substring("1.".length()));
+                } else {
+                    currentJavaSpecificationVersion = Integer.parseInt(javaSpecificationVersion);
+                }
+            } catch (NumberFormatException e) {
+                LOGGER.warn("Could not parse java.specification.version, will accept all version");
+            }
+        }
     }
 
     private DefaultApplicationManagerState readDefaultApplicationManagerState(final File file) throws IOException, ClassNotFoundException {
@@ -184,6 +200,11 @@ public class DefaultApplicationManager implements ApplicationManager {
 
         ApplicationDescriptor applicationDescriptor = applicationDescriptorFactory.createApplicationDescriptor(context, repoName, appName, version, jobHelper);
 
+        String javaSpecificationVersion = applicationDescriptor.getJavaSpecificationVersion();
+        if (!isJavaSpecificationVersionCompatible(javaSpecificationVersion)) {
+            throw new ApplicationException("This JVM does not support java " + javaSpecificationVersion);
+        }
+
         File basefile = new File(appBaseFile, installName);
         File dataFile = new File(appDataFile, installName);
 
@@ -194,7 +215,6 @@ public class DefaultApplicationManager implements ApplicationManager {
         }
 
         ApplicationContext applicationContext = new ApplicationContext();
-
         applicationContext.setRepoName(repoName);
         applicationContext.setRepoApplicationName(appName);
         applicationContext.setRepoApplicationVersion(version);
@@ -1504,13 +1524,13 @@ public class DefaultApplicationManager implements ApplicationManager {
                 newerVersion.set(0, majorVersion + 1);
                 newerVersion.set(1, 0);
                 newerVersion.set(2, 0);
-                if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion)) {
+                if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion, this)) {
                     minorVersion = 0;
                     bugfixVersion = 0;
                     do {
                         majorVersion++;
                         newerVersion.set(0, majorVersion + 1);
-                    } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion));
+                    } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion, this));
                 } else {
                     newerVersion.set(2, bugfixVersion);
                 }
@@ -1518,21 +1538,21 @@ public class DefaultApplicationManager implements ApplicationManager {
             case 2:
                 newerVersion.set(1, minorVersion + 1);
                 newerVersion.set(2, 0);
-                if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion)) {
+                if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion, this)) {
                     bugfixVersion = 0;
                     do {
                         minorVersion++;
                         newerVersion.set(1, minorVersion + 1);
-                    } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion));
+                    } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion, this));
                 }
                 newerVersion.set(1, minorVersion);
             case 1:
                 newerVersion.set(2, bugfixVersion + 1);
-                if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion)) {
+                if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion, this)) {
                     do {
                         bugfixVersion++;
                         newerVersion.set(2, bugfixVersion + 1);
-                    } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion));
+                    } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion, this));
                 }
                 newerVersion.set(2, bugfixVersion);
             case 0:
@@ -1745,6 +1765,28 @@ public class DefaultApplicationManager implements ApplicationManager {
     public void open(final URL url) {
         // TODO Auto-generated method stub
 
+    }
+
+    @Override
+    public boolean isJavaSpecificationVersionCompatible(final String javaSpecificationVersion) {
+        if (currentJavaSpecificationVersion == 0) {
+            return true;
+        }
+        int version;
+        try {
+            if (javaSpecificationVersion.startsWith("1.")) {
+                version = Integer.parseInt(javaSpecificationVersion.substring("1.".length()));
+            } else {
+                version = Integer.parseInt(javaSpecificationVersion);
+            }
+        } catch (NumberFormatException e) {
+            // unknown: accept
+            return true;
+        }
+        if (currentJavaSpecificationVersion >= version) {
+            return true;
+        }
+        return false;
     }
 
 }

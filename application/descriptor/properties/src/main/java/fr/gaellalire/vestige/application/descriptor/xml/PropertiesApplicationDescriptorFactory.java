@@ -24,6 +24,7 @@ import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryMetadata;
+import fr.gaellalire.vestige.application.manager.CompatibilityChecker;
 import fr.gaellalire.vestige.job.JobHelper;
 
 /**
@@ -31,11 +32,6 @@ import fr.gaellalire.vestige.job.JobHelper;
  */
 public class PropertiesApplicationDescriptorFactory implements ApplicationRepositoryManager {
 
-    @Override
-    public boolean hasApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version) throws ApplicationException {
-        // TODO Auto-generated method stub
-        return false;
-    }
 
     @Override
     public ApplicationRepositoryMetadata getMetadata(final URL context) {
@@ -48,6 +44,13 @@ public class PropertiesApplicationDescriptorFactory implements ApplicationReposi
             throws ApplicationException {
         // TODO Auto-generated method stub
         return null;
+    }
+
+    @Override
+    public boolean hasApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version, final CompatibilityChecker compatibilityChecker)
+            throws ApplicationException {
+        // TODO Auto-generated method stub
+        return false;
     }
 
 }

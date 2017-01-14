@@ -51,6 +51,7 @@
       <xs:element name="launcher" type="Launcher" />
       <xs:element name="configurations" type="Config" minOccurs="0" />
     </xs:sequence>
+    <xs:attribute name="javaSpecificationVersion" type="xs:string" use="required" />
   </xs:complexType>
 
 

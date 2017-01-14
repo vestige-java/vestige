@@ -84,4 +84,10 @@ public class PropertiesApplicationDescriptor implements ApplicationDescriptor {
         return false;
     }
 
+    @Override
+    public String getJavaSpecificationVersion() throws ApplicationException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
 }

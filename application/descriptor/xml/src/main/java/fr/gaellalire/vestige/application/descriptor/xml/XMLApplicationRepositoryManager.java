@@ -19,7 +19,6 @@ package fr.gaellalire.vestige.application.descriptor.xml;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -61,6 +60,7 @@ import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryMetadata;
+import fr.gaellalire.vestige.application.manager.CompatibilityChecker;
 import fr.gaellalire.vestige.application.manager.VersionUtils;
 import fr.gaellalire.vestige.job.JobHelper;
 import fr.gaellalire.vestige.job.TaskHelper;
@@ -81,7 +81,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         this.mavenArtifactResolver = mavenArtifactResolver;
     }
 
-    public boolean hasApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version) throws ApplicationException {
+    public boolean hasApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version, final CompatibilityChecker compatibilityChecker) throws ApplicationException {
         URL url;
         try {
             url = new URL(context, appName + "/" + appName + "-" + VersionUtils.toString(version) + ".xml");
@@ -90,25 +90,15 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         }
         try {
             URLConnection openConnection = url.openConnection();
-            openConnection.connect();
-            if (openConnection instanceof HttpURLConnection) {
-                int responseCode = ((HttpURLConnection) openConnection).getResponseCode();
-                if (responseCode == HttpURLConnection.HTTP_NOT_FOUND) {
-                    return false;
-                }
-                if (responseCode != HttpURLConnection.HTTP_OK) {
-                    // not ok but may be a redirection
-                    try {
-                        getApplication(openConnection.getInputStream());
-                        return true;
-                    } catch (JAXBException e) {
-                        LOGGER.trace("Exception confirms that url has no application descriptor (or an invalid one)", e);
-                    }
-                    return false;
-                }
+            if (compatibilityChecker.isJavaSpecificationVersionCompatible(getApplication(openConnection.getInputStream()).getJavaSpecificationVersion())) {
+                return true;
             }
-            return true;
+            return false;
+        } catch (JAXBException e) {
+            LOGGER.trace("Exception confirms that url has no application descriptor (or an invalid one)", e);
+            return false;
         } catch (IOException e) {
+            LOGGER.trace("Cannot fetch application descriptor", e);
             return false;
         }
     }
@@ -151,6 +141,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         task.setDone();
 
         Config configurations = application.getConfigurations();
+        String javaSpecificationVersion = application.getJavaSpecificationVersion();
         Set<Permission> installerPermissionSet = new HashSet<Permission>();
         Set<Permission> launcherPermissionSet = new HashSet<Permission>();
         MavenConfigResolved mavenConfigResolved;
@@ -177,7 +168,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         } else {
             mavenConfigResolved = new MavenConfigResolved();
         }
-        return new XMLApplicationDescriptor(mavenArtifactResolver, version, application, mavenConfigResolved, launcherPermissionSet, installerPermissionSet, jobHelper);
+        return new XMLApplicationDescriptor(mavenArtifactResolver, javaSpecificationVersion, version, application, mavenConfigResolved, launcherPermissionSet, installerPermissionSet, jobHelper);
     }
 
     public void readPermissions(final Permissions permissions, final Set<Permission> result) {

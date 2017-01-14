@@ -66,15 +66,24 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
 
     private JobHelper actionHelper;
 
-    public XMLApplicationDescriptor(final MavenArtifactResolver mavenArtifactResolver, final List<Integer> version, final Application application,
-            final MavenConfigResolved mavenConfigResolved, final Set<Permission> permissions, final Set<Permission> installerPermissions, final JobHelper actionHelper) {
+    private String javaSpecificationVersion;
+
+    public XMLApplicationDescriptor(final MavenArtifactResolver mavenArtifactResolver, final String javaSpecificationVersion, final List<Integer> version,
+            final Application application, final MavenConfigResolved mavenConfigResolved, final Set<Permission> permissions, final Set<Permission> installerPermissions,
+            final JobHelper actionHelper) {
         this.mavenArtifactResolver = mavenArtifactResolver;
+        this.javaSpecificationVersion = javaSpecificationVersion;
         this.version = version;
         this.application = application;
         this.mavenConfigResolved = mavenConfigResolved;
         this.permissions = permissions;
         this.installerPermissions = installerPermissions;
         this.actionHelper = actionHelper;
+    }
+
+    @Override
+    public String getJavaSpecificationVersion() throws ApplicationException {
+        return javaSpecificationVersion;
     }
 
     public Set<List<Integer>> getSupportedMigrationVersions() throws ApplicationException {
