@@ -92,7 +92,7 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>vestige.jvm_enhancer.boot</artifactId>
-      <version>${project.version}</version>
+      <version>${vestige.jvm_enhancer.version}</version>
     </dependency>
   </dependencies>
 </project>

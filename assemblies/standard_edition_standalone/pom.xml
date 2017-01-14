@@ -103,6 +103,20 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>vestige.jvm_enhancer.runtime</artifactId>
+      <type>zip</type>
+      <classifier>unix</classifier>
+      <version>${vestige.jvm_enhancer.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>vestige.jvm_enhancer.runtime</artifactId>
+      <type>zip</type>
+      <classifier>windows</classifier>
+      <version>${vestige.jvm_enhancer.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>vestige.core</artifactId>
     </dependency>
   </dependencies>

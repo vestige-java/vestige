@@ -25,6 +25,7 @@
   <logger name="fr.gaellalire.vestige.edition.standard" level="INFO" />
   <logger name="fr.gaellalire.vestige.resolver.maven" level="INFO" />
   <logger name="fr.gaellalire.vestige.application.manager" level="INFO" />
+  <logger name="fr.gaellalire.vestige.platform.logger.SLF4JOutputStream" level="INFO" />
 
   <root level="INFO">
     <appender-ref ref="STDOUT" />

@@ -66,5 +66,15 @@
         <include>fr.gaellalire.vestige:vestige.core:jar</include>
       </includes>
     </dependencySet>
+    <dependencySet>
+      <fileMode>0644</fileMode>
+      <useProjectArtifact>false</useProjectArtifact>
+      <useTransitiveDependencies>false</useTransitiveDependencies>
+      <outputDirectory>/lib</outputDirectory>
+      <unpack>true</unpack>
+      <includes>
+        <include>fr.gaellalire.vestige:vestige.jvm_enhancer.runtime:zip:unix</include>
+      </includes>
+    </dependencySet>
   </dependencySets>
 </assembly>
