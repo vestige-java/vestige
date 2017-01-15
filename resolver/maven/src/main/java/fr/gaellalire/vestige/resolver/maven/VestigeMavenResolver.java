@@ -32,6 +32,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -300,7 +301,7 @@ public final class VestigeMavenResolver {
             list.add(convertAttachedVestigeClassLoader(attachedVestigeClassLoaderConstructor, attachedVestigeClassLoaderAttachment, dependency));
         }
         Object convertedAttachedVestigeClassLoader = attachedVestigeClassLoaderConstructor.newInstance(attachedVestigeClassLoader.getVestigeClassLoader(), list,
-                attachedVestigeClassLoader.getUrls(), /* attachedVestigeClassLoader.getStartStopClasses(), */ attachedVestigeClassLoader.getName(), attachedVestigeClassLoader.isAttachmentScoped());
+                attachedVestigeClassLoader.getUrls(), attachedVestigeClassLoader.getName(), attachedVestigeClassLoader.isAttachmentScoped(), attachedVestigeClassLoader.getCache());
         attachedVestigeClassLoaderAttachment.set(convertedAttachedVestigeClassLoader, attachedVestigeClassLoader.getAttachments());
 
         uncheckedVestigeClassLoader.setData(convertedAttachedVestigeClassLoader);
@@ -330,6 +331,7 @@ public final class VestigeMavenResolver {
         List<List<WeakReference<Object>>> attachedClassLoaders = (List<List<WeakReference<Object>>>) attachedClassLoadersField.get(loadedVestigePlatform);
         attachedClassLoadersField.setAccessible(false);
 
+
         /*
         Field startedField = vestigePlatformClass.getDeclaredField("started");
         startedField.setAccessible(true);
@@ -343,7 +345,7 @@ public final class VestigeMavenResolver {
         mapField.setAccessible(false);
 
         Class<?> attachedVestigeClassLoaderClass = Class.forName(AttachedVestigeClassLoader.class.getName(), false, mavenResolverClassLoader);
-        Constructor<?> attachedVestigeClassLoaderConstructor = attachedVestigeClassLoaderClass.getConstructor(VestigeClassLoader.class, List.class, String.class, /* List.class, */ String.class, boolean.class);
+        Constructor<?> attachedVestigeClassLoaderConstructor = attachedVestigeClassLoaderClass.getConstructor(VestigeClassLoader.class, List.class, String.class, String.class, boolean.class, Map.class);
         Field attachedVestigeClassLoaderAttachment = attachedVestigeClassLoaderClass.getDeclaredField("attachments");
         attachedVestigeClassLoaderAttachment.setAccessible(true);
 
@@ -459,6 +461,15 @@ public final class VestigeMavenResolver {
             // logback use introspector cache
             Introspector.flushCaches();
             clearSerializationCache();
+            try {
+                ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+                // from java 7 we can close
+                if (contextClassLoader instanceof URLClassLoader) {
+                    URLClassLoader.class.getMethod("close").invoke(contextClassLoader);
+                }
+            } catch (Exception e) {
+                LOGGER.trace("Unable to close classloader", e);
+            }
         }
     }
 

@@ -22,6 +22,7 @@
   
   <logger name="org.apache.sshd" level="OFF" />
   <logger name="com.btr.proxy" level="ERROR" />
+  <logger name="fr.gaellalire.vestige.platform" level="WARN" />
   <logger name="fr.gaellalire.vestige.edition.standard" level="INFO" />
   <logger name="fr.gaellalire.vestige.resolver.maven" level="INFO" />
   <logger name="fr.gaellalire.vestige.application.manager" level="INFO" />

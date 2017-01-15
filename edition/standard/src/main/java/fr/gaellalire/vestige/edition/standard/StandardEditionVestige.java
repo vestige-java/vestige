@@ -127,12 +127,22 @@ public class StandardEditionVestige implements Runnable {
         this.vestigeStateListener = vestigeStateListener;
     }
 
-    public StandardEditionVestige(final File baseFile, final File dataFile, final PublicVestigeSystem vestigeSystem, final List<? extends ClassLoader> privilegedClassloaders, final WeakReference<Object> bootstrapObject) {
+    public void setPrivilegedClassloaders(final List<? extends ClassLoader> privilegedClassloaders) {
+        this.privilegedClassloaders = privilegedClassloaders;
+    }
+
+    public void setBootstrapObject(final WeakReference<Object> bootstrapObject) {
+        this.bootstrapObject = bootstrapObject;
+    }
+
+    /**
+     * This constructor should not have its parameter modified.
+     * You can add setter to give more information.
+     */
+    public StandardEditionVestige(final File baseFile, final File dataFile, final PublicVestigeSystem vestigeSystem) {
         this.baseFile = baseFile;
         this.dataFile = dataFile;
         this.vestigeSystem = vestigeSystem;
-        this.bootstrapObject = bootstrapObject;
-        this.privilegedClassloaders = privilegedClassloaders;
     }
 
     @SuppressWarnings("unchecked")
@@ -368,12 +378,9 @@ public class StandardEditionVestige implements Runnable {
         try {
             vestigeStateListener.stopping();
             stop();
-            Thread workerThread = vestigeExecutor.createWorker("se-shutdown-worker", true, 0);
             for (Integer id : vestigePlatform.getAttachments()) {
                 vestigePlatform.detach(id);
             }
-            workerThread.interrupt();
-            workerThread.join();
             LOGGER.info("Vestige SE stopped");
             vestigeStateListener.stopped();
         } catch (Exception e) {
@@ -558,7 +565,9 @@ public class StandardEditionVestige implements Runnable {
 
                     @Override
                     public void vestigeSystemRun(final PublicVestigeSystem vestigeSystem) {
-                        final StandardEditionVestige standardEditionVestige = new StandardEditionVestige(baseFile, dataFile, vestigeSystem, privilegedClassloaders, bootstrapObject);
+                        final StandardEditionVestige standardEditionVestige = new StandardEditionVestige(baseFile, dataFile, vestigeSystem);
+                        standardEditionVestige.setPrivilegedClassloaders(privilegedClassloaders);
+                        standardEditionVestige.setBootstrapObject(bootstrapObject);
                         standardEditionVestige.setVestigeExecutor(vestigeExecutor);
                         standardEditionVestige.setVestigePlatform(vestigePlatform);
                         standardEditionVestige.setVestigeStateListener(vestigeStateListener);

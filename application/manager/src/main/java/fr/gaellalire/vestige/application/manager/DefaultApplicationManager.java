@@ -316,7 +316,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                             finalRuntimeApplicationInstallerContext = null;
                             installerAttach = -1;
                         } else {
-                            installerAttach = vestigePlatform.attach(installerResolve);
+                            synchronized (vestigePlatform) {
+                                installerAttach = vestigePlatform.attach(installerResolve);
+                            }
                             VestigeClassLoader<AttachedVestigeClassLoader> classLoader = vestigePlatform.getClassLoader(installerAttach);
                             finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(applicationContext, installerResolve.getPermissions(), classLoader,
                                     installName);
@@ -324,7 +326,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                         }
                     } else {
                         // reattach
-                        installerAttach = vestigePlatform.attach(runtimeApplicationInstallerContext.getClassLoader());
+                        synchronized (vestigePlatform) {
+                            installerAttach = vestigePlatform.attach(runtimeApplicationInstallerContext.getClassLoader());
+                        }
                         finalRuntimeApplicationInstallerContext = runtimeApplicationInstallerContext;
                     }
                 } finally {
@@ -358,7 +362,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                             task.setDone();
                         }
                     } finally {
-                        vestigePlatform.detach(installerAttach);
+                        synchronized (vestigePlatform) {
+                            vestigePlatform.detach(installerAttach);
+                        }
                     }
                     successful = true;
                 }
@@ -428,7 +434,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                 finalRuntimeApplicationInstallerContext = null;
                                 installerAttach = -1;
                             } else {
-                                installerAttach = vestigePlatform.attach(installerResolve);
+                                synchronized (vestigePlatform) {
+                                    installerAttach = vestigePlatform.attach(installerResolve);
+                                }
                                 VestigeClassLoader<AttachedVestigeClassLoader> classLoader = vestigePlatform.getClassLoader(installerAttach);
                                 finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(applicationContext, installerResolve.getPermissions(),
                                         classLoader, installName);
@@ -436,7 +444,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                             }
                         } else {
                             // reattach
-                            installerAttach = vestigePlatform.attach(runtimeApplicationInstallerContext.getClassLoader());
+                            synchronized (vestigePlatform) {
+                                installerAttach = vestigePlatform.attach(runtimeApplicationInstallerContext.getClassLoader());
+                            }
                             finalRuntimeApplicationInstallerContext = runtimeApplicationInstallerContext;
                         }
                     } finally {
@@ -467,7 +477,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                 task.setDone();
                             }
                         } finally {
-                            vestigePlatform.detach(installerAttach);
+                            synchronized (vestigePlatform) {
+                                vestigePlatform.detach(installerAttach);
+                            }
                         }
                     }
                 } finally {
@@ -632,14 +644,18 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                     if (runtimeApplicationInstallerContext == null) {
                         // attach
                         ClassLoaderConfiguration installerResolve = migratorApplicationContext.getInstallerResolve();
-                        installerAttach = vestigePlatform.attach(installerResolve);
+                        synchronized (vestigePlatform) {
+                            installerAttach = vestigePlatform.attach(installerResolve);
+                        }
                         VestigeClassLoader<AttachedVestigeClassLoader> classLoader = vestigePlatform.getClassLoader(installerAttach);
                         finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(migratorApplicationContext, installerResolve.getPermissions(),
                                 classLoader, installName);
                         classLoader.getData().addObject(new SoftReference<RuntimeApplicationInstallerContext>(finalRuntimeApplicationInstallerContext));
                     } else {
                         // reattach
-                        installerAttach = vestigePlatform.attach(runtimeApplicationInstallerContext.getClassLoader());
+                        synchronized (vestigePlatform) {
+                            installerAttach = vestigePlatform.attach(runtimeApplicationInstallerContext.getClassLoader());
+                        }
                         finalRuntimeApplicationInstallerContext = runtimeApplicationInstallerContext;
                     }
                 } finally {
@@ -705,7 +721,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                     vestigeSecureExecution.start();
                     vestigeSecureExecution.get();
                 } finally {
-                    vestigePlatform.detach(installerAttach);
+                    synchronized (vestigePlatform) {
+                        vestigePlatform.detach(installerAttach);
+                    }
                 }
             } catch (Exception e) {
                 throw new ApplicationException("Fail to recover migration", e);
@@ -844,14 +862,18 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                 if (runtimeApplicationInstallerContext == null) {
                                     // attach
                                     ClassLoaderConfiguration installerResolve = migratorApplicationContext.getInstallerResolve();
-                                    installerAttach = vestigePlatform.attach(installerResolve);
+                                    synchronized (vestigePlatform) {
+                                        installerAttach = vestigePlatform.attach(installerResolve);
+                                    }
                                     VestigeClassLoader<AttachedVestigeClassLoader> classLoader = vestigePlatform.getClassLoader(installerAttach);
                                     finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(migratorApplicationContext,
                                             installerResolve.getPermissions(), classLoader, installName);
                                     classLoader.getData().addObject(new SoftReference<RuntimeApplicationInstallerContext>(finalRuntimeApplicationInstallerContext));
                                 } else {
                                     // reattach
-                                    installerAttach = vestigePlatform.attach(runtimeApplicationInstallerContext.getClassLoader());
+                                    synchronized (vestigePlatform) {
+                                        installerAttach = vestigePlatform.attach(runtimeApplicationInstallerContext.getClassLoader());
+                                    }
                                     finalRuntimeApplicationInstallerContext = runtimeApplicationInstallerContext;
                                 }
                             } finally {
@@ -960,7 +982,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                 fromVestigeSecureExecution.interrupt();
                                 successfulMigration = true;
                             } finally {
-                                vestigePlatform.detach(installerAttach);
+                                synchronized (vestigePlatform) {
+                                    vestigePlatform.detach(installerAttach);
+                                }
                             }
                         } finally {
                             if (!successfulMigration) {
@@ -1256,7 +1280,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             final RuntimeApplicationContext finalPreviousRuntimeApplicationContext;
             if (resolve.isAttachmentScoped() || previousRuntimeApplicationContext == null) {
                 previousRuntimeApplicationContext = null;
-                attach = vestigePlatform.attach(resolve);
+                synchronized (vestigePlatform) {
+                    attach = vestigePlatform.attach(resolve);
+                }
                 classLoader = vestigePlatform.getClassLoader(attach);
                 if (applicationContext.isPrivateSystem()) {
                     vestigeSystem = rootVestigeSystem.createSubSystem("app" + installName);
@@ -1266,7 +1292,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 finalPreviousRuntimeApplicationContext = null;
             } else {
                 // reattach to platform
-                attach = vestigePlatform.attach(previousRuntimeApplicationContext.getClassLoader());
+                synchronized (vestigePlatform) {
+                    attach = vestigePlatform.attach(previousRuntimeApplicationContext.getClassLoader());
+                }
                 vestigeSystem = previousRuntimeApplicationContext.getVestigeSystem();
                 classLoader = previousRuntimeApplicationContext.getClassLoader();
                 finalPreviousRuntimeApplicationContext = previousRuntimeApplicationContext;
@@ -1340,7 +1368,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                 }
                                 LOGGER.error("Application ended with exception", e.getCause());
                             }
-                            vestigePlatform.detach(attach);
+                            synchronized (vestigePlatform) {
+                                vestigePlatform.detach(attach);
+                            }
                             // allow inner start to run
                             if (constructorMutex != null) {
                                 synchronized (constructorMutex) {

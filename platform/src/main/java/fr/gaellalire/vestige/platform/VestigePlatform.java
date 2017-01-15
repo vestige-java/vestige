@@ -35,14 +35,6 @@ public interface VestigePlatform {
 
     void detach(int id);
 
-    /*
-    void start(int id) throws InterruptedException;
-
-    void stop(int id) throws InterruptedException;
-
-    boolean isStarted(int id);
-    */
-
     List<Serializable> getClassLoaderKeys();
 
     AttachedVestigeClassLoader getAttachedVestigeClassLoaderByKey(Serializable key);
