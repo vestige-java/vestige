@@ -45,6 +45,8 @@ import fr.gaellalire.vestige.core.executor.VestigeExecutor;
 import fr.gaellalire.vestige.core.parser.ClassesStringParser;
 import fr.gaellalire.vestige.core.parser.NoStateStringParser;
 import fr.gaellalire.vestige.core.parser.StringParser;
+import fr.gaellalire.vestige.core.url.DelegateURLStreamHandler;
+import fr.gaellalire.vestige.core.url.DelegateURLStreamHandlerFactory;
 import fr.gaellalire.vestige.platform.system.VestigeJarURLStreamHandler;
 
 /**
@@ -287,24 +289,17 @@ public class DefaultVestigePlatform implements VestigePlatform {
             // create classloader with executor to remove this protection domain from access control
 
             Map<File, JarFile> cache = new HashMap<File, JarFile>();
-            final VestigeJarURLStreamHandler vestigeJarURLStreamHandler = new VestigeJarURLStreamHandler(cache);
+            DelegateURLStreamHandlerFactory delegateURLStreamHandlerFactory = new DelegateURLStreamHandlerFactory();
+            DelegateURLStreamHandler delegateURLStreamHandler = new DelegateURLStreamHandler();
+            setURLStreamHandlerFactoryDelegate(delegateURLStreamHandlerFactory, delegateURLStreamHandler, cache);
             vestigeClassLoader = vestigeExecutor.createVestigeClassLoader(ClassLoader.getSystemClassLoader(), convert(attachedVestigeClassLoader, classLoaderConfiguration),
-                    classStringParser, resourceStringParser, new URLStreamHandlerFactory() {
-
-                        @Override
-                        public URLStreamHandler createURLStreamHandler(final String protocol) {
-                            if ("jar".equals(protocol)) {
-                                return vestigeJarURLStreamHandler;
-                            }
-                            return null;
-                        }
-                    }, urls);
+                    classStringParser, resourceStringParser, delegateURLStreamHandlerFactory, urls);
 
             if (classLoaderConfiguration.isAttachmentScoped()) {
                 name = name + " @ " + Integer.toHexString(System.identityHashCode(attachmentMap));
             }
             attachedVestigeClassLoader = new AttachedVestigeClassLoader(vestigeClassLoader, classLoaderDependencies, Arrays.toString(urls), name,
-                    classLoaderConfiguration.isAttachmentScoped(), cache);
+                    classLoaderConfiguration.isAttachmentScoped(), cache, delegateURLStreamHandlerFactory, delegateURLStreamHandler);
             vestigeClassLoader.setData(attachedVestigeClassLoader);
             if (classLoaderConfiguration.isAttachmentScoped()) {
                 attachmentMap.put(key, vestigeClassLoader);
@@ -313,6 +308,21 @@ public class DefaultVestigePlatform implements VestigePlatform {
             }
         }
         return vestigeClassLoader.getData();
+    }
+
+    public static void setURLStreamHandlerFactoryDelegate(final DelegateURLStreamHandlerFactory delegateURLStreamHandlerFactory, final DelegateURLStreamHandler delegateURLStreamHandler, final Map<File, JarFile> cache) {
+        VestigeJarURLStreamHandler vestigeJarURLStreamHandler = new VestigeJarURLStreamHandler(delegateURLStreamHandler, cache);
+        delegateURLStreamHandler.setDelegate(vestigeJarURLStreamHandler);
+        delegateURLStreamHandlerFactory.setDelegate(new URLStreamHandlerFactory() {
+
+            @Override
+            public URLStreamHandler createURLStreamHandler(final String protocol) {
+                if ("jar".equals(protocol)) {
+                    return delegateURLStreamHandler;
+                }
+                return null;
+            }
+        });
     }
 
     public void addAttachment(final AttachedVestigeClassLoader attachedVestigeClassLoader) {
