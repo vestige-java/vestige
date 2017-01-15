@@ -21,18 +21,21 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.net.URLStreamHandler;
 import java.util.Map;
 import java.util.jar.JarFile;
+
+import fr.gaellalire.vestige.core.url.DelegateURLStreamHandler;
+import fr.gaellalire.vestige.core.url.VestigeURLStreamHandler;
 
 /**
  * @author Gael Lalire
  */
-public class VestigeJarURLStreamHandler extends URLStreamHandler {
+public class VestigeJarURLStreamHandler extends VestigeURLStreamHandler {
 
     private Map<File, JarFile> cache;
 
-    public VestigeJarURLStreamHandler(final Map<File, JarFile> cache) {
+    public VestigeJarURLStreamHandler(final DelegateURLStreamHandler delegateURLStreamHandler, final Map<File, JarFile> cache) {
+        super(delegateURLStreamHandler);
         this.cache = cache;
     }
 

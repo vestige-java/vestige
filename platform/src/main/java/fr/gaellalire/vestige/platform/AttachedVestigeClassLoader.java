@@ -24,6 +24,8 @@ import java.util.Map;
 import java.util.jar.JarFile;
 
 import fr.gaellalire.vestige.core.VestigeClassLoader;
+import fr.gaellalire.vestige.core.url.DelegateURLStreamHandler;
+import fr.gaellalire.vestige.core.url.DelegateURLStreamHandlerFactory;
 
 /**
  * @author Gael Lalire
@@ -46,12 +48,17 @@ public class AttachedVestigeClassLoader {
 
     private Map<File, JarFile> cache;
 
+    private DelegateURLStreamHandlerFactory delegateURLStreamHandlerFactory;
+
+    private DelegateURLStreamHandler delegateURLStreamHandler;
+
     public AttachedVestigeClassLoader(final List<AttachedVestigeClassLoader> dependencies) {
         this.dependencies = dependencies;
     }
 
     public AttachedVestigeClassLoader(final VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader, final List<AttachedVestigeClassLoader> dependencies,
-            final String urls, final String name, final boolean attachmentScoped, final Map<File, JarFile> cache) {
+            final String urls, final String name, final boolean attachmentScoped, final Map<File, JarFile> cache,
+            final DelegateURLStreamHandlerFactory delegateURLStreamHandlerFactory, final DelegateURLStreamHandler delegateURLStreamHandler) {
         this.vestigeClassLoader = vestigeClassLoader;
         this.dependencies = dependencies;
         this.urls = urls;
@@ -59,6 +66,8 @@ public class AttachedVestigeClassLoader {
         this.attachmentScoped = attachmentScoped;
         objects = new ArrayList<Object>();
         this.cache = cache;
+        this.delegateURLStreamHandlerFactory = delegateURLStreamHandlerFactory;
+        this.delegateURLStreamHandler = delegateURLStreamHandler;
     }
 
     public VestigeClassLoader<AttachedVestigeClassLoader> getVestigeClassLoader() {
@@ -95,6 +104,14 @@ public class AttachedVestigeClassLoader {
 
     public Map<File, JarFile> getCache() {
         return cache;
+    }
+
+    public DelegateURLStreamHandlerFactory getDelegateURLStreamHandlerFactory() {
+        return delegateURLStreamHandlerFactory;
+    }
+
+    public DelegateURLStreamHandler getDelegateURLStreamHandler() {
+        return delegateURLStreamHandler;
     }
 
     public boolean isAttachmentScoped() {
