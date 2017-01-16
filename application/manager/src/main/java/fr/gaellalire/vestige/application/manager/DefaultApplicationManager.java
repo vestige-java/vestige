@@ -499,7 +499,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                     }
                 }
             } catch (Exception e) {
-                LOGGER.error("Fail to uninstall properly", e);
+                throw new ApplicationException("Fail to uninstall properly", e);
             } finally {
                 synchronized (state) {
                     state.uninstall(installName);
