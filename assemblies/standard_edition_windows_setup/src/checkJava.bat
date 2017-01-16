@@ -25,3 +25,4 @@ set JAVA=%JAVA_HOME%\bin\java.exe
 echo "" > "%DIRNAME%\java_check.txt"
 
 endlocal
+

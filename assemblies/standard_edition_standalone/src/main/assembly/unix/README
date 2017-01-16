@@ -32,3 +32,4 @@ STOPPING
 
 CTRL-C or kill $VESTIGE_PID.
 Avoid a kill -9 which prevents vestige to shutdown properly.
+

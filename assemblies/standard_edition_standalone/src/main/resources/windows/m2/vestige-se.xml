@@ -39,3 +39,4 @@
     <fileAdditionalRepository id="vestige-repo" path="${vestige.mavenRepository}" />
   </config>
 </mavenLauncher>
+
