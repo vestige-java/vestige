@@ -30,4 +30,3 @@ Do not distribute the private key and do not add unknown public key in ssh\autho
 STOPPING
 
 Simply close the window opened with bat.
-

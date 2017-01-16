@@ -403,4 +403,3 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         return DefWindowProc(hWnd, uMsg, wParam, lParam);
     }
 }
-

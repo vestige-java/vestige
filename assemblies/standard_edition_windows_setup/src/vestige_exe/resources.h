@@ -5,4 +5,3 @@
 #define IDM_STOP  5
 #define IDM_SELECT_ALL 6
 #define IDI_APPICON 7
-

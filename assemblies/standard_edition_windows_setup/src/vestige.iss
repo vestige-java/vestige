@@ -66,5 +66,3 @@ begin
     if DowloadNow then ShellExec('open', 'http://www.java.com/getjava/','','',SW_SHOWNORMAL,ewNoWait,ErrorCode);
   end
 end;
-
-
