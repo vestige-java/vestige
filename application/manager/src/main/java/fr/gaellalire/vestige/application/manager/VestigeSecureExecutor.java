@@ -39,9 +39,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
-import fr.gaellalire.vestige.platform.system.PrivateVestigePolicy;
-import fr.gaellalire.vestige.platform.system.PrivateVestigeSecurityManager;
-import fr.gaellalire.vestige.platform.system.PublicVestigeSystem;
+import fr.gaellalire.vestige.system.PrivateVestigePolicy;
+import fr.gaellalire.vestige.system.PrivateVestigeSecurityManager;
+import fr.gaellalire.vestige.system.PublicVestigeSystem;
+import fr.gaellalire.vestige.system.PublicVestigeSystemCache;
 
 /**
  * @author Gael Lalire
@@ -60,9 +61,13 @@ public class VestigeSecureExecutor {
 
     private ThreadGroupDestroyer threadGroupDestroyer;
 
-    public VestigeSecureExecutor(final PrivateVestigeSecurityManager vestigeSecurityManager, final PrivateVestigePolicy vestigePolicy) {
+    private PublicVestigeSystem handlerVestigeSystem;
+
+    public VestigeSecureExecutor(final PrivateVestigeSecurityManager vestigeSecurityManager, final PrivateVestigePolicy vestigePolicy,
+            final PublicVestigeSystem handlerVestigeSystem) {
         this.vestigeSecurityManager = vestigeSecurityManager;
         this.vestigePolicy = vestigePolicy;
+        this.handlerVestigeSystem = handlerVestigeSystem;
         Set<Permission> resourcesPermissions = new HashSet<Permission>();
         try {
             resourcesPermissions.add(ClassLoader.getSystemResource("java/lang/Object.class").openConnection().getPermission());
@@ -105,8 +110,7 @@ public class VestigeSecureExecutor {
     }
 
     public <E> VestigeSecureExecution<E> execute(final ClassLoader contextClassLoader, final Set<Permission> additionnalPermissions, final List<ThreadGroup> threadGroups,
-            final String name, final PublicVestigeSystem appVestigeSystem, final VestigeSecureCallable<E> callable, final PublicVestigeSystem handlerVestigeSystem,
-            final FutureDoneHandler<E> doneHandler) {
+            final String name, final PublicVestigeSystem appVestigeSystem, final VestigeSecureCallable<E> callable, final FutureDoneHandler<E> doneHandler) {
         final ThreadGroup threadGroup = new ThreadGroup(name);
         final List<ThreadGroup> accessibleThreadGroups;
         final Permissions permissions;
@@ -139,8 +143,6 @@ public class VestigeSecureExecutor {
             accessibleThreadGroups = null;
             permissions = null;
         }
-
-
 
         final PrivilegedExceptionActionExecutor privilegedExecutor;
         if (appVestigeSystem != null && vestigeSecurityManager != null) {
@@ -181,7 +183,12 @@ public class VestigeSecureExecutor {
                                     if (appVestigeSystem != null) {
                                         appVestigeSystem.setCurrentSystem();
                                     }
-                                    return callable.call(privilegedExecutor);
+                                    PublicVestigeSystemCache vestigeSystemCache = appVestigeSystem.pushVestigeSystemCache();
+                                    try {
+                                        return callable.call(privilegedExecutor);
+                                    } finally {
+                                        vestigeSystemCache.clearCache();
+                                    }
                                 }
                             });
                         } catch (PrivilegedActionException e) {
@@ -191,7 +198,12 @@ public class VestigeSecureExecutor {
                         if (appVestigeSystem != null) {
                             appVestigeSystem.setCurrentSystem();
                         }
-                        return callable.call(privilegedExecutor);
+                        PublicVestigeSystemCache vestigeSystemCache = appVestigeSystem.pushVestigeSystemCache();
+                        try {
+                            return callable.call(privilegedExecutor);
+                        } finally {
+                            vestigeSystemCache.clearCache();
+                        }
                     }
                 } finally {
                     if (vestigeSecurityManager != null) {

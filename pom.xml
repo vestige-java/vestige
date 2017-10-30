@@ -124,6 +124,20 @@
           <preparationGoals>clean install</preparationGoals>
         </configuration>
       </plugin>
+      <!-- Maybe later to make vestige code modification harder (still possible tough) -->
+      <!-- <plugin> -->
+      <!-- <groupId>org.apache.maven.plugins</groupId> -->
+      <!-- <artifactId>maven-jarsigner-plugin</artifactId> -->
+      <!-- <version>1.4</version> -->
+      <!-- <executions> -->
+      <!-- <execution> -->
+      <!-- <id>sign</id> -->
+      <!-- <goals> -->
+      <!-- <goal>sign</goal> -->
+      <!-- </goals> -->
+      <!-- </execution> -->
+      <!-- </executions> -->
+      <!-- </plugin> -->
     </plugins>
   </build>
   <properties>
@@ -245,6 +259,11 @@
         <artifactId>bcpkix-jdk15on</artifactId>
         <version>${bouncycastle.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.codehaus.janino</groupId>
+        <artifactId>janino</artifactId>
+        <version>2.7.8</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
   <repositories>
@@ -339,6 +358,7 @@
     <module>utils</module>
     <module>job</module>
     <module>platform</module>
+    <module>system</module>
     <module>resolver</module>
     <module>application</module>
     <module>admin</module>

@@ -271,13 +271,23 @@ public final class VestigeMavenResolver {
 
         final VestigeClassLoader<?> mavenResolverClassLoader = vestigePlatform.getClassLoader(load);
 
-        String className = mavenResolverCache.getClassName();
-        Class<?> vestigeMainClass = Class.forName(className, true, mavenResolverClassLoader);
-        final Method vestigeMain = vestigeMainClass.getMethod("vestigeMain", VestigeExecutor.class, Class.forName(VestigePlatform.class.getName(), true, mavenResolverClassLoader),
-                Function.class, Function.class, List.class, WeakReference.class, String[].class);
+        Thread currentThread = Thread.currentThread();
+        ClassLoader contextClassLoader = currentThread.getContextClassLoader();
+        currentThread.setContextClassLoader(mavenResolverClassLoader);
+        Object loadedVestigePlatform;
+        final Method vestigeMain;
+        try {
+            String className = mavenResolverCache.getClassName();
+            Class<?> vestigeMainClass = Class.forName(className, false, mavenResolverClassLoader);
+            vestigeMain = vestigeMainClass.getMethod("vestigeMain", VestigeExecutor.class,
+                    Class.forName(VestigePlatform.class.getName(), false, mavenResolverClassLoader), Function.class, Function.class, List.class, WeakReference.class,
+                    String[].class);
 
-        // convert
-        Object loadedVestigePlatform = convertVestigePlatform(mavenResolverClassLoader, vestigePlatform, vestigeExecutor);
+            // convert, this will initialize some classes in mavenResolverClassLoader so we must set the contextClassLoader
+            loadedVestigePlatform = convertVestigePlatform(mavenResolverClassLoader, vestigePlatform, vestigeExecutor);
+        } finally {
+            currentThread.setContextClassLoader(contextClassLoader);
+        }
 
         thread.interrupt();
         thread.join();

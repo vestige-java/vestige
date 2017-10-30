@@ -59,9 +59,9 @@ import fr.gaellalire.vestige.job.TaskHelper;
 import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.VestigePlatform;
-import fr.gaellalire.vestige.platform.system.PrivateVestigePolicy;
-import fr.gaellalire.vestige.platform.system.PrivateVestigeSecurityManager;
-import fr.gaellalire.vestige.platform.system.PublicVestigeSystem;
+import fr.gaellalire.vestige.system.PrivateVestigePolicy;
+import fr.gaellalire.vestige.system.PrivateVestigeSecurityManager;
+import fr.gaellalire.vestige.system.PublicVestigeSystem;
 import fr.gaellalire.vestige.utils.FileUtils;
 
 /**
@@ -74,8 +74,6 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
     private VestigePlatform vestigePlatform;
 
     private PublicVestigeSystem rootVestigeSystem;
-
-    private PublicVestigeSystem managerVestigeSystem;
 
     private ApplicationRepositoryManager applicationDescriptorFactory;
 
@@ -113,8 +111,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         PrivateVestigePolicy vestigePolicy = new PrivateVestigePolicy(allPermissionCollection);
         vestigeSystem.setPolicy(vestigePolicy);
         this.rootVestigeSystem = vestigeSystem;
-        this.managerVestigeSystem = managerVestigeSystem;
-        this.vestigeSecureExecutor = new VestigeSecureExecutor(vestigeSecurityManager, vestigePolicy);
+        this.vestigeSecureExecutor = new VestigeSecureExecutor(vestigeSecurityManager, vestigePolicy, managerVestigeSystem);
         this.vestigePlatform = vestigePlatform;
         this.applicationDescriptorFactory = applicationDescriptorFactory;
         this.resolverFile = resolverFile;
@@ -353,7 +350,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                         return null;
                                     }
 
-                                }, managerVestigeSystem, null);
+                                }, null);
                         task = jobHelper.addTask("Calling install method");
                         vestigeSecureExecution.start();
                         try {
@@ -468,7 +465,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                             return null;
                                         }
 
-                                    }, managerVestigeSystem, null);
+                                    }, null);
                             task = jobHelper.addTask("Calling uninstall method");
                             vestigeSecureExecution.start();
                             try {
@@ -717,7 +714,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                     return null;
                                 }
 
-                            }, managerVestigeSystem, null);
+                            }, null);
                     vestigeSecureExecution.start();
                     vestigeSecureExecution.get();
                 } finally {
@@ -975,7 +972,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                                 return null;
                                             }
 
-                                        }, managerVestigeSystem, null);
+                                        }, null);
                                 vestigeSecureExecution.start();
                                 vestigeSecureExecution.get();
                                 notifyRunMutex.run();
@@ -1113,7 +1110,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                             return null;
                                         }
 
-                                    }, managerVestigeSystem, null);
+                                    }, null);
                             vestigeSecureExecution.start();
                             vestigeSecureExecution.get();
                         } finally {
@@ -1351,7 +1348,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                             applicationCallable.call();
                             return null;
                         }
-                    }, managerVestigeSystem, new FutureDoneHandler<Void>() {
+                    }, new FutureDoneHandler<Void>() {
 
                         @Override
                         public void futureDone(final Future<Void> future) {

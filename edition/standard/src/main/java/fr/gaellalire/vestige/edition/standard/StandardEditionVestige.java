@@ -72,13 +72,14 @@ import fr.gaellalire.vestige.job.JobManager;
 import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
 import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
 import fr.gaellalire.vestige.platform.VestigePlatform;
-import fr.gaellalire.vestige.platform.system.JVMVestigeSystemActionExecutor;
-import fr.gaellalire.vestige.platform.system.PrivateVestigeSecurityManager;
-import fr.gaellalire.vestige.platform.system.PrivateWhiteListVestigePolicy;
-import fr.gaellalire.vestige.platform.system.PublicVestigeSystem;
-import fr.gaellalire.vestige.platform.system.SecureProxySelector;
-import fr.gaellalire.vestige.platform.system.VestigeSystemAction;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
+import fr.gaellalire.vestige.system.JVMVestigeSystemActionExecutor;
+import fr.gaellalire.vestige.system.PrivateVestigeSecurityManager;
+import fr.gaellalire.vestige.system.PrivateWhiteListVestigePolicy;
+import fr.gaellalire.vestige.system.PublicVestigeSystem;
+import fr.gaellalire.vestige.system.PublicVestigeSystemCache;
+import fr.gaellalire.vestige.system.SecureProxySelector;
+import fr.gaellalire.vestige.system.VestigeSystemAction;
 
 /**
  * @author Gael Lalire
@@ -158,6 +159,8 @@ public class StandardEditionVestige implements Runnable {
             vestigeStateListener = new NoopVestigeStateListener();
         }
         if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Running on JVM {} (home:{})", System.getProperty("java.specification.version"), System.getProperty("java.home"));
+
             startTimeMillis = System.currentTimeMillis();
             String implementationVersion = null;
             Package cPackage = StandardEditionVestige.class.getPackage();
@@ -282,8 +285,8 @@ public class StandardEditionVestige implements Runnable {
 
         JobManager actionManager = new DefaultJobManager();
 
-        defaultApplicationManager = new DefaultApplicationManager(actionManager, appBaseFile, appDataFile, vestigePlatform, applicationsVestigeSystem, standardEditionVestigeSystem,
-                vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile);
+        defaultApplicationManager = new DefaultApplicationManager(actionManager, appBaseFile, appDataFile, vestigePlatform, applicationsVestigeSystem,
+                standardEditionVestigeSystem, vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile);
         try {
             defaultApplicationManager.restoreState();
         } catch (ApplicationException e) {
@@ -488,22 +491,6 @@ public class StandardEditionVestige implements Runnable {
             }
             final Thread currentThread = Thread.currentThread();
 
-            File logbackConfigurationFile = new File(System.getProperty("logback.configurationFile"));
-            if (!logbackConfigurationFile.exists()) {
-                try {
-                    File logbackConfigurationParentFile = logbackConfigurationFile.getParentFile();
-                    if (!logbackConfigurationParentFile.isDirectory()) {
-                        if (!logbackConfigurationParentFile.mkdirs()) {
-                            throw new RuntimeException("Unable to create logback.xml parent directory");
-                        }
-                    }
-                    ConfFileUtils.copy(StandardEditionVestige.class.getResourceAsStream("logback.xml"), logbackConfigurationFile);
-                } catch (FileNotFoundException e) {
-                    throw new RuntimeException("logback.configurationFile does not exists", e);
-                } catch (IOException e) {
-                    throw new RuntimeException("Unable to copy logback.configurationFile file", e);
-                }
-            }
             // logback can use system stream directly
             try {
                 giveDirectStreamAccessToLogback();
@@ -571,7 +558,12 @@ public class StandardEditionVestige implements Runnable {
                         standardEditionVestige.setVestigeExecutor(vestigeExecutor);
                         standardEditionVestige.setVestigePlatform(vestigePlatform);
                         standardEditionVestige.setVestigeStateListener(vestigeStateListener);
-                        standardEditionVestige.run();
+                        PublicVestigeSystemCache vestigeSystemCache = vestigeSystem.pushVestigeSystemCache();
+                        try {
+                            standardEditionVestige.run();
+                        } finally {
+                            vestigeSystemCache.clearCache();
+                        }
                     }
                 });
 

@@ -47,7 +47,6 @@ import fr.gaellalire.vestige.core.parser.NoStateStringParser;
 import fr.gaellalire.vestige.core.parser.StringParser;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandler;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandlerFactory;
-import fr.gaellalire.vestige.platform.system.VestigeJarURLStreamHandler;
 
 /**
  * @author Gael Lalire

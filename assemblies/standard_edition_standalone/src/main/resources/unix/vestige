@@ -59,6 +59,10 @@ MAVEN_RESOLVER_CACHE_FILE="$VESTIGE_DATA/m2/resolver-cache.ser"
 
 LOGBACK_CONFIGURATION_FILE="$VESTIGE_BASE/logback.xml"
 
+if [ ! -f "$LOGBACK_CONFIGURATION_FILE" ]; then
+  cp "$CONFDIR/template/logback.xml" "$LOGBACK_CONFIGURATION_FILE"
+fi
+
 VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Dvestige.mavenRepository="$DATADIR/repository" -Djava.util.logging.manager=fr.gaellalire.vestige.core.logger.JULLogManager -Dlogback.logsDirectory="$VESTIGE_BASE/logs" -Dlogback.configurationFile="$LOGBACK_CONFIGURATION_FILE")
 
 if "$JAVA" --add-modules java.xml.bind -version >/dev/null 2>&1; then

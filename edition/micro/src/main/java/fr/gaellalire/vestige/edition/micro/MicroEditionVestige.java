@@ -35,9 +35,9 @@ import fr.gaellalire.vestige.core.executor.VestigeExecutor;
 import fr.gaellalire.vestige.core.logger.VestigeLoggerFactory;
 import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
 import fr.gaellalire.vestige.platform.VestigePlatform;
-import fr.gaellalire.vestige.platform.logger.SLF4JLoggerFactoryAdapter;
-import fr.gaellalire.vestige.platform.logger.SLF4JPrintStream;
-import fr.gaellalire.vestige.platform.system.interceptor.VestigeProperties;
+import fr.gaellalire.vestige.system.interceptor.VestigeProperties;
+import fr.gaellalire.vestige.system.logger.SLF4JLoggerFactoryAdapter;
+import fr.gaellalire.vestige.system.logger.SLF4JPrintStream;
 
 /**
  * @author Gael Lalire

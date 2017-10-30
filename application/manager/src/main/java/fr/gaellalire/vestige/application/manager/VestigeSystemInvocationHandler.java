@@ -30,7 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import fr.gaellalire.vestige.platform.system.PublicVestigeSystem;
+import fr.gaellalire.vestige.system.PublicVestigeSystem;
 
 /**
  * @author Gael Lalire

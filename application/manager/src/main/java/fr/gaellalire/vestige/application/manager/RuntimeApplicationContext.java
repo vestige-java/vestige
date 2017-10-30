@@ -21,7 +21,7 @@ import java.util.concurrent.Callable;
 
 import fr.gaellalire.vestige.core.VestigeClassLoader;
 import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
-import fr.gaellalire.vestige.platform.system.PublicVestigeSystem;
+import fr.gaellalire.vestige.system.PublicVestigeSystem;
 
 /**
  * @author Gael Lalire
