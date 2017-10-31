@@ -440,6 +440,7 @@ public final class VestigeMavenResolver {
             long currentTimeMillis = 0;
             if (LOGGER.isInfoEnabled()) {
                 currentTimeMillis = System.currentTimeMillis();
+                LOGGER.info("Running on JVM {} ({})", System.getProperty("java.specification.version"), System.getProperty("java.home"));
                 LOGGER.info("Starting a maven application");
             }
 

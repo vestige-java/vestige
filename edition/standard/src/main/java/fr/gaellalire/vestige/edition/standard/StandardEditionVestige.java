@@ -159,8 +159,6 @@ public class StandardEditionVestige implements Runnable {
             vestigeStateListener = new NoopVestigeStateListener();
         }
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Running on JVM {} (home:{})", System.getProperty("java.specification.version"), System.getProperty("java.home"));
-
             startTimeMillis = System.currentTimeMillis();
             String implementationVersion = null;
             Package cPackage = StandardEditionVestige.class.getPackage();
