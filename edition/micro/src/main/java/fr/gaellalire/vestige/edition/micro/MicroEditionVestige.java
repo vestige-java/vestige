@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import fr.gaellalire.vestige.admin.command.VestigeCommandExecutor;
 import fr.gaellalire.vestige.admin.telnet.TelnetServer;
-import fr.gaellalire.vestige.application.descriptor.xml.PropertiesApplicationDescriptorFactory;
+import fr.gaellalire.vestige.application.descriptor.properties.PropertiesApplicationDescriptorFactory;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.DefaultApplicationManager;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;

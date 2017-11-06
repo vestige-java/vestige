@@ -27,11 +27,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 
-import jline.console.ConsoleReader;
-import jline.console.UserInterruptException;
-import jline.console.completer.CandidateListCompletionHandler;
-import jline.console.history.FileHistory;
-
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.sshd.server.Command;
 import org.apache.sshd.server.Environment;
@@ -44,6 +39,10 @@ import fr.gaellalire.vestige.admin.command.DefaultCommandContext;
 import fr.gaellalire.vestige.job.JobController;
 import fr.gaellalire.vestige.job.JobListener;
 import fr.gaellalire.vestige.job.TaskListener;
+import jline.console.ConsoleReader;
+import jline.console.UserInterruptException;
+import jline.console.completer.CandidateListCompletionHandler;
+import jline.console.history.FileHistory;
 
 /**
  * @author Gael Lalire
@@ -92,7 +91,7 @@ public class SSHShellCommand implements Command, Runnable {
 
         private Thread thread;
 
-        public AsyncInputStream() {
+        AsyncInputStream() {
             byteArrayOutputStream = new ByteArrayOutputStream();
             thread = new Thread(this, "vestige-shell-stream" + INPUT_STREAM_THREAD_COUNT.incrementAndGet());
             thread.start();

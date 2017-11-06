@@ -1,4 +1,4 @@
-package fr.gaellalire.vestige.platform.test;
+package fr.gaellalire.vestige.system.test;
 
 import java.security.AccessController;
 import java.security.ProtectionDomain;

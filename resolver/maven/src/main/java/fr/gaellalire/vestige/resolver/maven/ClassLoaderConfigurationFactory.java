@@ -164,13 +164,20 @@ public class ClassLoaderConfigurationFactory {
             if (scope == Scope.PLATFORM) {
                 name = classLoaderConfigurationKey.getArtifacts().toString();
             } else {
-                classLoaderConfigurationKey = new MavenClassLoaderConfigurationKey(classLoaderConfigurationKey.getArtifacts(), keyDependencies, scope);
+                classLoaderConfigurationKey = new MavenClassLoaderConfigurationKey(classLoaderConfigurationKey.getArtifacts(), keyDependencies, scope,
+                        classLoaderConfigurationKey.getModuleConfiguration());
                 name = classLoaderConfigurationKey.getArtifacts().toString() + " of " + appName;
             }
-            cachedClassLoaderConfiguration = new ClassLoaderConfiguration(classLoaderConfigurationKey, name, scope == Scope.ATTACHMENT, urls, dependencies, paths, pathIdsList, pathsByResourceName);
+            cachedClassLoaderConfiguration = new ClassLoaderConfiguration(classLoaderConfigurationKey, name, scope == Scope.ATTACHMENT, urls, dependencies, paths, pathIdsList,
+                    pathsByResourceName, classLoaderConfigurationKey.getModuleConfiguration());
             LOGGER.trace("Classloader rules created");
         }
         return cachedClassLoaderConfiguration;
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        return super.equals(obj);
     }
 
     @Override

@@ -20,7 +20,7 @@
               <goal>check</goal>
             </goals>
             <configuration>
-              <excludes>**/org/**/*</excludes>
+              <excludes>module-info.java,**/org/**/*</excludes>
             </configuration>
           </execution>
         </executions>
@@ -45,15 +45,7 @@
       </plugin>
     </plugins>
   </build>
-  <properties>
-    <maven.version>3.2.5</maven.version>
-  </properties>
   <dependencies>
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>${guava.version}</version>
-    </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>vestige.core</artifactId>
@@ -81,16 +73,10 @@
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
-      <!-- <scope>runtime</scope> -->
     </dependency>
     <dependency>
       <groupId>org.codehaus.janino</groupId>
       <artifactId>janino</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>javax.inject</groupId>
-      <artifactId>javax.inject</artifactId>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.maven.resolver</groupId>
@@ -106,29 +92,6 @@
       <groupId>org.apache.maven.resolver</groupId>
       <artifactId>maven-resolver-connector-basic</artifactId>
       <version>${maven-resolver.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.maven</groupId>
-      <artifactId>maven-aether-provider</artifactId>
-      <version>${maven.version}</version>
-      <exclusions>
-        <exclusion>
-          <artifactId>aether-api</artifactId>
-          <groupId>org.eclipse.aether</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>aether-impl</artifactId>
-          <groupId>org.eclipse.aether</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>aether-spi</artifactId>
-          <groupId>org.eclipse.aether</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>aether-util</artifactId>
-          <groupId>org.eclipse.aether</groupId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
@@ -151,16 +114,14 @@
       <artifactId>maven-resolver-impl</artifactId>
       <version>${maven-resolver.version}</version>
     </dependency>
+
+    <!-- maven dependencies are copied into this jar, so we avoid multiple package issues -->
     <dependency>
-      <groupId>org.apache.maven</groupId>
-      <artifactId>maven-settings-builder</artifactId>
-      <version>${maven.version}</version>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>maven</artifactId>
+      <version>${vestige.maven.version}</version>
     </dependency>
-    <dependency>
-      <groupId>org.apache.maven</groupId>
-      <artifactId>maven-model-builder</artifactId>
-      <version>${maven.version}</version>
-    </dependency>
+
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>

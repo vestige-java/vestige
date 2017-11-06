@@ -117,6 +117,13 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>vestige.jpms</artifactId>
+      <type>zip</type>
+      <classifier>modulepatch</classifier>
+      <version>${vestige.jpms.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>vestige.core</artifactId>
     </dependency>
   </dependencies>

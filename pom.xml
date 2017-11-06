@@ -20,11 +20,11 @@
         </plugin>
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.3</version>
+          <version>3.7.0</version>
         </plugin>
         <plugin>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>2.10</version>
+          <version>3.0.2</version>
         </plugin>
         <plugin>
           <artifactId>maven-deploy-plugin</artifactId>
@@ -45,6 +45,11 @@
         <plugin>
           <artifactId>maven-javadoc-plugin</artifactId>
           <version>2.10.3</version>
+          <configuration>
+            <sourceFileExcludes>
+              <sourceFileExclude>module-info.java</sourceFileExclude>
+            </sourceFileExcludes>
+          </configuration>
         </plugin>
         <plugin>
           <artifactId>maven-release-plugin</artifactId>
@@ -85,7 +90,7 @@
         <plugin>
           <groupId>org.jvnet.jaxb2.maven2</groupId>
           <artifactId>maven-jaxb2-plugin</artifactId>
-          <version>0.12.3</version>
+          <version>0.13.2</version>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -95,6 +100,9 @@
         <configuration>
           <source>1.6</source>
           <target>1.6</target>
+          <excludes>
+            <exclude>module-info.java</exclude>
+          </excludes>
         </configuration>
       </plugin>
       <plugin>
@@ -103,6 +111,7 @@
           <configLocation>${basedir}/src/main/config/checkstyle_config.xml</configLocation>
           <enableRulesSummary>false</enableRulesSummary>
           <violationSeverity>warning</violationSeverity>
+          <excludes>module-info.java</excludes>
         </configuration>
       </plugin>
       <plugin>
@@ -143,30 +152,31 @@
   <properties>
     <at>@</at>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <slf4j.version>1.7.7</slf4j.version>
+    <slf4j.version>1.7.25</slf4j.version>
     <vestige.core.version>1</vestige.core.version>
-    <vestige.jvm_enhancer.version>1.0</vestige.jvm_enhancer.version>
-    <logback.version>1.1.3</logback.version>
+    <vestige.jpms.version>1.0</vestige.jpms.version>
+    <vestige.jvm_enhancer.version>2.1</vestige.jvm_enhancer.version>
+    <vestige.maven.version>java6-1</vestige.maven.version>
+    <logback.version>1.2.3</logback.version>
     <jetty.version>8.1.11.v20130520</jetty.version>
     <milton.version>2.5.0.1</milton.version>
     <javax-servlet.version>3.0.0.v201112011016</javax-servlet.version>
-    <bouncycastle.version>1.50</bouncycastle.version>
+    <bouncycastle.version>1.58</bouncycastle.version>
     <httpcomponents.version>4.4.1</httpcomponents.version>
-    <proxy_vole.version>0.0.6</proxy_vole.version>
-    <maven-resolver.version>java6-1.2.0</maven-resolver.version>
-    <guava.version>18.0</guava.version>
+    <proxy_vole.version>java6-2</proxy_vole.version>
+    <maven-resolver.version>java6-1</maven-resolver.version>
   </properties>
   <dependencyManagement>
     <dependencies>
       <dependency>
-        <groupId>javax.inject</groupId>
-        <artifactId>javax.inject</artifactId>
-        <version>1</version>
-      </dependency>
-      <dependency>
         <groupId>fr.gaellalire.vestige</groupId>
         <artifactId>vestige.core</artifactId>
         <version>${vestige.core.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>fr.gaellalire.vestige</groupId>
+        <artifactId>vestige.jpms</artifactId>
+        <version>${vestige.jpms.version}</version>
       </dependency>
       <dependency>
         <groupId>org.slf4j</groupId>
@@ -330,6 +340,7 @@
         <configuration>
           <configLocation>${basedir}/src/main/config/checkstyle_config.xml</configLocation>
           <enableRulesSummary>false</enableRulesSummary>
+          <excludes>module-info.java</excludes>
         </configuration>
       </plugin>
       <plugin>
@@ -365,4 +376,52 @@
     <module>edition</module>
     <module>assemblies</module>
   </modules>
+  <profiles>
+    <profile>
+      <id>java9</id>
+      <build>
+        <resources>
+          <resource>
+            <directory>${project.basedir}/src/main/resources</directory>
+            <excludes>
+              <exclude>module-info.class</exclude>
+            </excludes>
+          </resource>
+        </resources>
+        <plugins>
+          <plugin>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <source>9</source>
+              <target>9</target>
+              <excludes combine.self="override">
+              </excludes>
+            </configuration>
+          </plugin>
+          <plugin>
+            <artifactId>maven-resources-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>update-module-info</id>
+                <phase>compile</phase>
+                <goals>
+                  <goal>copy-resources</goal>
+                </goals>
+                <configuration>
+                  <resources>
+                    <resource>
+                      <directory>${project.build.outputDirectory}</directory>
+                      <include>module-info.class</include>
+                      <filtering>false</filtering>
+                    </resource>
+                  </resources>
+                  <outputDirectory>${project.basedir}/src/main/resources</outputDirectory>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

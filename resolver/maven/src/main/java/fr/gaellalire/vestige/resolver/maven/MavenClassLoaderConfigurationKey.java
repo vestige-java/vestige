@@ -21,6 +21,8 @@ import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
 
+import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
+
 /**
  * @author Gael Lalire
  */
@@ -32,15 +34,23 @@ public class MavenClassLoaderConfigurationKey implements Serializable {
 
     private List<MavenClassLoaderConfigurationKey> dependencies;
 
+    private JPMSClassLoaderConfiguration moduleConfiguration;
+
     private int hashCode;
 
     private Scope scope;
 
-    public MavenClassLoaderConfigurationKey(final List<MavenArtifact> artifacts, final List<MavenClassLoaderConfigurationKey> dependencies, final Scope scope) {
+    public MavenClassLoaderConfigurationKey(final List<MavenArtifact> artifacts, final List<MavenClassLoaderConfigurationKey> dependencies, final Scope scope,
+            final JPMSClassLoaderConfiguration moduleConfiguration) {
         this.artifacts = artifacts;
         this.dependencies = dependencies;
         hashCode = artifacts.hashCode() + dependencies.hashCode();
         this.scope = scope;
+        this.moduleConfiguration = moduleConfiguration;
+    }
+
+    public JPMSClassLoaderConfiguration getModuleConfiguration() {
+        return moduleConfiguration;
     }
 
     public List<MavenArtifact> getArtifacts() {
@@ -107,6 +117,9 @@ public class MavenClassLoaderConfigurationKey implements Serializable {
             return false;
         }
         if (!dependencies.equals(other.dependencies)) {
+            return false;
+        }
+        if (!moduleConfiguration.equals(other.moduleConfiguration)) {
             return false;
         }
         return true;

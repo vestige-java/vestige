@@ -15,6 +15,9 @@
       <excludes>
         <exclude>fr.gaellalire.vestige:vestige.assemblies.standard_edition_bootstrap:pom</exclude>
         <exclude>fr.gaellalire.vestige:vestige.core:jar</exclude>
+        <exclude>fr.gaellalire.vestige:vestige.jvm_enhancer.runtime:zip:unix</exclude>
+        <exclude>fr.gaellalire.vestige:vestige.jvm_enhancer.runtime:zip:windows</exclude>
+        <exclude>fr.gaellalire.vestige:vestige.jpms:zip:modulepatch</exclude>
       </excludes>
     </repository>
   </repositories>
@@ -57,6 +60,16 @@
       <unpack>true</unpack>
       <includes>
         <include>fr.gaellalire.vestige:vestige.jvm_enhancer.runtime:zip:windows</include>
+      </includes>
+    </dependencySet>
+    <dependencySet>
+      <fileMode>0644</fileMode>
+      <useProjectArtifact>false</useProjectArtifact>
+      <useTransitiveDependencies>false</useTransitiveDependencies>
+      <outputDirectory>/lib</outputDirectory>
+      <unpack>true</unpack>
+      <includes>
+        <include>fr.gaellalire.vestige:vestige.jpms:zip:modulepatch</include>
       </includes>
     </dependencySet>
   </dependencySets>

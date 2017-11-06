@@ -54,6 +54,10 @@
     <xs:attribute name="javaSpecificationVersion" type="xs:string" use="required" />
   </xs:complexType>
 
+  <xs:complexType name="ModulePackageName">
+    <xs:attribute name="module" type="xs:string" use="required" />
+    <xs:attribute name="package" type="xs:string" use="required" />
+  </xs:complexType>
 
   <xs:complexType name="Installer">
     <xs:choice>
@@ -74,8 +78,10 @@
   </xs:complexType>
 
   <xs:complexType name="URLsClassType">
-    <xs:sequence minOccurs="0" maxOccurs="unbounded">
-      <xs:element name="url" type="xs:anyURI" />
+    <xs:sequence>
+      <xs:element name="url" type="xs:anyURI" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element name="addExports" type="ModulePackageName" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element name="addOpens" type="ModulePackageName" minOccurs="0" maxOccurs="unbounded" />      
     </xs:sequence>
     <xs:attribute name="class" type="xs:string" use="required" />
     <xs:attribute name="scope" type="Scope" default="PLATFORM" />
@@ -121,8 +127,10 @@
   </xs:complexType>
 
   <xs:complexType name="ModifyDependency">
-    <xs:sequence minOccurs="0" maxOccurs="unbounded">
-      <xs:element name="addDependency" type="AddDependency" />
+    <xs:sequence>
+      <xs:element name="addDependency" type="AddDependency" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element name="addExports" type="ModulePackageName" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element name="addOpens" type="ModulePackageName" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
     <xs:attribute name="groupId" type="xs:string" use="required" />
     <xs:attribute name="artifactId" type="xs:string" use="required" />

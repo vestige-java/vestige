@@ -2,6 +2,14 @@
   <launch class="fr.gaellalire.vestige.edition.standard.StandardEditionVestige" groupId="fr.gaellalire.vestige" artifactId="vestige.edition.standard" version="${project.version}"
     mode="FIXED_DEPENDENCIES" />
   <config superPomRepositoriesUsed="false" pomRepositoriesIgnored="true">
+    <modifyDependency artifactId="vestige.system" groupId="fr.gaellalire.vestige">
+      <addOpens module="java.logging" package="java.util.logging" />
+      <addOpens module="java.base" package="java.security" />
+      <addOpens module="java.base" package="sun.security.jca" />
+      <addOpens module="java.base" package="java.lang.reflect" />
+      <addOpens module="java.base" package="java.net" />
+      <addOpens module="java.sql" package="java.sql" />
+    </modifyDependency>
     <modifyDependency artifactId="milton-server-ce" groupId="io.milton">
       <addDependency artifactId="javax.servlet" groupId="org.eclipse.jetty.orbit" version="${javax-servlet.version}" />
     </modifyDependency>

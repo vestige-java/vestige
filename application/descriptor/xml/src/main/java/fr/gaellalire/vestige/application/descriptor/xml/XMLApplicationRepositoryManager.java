@@ -65,6 +65,7 @@ import fr.gaellalire.vestige.application.manager.VersionUtils;
 import fr.gaellalire.vestige.job.JobHelper;
 import fr.gaellalire.vestige.job.TaskHelper;
 import fr.gaellalire.vestige.resolver.maven.DefaultDependencyModifier;
+import fr.gaellalire.vestige.resolver.maven.DefaultJPMSConfiguration;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
 import fr.gaellalire.vestige.resolver.maven.MavenRepository;
 
@@ -211,6 +212,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
     public MavenConfigResolved resolveMavenConfig(final MavenConfig mavenConfig) {
         List<MavenRepository> additionalRepositories = new ArrayList<MavenRepository>();
         DefaultDependencyModifier defaultDependencyModifier = new DefaultDependencyModifier();
+        DefaultJPMSConfiguration defaultJPMSConfiguration = new DefaultJPMSConfiguration();
         for (Object object : mavenConfig.getModifyDependencyOrReplaceDependencyOrAdditionalRepository()) {
             if (object instanceof ModifyDependency) {
                 ModifyDependency modifyDependency = (ModifyDependency) object;
@@ -219,6 +221,8 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
                 for (AddDependency addDependency : addDependencies) {
                     dependencies.add(new Dependency(new DefaultArtifact(addDependency.getGroupId(), addDependency.getArtifactId(), "jar", addDependency.getVersion()), "runtime"));
                 }
+                defaultJPMSConfiguration.addModuleConfiguration(modifyDependency.getGroupId(), modifyDependency.getArtifactId(),
+                        XMLApplicationDescriptor.toModuleConfigurations(modifyDependency.getAddExports(), modifyDependency.getAddOpens()));
                 defaultDependencyModifier.add(modifyDependency.getGroupId(), modifyDependency.getArtifactId(), dependencies);
             } else if (object instanceof ReplaceDependency) {
                 ReplaceDependency replaceDependency = (ReplaceDependency) object;
@@ -246,7 +250,8 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
                 additionalRepositories.add(new MavenRepository(additionalRepository.getId(), additionalRepository.getLayout(), additionalRepository.getUrl()));
             }
         }
-        return new MavenConfigResolved(mavenConfig.isSuperPomRepositoriesUsed(), mavenConfig.isPomRepositoriesIgnored(), additionalRepositories, defaultDependencyModifier);
+        return new MavenConfigResolved(mavenConfig.isSuperPomRepositoriesUsed(), mavenConfig.isPomRepositoriesIgnored(), additionalRepositories, defaultDependencyModifier,
+                defaultJPMSConfiguration);
     }
 
     @SuppressWarnings("unchecked")

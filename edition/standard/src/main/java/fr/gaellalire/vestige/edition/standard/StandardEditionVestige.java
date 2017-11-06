@@ -69,6 +69,9 @@ import fr.gaellalire.vestige.edition.standard.schema.Settings;
 import fr.gaellalire.vestige.edition.standard.schema.Web;
 import fr.gaellalire.vestige.job.DefaultJobManager;
 import fr.gaellalire.vestige.job.JobManager;
+import fr.gaellalire.vestige.jpms.JPMSAccessor;
+import fr.gaellalire.vestige.jpms.JPMSAccessorLoader;
+import fr.gaellalire.vestige.jpms.JPMSModuleAccessor;
 import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
 import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
 import fr.gaellalire.vestige.platform.VestigePlatform;
@@ -137,8 +140,7 @@ public class StandardEditionVestige implements Runnable {
     }
 
     /**
-     * This constructor should not have its parameter modified.
-     * You can add setter to give more information.
+     * This constructor should not have its parameter modified. You can add setter to give more information.
      */
     public StandardEditionVestige(final File baseFile, final File dataFile, final PublicVestigeSystem vestigeSystem) {
         this.baseFile = baseFile;
@@ -183,7 +185,7 @@ public class StandardEditionVestige implements Runnable {
                 throw new RuntimeException("Unable to copy settings file", e);
             }
         }
-        LOGGER.info("Use {} for vestige settings file", settingsFile);
+        LOGGER.info("Use {} for Vestige settings file", settingsFile);
 
         Unmarshaller unMarshaller = null;
         try {
@@ -257,19 +259,19 @@ public class StandardEditionVestige implements Runnable {
         // if none exists then no config file is used
         File mavenSettingsFile = new File(new File(baseFile, "m2"), "settings.xml");
         if (!mavenSettingsFile.exists()) {
-            LOGGER.debug("No vestige maven settings file found at {}", mavenSettingsFile);
+            LOGGER.debug("No vestige Maven settings file found at {}", mavenSettingsFile);
             mavenSettingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
             if (!mavenSettingsFile.exists()) {
-                LOGGER.debug("No user maven settings file found at {}", mavenSettingsFile);
+                LOGGER.debug("No user Maven settings file found at {}", mavenSettingsFile);
                 mavenSettingsFile = null;
             }
         }
 
         if (LOGGER.isInfoEnabled()) {
             if (mavenSettingsFile == null) {
-                LOGGER.info("No maven settings file found");
+                LOGGER.info("No Maven settings file found");
             } else {
-                LOGGER.info("Use {} for maven settings file", mavenSettingsFile);
+                LOGGER.info("Use {} for Maven settings file", mavenSettingsFile);
             }
         }
 
@@ -283,8 +285,8 @@ public class StandardEditionVestige implements Runnable {
 
         JobManager actionManager = new DefaultJobManager();
 
-        defaultApplicationManager = new DefaultApplicationManager(actionManager, appBaseFile, appDataFile, vestigePlatform, applicationsVestigeSystem,
-                standardEditionVestigeSystem, vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile);
+        defaultApplicationManager = new DefaultApplicationManager(actionManager, appBaseFile, appDataFile, vestigePlatform, applicationsVestigeSystem, standardEditionVestigeSystem,
+                vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile);
         try {
             defaultApplicationManager.restoreState();
         } catch (ApplicationException e) {
@@ -481,8 +483,8 @@ public class StandardEditionVestige implements Runnable {
     }
 
     public static void vestigeMain(final VestigeExecutor vestigeExecutor, final VestigePlatform vestigePlatform, final Function<Thread, Void, RuntimeException> addShutdownHook,
-            final Function<Thread, Void, RuntimeException> removeShutdownHook, final List<? extends ClassLoader> privilegedClassloaders, final WeakReference<Object> bootstrapObject,
-            final String[] args) {
+            final Function<Thread, Void, RuntimeException> removeShutdownHook, final List<? extends ClassLoader> privilegedClassloaders,
+            final WeakReference<Object> bootstrapObject, final String[] args) {
         try {
             if (args.length != 4) {
                 throw new IllegalArgumentException("expected 4 arguments (vestige base, vestige data, security, listener port) got " + args.length);
@@ -578,6 +580,17 @@ public class StandardEditionVestige implements Runnable {
 
     public static void vestigeEnhancedCoreMain(final VestigeExecutor vestigeExecutor, final Function<Thread, Void, RuntimeException> addShutdownHook,
             final Function<Thread, Void, RuntimeException> removeShutdownHook, final String[] args) {
+        JPMSAccessor jpmsAccessor = JPMSAccessorLoader.INSTANCE;
+        if (jpmsAccessor != null) {
+            JPMSModuleAccessor javaLogging = jpmsAccessor.findBootModule("java.logging");
+            javaLogging.addOpens("java.util.logging", JVMVestigeSystemActionExecutor.class);
+            JPMSModuleAccessor javaBaseModule = jpmsAccessor.findBootModule("java.base");
+            javaBaseModule.addOpens("java.security", JVMVestigeSystemActionExecutor.class);
+            javaBaseModule.addOpens("sun.security.jca", JVMVestigeSystemActionExecutor.class);
+            javaBaseModule.addOpens("java.lang.reflect", JVMVestigeSystemActionExecutor.class);
+            javaBaseModule.addOpens("java.net", JVMVestigeSystemActionExecutor.class);
+            jpmsAccessor.findBootModule("java.sql").addOpens("java.sql", JVMVestigeSystemActionExecutor.class);
+        }
         VestigePlatform vestigePlatform = new DefaultVestigePlatform(vestigeExecutor);
         vestigeMain(vestigeExecutor, vestigePlatform, addShutdownHook, removeShutdownHook, null, null, args);
     }

@@ -20,6 +20,7 @@ package fr.gaellalire.vestige.application.descriptor.xml;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.Permission;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -40,6 +41,8 @@ import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.VersionUtils;
 import fr.gaellalire.vestige.job.JobHelper;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
+import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
+import fr.gaellalire.vestige.platform.ModuleConfiguration;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
 import fr.gaellalire.vestige.resolver.maven.ResolveMode;
 import fr.gaellalire.vestige.resolver.maven.Scope;
@@ -192,9 +195,24 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
                 name = configurationName;
             }
             return new ClassLoaderConfiguration(key, name, urlsInstaller.getScope() == fr.gaellalire.vestige.application.descriptor.xml.schema.application.Scope.ATTACHMENT, urls,
-                    Collections.<ClassLoaderConfiguration> emptyList(), null, null, null);
+                    Collections.<ClassLoaderConfiguration> emptyList(), null, null, null,
+                    JPMSClassLoaderConfiguration.EMPTY_INSTANCE.merge(toModuleConfigurations(urlsInstaller.getAddExports(), urlsInstaller.getAddOpens())));
         }
         return resolve(configurationName, installer.getMavenInstaller(), actionHelper);
+    }
+
+    public static List<ModuleConfiguration> toModuleConfigurations(final List<fr.gaellalire.vestige.application.descriptor.xml.schema.application.ModulePackageName> addExports,
+            final List<fr.gaellalire.vestige.application.descriptor.xml.schema.application.ModulePackageName> addOpens) {
+        List<ModuleConfiguration> moduleConfigurations = new ArrayList<ModuleConfiguration>(addExports.size() + addOpens.size());
+        for (fr.gaellalire.vestige.application.descriptor.xml.schema.application.ModulePackageName modulePackageName : addExports) {
+            moduleConfigurations
+                    .add(new ModuleConfiguration(modulePackageName.getModule(), Collections.singleton(modulePackageName.getPackage()), Collections.<String> emptySet()));
+        }
+        for (fr.gaellalire.vestige.application.descriptor.xml.schema.application.ModulePackageName modulePackageName : addOpens) {
+            moduleConfigurations
+                    .add(new ModuleConfiguration(modulePackageName.getModule(), Collections.<String> emptySet(), Collections.singleton(modulePackageName.getPackage())));
+        }
+        return moduleConfigurations;
     }
 
     public String getLauncherClassName() throws ApplicationException {
@@ -251,7 +269,8 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
                 name = configurationName;
             }
             return new ClassLoaderConfiguration(key, name, urlsLauncher.getScope() == fr.gaellalire.vestige.application.descriptor.xml.schema.application.Scope.ATTACHMENT, urls,
-                    Collections.<ClassLoaderConfiguration> emptyList(), null, null, null);
+                    Collections.<ClassLoaderConfiguration> emptyList(), null, null, null,
+                    JPMSClassLoaderConfiguration.EMPTY_INSTANCE.merge(toModuleConfigurations(urlsLauncher.getAddExports(), urlsLauncher.getAddOpens())));
         }
         return resolve(configurationName, launcher.getMavenLauncher(), actionHelper);
     }
@@ -299,7 +318,8 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
 
         try {
             return mavenArtifactResolver.resolve(configurationName, mavenClassType.getGroupId(), mavenClassType.getArtifactId(), mavenClassType.getVersion(),
-                    mavenConfigResolved.getAdditionalRepositories(), mavenConfigResolved.getDefaultDependencyModifier(), resolveMode, convertScope(mavenClassType.getScope()),
+                    mavenConfigResolved.getAdditionalRepositories(), mavenConfigResolved.getDefaultDependencyModifier(), mavenConfigResolved.getDefaultJPMSConfiguration(),
+                    resolveMode, convertScope(mavenClassType.getScope()),
                     scopeModifier, mavenConfigResolved.isSuperPomRepositoriesUsed(), mavenConfigResolved.isPomRepositoriesIgnored(), actionHelper);
         } catch (Exception e) {
             throw new ApplicationException("Unable to resolve", e);

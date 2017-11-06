@@ -47,6 +47,8 @@ import fr.gaellalire.vestige.core.parser.NoStateStringParser;
 import fr.gaellalire.vestige.core.parser.StringParser;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandler;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandlerFactory;
+import fr.gaellalire.vestige.jpms.JPMSAccessorLoader;
+import fr.gaellalire.vestige.jpms.JPMSModuleAccessor;
 
 /**
  * @author Gael Lalire
@@ -293,6 +295,21 @@ public class DefaultVestigePlatform implements VestigePlatform {
             setURLStreamHandlerFactoryDelegate(delegateURLStreamHandlerFactory, delegateURLStreamHandler, cache);
             vestigeClassLoader = vestigeExecutor.createVestigeClassLoader(ClassLoader.getSystemClassLoader(), convert(attachedVestigeClassLoader, classLoaderConfiguration),
                     classStringParser, resourceStringParser, delegateURLStreamHandlerFactory, urls);
+            if (JPMSAccessorLoader.INSTANCE != null) {
+                JPMSClassLoaderConfiguration jpmsConfiguration = classLoaderConfiguration.getModuleConfiguration();
+                for (ModuleConfiguration moduleConfiguration : jpmsConfiguration.getModuleConfigurations()) {
+                    String moduleName = moduleConfiguration.getModuleName();
+                    JPMSModuleAccessor moduleAccessor = JPMSAccessorLoader.INSTANCE.findBootModule(moduleName);
+                    if (moduleAccessor != null) {
+                        for (String packageName : moduleConfiguration.getAddExports()) {
+                            moduleAccessor.addExports(packageName, vestigeClassLoader);
+                        }
+                        for (String packageName : moduleConfiguration.getAddOpens()) {
+                            moduleAccessor.addOpens(packageName, vestigeClassLoader);
+                        }
+                    }
+                }
+            }
 
             if (classLoaderConfiguration.isAttachmentScoped()) {
                 name = name + " @ " + Integer.toHexString(System.identityHashCode(attachmentMap));
@@ -309,7 +326,8 @@ public class DefaultVestigePlatform implements VestigePlatform {
         return vestigeClassLoader.getData();
     }
 
-    public static void setURLStreamHandlerFactoryDelegate(final DelegateURLStreamHandlerFactory delegateURLStreamHandlerFactory, final DelegateURLStreamHandler delegateURLStreamHandler, final Map<File, JarFile> cache) {
+    public static void setURLStreamHandlerFactoryDelegate(final DelegateURLStreamHandlerFactory delegateURLStreamHandlerFactory,
+            final DelegateURLStreamHandler delegateURLStreamHandler, final Map<File, JarFile> cache) {
         VestigeJarURLStreamHandler vestigeJarURLStreamHandler = new VestigeJarURLStreamHandler(delegateURLStreamHandler, cache);
         delegateURLStreamHandler.setDelegate(vestigeJarURLStreamHandler);
         delegateURLStreamHandlerFactory.setDelegate(new URLStreamHandlerFactory() {

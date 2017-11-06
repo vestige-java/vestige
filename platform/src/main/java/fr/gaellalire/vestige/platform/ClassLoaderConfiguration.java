@@ -58,8 +58,11 @@ public class ClassLoaderConfiguration implements Serializable {
 
     private Set<Permission> permissions;
 
+    private JPMSClassLoaderConfiguration moduleConfiguration;
+
     public ClassLoaderConfiguration(final Serializable key, final String name, final boolean attachmentScoped, final URL[] urls, final List<ClassLoaderConfiguration> dependencies,
-            final List<Integer> paths, final List<List<Integer>> pathIdsList, final StringParser pathIdsPositionByResourceName) {
+            final List<Integer> paths, final List<List<Integer>> pathIdsList, final StringParser pathIdsPositionByResourceName,
+            final JPMSClassLoaderConfiguration moduleConfiguration) {
         this.key = key;
         this.name = name;
         this.attachmentScoped = attachmentScoped;
@@ -80,6 +83,7 @@ public class ClassLoaderConfiguration implements Serializable {
         for (ClassLoaderConfiguration dependency : dependencies) {
             this.permissions.addAll(dependency.getPermissions());
         }
+        this.moduleConfiguration = moduleConfiguration;
     }
 
     public int getDependencyIndex(final int pathIndex) {
@@ -139,6 +143,13 @@ public class ClassLoaderConfiguration implements Serializable {
 
     public Set<Permission> getPermissions() {
         return permissions;
+    }
+
+    public JPMSClassLoaderConfiguration getModuleConfiguration() {
+        if (moduleConfiguration == null) {
+            moduleConfiguration = JPMSClassLoaderConfiguration.EMPTY_INSTANCE;
+        }
+        return moduleConfiguration;
     }
 
     public boolean areAllURLConnectable() {

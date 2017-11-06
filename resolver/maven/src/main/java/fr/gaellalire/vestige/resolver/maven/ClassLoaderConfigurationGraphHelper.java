@@ -39,6 +39,8 @@ import org.eclipse.aether.resolution.ArtifactDescriptorException;
 import org.eclipse.aether.resolution.ArtifactDescriptorRequest;
 import org.eclipse.aether.resolution.ArtifactDescriptorResult;
 
+import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
+
 /**
  * @author Gael Lalire
  */
@@ -62,11 +64,14 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
     private DependencyModifier dependencyModifier;
 
+    private DefaultJPMSConfiguration jpmsConfiguration;
+
     private ScopeModifier scopeModifier;
 
     public ClassLoaderConfigurationGraphHelper(final String appName, final Map<MavenArtifact, URL> urlByKey, final ArtifactDescriptorReader descriptorReader,
             final CollectRequest collectRequest, final RepositorySystemSession session, final DependencyModifier dependencyModifier,
-            final Map<String, Map<String, MavenArtifact>> runtimeDependencies, final Scope scope, final ScopeModifier scopeModifier) {
+            final DefaultJPMSConfiguration jpmsConfiguration, final Map<String, Map<String, MavenArtifact>> runtimeDependencies, final Scope scope,
+            final ScopeModifier scopeModifier) {
         cachedClassLoaderConfigurationFactory = new HashMap<List<MavenArtifact>, ClassLoaderConfigurationFactory>();
         this.appName = appName;
         this.urlByKey = urlByKey;
@@ -74,6 +79,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
         this.collectRequest = collectRequest;
         this.session = session;
         this.dependencyModifier = dependencyModifier;
+        this.jpmsConfiguration = jpmsConfiguration;
         this.runtimeDependencies = runtimeDependencies;
         this.scope = scope;
         this.scopeModifier = scopeModifier;
@@ -89,7 +95,12 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
             dependencies.add(classLoaderConfiguration.getKey());
         }
 
-        MavenClassLoaderConfigurationKey key = new MavenClassLoaderConfigurationKey(nodes, dependencies, Scope.PLATFORM);
+        JPMSClassLoaderConfiguration moduleConfiguration = JPMSClassLoaderConfiguration.EMPTY_INSTANCE;
+        for (MavenArtifact mavenArtifact : nodes) {
+            moduleConfiguration = moduleConfiguration.merge(jpmsConfiguration.getModuleConfiguration(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId()));
+        }
+
+        MavenClassLoaderConfigurationKey key = new MavenClassLoaderConfigurationKey(nodes, dependencies, Scope.PLATFORM, moduleConfiguration);
         ClassLoaderConfigurationFactory classLoaderConfigurationFactory = cachedClassLoaderConfigurationFactory.get(key.getArtifacts());
         // if artifacts are the same, dependencies too. With same artifacts dependencies can differ if they have different mavenConfig (not same application)
         if (classLoaderConfigurationFactory == null) {

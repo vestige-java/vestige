@@ -1,4 +1,4 @@
-package fr.gaellalire.vestige.platform.test;
+package fr.gaellalire.vestige.system.test;
 
 import java.lang.reflect.Field;
 import java.net.URL;

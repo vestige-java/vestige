@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 
 import fr.gaellalire.vestige.resolver.maven.DefaultDependencyModifier;
+import fr.gaellalire.vestige.resolver.maven.DefaultJPMSConfiguration;
 import fr.gaellalire.vestige.resolver.maven.MavenRepository;
 
 /**
@@ -36,19 +37,23 @@ public class MavenConfigResolved {
 
     private DefaultDependencyModifier defaultDependencyModifier;
 
+    private DefaultJPMSConfiguration defaultJPMSConfiguration;
+
     public MavenConfigResolved() {
         superPomRepositoriesUsed = true;
         pomRepositoriesIgnored = false;
         additionalRepositories = Collections.emptyList();
         defaultDependencyModifier = new DefaultDependencyModifier();
+        defaultJPMSConfiguration = new DefaultJPMSConfiguration();
     }
 
     public MavenConfigResolved(final boolean superPomRepositoriesUsed, final boolean pomRepositoriesIgnored, final List<MavenRepository> additionalRepositories,
-            final DefaultDependencyModifier defaultDependencyModifier) {
+            final DefaultDependencyModifier defaultDependencyModifier, final DefaultJPMSConfiguration defaultJPMSConfiguration) {
         this.superPomRepositoriesUsed = superPomRepositoriesUsed;
         this.pomRepositoriesIgnored = pomRepositoriesIgnored;
         this.additionalRepositories = additionalRepositories;
         this.defaultDependencyModifier = defaultDependencyModifier;
+        this.defaultJPMSConfiguration = defaultJPMSConfiguration;
     }
 
     public boolean isSuperPomRepositoriesUsed() {
@@ -65,6 +70,10 @@ public class MavenConfigResolved {
 
     public DefaultDependencyModifier getDefaultDependencyModifier() {
         return defaultDependencyModifier;
+    }
+
+    public DefaultJPMSConfiguration getDefaultJPMSConfiguration() {
+        return defaultJPMSConfiguration;
     }
 
 }

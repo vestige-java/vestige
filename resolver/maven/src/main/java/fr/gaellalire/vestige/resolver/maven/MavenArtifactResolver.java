@@ -83,6 +83,7 @@ import org.slf4j.LoggerFactory;
 
 import fr.gaellalire.vestige.job.JobHelper;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
+import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.MinimalStringParserFactory;
 import fr.gaellalire.vestige.platform.StringParserFactory;
 
@@ -114,8 +115,7 @@ public class MavenArtifactResolver {
     /**
      * Reusable because stateless.
      */
-    private DependencySelector initialDependencySelector = new AndDependencySelector(new ScopeDependencySelector("test", "provided"),
-            new OptionalDependencySelector());
+    private DependencySelector initialDependencySelector = new AndDependencySelector(new ScopeDependencySelector("test", "provided"), new OptionalDependencySelector());
 
     private ProxySelector proxySelector;
 
@@ -135,9 +135,9 @@ public class MavenArtifactResolver {
                     authentication = new AuthenticationBuilder().addUsername(activeProxy.getUsername()).addPassword(activeProxy.getPassword()).build();
                 }
                 proxy = new Proxy(activeProxy.getProtocol(), activeProxy.getHost(), activeProxy.getPort(), authentication);
-                LOGGER.info("Use proxy in maven settings with id {}", activeProxy.getId());
+                LOGGER.info("Use proxy in Maven settings with id {}", activeProxy.getId());
             } else {
-                LOGGER.info("No proxy in maven settings, system proxy will be used (if any)");
+                LOGGER.info("No proxy in Maven settings, system proxy will be used (if any)");
             }
             String settingsLocalRepository = settings.getLocalRepository();
             if (settingsLocalRepository != null && settingsLocalRepository.length() != 0) {
@@ -161,9 +161,7 @@ public class MavenArtifactResolver {
         locator.addService(TransporterFactory.class, FileTransporterFactory.class);
         locator.setService(DependencyCollector.class, DefaultDependencyCollector.class);
 
-
         repoSystem = locator.getService(RepositorySystem.class);
-
 
         dependencyCollector = locator.getService(DependencyCollector.class);
         descriptorReader = locator.getService(ArtifactDescriptorReader.class);
@@ -227,23 +225,25 @@ public class MavenArtifactResolver {
 
                     // FIXME : how to authent ?
 
-//                    PasswordAuthentication requestPasswordAuthentication = Authenticator.requestPasswordAuthentication(
-//                            inetSocketAddress.getHostName(), inetSocketAddress.getAddress(), inetSocketAddress.getPort(),
-//                            uri.getScheme(), "", "NTLM");
-//                    if (requestPasswordAuthentication != null) {
-//                        String userName = requestPasswordAuthentication.getUserName();
-//                        char[] password = requestPasswordAuthentication.getPassword();
-//                        authentication = new Authentication(userName, new String(password));
-//                    }
-                    return new Proxy(uri.getScheme(), inetSocketAddress.getHostName(), inetSocketAddress
-                            .getPort(), authentication);
+                    // PasswordAuthentication requestPasswordAuthentication = Authenticator.requestPasswordAuthentication(
+                    // inetSocketAddress.getHostName(), inetSocketAddress.getAddress(), inetSocketAddress.getPort(),
+                    // uri.getScheme(), "", "NTLM");
+                    // if (requestPasswordAuthentication != null) {
+                    // String userName = requestPasswordAuthentication.getUserName();
+                    // char[] password = requestPasswordAuthentication.getPassword();
+                    // authentication = new Authentication(userName, new String(password));
+                    // }
+                    return new Proxy(uri.getScheme(), inetSocketAddress.getHostName(), inetSocketAddress.getPort(), authentication);
                 }
             }
         }
         return null;
     }
 
-    public ClassLoaderConfiguration resolve(final String appName, final String groupId, final String artifactId, final String version, final List<MavenRepository> additionalRepositories, final DependencyModifier dependencyModifier, final ResolveMode resolveMode, final Scope scope, final ScopeModifier scopeModifier, final boolean useSuperPomRepositories, final boolean ignorePomRepositories, final JobHelper actionHelper) throws Exception {
+    public ClassLoaderConfiguration resolve(final String appName, final String groupId, final String artifactId, final String version,
+            final List<MavenRepository> additionalRepositories, final DependencyModifier dependencyModifier, final DefaultJPMSConfiguration jpmsConfiguration,
+            final ResolveMode resolveMode, final Scope scope, final ScopeModifier scopeModifier, final boolean useSuperPomRepositories, final boolean ignorePomRepositories,
+            final JobHelper actionHelper) throws Exception {
 
         Map<String, Map<String, MavenArtifact>> runtimeDependencies = new HashMap<String, Map<String, MavenArtifact>>();
 
@@ -255,7 +255,8 @@ public class MavenArtifactResolver {
             collectRequest.setRepositories(new ArrayList<RemoteRepository>(superPomRemoteRepositories));
         }
         for (MavenRepository additionalRepository : additionalRepositories) {
-            RemoteRepository.Builder repositoryBuilder = new RemoteRepository.Builder(additionalRepository.getId(), additionalRepository.getLayout(), additionalRepository.getUrl());
+            RemoteRepository.Builder repositoryBuilder = new RemoteRepository.Builder(additionalRepository.getId(), additionalRepository.getLayout(),
+                    additionalRepository.getUrl());
             if (proxy == null) {
                 repositoryBuilder.setProxy(getSystemProxy(new URI(additionalRepository.getUrl())));
             } else {
@@ -288,19 +289,23 @@ public class MavenArtifactResolver {
             URL[] urls = new URL[artifacts.size()];
             int i = 0;
             List<MavenArtifact> mavenArtifacts = new ArrayList<MavenArtifact>();
+            JPMSClassLoaderConfiguration moduleConfiguration = JPMSClassLoaderConfiguration.EMPTY_INSTANCE;
             for (Artifact artifact : artifacts) {
                 mavenArtifacts.add(new MavenArtifact(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion()));
+                moduleConfiguration = moduleConfiguration.merge(jpmsConfiguration.getModuleConfiguration(artifact.getGroupId(), artifact.getArtifactId()));
                 urls[i] = artifact.getFile().toURI().toURL();
                 i++;
             }
-            MavenClassLoaderConfigurationKey key = new MavenClassLoaderConfigurationKey(mavenArtifacts, Collections.<MavenClassLoaderConfigurationKey> emptyList(), scope);
+            MavenClassLoaderConfigurationKey key = new MavenClassLoaderConfigurationKey(mavenArtifacts, Collections.<MavenClassLoaderConfigurationKey> emptyList(), scope,
+                    moduleConfiguration);
             String name;
             if (scope == Scope.PLATFORM) {
                 name = key.getArtifacts().toString();
             } else {
                 name = appName;
             }
-            classLoaderConfiguration = new ClassLoaderConfiguration(key, name, scope == Scope.ATTACHMENT, urls, Collections.<ClassLoaderConfiguration> emptyList(), null, null, null);
+            classLoaderConfiguration = new ClassLoaderConfiguration(key, name, scope == Scope.ATTACHMENT, urls, Collections.<ClassLoaderConfiguration> emptyList(), null, null,
+                    null, key.getModuleConfiguration());
             break;
         case FIXED_DEPENDENCIES:
             Map<MavenArtifact, URL> urlByKey = new HashMap<MavenArtifact, URL>();
@@ -310,15 +315,16 @@ public class MavenArtifactResolver {
                     map = new HashMap<String, MavenArtifact>();
                     runtimeDependencies.put(artifact.getGroupId(), map);
                 }
-                MavenArtifact mavenArtifact = new MavenArtifact(artifact.getGroupId(), artifact.getArtifactId(), artifact
-                        .getVersion());
+                MavenArtifact mavenArtifact = new MavenArtifact(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion());
                 map.put(artifact.getArtifactId(), mavenArtifact);
                 urlByKey.put(mavenArtifact, artifact.getFile().toURI().toURL());
             }
 
-            ClassLoaderConfigurationGraphHelper classLoaderConfigurationGraphHelper = new ClassLoaderConfigurationGraphHelper(appName, urlByKey, descriptorReader, collectRequest, session, dependencyModifier, runtimeDependencies, scope, scopeModifier);
+            ClassLoaderConfigurationGraphHelper classLoaderConfigurationGraphHelper = new ClassLoaderConfigurationGraphHelper(appName, urlByKey, descriptorReader, collectRequest,
+                    session, dependencyModifier, jpmsConfiguration, runtimeDependencies, scope, scopeModifier);
 
-            GraphCycleRemover<NodeAndState, MavenArtifact, ClassLoaderConfigurationFactory> graphCycleRemover = new GraphCycleRemover<NodeAndState, MavenArtifact, ClassLoaderConfigurationFactory>(classLoaderConfigurationGraphHelper);
+            GraphCycleRemover<NodeAndState, MavenArtifact, ClassLoaderConfigurationFactory> graphCycleRemover = new GraphCycleRemover<NodeAndState, MavenArtifact, ClassLoaderConfigurationFactory>(
+                    classLoaderConfigurationGraphHelper);
             classLoaderConfiguration = graphCycleRemover.removeCycle(new NodeAndState(null, node, session.getDependencyManager())).create(stringParserFactory);
             break;
         default:

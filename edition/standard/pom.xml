@@ -71,6 +71,10 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>vestige.jpms</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>vestige.admin.web</artifactId>
       <version>${project.version}</version>
     </dependency>

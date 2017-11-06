@@ -58,9 +58,16 @@
     <xs:attribute name="version" type="xs:string" use="required" />
   </xs:complexType>
 
+  <xs:complexType name="ModulePackageName">
+    <xs:attribute name="module" type="xs:string" use="required" />
+    <xs:attribute name="package" type="xs:string" use="required" />
+  </xs:complexType>
+
   <xs:complexType name="ModifyDependency">
-    <xs:sequence minOccurs="0" maxOccurs="unbounded">
-      <xs:element name="addDependency" type="AddDependency" />
+    <xs:sequence>
+      <xs:element name="addDependency" type="AddDependency" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element name="addExports" type="ModulePackageName" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element name="addOpens" type="ModulePackageName" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
     <xs:attribute name="groupId" type="xs:string" use="required" />
     <xs:attribute name="artifactId" type="xs:string" use="required" />
