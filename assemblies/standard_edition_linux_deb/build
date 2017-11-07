@@ -15,7 +15,6 @@ rm target/vestige/vestige~
 mkdir -p target/vestige_deb/usr/share/vestige
 mv target/vestige/repository target/vestige_deb/usr/share/vestige/repository
 mv target/vestige/lib target/vestige_deb/usr/share/vestige/lib
-mv target/vestige/modulepatch target/vestige_deb/usr/share/vestige/modulepatch
 mv target/vestige/m2 target/vestige_deb/usr/share/vestige/m2
 mv target/vestige/unix-classpath.txt target/vestige_deb/usr/share/vestige/
 mv target/vestige/vestige target/vestige_deb/usr/share/vestige/vestige
