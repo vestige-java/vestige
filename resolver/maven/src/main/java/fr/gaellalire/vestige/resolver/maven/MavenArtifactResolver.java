@@ -51,7 +51,6 @@ import org.eclipse.aether.RepositorySystem;
 import org.eclipse.aether.artifact.Artifact;
 import org.eclipse.aether.artifact.DefaultArtifact;
 import org.eclipse.aether.collection.CollectRequest;
-import org.eclipse.aether.collection.DependencySelector;
 import org.eclipse.aether.connector.basic.BasicRepositoryConnectorFactory;
 import org.eclipse.aether.graph.Dependency;
 import org.eclipse.aether.graph.DependencyNode;
@@ -74,8 +73,6 @@ import org.eclipse.aether.spi.connector.RepositoryConnectorFactory;
 import org.eclipse.aether.spi.connector.transport.TransporterFactory;
 import org.eclipse.aether.transport.file.FileTransporterFactory;
 import org.eclipse.aether.transport.http.HttpTransporterFactory;
-import org.eclipse.aether.util.graph.selector.AndDependencySelector;
-import org.eclipse.aether.util.graph.selector.OptionalDependencySelector;
 import org.eclipse.aether.util.graph.visitor.PreorderNodeListGenerator;
 import org.eclipse.aether.util.repository.AuthenticationBuilder;
 import org.slf4j.Logger;
@@ -112,10 +109,9 @@ public class MavenArtifactResolver {
 
     private SimpleLocalRepositoryManagerFactory simpleLocalRepositoryManagerFactory = new SimpleLocalRepositoryManagerFactory();
 
-    /**
-     * Reusable because stateless.
-     */
-    private DependencySelector initialDependencySelector = new AndDependencySelector(new ScopeDependencySelector("test", "provided"), new OptionalDependencySelector());
+    // Don't know why it was introduce, provoke unwanted download because excluded dependencies were read anyway
+    // I think it was because of the collectDependencies after the first one which was replaced by direct descriptorReader uses
+    // private DependencySelector initialDependencySelector = new AndDependencySelector(new ScopeDependencySelector("test", "provided"), new OptionalDependencySelector());
 
     private ProxySelector proxySelector;
 
@@ -193,7 +189,22 @@ public class MavenArtifactResolver {
         List<Repository> repositories = superPomProviderArray[0].getSuperModel("4.0.0").getRepositories();
         superPomRemoteRepositories = new ArrayList<RemoteRepository>(repositories.size());
         for (Repository repository : repositories) {
-            superPomRemoteRepositories.add(ArtifactDescriptorUtils.toRemoteRepository(repository));
+            String url = repository.getUrl();
+            RemoteRepository.Builder repositoryBuilder = new RemoteRepository.Builder(repository.getId(), repository.getLayout(), url);
+            repositoryBuilder.setSnapshotPolicy(ArtifactDescriptorUtils.toRepositoryPolicy(repository.getSnapshots()));
+            repositoryBuilder.setReleasePolicy(ArtifactDescriptorUtils.toRepositoryPolicy(repository.getReleases()));
+            if (proxy == null) {
+                try {
+                    repositoryBuilder.setProxy(getSystemProxy(new URI(url)));
+                } catch (URISyntaxException e) {
+                    LOGGER.warn("URL of a super pom repository is invalid", e);
+                    repositoryBuilder.setProxy(null);
+                }
+            } else {
+                repositoryBuilder.setProxy(proxy);
+            }
+
+            superPomRemoteRepositories.add(repositoryBuilder.build());
         }
     }
 
@@ -202,7 +213,7 @@ public class MavenArtifactResolver {
         session.setTransferListener(new VestigeTransferListener(actionHelper));
         session.setOffline(offline);
         session.setLocalRepositoryManager(simpleLocalRepositoryManagerFactory.newInstance(session, localRepository));
-        session.setDependencySelector(initialDependencySelector);
+        // session.setDependencySelector(initialDependencySelector);
 
         session.setProxySelector(proxySelector);
         return session;
