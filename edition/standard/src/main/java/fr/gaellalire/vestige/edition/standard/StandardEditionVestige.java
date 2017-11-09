@@ -31,6 +31,7 @@ import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.channels.SocketChannel;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -46,10 +47,12 @@ import javax.xml.validation.SchemaFactory;
 import org.eclipse.aether.repository.NoLocalRepositoryManagerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import ch.qos.logback.classic.util.ContextInitializer;
+import ch.qos.logback.classic.util.LogbackMDCAdapter;
 import ch.qos.logback.core.joran.spi.ConsoleTarget;
 import ch.qos.logback.core.joran.spi.JoranException;
 import ch.qos.logback.core.util.StatusPrinter;
@@ -475,6 +478,11 @@ public class StandardEditionVestige implements Runnable {
                 // StatusPrinter will handle this
             }
             StatusPrinter.printInCaseOfErrorsOrWarnings(loggerContext);
+
+            // Bug of logback
+            Field copyOnThreadLocalField = LogbackMDCAdapter.class.getDeclaredField("copyOnThreadLocal");
+            copyOnThreadLocalField.setAccessible(true);
+            copyOnThreadLocalField.set(MDC.getMDCAdapter(), new InheritableThreadLocal<Map<String, String>>());
         } catch (NoSuchFieldException e) {
             LOGGER.error("Logback appender changes", e);
         } catch (IllegalAccessException e) {
