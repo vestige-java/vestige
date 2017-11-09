@@ -51,26 +51,46 @@ public abstract class VestigePolicy extends Policy implements StackedHandler<Pol
 
     @Override
     public Parameters getParameters() {
-        return getCurrentPolicy().getParameters();
+        Policy currentPolicy = getCurrentPolicy();
+        if (currentPolicy == null) {
+            return super.getParameters();
+        }
+        return currentPolicy.getParameters();
     }
 
     @Override
     public PermissionCollection getPermissions(final CodeSource codesource) {
+        Policy currentPolicy = getCurrentPolicy();
+        if (currentPolicy == null) {
+            return super.getPermissions(codesource);
+        }
         return getCurrentPolicy().getPermissions(codesource);
     }
 
     @Override
     public PermissionCollection getPermissions(final ProtectionDomain domain) {
+        Policy currentPolicy = getCurrentPolicy();
+        if (currentPolicy == null) {
+            return super.getPermissions(domain);
+        }
         return getCurrentPolicy().getPermissions(domain);
     }
 
     @Override
     public Provider getProvider() {
+        Policy currentPolicy = getCurrentPolicy();
+        if (currentPolicy == null) {
+            return super.getProvider();
+        }
         return getCurrentPolicy().getProvider();
     }
 
     @Override
     public String getType() {
+        Policy currentPolicy = getCurrentPolicy();
+        if (currentPolicy == null) {
+            return super.getType();
+        }
         return getCurrentPolicy().getType();
     }
 
@@ -101,21 +121,38 @@ public abstract class VestigePolicy extends Policy implements StackedHandler<Pol
 
     @Override
     public void refresh() {
-        getCurrentPolicy().refresh();
+        Policy currentPolicy = getCurrentPolicy();
+        if (currentPolicy == null) {
+            super.refresh();
+        } else {
+            getCurrentPolicy().refresh();
+        }
     }
 
     @Override
     public String toString() {
+        Policy currentPolicy = getCurrentPolicy();
+        if (currentPolicy == null) {
+            return super.toString();
+        }
         return getCurrentPolicy().toString();
     }
 
     @Override
     public boolean equals(final Object obj) {
+        Policy currentPolicy = getCurrentPolicy();
+        if (currentPolicy == null) {
+            return super.equals(obj);
+        }
         return getCurrentPolicy().equals(obj);
     }
 
     @Override
     public int hashCode() {
+        Policy currentPolicy = getCurrentPolicy();
+        if (currentPolicy == null) {
+            return super.hashCode();
+        }
         return getCurrentPolicy().hashCode();
     }
 
