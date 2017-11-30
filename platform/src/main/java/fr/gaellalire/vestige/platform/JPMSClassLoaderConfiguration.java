@@ -18,14 +18,16 @@
 package fr.gaellalire.vestige.platform;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
- * @author gaellalire
+ * @author Gael Lalire
  */
 public final class JPMSClassLoaderConfiguration implements Serializable {
 
@@ -33,13 +35,13 @@ public final class JPMSClassLoaderConfiguration implements Serializable {
 
     public static final JPMSClassLoaderConfiguration EMPTY_INSTANCE = new JPMSClassLoaderConfiguration(Collections.<ModuleConfiguration> emptySet());
 
-    private Set<ModuleConfiguration> moduleConfigurations;
+    private Collection<ModuleConfiguration> moduleConfigurations;
 
-    private JPMSClassLoaderConfiguration(final Set<ModuleConfiguration> moduleConfigurations) {
+    private JPMSClassLoaderConfiguration(final Collection<ModuleConfiguration> moduleConfigurations) {
         this.moduleConfigurations = moduleConfigurations;
     }
 
-    public Set<ModuleConfiguration> getModuleConfigurations() {
+    public Collection<ModuleConfiguration> getModuleConfigurations() {
         return moduleConfigurations;
     }
 
@@ -48,24 +50,31 @@ public final class JPMSClassLoaderConfiguration implements Serializable {
             return EMPTY_INSTANCE;
         }
         TreeMap<String, ModuleConfiguration> moduleConfigurationByModuleName = new TreeMap<String, ModuleConfiguration>();
+        List<ModuleConfiguration> mergedModuleConfigurations = new ArrayList<ModuleConfiguration>();
         for (ModuleConfiguration moduleConfiguration : this.moduleConfigurations) {
             moduleConfigurationByModuleName.put(moduleConfiguration.getModuleName(), moduleConfiguration);
         }
         for (ModuleConfiguration moduleConfiguration : moduleConfigurations) {
-            String moduleName = moduleConfiguration.getModuleName();
-            ModuleConfiguration put = moduleConfigurationByModuleName.put(moduleName, moduleConfiguration);
-            if (put != null) {
-                // merge
-                Set<String> addExports = new TreeSet<String>(moduleConfiguration.getAddExports());
-                Set<String> addOpens = new TreeSet<String>(moduleConfiguration.getAddOpens());
-                addExports.addAll(put.getAddExports());
-                addOpens.addAll(put.getAddOpens());
-                addExports.removeAll(addOpens);
-                ModuleConfiguration merge = new ModuleConfiguration(moduleName, addExports, addOpens);
-                moduleConfigurationByModuleName.put(moduleName, merge);
+            String targetModuleName = moduleConfiguration.getTargetModuleName();
+            if (targetModuleName == null) {
+                String moduleName = moduleConfiguration.getModuleName();
+                ModuleConfiguration put = moduleConfigurationByModuleName.put(moduleName, moduleConfiguration);
+                if (put != null) {
+                    // merge
+                    Set<String> addExports = new TreeSet<String>(moduleConfiguration.getAddExports());
+                    Set<String> addOpens = new TreeSet<String>(moduleConfiguration.getAddOpens());
+                    addExports.addAll(put.getAddExports());
+                    addOpens.addAll(put.getAddOpens());
+                    addExports.removeAll(addOpens);
+                    ModuleConfiguration merge = new ModuleConfiguration(moduleName, addExports, addOpens, null);
+                    moduleConfigurationByModuleName.put(moduleName, merge);
+                }
+            } else {
+                mergedModuleConfigurations.add(moduleConfiguration);
             }
         }
-        return new JPMSClassLoaderConfiguration(new TreeSet<ModuleConfiguration>(moduleConfigurationByModuleName.values()));
+        mergedModuleConfigurations.addAll(moduleConfigurationByModuleName.values());
+        return new JPMSClassLoaderConfiguration(mergedModuleConfigurations);
     }
 
     public JPMSClassLoaderConfiguration merge(final JPMSClassLoaderConfiguration jpmsConfiguration) {

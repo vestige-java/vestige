@@ -17,11 +17,13 @@
 
 package fr.gaellalire.vestige.system;
 
+import fr.gaellalire.vestige.spi.system.VestigeSystem;
+
 /**
  * @author Gael Lalire
  */
 public interface VestigeSystemAction {
 
-    void vestigeSystemRun(PublicVestigeSystem vestigeSystem);
+    void vestigeSystemRun(VestigeSystem vestigeSystem);
 
 }

@@ -1,6 +1,12 @@
 <mavenLauncher xmlns="http://gaellalire.fr/vestige/MAVEN_LAUNCHER" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://gaellalire.fr/vestige/MAVEN_LAUNCHER http://gaellalire.fr/vestige/mavenLauncher-1.0.0.xsd">
   <launch class="fr.gaellalire.vestige.edition.standard.StandardEditionVestige" groupId="fr.gaellalire.vestige" artifactId="vestige.edition.standard" version="${project.version}"
-    mode="FIXED_DEPENDENCIES" />
+    mode="FIXED_DEPENDENCIES">
+    <activateNamedModules>
+      <!-- jaxb.runtime optimisation -->
+      <addReads source="fr.gaellalire.vestige.edition.standard" target="javax.runtime" />
+      <addReads source="fr.gaellalire.vestige.application.descriptor.xml"  target="javax.runtime" />
+    </activateNamedModules>
+  </launch>
   <config superPomRepositoriesUsed="false" pomRepositoriesIgnored="true">
     <modifyDependency artifactId="vestige.system" groupId="fr.gaellalire.vestige">
       <addOpens module="java.logging" package="java.util.logging" />
@@ -9,6 +15,12 @@
       <addOpens module="java.base" package="java.lang.reflect" />
       <addOpens module="java.base" package="java.net" />
       <addOpens module="java.sql" package="java.sql" />
+    </modifyDependency>
+    <modifyDependency artifactId="jaxb-api" groupId="fr.gaellalire.jaxb">
+      <addBeforeParent />
+    </modifyDependency>
+    <modifyDependency artifactId="jaxb-runtime" groupId="fr.gaellalire.jaxb">
+      <addOpens module="java.base" package="java.lang" />
     </modifyDependency>
     <modifyDependency artifactId="milton-server-ce" groupId="io.milton">
       <addDependency artifactId="javax.servlet" groupId="org.eclipse.jetty.orbit" version="${javax-servlet.version}" />
@@ -23,24 +35,6 @@
     <modifyDependency artifactId="slf4j-api" groupId="org.slf4j">
       <addDependency artifactId="logback-classic" groupId="ch.qos.logback" version="${logback.version}" />
     </modifyDependency>
-    <modifyDependency artifactId="logback-classic" groupId="ch.qos.logback">
-      <addDependency artifactId="vestige.utils" groupId="fr.gaellalire.vestige" version="${project.version}" />
-    </modifyDependency>
-    <modifyDependency artifactId="maven-aether-provider" groupId="org.apache.maven">
-      <addDependency artifactId="guava" groupId="com.google.guava" version="${guava.version}" />
-    </modifyDependency>
-    <replaceDependency artifactId="aether-impl" groupId="org.eclipse.aether">
-      <addDependency artifactId="maven-resolver-impl" groupId="org.apache.maven.resolver" version="${maven-resolver.version}" />
-    </replaceDependency>
-    <replaceDependency artifactId="aether-api" groupId="org.eclipse.aether">
-      <addDependency artifactId="maven-resolver-api" groupId="org.apache.maven.resolver" version="${maven-resolver.version}" />
-    </replaceDependency>
-    <replaceDependency artifactId="aether-spi" groupId="org.eclipse.aether">
-      <addDependency artifactId="maven-resolver-spi" groupId="org.apache.maven.resolver" version="${maven-resolver.version}" />
-    </replaceDependency>
-    <replaceDependency artifactId="aether-util" groupId="org.eclipse.aether">
-      <addDependency artifactId="maven-resolver-util" groupId="org.apache.maven.resolver" version="${maven-resolver.version}" />
-    </replaceDependency>
     <replaceDependency artifactId="commons-logging" groupId="commons-logging">
       <addDependency artifactId="jcl-over-slf4j" groupId="org.slf4j" version="${slf4j.version}" />
     </replaceDependency>

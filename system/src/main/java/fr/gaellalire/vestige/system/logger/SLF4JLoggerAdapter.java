@@ -17,6 +17,7 @@
 
 package fr.gaellalire.vestige.system.logger;
 
+import java.text.MessageFormat;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 
@@ -58,6 +59,17 @@ public class SLF4JLoggerAdapter implements VestigeLogger {
         }
     }
 
+    private void doLog(final Level level, final String msg, final Object... params) {
+        if (params != null && params.length != 0) {
+            if (!isLoggable(level)) {
+                return;
+            }
+            doLog(level, MessageFormat.format(msg, params));
+        } else {
+            doLog(level, msg);
+        }
+    }
+
     private void doLog(final Level level, final String msg, final Throwable throwable) {
         int levelValue = level.intValue();
         if (levelValue >= Level.INFO.intValue()) {
@@ -81,14 +93,26 @@ public class SLF4JLoggerAdapter implements VestigeLogger {
         }
     }
 
+    private void doLog(final Level level, final String msg, final Throwable throwable, final Object... params) {
+        if (params != null && params.length != 0) {
+            if (!isLoggable(level)) {
+                return;
+            }
+            doLog(level, MessageFormat.format(msg, params), throwable);
+        } else {
+            doLog(level, msg, throwable);
+        }
+    }
+
     public void log(final LogRecord record) {
-        Throwable thrown = record.getThrown();
         Level level = record.getLevel();
+        Throwable thrown = record.getThrown();
+        Object[] parameters = record.getParameters();
         String message = record.getMessage();
         if (thrown == null) {
-            doLog(level, message);
+            doLog(level, message, parameters);
         } else {
-            doLog(level, message, thrown);
+            doLog(level, message, thrown, parameters);
         }
     }
 
@@ -97,11 +121,11 @@ public class SLF4JLoggerAdapter implements VestigeLogger {
     }
 
     public void log(final Level level, final String msg, final Object param1) {
-        doLog(level, msg);
+        doLog(level, msg, param1);
     }
 
     public void log(final Level level, final String msg, final Object[] params) {
-        doLog(level, msg);
+        doLog(level, msg, params);
     }
 
     public void log(final Level level, final String msg, final Throwable thrown) {
@@ -113,11 +137,11 @@ public class SLF4JLoggerAdapter implements VestigeLogger {
     }
 
     public void logp(final Level level, final String sourceClass, final String sourceMethod, final String msg, final Object param1) {
-        doLog(level, msg);
+        doLog(level, msg, param1);
     }
 
     public void logp(final Level level, final String sourceClass, final String sourceMethod, final String msg, final Object[] params) {
-        doLog(level, msg);
+        doLog(level, msg, params);
     }
 
     public void logp(final Level level, final String sourceClass, final String sourceMethod, final String msg, final Throwable thrown) {
@@ -129,11 +153,11 @@ public class SLF4JLoggerAdapter implements VestigeLogger {
     }
 
     public void logrb(final Level level, final String sourceClass, final String sourceMethod, final String bundleName, final String msg, final Object param1) {
-        doLog(level, msg);
+        doLog(level, msg, param1);
     }
 
     public void logrb(final Level level, final String sourceClass, final String sourceMethod, final String bundleName, final String msg, final Object[] params) {
-        doLog(level, msg);
+        doLog(level, msg, params);
     }
 
     public void logrb(final Level level, final String sourceClass, final String sourceMethod, final String bundleName, final String msg, final Throwable thrown) {

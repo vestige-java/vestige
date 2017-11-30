@@ -7,9 +7,7 @@ module fr.gaellalire.vestige.resolver.maven {
     requires fr.gaellalire.vestige.core;
     
     requires fr.gaellalire.vestige.job;
-    
-    requires fr.gaellalire.vestige.utils;
-    
+        
     requires org.apache.maven.resolver.impl;
     
     requires org.apache.maven.resolver.transport.file;
@@ -26,14 +24,14 @@ module fr.gaellalire.vestige.resolver.maven {
 
     requires fr.gaellalire.vestige.jpms;
 
-    requires java.desktop;
-
-    requires java.xml.bind;
-    
     requires slf4j.api;
     
+    requires httpclient;
+
+    requires fr.gaellalire.vestige.resolver.common;
+
+    requires transitive fr.gaellalire.vestige.spi.resolver.maven;
+
     exports fr.gaellalire.vestige.resolver.maven;
-
-    opens fr.gaellalire.vestige.resolver.maven.schema to java.xml.bind;
-
+    
 }

@@ -17,6 +17,8 @@
 
 package fr.gaellalire.vestige.job;
 
+import fr.gaellalire.vestige.spi.job.JobHelper;
+
 /**
  * @author Gael Lalire
  */

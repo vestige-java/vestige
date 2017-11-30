@@ -21,10 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLConnection;
 import java.security.Permission;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -39,8 +36,6 @@ import javax.xml.bind.Unmarshaller;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 
-import org.eclipse.aether.artifact.DefaultArtifact;
-import org.eclipse.aether.graph.Dependency;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +46,7 @@ import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Confi
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ExceptIn;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.MavenConfig;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ModifyDependency;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ModulePackageName;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ObjectFactory;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Permissions;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ReplaceDependency;
@@ -61,13 +57,16 @@ import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryMetadata;
 import fr.gaellalire.vestige.application.manager.CompatibilityChecker;
+import fr.gaellalire.vestige.application.manager.URLOpener;
 import fr.gaellalire.vestige.application.manager.VersionUtils;
-import fr.gaellalire.vestige.job.JobHelper;
-import fr.gaellalire.vestige.job.TaskHelper;
-import fr.gaellalire.vestige.resolver.maven.DefaultDependencyModifier;
-import fr.gaellalire.vestige.resolver.maven.DefaultJPMSConfiguration;
-import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
-import fr.gaellalire.vestige.resolver.maven.MavenRepository;
+import fr.gaellalire.vestige.spi.job.JobHelper;
+import fr.gaellalire.vestige.spi.job.TaskHelper;
+import fr.gaellalire.vestige.spi.resolver.maven.MavenContext;
+import fr.gaellalire.vestige.spi.resolver.maven.MavenContextBuilder;
+import fr.gaellalire.vestige.spi.resolver.maven.ModifyDependencyRequest;
+import fr.gaellalire.vestige.spi.resolver.maven.ReplaceDependencyRequest;
+import fr.gaellalire.vestige.spi.resolver.maven.VestigeMavenResolver;
+import fr.gaellalire.vestige.spi.resolver.url_list.VestigeURLListResolver;
 
 /**
  * @author Gael Lalire
@@ -76,30 +75,55 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
 
     private static final Logger LOGGER = LoggerFactory.getLogger(XMLApplicationRepositoryManager.class);
 
-    private MavenArtifactResolver mavenArtifactResolver;
+    private VestigeURLListResolver vestigeURLListResolver;
 
-    public XMLApplicationRepositoryManager(final MavenArtifactResolver mavenArtifactResolver) {
-        this.mavenArtifactResolver = mavenArtifactResolver;
+    private VestigeMavenResolver vestigeMavenResolver;
+
+    private int vestigeURLListResolverIndex;
+
+    private int vestigeMavenResolverIndex;
+
+    private URLOpener opener;
+
+    public XMLApplicationRepositoryManager(final VestigeURLListResolver vestigeURLListResolver, final int vestigeURLListResolverIndex,
+            final VestigeMavenResolver vestigeMavenResolver, final int vestigeMavenResolverIndex, final URLOpener opener) {
+        this.vestigeURLListResolver = vestigeURLListResolver;
+        this.vestigeURLListResolverIndex = vestigeURLListResolverIndex;
+        this.vestigeMavenResolver = vestigeMavenResolver;
+        this.vestigeMavenResolverIndex = vestigeMavenResolverIndex;
+        this.opener = opener;
     }
 
-    public boolean hasApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version, final CompatibilityChecker compatibilityChecker) throws ApplicationException {
+    public int getVestigeMavenResolverIndex() {
+        return vestigeMavenResolverIndex;
+    }
+
+    public int getVestigeURLListResolverIndex() {
+        return vestigeURLListResolverIndex;
+    }
+
+    public boolean hasApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version,
+            final CompatibilityChecker compatibilityChecker) throws ApplicationException {
         URL url;
         try {
             url = new URL(context, appName + "/" + appName + "-" + VersionUtils.toString(version) + ".xml");
         } catch (MalformedURLException e) {
             throw new ApplicationException("url is invalid", e);
         }
+        InputStream inputStream;
         try {
-            URLConnection openConnection = url.openConnection();
-            if (compatibilityChecker.isJavaSpecificationVersionCompatible(getApplication(openConnection.getInputStream()).getJavaSpecificationVersion())) {
+            inputStream = opener.openURL(url);
+        } catch (IOException e) {
+            LOGGER.trace("Cannot fetch application descriptor", e);
+            return false;
+        }
+        try {
+            if (compatibilityChecker.isJavaSpecificationVersionCompatible(getApplication(inputStream).getJavaSpecificationVersion())) {
                 return true;
             }
             return false;
         } catch (JAXBException e) {
             LOGGER.trace("Exception confirms that url has no application descriptor (or an invalid one)", e);
-            return false;
-        } catch (IOException e) {
-            LOGGER.trace("Cannot fetch application descriptor", e);
             return false;
         }
     }
@@ -128,16 +152,27 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         try {
             url = new URL(context, appName + "/" + appName + "-" + VersionUtils.toString(version) + ".xml");
         } catch (MalformedURLException e) {
-            throw new ApplicationException("url repo issue", e);
+            throw new ApplicationException("URL repo issue", e);
+        }
+
+        InputStream inputStream;
+        try {
+            inputStream = opener.openURL(url);
+        } catch (IOException e) {
+            throw new ApplicationException("Cannot connect to repo URL", e);
         }
 
         Application application;
         try {
-            application = getApplication(url.openStream());
-        } catch (IOException e) {
-            throw new ApplicationException("Unable to unmarshall application xml", e);
+            application = getApplication(inputStream);
         } catch (JAXBException e) {
             throw new ApplicationException("Unable to unmarshall application xml", e);
+        } finally {
+            try {
+                inputStream.close();
+            } catch (IOException e) {
+                LOGGER.warn("Unable to close inputStream", e);
+            }
         }
         task.setDone();
 
@@ -145,13 +180,13 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         String javaSpecificationVersion = application.getJavaSpecificationVersion();
         Set<Permission> installerPermissionSet = new HashSet<Permission>();
         Set<Permission> launcherPermissionSet = new HashSet<Permission>();
-        MavenConfigResolved mavenConfigResolved;
+        MavenContext mavenConfigResolved;
         if (configurations != null) {
             MavenConfig mavenConfig = configurations.getMavenConfig();
             if (mavenConfig != null) {
-                mavenConfigResolved = resolveMavenConfig(configurations.getMavenConfig());
+                mavenConfigResolved = resolveMavenConfig(mavenConfig);
             } else {
-                mavenConfigResolved = new MavenConfigResolved();
+                mavenConfigResolved = vestigeMavenResolver.createMavenContextBuilder().build();
             }
             Config.Permissions permissions = configurations.getPermissions();
             if (permissions != null) {
@@ -167,9 +202,13 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
                 }
             }
         } else {
-            mavenConfigResolved = new MavenConfigResolved();
+            mavenConfigResolved = vestigeMavenResolver.createMavenContextBuilder().build();
         }
-        return new XMLApplicationDescriptor(mavenArtifactResolver, javaSpecificationVersion, version, application, mavenConfigResolved, launcherPermissionSet, installerPermissionSet, jobHelper);
+        return new XMLApplicationDescriptor(this, javaSpecificationVersion, version, application, mavenConfigResolved, launcherPermissionSet, installerPermissionSet, jobHelper);
+    }
+
+    public VestigeURLListResolver getVestigeURLListResolver() {
+        return vestigeURLListResolver;
     }
 
     public void readPermissions(final Permissions permissions, final Set<Permission> result) {
@@ -209,49 +248,50 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         }
     }
 
-    public MavenConfigResolved resolveMavenConfig(final MavenConfig mavenConfig) {
-        List<MavenRepository> additionalRepositories = new ArrayList<MavenRepository>();
-        DefaultDependencyModifier defaultDependencyModifier = new DefaultDependencyModifier();
-        DefaultJPMSConfiguration defaultJPMSConfiguration = new DefaultJPMSConfiguration();
+    public MavenContext resolveMavenConfig(final MavenConfig mavenConfig) {
+        MavenContextBuilder mavenResolverRequestContext = vestigeMavenResolver.createMavenContextBuilder();
+
         for (Object object : mavenConfig.getModifyDependencyOrReplaceDependencyOrAdditionalRepository()) {
             if (object instanceof ModifyDependency) {
                 ModifyDependency modifyDependency = (ModifyDependency) object;
+                ModifyDependencyRequest modifyDependencyRequest = mavenResolverRequestContext.addModifyDependency(modifyDependency.getGroupId(), modifyDependency.getArtifactId());
                 List<AddDependency> addDependencies = modifyDependency.getAddDependency();
-                List<Dependency> dependencies = new ArrayList<Dependency>(addDependencies.size());
                 for (AddDependency addDependency : addDependencies) {
-                    dependencies.add(new Dependency(new DefaultArtifact(addDependency.getGroupId(), addDependency.getArtifactId(), "jar", addDependency.getVersion()), "runtime"));
+                    modifyDependencyRequest.addDependency(addDependency.getGroupId(), addDependency.getArtifactId(), addDependency.getVersion());
                 }
-                defaultJPMSConfiguration.addModuleConfiguration(modifyDependency.getGroupId(), modifyDependency.getArtifactId(),
-                        XMLApplicationDescriptor.toModuleConfigurations(modifyDependency.getAddExports(), modifyDependency.getAddOpens()));
-                defaultDependencyModifier.add(modifyDependency.getGroupId(), modifyDependency.getArtifactId(), dependencies);
+                for (ModulePackageName addExports : modifyDependency.getAddExports()) {
+                    modifyDependencyRequest.addExports(addExports.getModule(), addExports.getPackage());
+                }
+                for (ModulePackageName addExports : modifyDependency.getAddOpens()) {
+                    modifyDependencyRequest.addOpens(addExports.getModule(), addExports.getPackage());
+                }
+                if (modifyDependency.getAddBeforeParent() != null) {
+                    modifyDependencyRequest.setBeforeParent(true);
+                }
+                modifyDependencyRequest.execute();
             } else if (object instanceof ReplaceDependency) {
                 ReplaceDependency replaceDependency = (ReplaceDependency) object;
+                ReplaceDependencyRequest replaceDependencyRequest = mavenResolverRequestContext.addReplaceDependency(replaceDependency.getGroupId(),
+                        replaceDependency.getArtifactId());
                 List<AddDependency> addDependencies = replaceDependency.getAddDependency();
-                List<Dependency> dependencies = new ArrayList<Dependency>(addDependencies.size());
                 for (AddDependency addDependency : addDependencies) {
-                    dependencies.add(new Dependency(new DefaultArtifact(addDependency.getGroupId(), addDependency.getArtifactId(), "jar", addDependency.getVersion()), "runtime"));
+                    replaceDependencyRequest.addDependency(addDependency.getGroupId(), addDependency.getArtifactId(), addDependency.getVersion());
                 }
-                Map<String, Set<String>> exceptsMap = null;
                 List<ExceptIn> excepts = replaceDependency.getExceptIn();
                 if (excepts != null) {
-                    exceptsMap = new HashMap<String, Set<String>>();
                     for (ExceptIn except : excepts) {
-                        Set<String> set = exceptsMap.get(except.getGroupId());
-                        if (set == null) {
-                            set = new HashSet<String>();
-                            exceptsMap.put(except.getGroupId(), set);
-                        }
-                        set.add(except.getArtifactId());
+                        replaceDependencyRequest.addExcept(except.getGroupId(), except.getArtifactId());
                     }
                 }
-                defaultDependencyModifier.replace(replaceDependency.getGroupId(), replaceDependency.getArtifactId(), dependencies, exceptsMap);
+                replaceDependencyRequest.execute();
             } else if (object instanceof AdditionalRepository) {
                 AdditionalRepository additionalRepository = (AdditionalRepository) object;
-                additionalRepositories.add(new MavenRepository(additionalRepository.getId(), additionalRepository.getLayout(), additionalRepository.getUrl()));
+                mavenResolverRequestContext.addAdditionalRepository(additionalRepository.getId(), additionalRepository.getLayout(), additionalRepository.getUrl());
             }
         }
-        return new MavenConfigResolved(mavenConfig.isSuperPomRepositoriesUsed(), mavenConfig.isPomRepositoriesIgnored(), additionalRepositories, defaultDependencyModifier,
-                defaultJPMSConfiguration);
+        mavenResolverRequestContext.setSuperPomRepositoriesUsed(mavenConfig.isSuperPomRepositoriesUsed());
+        mavenResolverRequestContext.setPomRepositoriesIgnored(mavenConfig.isPomRepositoriesIgnored());
+        return mavenResolverRequestContext.build();
     }
 
     @SuppressWarnings("unchecked")
@@ -263,7 +303,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         try {
             url = new URL(context, "repository.xml");
         } catch (MalformedURLException e) {
-            LOGGER.warn("url repo issue", e);
+            LOGGER.warn("URL repo issue", e);
             return new XMLApplicationRepositoryMetadata(versionsByNames);
         }
 
@@ -280,12 +320,27 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
             LOGGER.warn("Unable to initialize repository parser", e);
             return new XMLApplicationRepositoryMetadata(versionsByNames);
         }
+
+        InputStream inputStream;
+        try {
+            inputStream = opener.openURL(url);
+        } catch (IOException e) {
+            LOGGER.warn("Cannot connect to repo URL", e);
+            return new XMLApplicationRepositoryMetadata(versionsByNames);
+        }
+
         Repository repository;
         try {
-            repository = ((JAXBElement<Repository>) unMarshaller.unmarshal(url)).getValue();
+            repository = ((JAXBElement<Repository>) unMarshaller.unmarshal(inputStream)).getValue();
         } catch (JAXBException e) {
             LOGGER.warn("Unable to unmarshall repository xml", e);
             return new XMLApplicationRepositoryMetadata(versionsByNames);
+        } finally {
+            try {
+                inputStream.close();
+            } catch (IOException e) {
+                LOGGER.warn("Unable to close inputStream", e);
+            }
         }
         for (fr.gaellalire.vestige.application.descriptor.xml.schema.repository.Repository.Application application : repository.getApplication()) {
             Set<List<Integer>> versions = new TreeSet<List<Integer>>(VersionUtils.VERSION_COMPARATOR);

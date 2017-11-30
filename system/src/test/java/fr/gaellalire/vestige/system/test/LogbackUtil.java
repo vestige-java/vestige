@@ -14,7 +14,7 @@ import ch.qos.logback.core.joran.spi.JoranException;
 import ch.qos.logback.core.util.StatusPrinter;
 
 /**
- * @author gaellalire
+ * @author Gael Lalire
  */
 public final class LogbackUtil {
 

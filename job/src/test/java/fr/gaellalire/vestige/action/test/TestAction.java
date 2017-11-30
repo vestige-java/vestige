@@ -4,7 +4,7 @@ import org.junit.Test;
 
 import fr.gaellalire.vestige.job.DefaultJobManager;
 import fr.gaellalire.vestige.job.Job;
-import fr.gaellalire.vestige.job.JobHelper;
+import fr.gaellalire.vestige.spi.job.JobHelper;
 
 /**
  * @author Gael Lalire

@@ -39,10 +39,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
+import fr.gaellalire.vestige.spi.system.VestigeSystem;
+import fr.gaellalire.vestige.spi.system.VestigeSystemCache;
 import fr.gaellalire.vestige.system.PrivateVestigePolicy;
 import fr.gaellalire.vestige.system.PrivateVestigeSecurityManager;
-import fr.gaellalire.vestige.system.PublicVestigeSystem;
-import fr.gaellalire.vestige.system.PublicVestigeSystemCache;
 
 /**
  * @author Gael Lalire
@@ -61,10 +61,10 @@ public class VestigeSecureExecutor {
 
     private ThreadGroupDestroyer threadGroupDestroyer;
 
-    private PublicVestigeSystem handlerVestigeSystem;
+    private VestigeSystem handlerVestigeSystem;
 
     public VestigeSecureExecutor(final PrivateVestigeSecurityManager vestigeSecurityManager, final PrivateVestigePolicy vestigePolicy,
-            final PublicVestigeSystem handlerVestigeSystem) {
+            final VestigeSystem handlerVestigeSystem) {
         this.vestigeSecurityManager = vestigeSecurityManager;
         this.vestigePolicy = vestigePolicy;
         this.handlerVestigeSystem = handlerVestigeSystem;
@@ -110,7 +110,7 @@ public class VestigeSecureExecutor {
     }
 
     public <E> VestigeSecureExecution<E> execute(final ClassLoader contextClassLoader, final Set<Permission> additionnalPermissions, final List<ThreadGroup> threadGroups,
-            final String name, final PublicVestigeSystem appVestigeSystem, final VestigeSecureCallable<E> callable, final FutureDoneHandler<E> doneHandler) {
+            final String name, final VestigeSystem appVestigeSystem, final VestigeSecureCallable<E> callable, final FutureDoneHandler<E> doneHandler) {
         final ThreadGroup threadGroup = new ThreadGroup(name);
         final List<ThreadGroup> accessibleThreadGroups;
         final Permissions permissions;
@@ -183,7 +183,7 @@ public class VestigeSecureExecutor {
                                     if (appVestigeSystem != null) {
                                         appVestigeSystem.setCurrentSystem();
                                     }
-                                    PublicVestigeSystemCache vestigeSystemCache = appVestigeSystem.pushVestigeSystemCache();
+                                    VestigeSystemCache vestigeSystemCache = appVestigeSystem.pushVestigeSystemCache();
                                     try {
                                         return callable.call(privilegedExecutor);
                                     } finally {
@@ -198,7 +198,7 @@ public class VestigeSecureExecutor {
                         if (appVestigeSystem != null) {
                             appVestigeSystem.setCurrentSystem();
                         }
-                        PublicVestigeSystemCache vestigeSystemCache = appVestigeSystem.pushVestigeSystemCache();
+                        VestigeSystemCache vestigeSystemCache = appVestigeSystem.pushVestigeSystemCache();
                         try {
                             return callable.call(privilegedExecutor);
                         } finally {

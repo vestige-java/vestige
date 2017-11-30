@@ -20,12 +20,11 @@ package fr.gaellalire.vestige.system.logger;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.security.PrivilegedAction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import fr.gaellalire.vestige.system.PublicVestigeSystem;
+import fr.gaellalire.vestige.spi.system.VestigeSystem;
 
 /**
  * @author Gael Lalire
@@ -34,7 +33,7 @@ public class SLF4JOutputStream extends OutputStream {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SLF4JOutputStream.class);
 
-    private PublicVestigeSystem privilegedVestigeSystem;
+    private VestigeSystem privilegedVestigeSystem;
 
     private ByteArrayOutputStream outputStream;
 
@@ -42,7 +41,7 @@ public class SLF4JOutputStream extends OutputStream {
 
     private boolean info;
 
-    public SLF4JOutputStream(final PublicVestigeSystem privilegedVestigeSystem, final boolean info) {
+    public SLF4JOutputStream(final VestigeSystem privilegedVestigeSystem, final boolean info) {
         this.privilegedVestigeSystem = privilegedVestigeSystem;
         this.info = info;
         outputStream = new ByteArrayOutputStream();
@@ -73,23 +72,23 @@ public class SLF4JOutputStream extends OutputStream {
         }
         if (lineReaded) {
             if (info) {
-                privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-                    public Void run() {
-                        if (LOGGER.isInfoEnabled()) {
-                            LOGGER.info("{}", outputStream.toString());
-                        }
-                        return null;
+                VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+                try {
+                    if (LOGGER.isInfoEnabled()) {
+                        LOGGER.info("{}", outputStream.toString());
                     }
-                });
+                } finally {
+                    pushedVestigeSystem.setCurrentSystem();
+                }
             } else {
-                privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-                    public Void run() {
-                        if (LOGGER.isErrorEnabled()) {
-                            LOGGER.error("{}", outputStream.toString());
-                        }
-                        return null;
+                VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+                try {
+                    if (LOGGER.isErrorEnabled()) {
+                        LOGGER.error("{}", outputStream.toString());
                     }
-                });
+                } finally {
+                    pushedVestigeSystem.setCurrentSystem();
+                }
             }
             outputStream.reset();
         }

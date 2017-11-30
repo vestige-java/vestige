@@ -27,7 +27,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 
-import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
+import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 
 /**
  * @author Gael Lalire
@@ -122,7 +122,6 @@ public class DefaultApplicationManagerState implements Serializable, Application
         urlByRepo.get(applicationContext.getRepoName()).applicationCount++;
     }
 
-
     public void createRepository(final String name, final URL url) throws ApplicationException {
         RepositoryContext old = urlByRepo.put(name, new RepositoryContext(url));
         if (old != null) {
@@ -160,7 +159,7 @@ public class DefaultApplicationManagerState implements Serializable, Application
         return applicationContext.isStarted();
     }
 
-    public ClassLoaderConfiguration getClassLoaders(final String installName) throws ApplicationException {
+    public ResolvedClassLoaderConfiguration getClassLoaders(final String installName) throws ApplicationException {
         final ApplicationContext applicationContext = getApplicationContext(installName);
         return applicationContext.getResolve();
     }

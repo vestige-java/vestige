@@ -21,8 +21,6 @@ import java.security.Permission;
 import java.util.List;
 import java.util.Set;
 
-import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
-
 /**
  * @author Gael Lalire
  */
@@ -36,7 +34,7 @@ public interface ApplicationDescriptor {
 
     String getInstallerClassName() throws ApplicationException;
 
-    ClassLoaderConfiguration getInstallerClassLoaderConfiguration(String configurationName) throws ApplicationException;
+    ApplicationResolvedClassLoaderConfiguration getInstallerClassLoaderConfiguration(String configurationName) throws ApplicationException;
 
     String getLauncherClassName() throws ApplicationException;
 
@@ -44,7 +42,7 @@ public interface ApplicationDescriptor {
 
     boolean isLauncherPrivateSystem() throws ApplicationException;
 
-    ClassLoaderConfiguration getLauncherClassLoaderConfiguration(String configurationName) throws ApplicationException;
+    ApplicationResolvedClassLoaderConfiguration getLauncherClassLoaderConfiguration(String configurationName) throws ApplicationException;
 
     Set<Permission> getInstallerPermissions() throws ApplicationException;
 

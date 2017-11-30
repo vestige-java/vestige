@@ -17,331 +17,304 @@
 
 package fr.gaellalire.vestige.system.logger;
 
-import java.security.PrivilegedAction;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 
 import fr.gaellalire.vestige.core.logger.VestigeLogger;
-import fr.gaellalire.vestige.system.PublicVestigeSystem;
+import fr.gaellalire.vestige.spi.system.VestigeSystem;
 
 /**
  * @author Gael Lalire
  */
 public class SecureVestigeLogger implements VestigeLogger {
 
-    private PublicVestigeSystem privilegedVestigeSystem;
+    private VestigeSystem privilegedVestigeSystem;
 
     private VestigeLogger vestigeLogger;
 
-    public SecureVestigeLogger(final PublicVestigeSystem privilegedVestigeSystem, final VestigeLogger vestigeLogger) {
+    public SecureVestigeLogger(final VestigeSystem privilegedVestigeSystem, final VestigeLogger vestigeLogger) {
         this.privilegedVestigeSystem = privilegedVestigeSystem;
         this.vestigeLogger = vestigeLogger;
     }
 
     @Override
     public void log(final LogRecord record) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.log(record);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.log(record);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void log(final Level level, final String msg) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.log(level, msg);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.log(level, msg);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void log(final Level level, final String msg, final Object param1) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.log(level, msg, param1);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.log(level, msg, param1);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void log(final Level level, final String msg, final Object[] params) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.log(level, msg, params);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.log(level, msg, params);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void log(final Level level, final String msg, final Throwable thrown) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.log(level, msg, thrown);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.log(level, msg, thrown);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void logp(final Level level, final String sourceClass, final String sourceMethod, final String msg) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.logp(level, sourceClass, sourceMethod, msg);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.logp(level, sourceClass, sourceMethod, msg);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void logp(final Level level, final String sourceClass, final String sourceMethod, final String msg, final Object param1) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.logp(level, sourceClass, sourceMethod, msg, param1);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.logp(level, sourceClass, sourceMethod, msg, param1);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void logp(final Level level, final String sourceClass, final String sourceMethod, final String msg, final Object[] params) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.logp(level, sourceClass, sourceMethod, msg, params);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.logp(level, sourceClass, sourceMethod, msg, params);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void logp(final Level level, final String sourceClass, final String sourceMethod, final String msg, final Throwable thrown) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.logp(level, sourceClass, sourceMethod, msg, thrown);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.logp(level, sourceClass, sourceMethod, msg, thrown);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void logrb(final Level level, final String sourceClass, final String sourceMethod, final String bundleName, final String msg) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.logrb(level, sourceClass, sourceMethod, bundleName, msg);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.logrb(level, sourceClass, sourceMethod, bundleName, msg);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void logrb(final Level level, final String sourceClass, final String sourceMethod, final String bundleName, final String msg, final Object param1) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.logrb(level, sourceClass, sourceMethod, bundleName, msg, param1);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.logrb(level, sourceClass, sourceMethod, bundleName, msg, param1);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void logrb(final Level level, final String sourceClass, final String sourceMethod, final String bundleName, final String msg, final Object[] params) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.logrb(level, sourceClass, sourceMethod, bundleName, msg, params);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.logrb(level, sourceClass, sourceMethod, bundleName, msg, params);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void logrb(final Level level, final String sourceClass, final String sourceMethod, final String bundleName, final String msg, final Throwable thrown) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.logrb(level, sourceClass, sourceMethod, bundleName, msg, thrown);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.logrb(level, sourceClass, sourceMethod, bundleName, msg, thrown);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void entering(final String sourceClass, final String sourceMethod) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.entering(sourceClass, sourceMethod);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.entering(sourceClass, sourceMethod);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void entering(final String sourceClass, final String sourceMethod, final Object param1) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.entering(sourceClass, sourceMethod, param1);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.entering(sourceClass, sourceMethod, param1);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void entering(final String sourceClass, final String sourceMethod, final Object[] params) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.entering(sourceClass, sourceMethod, params);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.entering(sourceClass, sourceMethod, params);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void exiting(final String sourceClass, final String sourceMethod) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.exiting(sourceClass, sourceMethod);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.exiting(sourceClass, sourceMethod);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void exiting(final String sourceClass, final String sourceMethod, final Object result) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.exiting(sourceClass, sourceMethod, result);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.exiting(sourceClass, sourceMethod, result);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void throwing(final String sourceClass, final String sourceMethod, final Throwable thrown) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.throwing(sourceClass, sourceMethod, thrown);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.throwing(sourceClass, sourceMethod, thrown);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void severe(final String msg) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.severe(msg);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.severe(msg);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void warning(final String msg) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.warning(msg);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.warning(msg);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void info(final String msg) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.info(msg);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.info(msg);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void config(final String msg) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.config(msg);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.config(msg);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void fine(final String msg) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.fine(msg);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.fine(msg);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void finer(final String msg) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.finer(msg);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.finer(msg);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void finest(final String msg) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-            @Override
-            public Void run() {
-                vestigeLogger.finest(msg);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            vestigeLogger.finest(msg);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public Level getLevel() {
-        return privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Level>() {
-            @Override
-            public Level run() {
-                return vestigeLogger.getLevel();
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            return vestigeLogger.getLevel();
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public boolean isLoggable(final Level level) {
-        return privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Boolean>() {
-            @Override
-            public Boolean run() {
-                return vestigeLogger.isLoggable(level);
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            return vestigeLogger.isLoggable(level);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
 }

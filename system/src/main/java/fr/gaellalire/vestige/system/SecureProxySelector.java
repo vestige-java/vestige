@@ -22,8 +22,9 @@ import java.net.Proxy;
 import java.net.ProxySelector;
 import java.net.SocketAddress;
 import java.net.URI;
-import java.security.PrivilegedAction;
 import java.util.List;
+
+import fr.gaellalire.vestige.spi.system.VestigeSystem;
 
 /**
  * @author Gael Lalire
@@ -32,34 +33,31 @@ public class SecureProxySelector extends ProxySelector {
 
     private ProxySelector proxySelector;
 
-    private PublicVestigeSystem privilegedVestigeSystem;
+    private VestigeSystem privilegedVestigeSystem;
 
-    public SecureProxySelector(final PublicVestigeSystem privilegedVestigeSystem, final ProxySelector proxySelector) {
+    public SecureProxySelector(final VestigeSystem privilegedVestigeSystem, final ProxySelector proxySelector) {
         this.privilegedVestigeSystem = privilegedVestigeSystem;
         this.proxySelector = proxySelector;
     }
 
     @Override
     public List<Proxy> select(final URI uri) {
-        return privilegedVestigeSystem.doPrivileged(new PrivilegedAction<List<Proxy>>() {
-
-            @Override
-            public List<Proxy> run() {
-                return proxySelector.select(uri);
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            return proxySelector.select(uri);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public void connectFailed(final URI uri, final SocketAddress sa, final IOException ioe) {
-        privilegedVestigeSystem.doPrivileged(new PrivilegedAction<Void>() {
-
-            @Override
-            public Void run() {
-                proxySelector.connectFailed(uri, sa, ioe);
-                return null;
-            }
-        });
+        VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+        try {
+            proxySelector.connectFailed(uri, sa, ioe);
+        } finally {
+            pushedVestigeSystem.setCurrentSystem();
+        }
     }
 
 }

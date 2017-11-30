@@ -23,7 +23,8 @@ import java.util.Hashtable;
 import java.util.Map;
 
 import fr.gaellalire.vestige.core.StackedHandler;
-import fr.gaellalire.vestige.system.VestigeSystem;
+import fr.gaellalire.vestige.core.VestigeClassLoader;
+import fr.gaellalire.vestige.system.DefaultVestigeSystem;
 import fr.gaellalire.vestige.system.VestigeSystemHolder;
 
 /**
@@ -46,7 +47,7 @@ public class VestigeURLHandlersHashTable extends Hashtable<String, URLStreamHand
 
     @Override
     public URLStreamHandler get(final Object protocol) {
-        VestigeSystem system = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem system = vestigeSystemHolder.getVestigeSystem();
         Map<String, URLStreamHandler> urlStreamHandlerByProtocol = system.getURLStreamHandlerByProtocol();
         URLStreamHandler urlStreamHandler = urlStreamHandlerByProtocol.get(protocol);
         if (urlStreamHandler == null) {
@@ -57,6 +58,9 @@ public class VestigeURLHandlersHashTable extends Hashtable<String, URLStreamHand
             if (urlStreamHandler == null && "jar".equals(protocol)) {
                 urlStreamHandler = jarURLStreamHandler;
             }
+            if (urlStreamHandler == null && "vrt".equals(protocol)) {
+                urlStreamHandler = VestigeClassLoader.URL_STREAM_HANDLER;
+            }
             if (urlStreamHandler != null) {
                 urlStreamHandlerByProtocol.put((String) protocol, urlStreamHandler);
             }
@@ -66,7 +70,7 @@ public class VestigeURLHandlersHashTable extends Hashtable<String, URLStreamHand
 
     @Override
     public URLStreamHandler put(final String protocol, final URLStreamHandler urlStreamHandler) {
-        VestigeSystem system = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem system = vestigeSystemHolder.getVestigeSystem();
         return system.getURLStreamHandlerByProtocol().put(protocol, urlStreamHandler);
     }
 

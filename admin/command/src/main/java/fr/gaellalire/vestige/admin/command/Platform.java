@@ -58,7 +58,7 @@ public class Platform implements Command {
         return Collections.emptyList();
     }
 
-    public void add(final Set<AttachedVestigeClassLoader> set, final AttachedVestigeClassLoader attachedVestigeClassLoader) {
+    public static void add(final Set<AttachedVestigeClassLoader> set, final AttachedVestigeClassLoader attachedVestigeClassLoader) {
         set.add(attachedVestigeClassLoader);
         for (AttachedVestigeClassLoader depAttachedVestigeClassLoader : attachedVestigeClassLoader.getDependencies()) {
             add(set, depAttachedVestigeClassLoader);

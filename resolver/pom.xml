@@ -12,6 +12,8 @@
     <defaultGoal>install</defaultGoal>
   </build>
   <modules>
+    <module>common</module>
+    <module>url_list</module>
     <module>maven</module>
   </modules>
 </project>

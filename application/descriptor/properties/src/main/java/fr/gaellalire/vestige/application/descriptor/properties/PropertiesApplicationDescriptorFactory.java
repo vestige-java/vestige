@@ -25,7 +25,7 @@ import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryMetadata;
 import fr.gaellalire.vestige.application.manager.CompatibilityChecker;
-import fr.gaellalire.vestige.job.JobHelper;
+import fr.gaellalire.vestige.spi.job.JobHelper;
 
 /**
  * @author Gael Lalire

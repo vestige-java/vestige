@@ -19,9 +19,13 @@ package fr.gaellalire.vestige.resolver.maven;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
+
+import fr.gaellalire.vestige.spi.resolver.ResolverException;
 
 /**
  * @param <Node> type of input nodes
@@ -41,6 +45,8 @@ public class GraphCycleRemover<Node, Key, RNode> {
      * @author Gael Lalire
      */
     class Context {
+
+        private Map<Key, List<RNode>> cache = new HashMap<Key, List<RNode>>();
 
         private List<List<Key>> merge = new LinkedList<List<Key>>();
 
@@ -84,16 +90,33 @@ public class GraphCycleRemover<Node, Key, RNode> {
             return list;
         }
 
+        public void putCache(final Key key, final List<RNode> result) {
+            cache.put(key, result);
+        }
+
+        public List<RNode> getCache(final Key key) {
+            return cache.get(key);
+        }
+
     }
 
-    public RNode removeCycle(final Node node) throws Exception {
+    public RNode removeCycle(final Node node) throws ResolverException {
         return removeCycle(node, new Context()).get(0);
     }
 
-    public List<RNode> removeCycle(final Node node, final Context context) throws Exception {
+    public List<RNode> removeCycle(final Node node, final Context context) throws ResolverException {
         Key key = graphHelper.getKey(node);
 
-        if (key == null || !context.pushNode(key)) {
+        if (key == null) {
+            return Collections.emptyList();
+        }
+
+        List<RNode> result = context.getCache(key);
+        if (result != null) {
+            return result;
+        }
+
+        if (!context.pushNode(key)) {
             return Collections.emptyList();
         }
         List<Node> nexts = graphHelper.getNexts(node);
@@ -113,7 +136,11 @@ public class GraphCycleRemover<Node, Key, RNode> {
             return mergedNexts;
         }
 
-        return Collections.singletonList(graphHelper.merge(popNode, mergedNexts));
+        result = Collections.singletonList(graphHelper.merge(popNode, mergedNexts));
+        for (Key sharedKey : popNode) {
+            context.putCache(sharedKey, result);
+        }
+        return result;
     }
 
 }

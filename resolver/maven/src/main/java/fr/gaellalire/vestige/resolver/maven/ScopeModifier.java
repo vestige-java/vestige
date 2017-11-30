@@ -20,6 +20,8 @@ package fr.gaellalire.vestige.resolver.maven;
 import java.util.HashMap;
 import java.util.Map;
 
+import fr.gaellalire.vestige.spi.resolver.Scope;
+
 /**
  * @author Gael Lalire
  */

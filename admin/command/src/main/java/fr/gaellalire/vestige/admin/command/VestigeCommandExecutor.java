@@ -31,7 +31,6 @@ import fr.gaellalire.vestige.admin.command.argument.SimpleProposeContext;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
 import fr.gaellalire.vestige.job.JobController;
 import fr.gaellalire.vestige.job.JobManager;
-import fr.gaellalire.vestige.platform.VestigePlatform;
 
 /**
  * @author Gael Lalire
@@ -40,11 +39,12 @@ public class VestigeCommandExecutor {
 
     private Map<String, Command> commandByNames;
 
-    public VestigeCommandExecutor(final JobManager jobManager, final ApplicationManager applicationManager, final VestigePlatform vestigePlatform) {
-        List<Command> commands = Arrays.asList(new Memory(), new GC(), new ForceGC(), new Install(applicationManager), new MakeRepo(applicationManager), new RemoveRepo(
-                applicationManager), new Start(applicationManager), new Status(applicationManager), new Stop(applicationManager), new Uninstall(applicationManager), new ListCommand(applicationManager),
-                new AutoMigrate(applicationManager), new AutoMigrateLevel(applicationManager), new Migrate(applicationManager), new ClassLoaders(applicationManager), new Platform(
-                        vestigePlatform), new AutoStart(applicationManager), new PSCommand(jobManager), new Kill(jobManager), new TasksCommand(jobManager));
+    public VestigeCommandExecutor(final JobManager jobManager, final ApplicationManager applicationManager) {
+        List<Command> commands = Arrays.asList(new Memory(), new GC(), new ForceGC(), new Install(applicationManager), new MakeRepo(applicationManager),
+                new RemoveRepo(applicationManager), new Start(applicationManager), new Status(applicationManager), new Stop(applicationManager), new Uninstall(applicationManager),
+                new ListCommand(applicationManager), new AutoMigrate(applicationManager), new AutoMigrateLevel(applicationManager), new Migrate(applicationManager),
+                new ClassLoaders(applicationManager), new AutoStart(applicationManager), new DescriptorReload(applicationManager), new PSCommand(jobManager), new Kill(jobManager),
+                new TasksCommand(jobManager));
         commandByNames = new TreeMap<String, Command>();
         for (Command command : commands) {
             commandByNames.put(command.getName(), command);

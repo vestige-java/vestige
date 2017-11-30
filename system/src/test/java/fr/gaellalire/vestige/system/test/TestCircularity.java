@@ -5,16 +5,16 @@ import java.security.ProtectionDomain;
 
 import org.junit.Test;
 
+import fr.gaellalire.vestige.spi.system.VestigeSystem;
+import fr.gaellalire.vestige.system.DefaultVestigeSystem;
 import fr.gaellalire.vestige.system.JVMVestigeSystemActionExecutor;
 import fr.gaellalire.vestige.system.PrivateVestigePolicy;
 import fr.gaellalire.vestige.system.PrivateVestigeSecurityManager;
 import fr.gaellalire.vestige.system.PrivateWhiteListVestigePolicy;
-import fr.gaellalire.vestige.system.PublicVestigeSystem;
-import fr.gaellalire.vestige.system.VestigeSystem;
 import fr.gaellalire.vestige.system.VestigeSystemAction;
 
 /**
- * @author gaellalire
+ * @author Gael Lalire
  */
 public class TestCircularity {
 
@@ -26,10 +26,10 @@ public class TestCircularity {
         new JVMVestigeSystemActionExecutor(true).execute(new VestigeSystemAction() {
 
             @Override
-            public void vestigeSystemRun(final PublicVestigeSystem vestigeSystem) {
-         //       Security.getProviders();
+            public void vestigeSystemRun(final VestigeSystem vestigeSystem) {
+                // Security.getProviders();
 
-                vestigeSystem.createSubSystem();
+                vestigeSystem.createSubSystem(null);
 
                 try {
                     Class.forName(ProtectionDomain.class.getName(), true, PrivateWhiteListVestigePolicy.class.getClassLoader());
@@ -55,7 +55,7 @@ public class TestCircularity {
                 vestigeSystem.setSecurityManager(vestigeSecurityManager);
                 System.out.println("Debut");
                 try {
-                    if (((VestigeSystem) vestigeSystem).getCurrentPolicy().implies(getClass().getProtectionDomain(), new RuntimePermission("setFactory"))) {
+                    if (((DefaultVestigeSystem) vestigeSystem).getCurrentPolicy().implies(getClass().getProtectionDomain(), new RuntimePermission("setFactory"))) {
                         System.out.println("OK");
                     } else {
                         System.out.println("Non");

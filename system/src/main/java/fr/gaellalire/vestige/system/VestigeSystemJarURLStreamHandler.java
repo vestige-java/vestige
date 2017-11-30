@@ -34,6 +34,8 @@ import java.util.Map.Entry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.gaellalire.vestige.spi.system.VestigeSystemCache;
+
 /**
  * @author Gael Lalire
  */
@@ -45,7 +47,7 @@ public class VestigeSystemJarURLStreamHandler extends URLStreamHandler {
 
     private Map<File, WeakReference<CachedJarFile>> cachedJarFileKeyWeakReferenceByFile = new HashMap<File, WeakReference<CachedJarFile>>();
 
-    private ThreadLocal<VestigeSystemCache> vestigeSystemCacheThreadLocal = new InheritableThreadLocal<VestigeSystemCache>();
+    private ThreadLocal<DefaultVestigeSystemCache> vestigeSystemCacheThreadLocal = new InheritableThreadLocal<DefaultVestigeSystemCache>();
 
     private File temp;
 
@@ -70,7 +72,7 @@ public class VestigeSystemJarURLStreamHandler extends URLStreamHandler {
     public CachedJarFile connect(final VestigeSystemJarURLConnection vestigeSystemJarURLConnection, final URL jarFileUrl, final boolean useCachesAsked) throws IOException {
         WeakReference<CachedJarFile> weakReference = null;
         CachedJarFile cachedJarFile = null;
-        VestigeSystemCache vestigeSystemCache = null;
+        DefaultVestigeSystemCache vestigeSystemCache = null;
         boolean useCaches = false;
         File file;
         // we always try to use cache
@@ -156,8 +158,8 @@ public class VestigeSystemJarURLStreamHandler extends URLStreamHandler {
         }
     }
 
-    public void clearCache(final VestigeSystemCache popedVestigeSystemCache) {
-        VestigeSystemCache vestigeSystemCache = vestigeSystemCacheThreadLocal.get();
+    public void clearCache(final DefaultVestigeSystemCache popedVestigeSystemCache) {
+        DefaultVestigeSystemCache vestigeSystemCache = vestigeSystemCacheThreadLocal.get();
         while (vestigeSystemCache != null && vestigeSystemCache != popedVestigeSystemCache) {
             vestigeSystemCache = vestigeSystemCache.getParent();
         }
@@ -203,8 +205,8 @@ public class VestigeSystemJarURLStreamHandler extends URLStreamHandler {
         }
     }
 
-    public PublicVestigeSystemCache pushVestigeSystemCache() {
-        VestigeSystemCache vestigeSystemCache = new VestigeSystemCache(this, vestigeSystemCacheThreadLocal.get());
+    public VestigeSystemCache pushVestigeSystemCache() {
+        DefaultVestigeSystemCache vestigeSystemCache = new DefaultVestigeSystemCache(this, vestigeSystemCacheThreadLocal.get());
         vestigeSystemCacheThreadLocal.set(vestigeSystemCache);
         return vestigeSystemCache;
     }

@@ -1,6 +1,6 @@
 ${at}echo off
 
-setlocal
+setlocal enabledelayedexpansion
 
 set DIRNAME=%~dp0
 if "%DIRNAME:~-1%" == "\" set DIRNAME=%DIRNAME:~0,-1%
@@ -40,7 +40,7 @@ if not defined VESTIGE_LISTENER_PORT set VESTIGE_LISTENER_PORT=0
 
 if not defined VESTIGE_OPTS set VESTIGE_OPTS=%JAVA_OPTS%
 
-if defined VESTIGE_DEBUG set VESTIGE_OPTS=%VESTIGE_OPTS% -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8000
+if defined VESTIGE_DEBUG set VESTIGE_OPTS=%VESTIGE_OPTS% -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=8000
 
 set MAVEN_LAUNCHER_FILE=%DATADIR%\m2\vestige-se.xml
 
@@ -56,9 +56,16 @@ set VESTIGE_OPTS=%VESTIGE_OPTS% -Dvestige.mavenRepository="%DATADIR%\repository"
 
 "%JAVA%" --add-modules java.base -version 2> nul > nul
 if %ERRORLEVEL% equ 0 (
-  set VESTIGE_OPTS=%VESTIGE_OPTS% --add-modules java.xml.bind --patch-module "java.base=%DATADIR%\lib\moduleEncapsulationBreaker.jar"
+  set VESTIGE_OPTS=!VESTIGE_OPTS! --add-modules ALL-DEFAULT --patch-module "java.base=%DATADIR%\lib\moduleEncapsulationBreaker.jar"
+  set VESTIGE_ARGS=-p "%DATADIR%\lib\vestige.core-${vestige.core.version}.jar" -m fr.gaellalire.vestige.core --add-modules fr.gaellalire.vestige.edition.maven_main_launcher frmp "%DATADIR%" "%DATADIR%\windows-classpath.txt" fr.gaellalire.vestige.jvm_enhancer.boot
+  set VESTIGE_ARGS=!VESTIGE_ARGS! "%DATADIR%" "%DATADIR%\jvm_enhancer.properties" fr.gaellalire.vestige.edition.maven_main_launcher
+) else (
+  set VESTIGE_ARGS=-jar "%DATADIR%\lib\vestige.core-${vestige.core.version}.jar" --before javax/xml/bind/.* frcp "%DATADIR%" "%DATADIR%\windows-classpath.txt" fr.gaellalire.vestige.jvm_enhancer.boot.JVMEnhancer
+  set VESTIGE_ARGS=!VESTIGE_ARGS! "%DATADIR%" "%DATADIR%\jvm_enhancer.properties" fr.gaellalire.vestige.edition.maven_main_launcher.MavenMainLauncher
 )
 
-"%JAVA%" %VESTIGE_OPTS% -jar "%DATADIR%\lib\vestige.core-${vestige.core.version}.jar" frcp "%DATADIR%" "%DATADIR%\windows-classpath.txt" fr.gaellalire.vestige.jvm_enhancer.boot.JVMEnhancer "%DATADIR%" "%DATADIR%/jvm_enhancer.properties"  fr.gaellalire.vestige.resolver.maven.VestigeMavenResolver "%MAVEN_LAUNCHER_FILE%" "%MAVEN_SETTINGS_FILE%" "%MAVEN_RESOLVER_CACHE_FILE%" "%VESTIGE_BASE%" "%VESTIGE_DATA%" %VESTIGE_SECURITY% %VESTIGE_LISTENER_PORT% || exit /B 2
+set VESTIGE_ARGS=%VESTIGE_ARGS% "%MAVEN_LAUNCHER_FILE%" "%MAVEN_SETTINGS_FILE%" "%MAVEN_RESOLVER_CACHE_FILE%" "%VESTIGE_BASE%" "%VESTIGE_DATA%" %VESTIGE_SECURITY% %VESTIGE_LISTENER_PORT%
+
+"%JAVA%" %VESTIGE_OPTS% %VESTIGE_ARGS% || exit /B 2
 
 endlocal

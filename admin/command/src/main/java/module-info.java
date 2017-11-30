@@ -4,9 +4,11 @@ module fr.gaellalire.vestige.admin.command {
 
     requires fr.gaellalire.vestige.job;
 
-    requires fr.gaellalire.vestige.platform;
-
     requires fr.gaellalire.vestige.application.manager;
+    
+    requires fr.gaellalire.vestige.spi.resolver;
+
+    requires static fr.gaellalire.vestige.platform;
 
     exports fr.gaellalire.vestige.admin.command;
 

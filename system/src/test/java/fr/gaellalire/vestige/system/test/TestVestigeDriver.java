@@ -8,12 +8,12 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import fr.gaellalire.vestige.spi.system.VestigeSystem;
 import fr.gaellalire.vestige.system.JVMVestigeSystemActionExecutor;
-import fr.gaellalire.vestige.system.PublicVestigeSystem;
 import fr.gaellalire.vestige.system.VestigeSystemAction;
 
 /**
- * @author gaellalire
+ * @author Gael Lalire
  */
 public class TestVestigeDriver {
 
@@ -25,14 +25,14 @@ public class TestVestigeDriver {
         new JVMVestigeSystemActionExecutor(false).equals(new VestigeSystemAction() {
 
             @Override
-            public void vestigeSystemRun(final PublicVestigeSystem vestigeSystem) {
+            public void vestigeSystemRun(final VestigeSystem vestigeSystem) {
                 System.err.println("par la");
                 Thread thread1 = new Thread() {
 
                     @Override
                     public void run() {
                         try {
-                            vestigeSystem.createSubSystem();
+                            vestigeSystem.createSubSystem(null);
                             MockDriver driver = new MockDriver();
                             Enumeration<Driver> drivers = DriverManager.getDrivers();
                             Assert.assertFalse(drivers.hasMoreElements());
@@ -58,7 +58,7 @@ public class TestVestigeDriver {
                     @Override
                     public void run() {
                         try {
-                            vestigeSystem.createSubSystem();
+                            vestigeSystem.createSubSystem(null);
                             MockDriver driver = new MockDriver();
                             Enumeration<Driver> drivers = DriverManager.getDrivers();
                             Assert.assertFalse(drivers.hasMoreElements());

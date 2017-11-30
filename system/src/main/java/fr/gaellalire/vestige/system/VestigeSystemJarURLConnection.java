@@ -46,8 +46,7 @@ public class VestigeSystemJarURLConnection extends JarURLConnection {
 
     private Object mutex;
 
-    public VestigeSystemJarURLConnection(final VestigeSystemJarURLStreamHandler vestigeApplicationJarURLStreamHandler, final URL url)
-            throws IOException {
+    public VestigeSystemJarURLConnection(final VestigeSystemJarURLStreamHandler vestigeApplicationJarURLStreamHandler, final URL url) throws IOException {
         super(url);
         jarFileUrl = getJarFileURL();
         jarFileURLConnection = jarFileUrl.openConnection();
@@ -125,6 +124,13 @@ public class VestigeSystemJarURLConnection extends JarURLConnection {
             connect();
         }
         return cachedJarFile;
+    }
+
+    /**
+     * After calling this method, all classes and resources should be loaded. So it can work with less permissions.
+     */
+    public static void init() {
+        JarInputStream.class.getName();
     }
 
 }

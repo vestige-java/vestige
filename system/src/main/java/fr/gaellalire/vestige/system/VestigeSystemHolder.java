@@ -17,31 +17,32 @@
 
 package fr.gaellalire.vestige.system;
 
-
 /**
  * @author Gael Lalire
  */
 public class VestigeSystemHolder {
 
-    private ThreadLocal<VestigeSystem> vestigeSystems = new InheritableThreadLocal<VestigeSystem>();
+    private ThreadLocal<DefaultVestigeSystem> vestigeSystems = new InheritableThreadLocal<DefaultVestigeSystem>();
 
-    private VestigeSystem fallbackVestigeSystem;
+    private DefaultVestigeSystem fallbackVestigeSystem;
 
     private VestigeSystemJarURLStreamHandler vestigeApplicationJarURLStreamHandler;
 
-    public VestigeSystem getVestigeSystem() {
-        VestigeSystem vestigeSystem = vestigeSystems.get();
+    public DefaultVestigeSystem getVestigeSystem() {
+        DefaultVestigeSystem vestigeSystem = vestigeSystems.get();
         if (vestigeSystem != null) {
             return vestigeSystem;
         }
         return fallbackVestigeSystem;
     }
 
-    public void setVestigeSystem(final VestigeSystem vestigeSystem) {
+    public DefaultVestigeSystem setVestigeSystem(final DefaultVestigeSystem vestigeSystem) {
+        DefaultVestigeSystem pushedDefaultVestigeSystem = vestigeSystems.get();
         vestigeSystems.set(vestigeSystem);
+        return pushedDefaultVestigeSystem;
     }
 
-    public void setFallbackVestigeSystem(final VestigeSystem vestigeSystem) {
+    public void setFallbackVestigeSystem(final DefaultVestigeSystem vestigeSystem) {
         fallbackVestigeSystem = vestigeSystem;
     }
 

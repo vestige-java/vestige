@@ -29,13 +29,13 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     private VestigeSystemHolder vestigeSystemHolder;
 
-    private VestigeSystem vestigeSystem;
+    private DefaultVestigeSystem vestigeSystem;
 
     private VestigeSystemSecurityManager previousSecurityManager;
 
     private SecurityManager securityManager;
 
-    public VestigeSystemSecurityManager(final VestigeSystemHolder vestigeSystemHolder, final VestigeSystem vestigeSystem, final VestigeSystemSecurityManager previousSecurityManager) {
+    public VestigeSystemSecurityManager(final VestigeSystemHolder vestigeSystemHolder, final DefaultVestigeSystem vestigeSystem, final VestigeSystemSecurityManager previousSecurityManager) {
         this.vestigeSystemHolder = vestigeSystemHolder;
         this.vestigeSystem = vestigeSystem;
         this.previousSecurityManager = previousSecurityManager;
@@ -51,7 +51,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkAccept(final String host, final int port) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -68,7 +68,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkAccess(final Thread t) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -85,7 +85,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkAccess(final ThreadGroup g) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -102,7 +102,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkAwtEventQueueAccess() {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -119,7 +119,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkConnect(final String host, final int port) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -136,7 +136,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkConnect(final String host, final int port, final Object context) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -153,7 +153,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkCreateClassLoader() {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -170,7 +170,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkDelete(final String file) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -187,7 +187,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkExec(final String cmd) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -204,7 +204,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkExit(final int status) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -221,7 +221,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkLink(final String lib) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -238,7 +238,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkListen(final int port) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -255,7 +255,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkMemberAccess(final Class<?> clazz, final int which) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -272,7 +272,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkMulticast(final InetAddress maddr) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -289,7 +289,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkMulticast(final InetAddress maddr, final byte ttl) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -306,7 +306,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkPackageAccess(final String pkg) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -323,7 +323,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkPackageDefinition(final String pkg) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -340,7 +340,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkPermission(final Permission perm) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -357,7 +357,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkPermission(final Permission perm, final Object context) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -374,7 +374,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkPrintJobAccess() {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -391,7 +391,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkPropertiesAccess() {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -408,7 +408,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkPropertyAccess(final String key) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -425,7 +425,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkRead(final FileDescriptor fd) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -442,7 +442,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkRead(final String file) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -459,7 +459,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkRead(final String file, final Object context) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -476,7 +476,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkSecurityAccess(final String target) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -493,7 +493,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkSetFactory() {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -510,7 +510,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkSystemClipboardAccess() {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -527,7 +527,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public boolean checkTopLevelWindow(final Object window) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null && !previousSecurityManager.checkTopLevelWindow(window)) {
@@ -545,7 +545,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkWrite(final FileDescriptor fd) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {
@@ -562,7 +562,7 @@ public class VestigeSystemSecurityManager extends SecurityManager {
 
     @Override
     public void checkWrite(final String file) {
-        VestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
         vestigeSystemHolder.setVestigeSystem(vestigeSystem);
         try {
             if (previousSecurityManager != null) {

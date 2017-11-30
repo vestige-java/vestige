@@ -24,9 +24,6 @@ import java.security.Permission;
 import java.util.List;
 import java.util.Set;
 
-import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
-
-
 /**
  * @author Gael Lalire
  */
@@ -38,9 +35,9 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     private Set<Permission> installerPermissions;
 
-    private ClassLoaderConfiguration resolve;
+    private transient ApplicationResolvedClassLoaderConfiguration resolve;
 
-    private ClassLoaderConfiguration installerResolve;
+    private transient ApplicationResolvedClassLoaderConfiguration installerResolve;
 
     private String className;
 
@@ -142,19 +139,19 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     private transient Exception exception;
 
-    public ClassLoaderConfiguration getResolve() {
+    public ApplicationResolvedClassLoaderConfiguration getResolve() {
         return resolve;
     }
 
-    public void setResolve(final ClassLoaderConfiguration resolve) {
+    public void setResolve(final ApplicationResolvedClassLoaderConfiguration resolve) {
         this.resolve = resolve;
     }
 
-    public ClassLoaderConfiguration getInstallerResolve() {
+    public ApplicationResolvedClassLoaderConfiguration getInstallerResolve() {
         return installerResolve;
     }
 
-    public void setInstallerResolve(final ClassLoaderConfiguration installerResolve) {
+    public void setInstallerResolve(final ApplicationResolvedClassLoaderConfiguration installerResolve) {
         this.installerResolve = installerResolve;
     }
 
@@ -299,6 +296,18 @@ public class ApplicationContext implements Serializable, Cloneable {
     public void setData(final File data) {
         this.data = data;
     }
+
+    // private void writeObject(ObjectOutputStream out) throws IOException {
+    // out.defaultWriteObject();
+    // resolve.save(out);
+    // installerResolve.save(out);
+    // }
+    //
+    // private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+    // in.defaultReadObject();
+    // resolve = in.readObject();
+    //
+    // }
 
     public ApplicationContext copy() {
         try {

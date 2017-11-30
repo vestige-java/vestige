@@ -49,19 +49,20 @@ import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import fr.gaellalire.vestige.core.VestigeClassLoader;
 import fr.gaellalire.vestige.job.Job;
 import fr.gaellalire.vestige.job.JobController;
-import fr.gaellalire.vestige.job.JobHelper;
 import fr.gaellalire.vestige.job.JobListener;
 import fr.gaellalire.vestige.job.JobManager;
-import fr.gaellalire.vestige.job.TaskHelper;
-import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
-import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
-import fr.gaellalire.vestige.platform.VestigePlatform;
+import fr.gaellalire.vestige.spi.job.JobHelper;
+import fr.gaellalire.vestige.spi.job.TaskHelper;
+import fr.gaellalire.vestige.spi.resolver.AttachableClassLoader;
+import fr.gaellalire.vestige.spi.resolver.AttachedClassLoader;
+import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
+import fr.gaellalire.vestige.spi.resolver.VestigeResolver;
+import fr.gaellalire.vestige.spi.system.VestigeSystem;
 import fr.gaellalire.vestige.system.PrivateVestigePolicy;
 import fr.gaellalire.vestige.system.PrivateVestigeSecurityManager;
-import fr.gaellalire.vestige.system.PublicVestigeSystem;
+import fr.gaellalire.vestige.system.VestigeSystemJarURLConnection;
 import fr.gaellalire.vestige.utils.FileUtils;
 
 /**
@@ -71,9 +72,13 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultApplicationManager.class);
 
-    private VestigePlatform vestigePlatform;
+    static {
+        // ensure VestigeSystemInvocationHandler is loaded
+        VestigeSystemInvocationHandler.class.getName();
+        VestigeSystemJarURLConnection.init();
+    }
 
-    private PublicVestigeSystem rootVestigeSystem;
+    private VestigeSystem rootVestigeSystem;
 
     private ApplicationRepositoryManager applicationDescriptorFactory;
 
@@ -89,6 +94,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
     private File nextResolverFile;
 
+    private boolean applicationManagerStateListenersChanged;
+
     private List<ApplicationManagerStateListener> applicationManagerStateListeners;
 
     private ApplicationManagerState lastState;
@@ -97,12 +104,15 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
     private int currentJavaSpecificationVersion;
 
-    public DefaultApplicationManager(final JobManager actionManager, final File appBaseFile, final File appDataFile, final VestigePlatform vestigePlatform,
-            final PublicVestigeSystem vestigeSystem, final PublicVestigeSystem managerVestigeSystem, final PrivateVestigeSecurityManager vestigeSecurityManager,
-            final ApplicationRepositoryManager applicationDescriptorFactory, final File resolverFile, final File nextResolverFile) {
+    private List<VestigeResolver> vestigeResolvers;
+
+    public DefaultApplicationManager(final JobManager actionManager, final File appBaseFile, final File appDataFile, final VestigeSystem vestigeSystem,
+            final VestigeSystem managerVestigeSystem, final PrivateVestigeSecurityManager vestigeSecurityManager, final ApplicationRepositoryManager applicationDescriptorFactory,
+            final File resolverFile, final File nextResolverFile, final List<VestigeResolver> vestigeResolvers) {
         this.jobManager = actionManager;
         this.appBaseFile = appBaseFile;
         this.appDataFile = appDataFile;
+        this.vestigeResolvers = vestigeResolvers;
 
         AllPermission allPermission = new AllPermission();
         PermissionCollection allPermissionCollection = allPermission.newPermissionCollection();
@@ -112,7 +122,6 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         vestigeSystem.setPolicy(vestigePolicy);
         this.rootVestigeSystem = vestigeSystem;
         this.vestigeSecureExecutor = new VestigeSecureExecutor(vestigeSecurityManager, vestigePolicy, managerVestigeSystem);
-        this.vestigePlatform = vestigePlatform;
         this.applicationDescriptorFactory = applicationDescriptorFactory;
         this.resolverFile = resolverFile;
         this.nextResolverFile = nextResolverFile;
@@ -134,6 +143,16 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         }
     }
 
+    private ApplicationResolvedClassLoaderConfiguration readResolvedClassLoaderConfiguration(final ObjectInputStream objectInputStream) throws IOException {
+        int resolverIndex = objectInputStream.readInt();
+        if (resolverIndex == -1) {
+            return null;
+        }
+        ResolvedClassLoaderConfiguration restoreSavedResolvedClassLoaderConfiguration = vestigeResolvers.get(resolverIndex)
+                .restoreSavedResolvedClassLoaderConfiguration(objectInputStream);
+        return new ApplicationResolvedClassLoaderConfiguration(restoreSavedResolvedClassLoaderConfiguration, resolverIndex);
+    }
+
     private DefaultApplicationManagerState readDefaultApplicationManagerState(final File file) throws IOException, ClassNotFoundException {
         ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(file)) {
             protected java.lang.Class<?> resolveClass(final java.io.ObjectStreamClass desc) throws IOException, ClassNotFoundException {
@@ -141,7 +160,13 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             }
         };
         try {
-            return (DefaultApplicationManagerState) objectInputStream.readObject();
+            DefaultApplicationManagerState defaultApplicationManagerState = (DefaultApplicationManagerState) objectInputStream.readObject();
+            for (ApplicationContext applicationContext : defaultApplicationManagerState.getApplicationContexts()) {
+                applicationContext.setInstallerResolve(readResolvedClassLoaderConfiguration(objectInputStream));
+                applicationContext.setResolve(readResolvedClassLoaderConfiguration(objectInputStream));
+            }
+            return defaultApplicationManagerState;
+
         } finally {
             objectInputStream.close();
         }
@@ -167,11 +192,25 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         }
     }
 
+    public void saveApplicationResolvedClassLoaderConfiguration(final ObjectOutputStream objectOutputStream,
+            final ApplicationResolvedClassLoaderConfiguration applicationResolvedClassLoaderConfiguration) throws IOException {
+        if (applicationResolvedClassLoaderConfiguration == null) {
+            objectOutputStream.writeInt(-1);
+            return;
+        }
+        objectOutputStream.writeInt(applicationResolvedClassLoaderConfiguration.getResolverIndex());
+        applicationResolvedClassLoaderConfiguration.save(objectOutputStream);
+    }
+
     public void saveState() throws ApplicationException {
         try {
             ObjectOutputStream objectOutputStream = new ObjectOutputStream(new FileOutputStream(nextResolverFile));
             try {
                 objectOutputStream.writeObject(state);
+                for (ApplicationContext applicationContext : state.getApplicationContexts()) {
+                    saveApplicationResolvedClassLoaderConfiguration(objectOutputStream, applicationContext.getInstallerResolve());
+                    saveApplicationResolvedClassLoaderConfiguration(objectOutputStream, applicationContext.getResolve());
+                }
             } finally {
                 objectOutputStream.close();
             }
@@ -188,8 +227,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         }
     }
 
-    public ApplicationContext createApplicationContext(final String repoName, final String appName, final List<Integer> version, final String installName, final JobHelper jobHelper)
-            throws ApplicationException {
+    public ApplicationContext createApplicationContext(final String repoName, final String appName, final List<Integer> version, final String installName,
+            final JobHelper jobHelper) throws ApplicationException {
         URL context = state.getRepositoryURL(repoName);
         if (context == null) {
             throw new ApplicationException("Repository not found");
@@ -267,7 +306,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
         private String installName;
 
-        public InstallAction(final String repoName, final String appName, final List<Integer> version, final String installName) {
+        InstallAction(final String repoName, final String appName, final List<Integer> version, final String installName) {
             this.repoName = repoName;
             this.appName = appName;
             this.version = version;
@@ -302,40 +341,30 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
                 final RuntimeApplicationInstallerContext finalRuntimeApplicationInstallerContext;
                 TaskHelper task = jobHelper.addTask("Attaching installer classLoader");
-                int installerAttach;
+                AttachedClassLoader installerAttach;
                 try {
-                    RuntimeApplicationInstallerContext runtimeApplicationInstallerContext = applicationContext.getRuntimeApplicationInstallerContext();
-                    if (runtimeApplicationInstallerContext == null) {
-                        // attach
-                        ClassLoaderConfiguration installerResolve = applicationContext.getInstallerResolve();
-                        if (installerResolve == null) {
-                            successful = true;
-                            finalRuntimeApplicationInstallerContext = null;
-                            installerAttach = -1;
-                        } else {
-                            synchronized (vestigePlatform) {
-                                installerAttach = vestigePlatform.attach(installerResolve);
-                            }
-                            VestigeClassLoader<AttachedVestigeClassLoader> classLoader = vestigePlatform.getClassLoader(installerAttach);
-                            finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(applicationContext, installerResolve.getPermissions(), classLoader,
-                                    installName);
-                            classLoader.getData().addObject(new SoftReference<RuntimeApplicationInstallerContext>(finalRuntimeApplicationInstallerContext));
-                        }
+                    // attach
+                    ResolvedClassLoaderConfiguration installerResolve = applicationContext.getInstallerResolve();
+                    if (installerResolve == null) {
+                        successful = true;
+                        finalRuntimeApplicationInstallerContext = null;
+                        installerAttach = null;
                     } else {
-                        // reattach
-                        synchronized (vestigePlatform) {
-                            installerAttach = vestigePlatform.attach(runtimeApplicationInstallerContext.getClassLoader());
-                        }
-                        finalRuntimeApplicationInstallerContext = runtimeApplicationInstallerContext;
+                        installerAttach = installerResolve.attach();
+
+                        finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(applicationContext, installerResolve.getPermissions(),
+                                installerAttach.getAttachableClassLoader(), installName);
+
+                        installerAttach.getAttachableClassLoader().addSoftReferenceObject(finalRuntimeApplicationInstallerContext);
                     }
                 } finally {
                     task.setDone();
                 }
                 if (!successful) {
                     try {
-                        final VestigeClassLoader<?> installerClassLoader = finalRuntimeApplicationInstallerContext.getClassLoader();
+                        final ClassLoader installerClassLoader = installerAttach.getAttachableClassLoader().getClassLoader();
 
-                        final PublicVestigeSystem vestigeSystem = finalRuntimeApplicationInstallerContext.getVestigeSystem();
+                        final VestigeSystem vestigeSystem = finalRuntimeApplicationInstallerContext.getVestigeSystem();
 
                         final String installerClassName = applicationContext.getInstallerClassName();
                         VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader,
@@ -344,8 +373,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
                                     @Override
                                     public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
-                                        ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(callConstructor(installerClassLoader,
-                                                installerClassLoader.loadClass(installerClassName), base, data, vestigeSystem));
+                                        ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(
+                                                callConstructor(installerClassLoader, installerClassLoader.loadClass(installerClassName), base, data, vestigeSystem));
                                         applicationInstaller.install();
                                         return null;
                                     }
@@ -359,9 +388,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                             task.setDone();
                         }
                     } finally {
-                        synchronized (vestigePlatform) {
-                            vestigePlatform.detach(installerAttach);
-                        }
+                        installerAttach.detach();
                     }
                     successful = true;
                 }
@@ -383,7 +410,53 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         }
     }
 
-    public static final List<Integer> LOCKED_VERSION = Collections.emptyList();
+    // public static final List<Integer> LOCKED_VERSION = Collections.emptyList();
+
+    @Override
+    public JobController reloadDescriptor(final String installName, final JobListener jobListener) throws ApplicationException {
+        final ApplicationContext applicationContext;
+        synchronized (state) {
+            applicationContext = state.getUnlockedApplicationContext(installName);
+            if (applicationContext.isStarted()) {
+                throw new ApplicationException("Application is started");
+            }
+            applicationContext.setLocked(true);
+        }
+        return jobManager.submitJob("reloadDescriptor", "Reloading descriptor of " + installName, new ReloadDescriptorAction(applicationContext, installName), jobListener);
+    }
+
+    /**
+     * @author Gael Lalire
+     */
+    private class ReloadDescriptorAction implements Job {
+
+        private ApplicationContext applicationContext;
+
+        private String installName;
+
+        ReloadDescriptorAction(final ApplicationContext applicationContext, final String installName) {
+            this.applicationContext = applicationContext;
+            this.installName = installName;
+        }
+
+        @Override
+        public void run(final JobHelper jobHelper) throws ApplicationException {
+            ApplicationContext reloadedApplicationContext = null;
+            try {
+                reloadedApplicationContext = createApplicationContext(applicationContext.getRepoName(), applicationContext.getRepoApplicationName(),
+                        applicationContext.getRepoApplicationVersion(), installName, jobHelper);
+            } finally {
+                if (reloadedApplicationContext != null) {
+                    synchronized (state) {
+                        state.install(installName, reloadedApplicationContext);
+                        saveState();
+                    }
+                } else {
+                    applicationContext.setLocked(false);
+                }
+            }
+        }
+    }
 
     public JobController uninstall(final String installName, final JobListener jobListener) throws ApplicationException {
         final ApplicationContext applicationContext;
@@ -406,7 +479,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
         private String installName;
 
-        public UninstallAction(final ApplicationContext applicationContext, final String installName) {
+        UninstallAction(final ApplicationContext applicationContext, final String installName) {
             this.applicationContext = applicationContext;
             this.installName = installName;
         }
@@ -417,44 +490,37 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 final File base = applicationContext.getBase();
                 final File data = applicationContext.getData();
                 try {
+                    RuntimeApplicationInstallerContext runtimeApplicationInstallerContext;
                     boolean noInstaller = false;
-                    final RuntimeApplicationInstallerContext finalRuntimeApplicationInstallerContext;
                     TaskHelper task = jobHelper.addTask("Attaching installer classLoader");
-                    int installerAttach;
+                    AttachedClassLoader installerAttach;
                     try {
-                        RuntimeApplicationInstallerContext runtimeApplicationInstallerContext = applicationContext.getRuntimeApplicationInstallerContext();
+                        runtimeApplicationInstallerContext = applicationContext.getRuntimeApplicationInstallerContext();
                         if (runtimeApplicationInstallerContext == null) {
                             // attach
-                            ClassLoaderConfiguration installerResolve = applicationContext.getInstallerResolve();
+                            ResolvedClassLoaderConfiguration installerResolve = applicationContext.getInstallerResolve();
                             if (installerResolve == null) {
                                 noInstaller = true;
-                                finalRuntimeApplicationInstallerContext = null;
-                                installerAttach = -1;
+                                installerAttach = null;
                             } else {
-                                synchronized (vestigePlatform) {
-                                    installerAttach = vestigePlatform.attach(installerResolve);
-                                }
-                                VestigeClassLoader<AttachedVestigeClassLoader> classLoader = vestigePlatform.getClassLoader(installerAttach);
-                                finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(applicationContext, installerResolve.getPermissions(),
-                                        classLoader, installName);
-                                classLoader.getData().addObject(new SoftReference<RuntimeApplicationInstallerContext>(finalRuntimeApplicationInstallerContext));
+                                installerAttach = installerResolve.attach();
+                                runtimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(applicationContext, installerResolve.getPermissions(),
+                                        installerAttach.getAttachableClassLoader(), installName);
+                                installerAttach.getAttachableClassLoader().addSoftReferenceObject(runtimeApplicationInstallerContext);
                             }
                         } else {
                             // reattach
-                            synchronized (vestigePlatform) {
-                                installerAttach = vestigePlatform.attach(runtimeApplicationInstallerContext.getClassLoader());
-                            }
-                            finalRuntimeApplicationInstallerContext = runtimeApplicationInstallerContext;
+                            installerAttach = runtimeApplicationInstallerContext.getClassLoader().attach();
                         }
                     } finally {
                         task.setDone();
                     }
                     if (!noInstaller) {
                         try {
-                            final VestigeClassLoader<?> installerClassLoader = finalRuntimeApplicationInstallerContext.getClassLoader();
-                            final PublicVestigeSystem vestigeSystem = finalRuntimeApplicationInstallerContext.getVestigeSystem();
+                            final ClassLoader installerClassLoader = installerAttach.getAttachableClassLoader().getClassLoader();
+                            final VestigeSystem vestigeSystem = runtimeApplicationInstallerContext.getVestigeSystem();
                             VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader,
-                                    finalRuntimeApplicationInstallerContext.getInstallerAdditionnalPermissions(), null, applicationContext.getName() + "-installer", vestigeSystem,
+                                    runtimeApplicationInstallerContext.getInstallerAdditionnalPermissions(), null, applicationContext.getName() + "-installer", vestigeSystem,
                                     new VestigeSecureCallable<Void>() {
 
                                         @Override
@@ -474,9 +540,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                 task.setDone();
                             }
                         } finally {
-                            synchronized (vestigePlatform) {
-                                vestigePlatform.detach(installerAttach);
-                            }
+                            installerAttach.detach();
                         }
                     }
                 } finally {
@@ -574,7 +638,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
     }
 
     public RuntimeApplicationInstallerContext createRuntimeApplicationInstallerContext(final ApplicationContext applicationContext,
-            final Collection<Permission> installerResolvePermission, final VestigeClassLoader<AttachedVestigeClassLoader> installerClassLoader, final String installName) {
+            final Collection<Permission> installerResolvePermission, final AttachableClassLoader installerClassLoader, final String installName) {
         Set<Permission> additionnalPermissions = new HashSet<Permission>();
         additionnalPermissions.addAll(installerResolvePermission);
         final File base = applicationContext.getBase();
@@ -585,7 +649,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         additionnalPermissions.add(new FilePermission(data.getPath() + File.separator + "-", "read,write,delete"));
         additionnalPermissions.addAll(applicationContext.getResolve().getPermissions());
         additionnalPermissions.addAll(applicationContext.getInstallerPermissions());
-        final PublicVestigeSystem vestigeSystem;
+        final VestigeSystem vestigeSystem;
         if (applicationContext.isInstallerPrivateSystem()) {
             vestigeSystem = rootVestigeSystem.createSubSystem("app-" + installName + "-installer");
         } else {
@@ -604,7 +668,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
         private String installName;
 
-        public RecoverMigrationAction(final ApplicationContext savedApplicationContext, final String installName) {
+        RecoverMigrationAction(final ApplicationContext savedApplicationContext, final String installName) {
             this.savedApplicationContext = savedApplicationContext;
             this.installName = installName;
         }
@@ -635,37 +699,32 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             try {
                 final RuntimeApplicationInstallerContext finalRuntimeApplicationInstallerContext;
                 TaskHelper task = jobHelper.addTask("Attaching installer classLoader of version " + VersionUtils.toString(migratorApplicationContext.getRepoApplicationVersion()));
-                int installerAttach;
+                AttachedClassLoader installerAttach;
                 try {
                     RuntimeApplicationInstallerContext runtimeApplicationInstallerContext = migratorApplicationContext.getRuntimeApplicationInstallerContext();
                     if (runtimeApplicationInstallerContext == null) {
                         // attach
-                        ClassLoaderConfiguration installerResolve = migratorApplicationContext.getInstallerResolve();
-                        synchronized (vestigePlatform) {
-                            installerAttach = vestigePlatform.attach(installerResolve);
-                        }
-                        VestigeClassLoader<AttachedVestigeClassLoader> classLoader = vestigePlatform.getClassLoader(installerAttach);
+                        ResolvedClassLoaderConfiguration installerResolve = migratorApplicationContext.getInstallerResolve();
+                        installerAttach = installerResolve.attach();
                         finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(migratorApplicationContext, installerResolve.getPermissions(),
-                                classLoader, installName);
-                        classLoader.getData().addObject(new SoftReference<RuntimeApplicationInstallerContext>(finalRuntimeApplicationInstallerContext));
+                                installerAttach.getAttachableClassLoader(), installName);
+                        installerAttach.getAttachableClassLoader().addSoftReferenceObject(finalRuntimeApplicationInstallerContext);
                     } else {
                         // reattach
-                        synchronized (vestigePlatform) {
-                            installerAttach = vestigePlatform.attach(runtimeApplicationInstallerContext.getClassLoader());
-                        }
+                        installerAttach = runtimeApplicationInstallerContext.getClassLoader().attach();
                         finalRuntimeApplicationInstallerContext = runtimeApplicationInstallerContext;
                     }
                 } finally {
                     task.setDone();
                 }
                 try {
-                    final VestigeClassLoader<?> installerClassLoader = finalRuntimeApplicationInstallerContext.getClassLoader();
+                    final ClassLoader installerClassLoader = installerAttach.getAttachableClassLoader().getClassLoader();
 
                     Set<Permission> additionnalPermissions = new HashSet<Permission>();
                     finalRuntimeApplicationInstallerContext.addInstallerAdditionnalPermissions(additionnalPermissions);
                     additionnalPermissions.addAll(migratedApplicationContext.getResolve().getPermissions());
 
-                    final PublicVestigeSystem vestigeSystem = finalRuntimeApplicationInstallerContext.getVestigeSystem();
+                    final VestigeSystem vestigeSystem = finalRuntimeApplicationInstallerContext.getVestigeSystem();
                     VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader, additionnalPermissions, null,
                             migratorApplicationContext.getName() + "-installer", vestigeSystem, new VestigeSecureCallable<Void>() {
 
@@ -673,9 +732,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                 public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
                                     ApplicationInstaller applicationInstaller = finalRuntimeApplicationInstallerContext.getApplicationInstaller();
                                     if (applicationInstaller == null) {
-                                        applicationInstaller = new ApplicationInstallerInvoker(callConstructor(installerClassLoader,
-                                                installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()), migratorApplicationContext.getBase(),
-                                                migratorApplicationContext.getData(), vestigeSystem));
+                                        applicationInstaller = new ApplicationInstallerInvoker(
+                                                callConstructor(installerClassLoader, installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()),
+                                                        migratorApplicationContext.getBase(), migratorApplicationContext.getData(), vestigeSystem));
                                         finalRuntimeApplicationInstallerContext.setApplicationInstaller(applicationInstaller);
                                     }
                                     try {
@@ -718,9 +777,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                     vestigeSecureExecution.start();
                     vestigeSecureExecution.get();
                 } finally {
-                    synchronized (vestigePlatform) {
-                        vestigePlatform.detach(installerAttach);
-                    }
+                    installerAttach.detach();
                 }
             } catch (Exception e) {
                 throw new ApplicationException("Fail to recover migration", e);
@@ -759,7 +816,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
         private boolean ignoreIfUnsupported;
 
-        public MigrateAction(final ApplicationContext fromApplicationContext, final String installName, final List<Integer> toVersion, final boolean ignoreIfUnsupported) {
+        MigrateAction(final ApplicationContext fromApplicationContext, final String installName, final List<Integer> toVersion, final boolean ignoreIfUnsupported) {
             this.fromApplicationContext = fromApplicationContext;
             this.installName = installName;
             this.toVersion = toVersion;
@@ -851,39 +908,34 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                         VestigeSecureExecution<Void> fromVestigeSecureExecution = fromApplicationContext.getVestigeSecureExecution();
                         try {
                             final RuntimeApplicationInstallerContext finalRuntimeApplicationInstallerContext;
-                            TaskHelper task = jobHelper.addTask("Attaching installer classLoader of version "
-                                    + VersionUtils.toString(migratorApplicationContext.getRepoApplicationVersion()));
-                            int installerAttach;
+                            TaskHelper task = jobHelper
+                                    .addTask("Attaching installer classLoader of version " + VersionUtils.toString(migratorApplicationContext.getRepoApplicationVersion()));
+                            AttachedClassLoader installerAttach;
                             try {
                                 RuntimeApplicationInstallerContext runtimeApplicationInstallerContext = migratorApplicationContext.getRuntimeApplicationInstallerContext();
                                 if (runtimeApplicationInstallerContext == null) {
                                     // attach
-                                    ClassLoaderConfiguration installerResolve = migratorApplicationContext.getInstallerResolve();
-                                    synchronized (vestigePlatform) {
-                                        installerAttach = vestigePlatform.attach(installerResolve);
-                                    }
-                                    VestigeClassLoader<AttachedVestigeClassLoader> classLoader = vestigePlatform.getClassLoader(installerAttach);
+                                    ResolvedClassLoaderConfiguration installerResolve = migratorApplicationContext.getInstallerResolve();
+                                    installerAttach = installerResolve.attach();
                                     finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(migratorApplicationContext,
-                                            installerResolve.getPermissions(), classLoader, installName);
-                                    classLoader.getData().addObject(new SoftReference<RuntimeApplicationInstallerContext>(finalRuntimeApplicationInstallerContext));
+                                            installerResolve.getPermissions(), installerAttach.getAttachableClassLoader(), installName);
+                                    installerAttach.getAttachableClassLoader().addSoftReferenceObject(finalRuntimeApplicationInstallerContext);
                                 } else {
                                     // reattach
-                                    synchronized (vestigePlatform) {
-                                        installerAttach = vestigePlatform.attach(runtimeApplicationInstallerContext.getClassLoader());
-                                    }
+                                    installerAttach = runtimeApplicationInstallerContext.getClassLoader().attach();
                                     finalRuntimeApplicationInstallerContext = runtimeApplicationInstallerContext;
                                 }
                             } finally {
                                 task.setDone();
                             }
                             try {
-                                final VestigeClassLoader<?> installerClassLoader = finalRuntimeApplicationInstallerContext.getClassLoader();
+                                final ClassLoader installerClassLoader = installerAttach.getAttachableClassLoader().getClassLoader();
 
                                 Set<Permission> additionnalPermissions = new HashSet<Permission>();
                                 finalRuntimeApplicationInstallerContext.addInstallerAdditionnalPermissions(additionnalPermissions);
                                 additionnalPermissions.addAll(migratedApplicationContext.getResolve().getPermissions());
 
-                                final PublicVestigeSystem vestigeSystem = finalRuntimeApplicationInstallerContext.getVestigeSystem();
+                                final VestigeSystem vestigeSystem = finalRuntimeApplicationInstallerContext.getVestigeSystem();
                                 VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader, additionnalPermissions,
                                         Arrays.asList(fromVestigeSecureExecution.getThreadGroup(), toApplicationContext.getVestigeSecureExecution().getThreadGroup()),
                                         migratorApplicationContext.getName() + "-installer", vestigeSystem, new VestigeSecureCallable<Void>() {
@@ -912,8 +964,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                                         task = jobHelper.addTask("Calling prepareUninterruptedMigrateFrom method");
                                                         try {
                                                             applicationInstaller.prepareUninterruptedMigrateFrom(fromApplicationContext.getRepoApplicationVersion(),
-                                                                    runtimeApplicationContext.getApplicationCallable(),
-                                                                    notNullToRuntimeApplicationContext.getApplicationCallable(), notifyRunMutex);
+                                                                    runtimeApplicationContext.getApplicationCallable(), notNullToRuntimeApplicationContext.getApplicationCallable(),
+                                                                    notifyRunMutex);
                                                         } finally {
                                                             task.setDone();
                                                         }
@@ -979,9 +1031,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                 fromVestigeSecureExecution.interrupt();
                                 successfulMigration = true;
                             } finally {
-                                synchronized (vestigePlatform) {
-                                    vestigePlatform.detach(installerAttach);
-                                }
+                                installerAttach.detach();
                             }
                         } finally {
                             if (!successfulMigration) {
@@ -997,35 +1047,35 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 } else {
                     try {
                         final RuntimeApplicationInstallerContext finalRuntimeApplicationInstallerContext;
-                        TaskHelper task = jobHelper.addTask("Attaching installer classLoader of version "
-                                + VersionUtils.toString(migratorApplicationContext.getRepoApplicationVersion()));
-                        int installerAttach;
+                        TaskHelper task = jobHelper
+                                .addTask("Attaching installer classLoader of version " + VersionUtils.toString(migratorApplicationContext.getRepoApplicationVersion()));
+                        AttachedClassLoader installerAttach;
                         try {
                             RuntimeApplicationInstallerContext runtimeApplicationInstallerContext = migratorApplicationContext.getRuntimeApplicationInstallerContext();
                             if (runtimeApplicationInstallerContext == null) {
                                 // attach
-                                ClassLoaderConfiguration installerResolve = migratorApplicationContext.getInstallerResolve();
-                                installerAttach = vestigePlatform.attach(installerResolve);
-                                VestigeClassLoader<AttachedVestigeClassLoader> classLoader = vestigePlatform.getClassLoader(installerAttach);
+                                ResolvedClassLoaderConfiguration installerResolve = migratorApplicationContext.getInstallerResolve();
+                                installerAttach = installerResolve.attach();
                                 finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(migratorApplicationContext, installerResolve.getPermissions(),
-                                        classLoader, installName);
-                                classLoader.getData().addObject(new SoftReference<RuntimeApplicationInstallerContext>(finalRuntimeApplicationInstallerContext));
+                                        installerAttach.getAttachableClassLoader(), installName);
+                                installerAttach.getAttachableClassLoader()
+                                        .addSoftReferenceObject(new SoftReference<RuntimeApplicationInstallerContext>(finalRuntimeApplicationInstallerContext));
                             } else {
                                 // reattach
-                                installerAttach = vestigePlatform.attach(runtimeApplicationInstallerContext.getClassLoader());
+                                installerAttach = runtimeApplicationInstallerContext.getClassLoader().attach();
                                 finalRuntimeApplicationInstallerContext = runtimeApplicationInstallerContext;
                             }
                         } finally {
                             task.setDone();
                         }
                         try {
-                            final VestigeClassLoader<?> installerClassLoader = finalRuntimeApplicationInstallerContext.getClassLoader();
+                            final ClassLoader installerClassLoader = installerAttach.getAttachableClassLoader().getClassLoader();
 
                             Set<Permission> additionnalPermissions = new HashSet<Permission>();
                             finalRuntimeApplicationInstallerContext.addInstallerAdditionnalPermissions(additionnalPermissions);
                             additionnalPermissions.addAll(migratedApplicationContext.getResolve().getPermissions());
 
-                            final PublicVestigeSystem vestigeSystem = finalRuntimeApplicationInstallerContext.getVestigeSystem();
+                            final VestigeSystem vestigeSystem = finalRuntimeApplicationInstallerContext.getVestigeSystem();
                             VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader, additionnalPermissions, null,
                                     migratorApplicationContext.getName() + "-installer", vestigeSystem, new VestigeSecureCallable<Void>() {
 
@@ -1033,9 +1083,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                         public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
                                             ApplicationInstaller applicationInstaller = finalRuntimeApplicationInstallerContext.getApplicationInstaller();
                                             if (applicationInstaller == null) {
-                                                applicationInstaller = new ApplicationInstallerInvoker(callConstructor(installerClassLoader,
-                                                        installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()), migratorApplicationContext.getBase(),
-                                                        migratorApplicationContext.getData(), vestigeSystem));
+                                                applicationInstaller = new ApplicationInstallerInvoker(
+                                                        callConstructor(installerClassLoader, installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()),
+                                                                migratorApplicationContext.getBase(), migratorApplicationContext.getData(), vestigeSystem));
                                                 finalRuntimeApplicationInstallerContext.setApplicationInstaller(applicationInstaller);
                                             }
                                             Exception migrateException = null;
@@ -1114,7 +1164,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                             vestigeSecureExecution.start();
                             vestigeSecureExecution.get();
                         } finally {
-                            vestigePlatform.detach(installerAttach);
+                            installerAttach.detach();
                         }
                     } catch (Exception e) {
                         throw new ApplicationException("Fail to migrate", e);
@@ -1185,7 +1235,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         start(applicationContext, null, null, installName);
     }
 
-    public Object callConstructor(final ClassLoader classLoader, final Class<?> loadClass, final File home, final File data, final PublicVestigeSystem vestigeSystem)
+    public Object callConstructor(final ClassLoader classLoader, final Class<?> loadClass, final File home, final File data, final VestigeSystem vestigeSystem)
             throws IllegalArgumentException, InstantiationException, IllegalAccessException, InvocationTargetException, ApplicationException {
         // level : constructor
         // 0 : ()
@@ -1260,27 +1310,51 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         case 2:
             return bestConstructor.newInstance(home, data);
         case 3:
-            return bestConstructor
-                    .newInstance(home, data, VestigeSystemInvocationHandler.createProxy(classLoader, bestItfType, vestigeSystem, System.getSecurityManager() != null));
+            return bestConstructor.newInstance(home, data, VestigeSystemInvocationHandler.createProxy(classLoader, bestItfType, vestigeSystem));
         default:
             throw new ApplicationException("No constructor found");
         }
     }
 
+    /**
+     * Just to ensure that the class is loaded.
+     */
+    @SuppressWarnings("unused")
+    private static final RunnableProxy UNUSED = new RunnableProxy(null);
+
+    /**
+     * @author Gael Lalire
+     */
+    private static class RunnableProxy implements Callable<Void> {
+
+        private Runnable runnable;
+
+        RunnableProxy(final Runnable runnable) {
+            this.runnable = runnable;
+        }
+
+        @Override
+        public Void call() throws Exception {
+            runnable.run();
+            return null;
+        }
+
+    }
+
     public void start(final ApplicationContext applicationContext, final Object runMutex, final Object constructorMutex, final String installName) throws ApplicationException {
         try {
-            final int attach;
-            final PublicVestigeSystem vestigeSystem;
-            final VestigeClassLoader<AttachedVestigeClassLoader> classLoader;
+            final AttachedClassLoader attach;
+            final VestigeSystem vestigeSystem;
+            final AttachableClassLoader attachableClassLoader;
+            final ClassLoader classLoader;
             RuntimeApplicationContext previousRuntimeApplicationContext = applicationContext.getRuntimeApplicationContext();
-            final ClassLoaderConfiguration resolve = applicationContext.getResolve();
+            final ResolvedClassLoaderConfiguration resolve = applicationContext.getResolve();
             final RuntimeApplicationContext finalPreviousRuntimeApplicationContext;
             if (resolve.isAttachmentScoped() || previousRuntimeApplicationContext == null) {
                 previousRuntimeApplicationContext = null;
-                synchronized (vestigePlatform) {
-                    attach = vestigePlatform.attach(resolve);
-                }
-                classLoader = vestigePlatform.getClassLoader(attach);
+                attach = resolve.attach();
+                attachableClassLoader = attach.getAttachableClassLoader();
+                classLoader = attachableClassLoader.getClassLoader();
                 if (applicationContext.isPrivateSystem()) {
                     vestigeSystem = rootVestigeSystem.createSubSystem("app" + installName);
                 } else {
@@ -1289,11 +1363,10 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 finalPreviousRuntimeApplicationContext = null;
             } else {
                 // reattach to platform
-                synchronized (vestigePlatform) {
-                    attach = vestigePlatform.attach(previousRuntimeApplicationContext.getClassLoader());
-                }
+                attachableClassLoader = previousRuntimeApplicationContext.getClassLoader();
+                attach = attachableClassLoader.attach();
                 vestigeSystem = previousRuntimeApplicationContext.getVestigeSystem();
-                classLoader = previousRuntimeApplicationContext.getClassLoader();
+                classLoader = attachableClassLoader.getClassLoader();
                 finalPreviousRuntimeApplicationContext = previousRuntimeApplicationContext;
             }
 
@@ -1317,14 +1390,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                     applicationCallable = (Callable<?>) applicationObject;
                                 } else {
                                     final Runnable runnable = (Runnable) applicationObject;
-                                    applicationCallable = new Callable<Void>() {
-                                        public Void call() {
-                                            runnable.run();
-                                            return null;
-                                        }
-                                    };
+                                    applicationCallable = new RunnableProxy(runnable);
                                 }
-                                runtimeApplicationContext = new RuntimeApplicationContext(classLoader, applicationCallable, vestigeSystem, runMutex == null);
+                                runtimeApplicationContext = new RuntimeApplicationContext(attachableClassLoader, applicationCallable, vestigeSystem, runMutex == null);
                                 if (constructorMutex != null) {
                                     synchronized (constructorMutex) {
                                         applicationContext.setRuntimeApplicationContext(runtimeApplicationContext);
@@ -1333,7 +1401,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                 } else {
                                     applicationContext.setRuntimeApplicationContext(runtimeApplicationContext);
                                 }
-                                classLoader.getData().addObject(new SoftReference<RuntimeApplicationContext>(runtimeApplicationContext));
+                                attachableClassLoader.addSoftReferenceObject(runtimeApplicationContext);
                             } else {
                                 runtimeApplicationContext = finalPreviousRuntimeApplicationContext;
                                 applicationCallable = runtimeApplicationContext.getApplicationCallable();
@@ -1365,9 +1433,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                 }
                                 LOGGER.error("Application ended with exception", e.getCause());
                             }
-                            synchronized (vestigePlatform) {
-                                vestigePlatform.detach(attach);
-                            }
+                            attach.detach();
                             // allow inner start to run
                             if (constructorMutex != null) {
                                 synchronized (constructorMutex) {
@@ -1671,7 +1737,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
     }
 
     @Override
-    public ClassLoaderConfiguration getClassLoaders(final String installName) throws ApplicationException {
+    public ResolvedClassLoaderConfiguration getClassLoaders(final String installName) throws ApplicationException {
         synchronized (state) {
             return state.getClassLoaders(installName);
         }
@@ -1741,6 +1807,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             @Override
             public void run() {
                 try {
+                    List<ApplicationManagerStateListener> applicationManagerStateListenersCopy = new ArrayList<ApplicationManagerStateListener>();
                     while (true) {
                         ApplicationManagerState state;
                         synchronized (applicationManagerStateListeners) {
@@ -1749,8 +1816,13 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                             }
                             state = lastState;
                             lastState = null;
+                            if (applicationManagerStateListenersChanged) {
+                                applicationManagerStateListenersCopy.clear();
+                                applicationManagerStateListenersCopy.addAll(applicationManagerStateListeners);
+                                applicationManagerStateListenersChanged = false;
+                            }
                         }
-                        for (ApplicationManagerStateListener applicationManagerStateListener : applicationManagerStateListeners) {
+                        for (ApplicationManagerStateListener applicationManagerStateListener : applicationManagerStateListenersCopy) {
                             applicationManagerStateListener.stateChanged(state);
                         }
                     }
@@ -1772,6 +1844,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
     public void addStateListener(final ApplicationManagerStateListener listener) {
         synchronized (state) {
             applicationManagerStateListeners.add(listener);
+            applicationManagerStateListenersChanged = true;
         }
     }
 
@@ -1779,6 +1852,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
     public void removeStateListener(final ApplicationManagerStateListener listener) {
         synchronized (state) {
             applicationManagerStateListeners.remove(listener);
+            applicationManagerStateListenersChanged = true;
         }
     }
 

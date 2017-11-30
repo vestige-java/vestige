@@ -21,7 +21,7 @@ import java.io.Serializable;
 import java.util.Set;
 
 /**
- * @author gaellalire
+ * @author Gael Lalire
  */
 public final class ModuleConfiguration implements Serializable, Comparable<ModuleConfiguration> {
 
@@ -33,10 +33,13 @@ public final class ModuleConfiguration implements Serializable, Comparable<Modul
 
     private Set<String> addOpens;
 
-    public ModuleConfiguration(final String moduleName, final Set<String> addExports, final Set<String> addOpens) {
+    private String targetModuleName;
+
+    public ModuleConfiguration(final String moduleName, final Set<String> addExports, final Set<String> addOpens, final String targetModuleName) {
         this.moduleName = moduleName;
         this.addExports = addExports;
         this.addOpens = addOpens;
+        this.targetModuleName = targetModuleName;
     }
 
     public String getModuleName() {
@@ -54,6 +57,10 @@ public final class ModuleConfiguration implements Serializable, Comparable<Modul
     @Override
     public int hashCode() {
         return moduleName.hashCode();
+    }
+
+    public String getTargetModuleName() {
+        return targetModuleName;
     }
 
     @Override

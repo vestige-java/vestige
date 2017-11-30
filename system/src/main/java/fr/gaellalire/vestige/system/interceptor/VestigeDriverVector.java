@@ -22,7 +22,7 @@ import java.util.Vector;
 import java.util.WeakHashMap;
 
 import fr.gaellalire.vestige.core.StackedHandler;
-import fr.gaellalire.vestige.system.VestigeSystem;
+import fr.gaellalire.vestige.system.DefaultVestigeSystem;
 import fr.gaellalire.vestige.system.VestigeSystemHolder;
 
 /**
@@ -42,7 +42,7 @@ public class VestigeDriverVector extends Vector<Object> implements StackedHandle
 
     // keep key to access vector<Object> instead of vector<Object> directly to
     // avoid keeping strong reference to object inside the vector.
-    private Map<VestigeSystem, Object> vectorKeyBySystem;
+    private Map<DefaultVestigeSystem, Object> vectorKeyBySystem;
 
     private VestigeSystemHolder vestigeSystemHolder;
 
@@ -50,7 +50,7 @@ public class VestigeDriverVector extends Vector<Object> implements StackedHandle
         this.vestigeSystemHolder = vestigeSystemHolder;
     }
 
-    public VestigeDriverVector(final VestigeSystemHolder vestigeSystemHolder, final Vector<Object> nextHandler, final Map<VestigeSystem, Object> vectorKeyBySystem) {
+    public VestigeDriverVector(final VestigeSystemHolder vestigeSystemHolder, final Vector<Object> nextHandler, final Map<DefaultVestigeSystem, Object> vectorKeyBySystem) {
         this.vestigeSystemHolder = vestigeSystemHolder;
         this.vectorKeyBySystem = vectorKeyBySystem;
         this.nextHandler = nextHandler;
@@ -75,7 +75,7 @@ public class VestigeDriverVector extends Vector<Object> implements StackedHandle
     }
 
     public Vector<Object> getDriverVector() {
-        VestigeSystem system = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem system = vestigeSystemHolder.getVestigeSystem();
         if (readDrivers == null) {
             Vector<Object> vector;
             Object key = vectorKeyBySystem.get(system);
@@ -112,9 +112,9 @@ public class VestigeDriverVector extends Vector<Object> implements StackedHandle
     @SuppressWarnings("unchecked")
     @Override
     public Object clone() {
-        Map<VestigeSystem, Object> vectorKeyBySystem = new WeakHashMap<VestigeSystem, Object>(readDrivers.vectorKeyBySystem);
+        Map<DefaultVestigeSystem, Object> vectorKeyBySystem = new WeakHashMap<DefaultVestigeSystem, Object>(readDrivers.vectorKeyBySystem);
         readDrivers = new VestigeDriverVector(vestigeSystemHolder, readDrivers.nextHandler, vectorKeyBySystem);
-        VestigeSystem system = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem system = vestigeSystemHolder.getVestigeSystem();
         Object key = new Object();
         vectorKeyBySystem.put(system, key);
         system.getReadDrivers().put(key, (Vector<Object>) system.getWriteDrivers().clone());

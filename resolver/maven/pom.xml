@@ -25,24 +25,6 @@
           </execution>
         </executions>
       </plugin>
-      <plugin>
-        <groupId>org.jvnet.jaxb2.maven2</groupId>
-        <artifactId>maven-jaxb2-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>generate</goal>
-            </goals>
-            <configuration>
-              <bindingDirectory>${basedir}/src/main/config</bindingDirectory>
-              <generatePackage>fr.gaellalire.vestige.resolver.maven.schema</generatePackage>
-              <schemaIncludes>
-                <include>fr/gaellalire/vestige/resolver/maven/mavenLauncher-1.0.0.xsd</include>
-              </schemaIncludes>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
     </plugins>
   </build>
   <dependencies>
@@ -50,11 +32,6 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>vestige.core</artifactId>
       <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>vestige.utils</artifactId>
-      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -67,16 +44,14 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>vestige.resolver.common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>ch.qos.logback</groupId>
-      <artifactId>logback-classic</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.codehaus.janino</groupId>
-      <artifactId>janino</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.maven.resolver</groupId>
@@ -113,6 +88,11 @@
       <groupId>org.apache.maven.resolver</groupId>
       <artifactId>maven-resolver-impl</artifactId>
       <version>${maven-resolver.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>vestige.spi.resolver.maven</artifactId>
     </dependency>
 
     <!-- maven dependencies are copied into this jar, so we avoid multiple package issues -->

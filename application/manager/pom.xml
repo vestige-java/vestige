@@ -27,11 +27,6 @@
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>vestige.core</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
       <artifactId>vestige.utils</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -47,8 +42,7 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>vestige.platform</artifactId>
-      <version>${project.version}</version>
+      <artifactId>vestige.spi.resolver</artifactId>
     </dependency>
     <dependency>
       <groupId>junit</groupId>

@@ -17,22 +17,20 @@
 
 package fr.gaellalire.vestige.platform;
 
-import java.io.File;
+import java.lang.ref.SoftReference;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.jar.JarFile;
 
 import fr.gaellalire.vestige.core.VestigeClassLoader;
-import fr.gaellalire.vestige.core.url.DelegateURLStreamHandler;
-import fr.gaellalire.vestige.core.url.DelegateURLStreamHandlerFactory;
+import fr.gaellalire.vestige.core.resource.JarFileResourceLocator;
+import fr.gaellalire.vestige.jpms.JPMSInRepositoryModuleLayerAccessor;
 
 /**
  * @author Gael Lalire
  */
 public class AttachedVestigeClassLoader {
 
-    private List<Object> objects;
+    private List<SoftReference<?>> softReferences;
 
     private VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader;
 
@@ -40,34 +38,35 @@ public class AttachedVestigeClassLoader {
 
     private int attachments;
 
-    private String urls;
-
     private String name;
 
     private boolean attachmentScoped;
 
-    private Map<File, JarFile> cache;
+    private JarFileResourceLocator[] cache;
 
-    private DelegateURLStreamHandlerFactory delegateURLStreamHandlerFactory;
-
-    private DelegateURLStreamHandler delegateURLStreamHandler;
+    private JPMSInRepositoryModuleLayerAccessor moduleLayer;
 
     public AttachedVestigeClassLoader(final List<AttachedVestigeClassLoader> dependencies) {
         this.dependencies = dependencies;
     }
 
     public AttachedVestigeClassLoader(final VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader, final List<AttachedVestigeClassLoader> dependencies,
-            final String urls, final String name, final boolean attachmentScoped, final Map<File, JarFile> cache,
-            final DelegateURLStreamHandlerFactory delegateURLStreamHandlerFactory, final DelegateURLStreamHandler delegateURLStreamHandler) {
+            final String name, final boolean attachmentScoped, final JarFileResourceLocator[] cache, final JPMSInRepositoryModuleLayerAccessor moduleLayer) {
         this.vestigeClassLoader = vestigeClassLoader;
         this.dependencies = dependencies;
-        this.urls = urls;
         this.name = name;
         this.attachmentScoped = attachmentScoped;
-        objects = new ArrayList<Object>();
+        softReferences = new ArrayList<SoftReference<?>>();
         this.cache = cache;
-        this.delegateURLStreamHandlerFactory = delegateURLStreamHandlerFactory;
-        this.delegateURLStreamHandler = delegateURLStreamHandler;
+        this.moduleLayer = moduleLayer;
+    }
+
+    public void setModuleLayer(final JPMSInRepositoryModuleLayerAccessor moduleLayer) {
+        this.moduleLayer = moduleLayer;
+    }
+
+    public JPMSInRepositoryModuleLayerAccessor getModuleLayer() {
+        return moduleLayer;
     }
 
     public VestigeClassLoader<AttachedVestigeClassLoader> getVestigeClassLoader() {
@@ -90,28 +89,12 @@ public class AttachedVestigeClassLoader {
         this.attachments = attachments;
     }
 
-    public String getUrls() {
-        return urls;
+    public List<SoftReference<?>> getSoftReferences() {
+        return softReferences;
     }
 
-    public void addObject(final Object o) {
-        objects.add(o);
-    }
-
-    public void removeObject(final Object o) {
-        objects.remove(o);
-    }
-
-    public Map<File, JarFile> getCache() {
+    public JarFileResourceLocator[] getCache() {
         return cache;
-    }
-
-    public DelegateURLStreamHandlerFactory getDelegateURLStreamHandlerFactory() {
-        return delegateURLStreamHandlerFactory;
-    }
-
-    public DelegateURLStreamHandler getDelegateURLStreamHandler() {
-        return delegateURLStreamHandler;
     }
 
     public boolean isAttachmentScoped() {

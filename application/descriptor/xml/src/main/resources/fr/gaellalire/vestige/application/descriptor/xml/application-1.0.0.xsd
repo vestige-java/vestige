@@ -95,9 +95,35 @@
     </xs:restriction>
   </xs:simpleType>
 
+  <xs:complexType name="AddReads">
+    <xs:attribute name="source" type="xs:string" use="required" />
+    <xs:attribute name="target" type="xs:string" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="AddOpens">
+    <xs:attribute name="source" type="xs:string" use="required" />
+    <xs:attribute name="pn" type="xs:string" use="required" />
+    <xs:attribute name="target" type="xs:string" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="AddExports">
+    <xs:attribute name="source" type="xs:string" use="required" />
+    <xs:attribute name="pn" type="xs:string" use="required" />
+    <xs:attribute name="target" type="xs:string" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="ActivateNamedModules">
+    <xs:sequence>
+      <xs:element name="addReads" type="AddReads" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element name="addExports" type="AddExports" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element name="addOpens" type="AddOpens" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
   <xs:complexType name="MavenClassType">
-    <xs:sequence minOccurs="0" maxOccurs="unbounded">
-      <xs:element name="modifyScope" type="ModifyScope" />
+    <xs:sequence>
+      <xs:element name="activateNamedModules" type="ActivateNamedModules" minOccurs="0" maxOccurs="1" />
+      <xs:element name="modifyScope" type="ModifyScope" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
     <xs:attribute name="class" type="xs:string" use="required" />
     <xs:attribute name="groupId" type="xs:string" use="required" />
@@ -126,9 +152,14 @@
     <xs:attribute name="version" type="xs:string" use="required" />
   </xs:complexType>
 
+  <xs:complexType name="AddBeforeParent">
+  </xs:complexType>
+
   <xs:complexType name="ModifyDependency">
     <xs:sequence>
+      <xs:element name="addBeforeParent" type="AddBeforeParent" minOccurs="0" maxOccurs="1" />
       <xs:element name="addDependency" type="AddDependency" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element name="addLayerDependency" type="AddDependency" minOccurs="0" maxOccurs="unbounded" />
       <xs:element name="addExports" type="ModulePackageName" minOccurs="0" maxOccurs="unbounded" />
       <xs:element name="addOpens" type="ModulePackageName" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>

@@ -17,17 +17,13 @@
 
 package fr.gaellalire.vestige.platform;
 
-import java.io.IOException;
+import java.io.File;
+import java.io.FilePermission;
 import java.io.Serializable;
-import java.net.URL;
-import java.net.URLConnection;
 import java.security.Permission;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import fr.gaellalire.vestige.core.parser.StringParser;
 
@@ -36,13 +32,13 @@ import fr.gaellalire.vestige.core.parser.StringParser;
  */
 public class ClassLoaderConfiguration implements Serializable {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ClassLoaderConfiguration.class);
-
     private static final long serialVersionUID = 4540499333086383595L;
 
     private Serializable key;
 
-    private URL[] urls;
+    private List<File> beforeUrls;
+
+    private List<File> afterUrls;
 
     private List<ClassLoaderConfiguration> dependencies;
 
@@ -60,30 +56,36 @@ public class ClassLoaderConfiguration implements Serializable {
 
     private JPMSClassLoaderConfiguration moduleConfiguration;
 
-    public ClassLoaderConfiguration(final Serializable key, final String name, final boolean attachmentScoped, final URL[] urls, final List<ClassLoaderConfiguration> dependencies,
-            final List<Integer> paths, final List<List<Integer>> pathIdsList, final StringParser pathIdsPositionByResourceName,
-            final JPMSClassLoaderConfiguration moduleConfiguration) {
+    private JPMSNamedModulesConfiguration namedModulesConfiguration;
+
+    public ClassLoaderConfiguration(final Serializable key, final String name, final boolean attachmentScoped, final List<File> beforeUrls, final List<File> afterUrls,
+            final List<ClassLoaderConfiguration> dependencies, final List<Integer> paths, final List<List<Integer>> pathIdsList, final StringParser pathIdsPositionByResourceName,
+            final JPMSClassLoaderConfiguration moduleConfiguration, final JPMSNamedModulesConfiguration namedModulesConfiguration) {
         this.key = key;
         this.name = name;
         this.attachmentScoped = attachmentScoped;
-        this.urls = urls;
+        this.beforeUrls = beforeUrls;
+        this.afterUrls = afterUrls;
         this.dependencies = dependencies;
         this.paths = paths;
         this.pathIdsList = pathIdsList;
         this.pathIdsPositionByResourceName = pathIdsPositionByResourceName;
         this.permissions = new HashSet<Permission>();
-        for (URL url : urls) {
-            try {
-                URLConnection openConnection = url.openConnection();
-                this.permissions.add(openConnection.getPermission());
-            } catch (IOException e) {
-                LOGGER.warn("IOException", e);
-            }
+        for (File url : beforeUrls) {
+            this.permissions.add(new FilePermission(url.getPath(), "read"));
+        }
+        for (File url : afterUrls) {
+            this.permissions.add(new FilePermission(url.getPath(), "read"));
         }
         for (ClassLoaderConfiguration dependency : dependencies) {
             this.permissions.addAll(dependency.getPermissions());
         }
         this.moduleConfiguration = moduleConfiguration;
+        this.namedModulesConfiguration = namedModulesConfiguration;
+    }
+
+    public JPMSNamedModulesConfiguration getNamedModulesConfiguration() {
+        return namedModulesConfiguration;
     }
 
     public int getDependencyIndex(final int pathIndex) {
@@ -102,8 +104,12 @@ public class ClassLoaderConfiguration implements Serializable {
         return name;
     }
 
-    public URL[] getUrls() {
-        return urls;
+    public List<File> getBeforeUrls() {
+        return beforeUrls;
+    }
+
+    public List<File> getAfterUrls() {
+        return afterUrls;
     }
 
     public List<ClassLoaderConfiguration> getDependencies() {
@@ -153,10 +159,13 @@ public class ClassLoaderConfiguration implements Serializable {
     }
 
     public boolean areAllURLConnectable() {
-        for (URL url : urls) {
-            try {
-                url.openConnection().connect();
-            } catch (IOException e) {
+        for (File url : beforeUrls) {
+            if (!url.exists()) {
+                return false;
+            }
+        }
+        for (File url : afterUrls) {
+            if (!url.exists()) {
                 return false;
             }
         }

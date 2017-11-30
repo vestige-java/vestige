@@ -17,24 +17,34 @@
 
 package fr.gaellalire.vestige.resolver.maven;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.jar.JarInputStream;
+import java.util.jar.Manifest;
 import java.util.zip.ZipEntry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import fr.gaellalire.vestige.core.parser.StringParser;
+import fr.gaellalire.vestige.jpms.NamedModuleUtils;
+import fr.gaellalire.vestige.platform.AddAccessibility;
+import fr.gaellalire.vestige.platform.AddReads;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
+import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
 import fr.gaellalire.vestige.platform.StringParserFactory;
+import fr.gaellalire.vestige.spi.resolver.ResolverException;
+import fr.gaellalire.vestige.spi.resolver.Scope;
 
 /**
  * @author Gael Lalire
@@ -49,7 +59,9 @@ public class ClassLoaderConfigurationFactory {
 
     private String appName;
 
-    private URL[] urls;
+    private List<File> beforeUrls;
+
+    private List<File> afterUrls;
 
     private List<Integer> paths;
 
@@ -60,6 +72,12 @@ public class ClassLoaderConfigurationFactory {
     private TreeMap<String, Integer> pathsByResourceName;
 
     private Scope scope;
+
+    private JPMSNamedModulesConfiguration namedModulesConfiguration;
+
+    private List<String> moduleNames;
+
+    private Set<String> dependenciesModuleNames;
 
     public List<List<Integer>> getPathIdsList() {
         return pathIdsList;
@@ -73,44 +91,87 @@ public class ClassLoaderConfigurationFactory {
         return classLoaderConfigurationKey;
     }
 
-    public URL[] getUrls() {
-        return urls;
+    public List<File> getBeforeUrls() {
+        return beforeUrls;
+    }
+
+    public List<File> getAfterUrls() {
+        return afterUrls;
     }
 
     public Scope getScope() {
         return scope;
     }
 
-    public ClassLoaderConfigurationFactory(final String appName, final MavenClassLoaderConfigurationKey classLoaderConfigurationKey, final Scope scope, final URL[] urls,
-            final List<ClassLoaderConfigurationFactory> dependencies) throws IOException {
+    public List<String> getModuleNames() {
+        return moduleNames;
+    }
+
+    public static void readJar(final Map<String, List<Integer>> pathsByResourceName, final List<String> moduleNames, final File url) throws IOException {
+        JarInputStream openStream = new JarInputStream(new FileInputStream(url));
+        try {
+            String moduleName = null;
+            ZipEntry nextEntry = openStream.getNextEntry();
+            while (nextEntry != null) {
+                String name = nextEntry.getName();
+                if (NamedModuleUtils.MODULE_INFO_ENTRY_NAME.equals(name)) {
+                    moduleName = NamedModuleUtils.getDescriptor(openStream).name();
+                }
+                pathsByResourceName.put(name, LOCAL_CLASSLOADER_PATH);
+                nextEntry = openStream.getNextEntry();
+            }
+            if (moduleName == null) {
+                Manifest manifest = openStream.getManifest();
+                moduleName = NamedModuleUtils.getAutomaticModuleName(manifest);
+                if (moduleName == null) {
+                    moduleName = NamedModuleUtils.getAutomaticModuleName(url.getName());
+                }
+            }
+            moduleNames.add(moduleName);
+        } finally {
+            openStream.close();
+        }
+
+    }
+
+    public Set<String> getDependenciesModuleNames() {
+        return dependenciesModuleNames;
+    }
+
+    public ClassLoaderConfigurationFactory(final String appName, final MavenClassLoaderConfigurationKey classLoaderConfigurationKey, final Scope scope, final List<File> beforeUrls,
+            final List<File> afterUrls, final List<ClassLoaderConfigurationFactory> dependencies) throws ResolverException {
         TreeMap<String, List<Integer>> pathsByResourceName = new TreeMap<String, List<Integer>>();
         this.appName = appName;
-        this.urls = urls;
+        this.beforeUrls = beforeUrls;
+        this.afterUrls = afterUrls;
         this.classLoaderConfigurationKey = classLoaderConfigurationKey;
         this.scope = scope;
         this.factoryDependencies = dependencies;
         paths = new ArrayList<Integer>();
         pathIdsList = new ArrayList<List<Integer>>();
+        moduleNames = new ArrayList<String>();
+        this.dependenciesModuleNames = new HashSet<String>();
 
-        for (int i = urls.length - 1; i >= 0; i--) {
-            URL url = urls[i];
-            JarInputStream openStream = new JarInputStream(url.openStream());
-            try {
-                ZipEntry nextEntry = openStream.getNextEntry();
-                while (nextEntry != null) {
-                    String name = nextEntry.getName();
-                    pathsByResourceName.put(name, LOCAL_CLASSLOADER_PATH);
-                    nextEntry = openStream.getNextEntry();
-                }
-            } finally {
-                openStream.close();
+        try {
+            ListIterator<File> listIterator = afterUrls.listIterator(afterUrls.size());
+            while (listIterator.hasPrevious()) {
+                readJar(pathsByResourceName, moduleNames, listIterator.previous());
             }
+            listIterator = beforeUrls.listIterator(beforeUrls.size());
+            while (listIterator.hasPrevious()) {
+                readJar(pathsByResourceName, moduleNames, listIterator.previous());
+            }
+        } catch (IOException e) {
+            throw new ResolverException("Unable to read jar content", e);
         }
+        Collections.reverse(moduleNames);
 
         int pos = dependencies.size();
         ListIterator<ClassLoaderConfigurationFactory> it = dependencies.listIterator(pos);
         while (it.hasPrevious()) {
             ClassLoaderConfigurationFactory dependency = it.previous();
+            dependenciesModuleNames.addAll(dependency.getDependenciesModuleNames());
+            dependenciesModuleNames.addAll(dependency.getModuleNames());
             pos--;
             for (Entry<String, Integer> dependencyTmp : dependency.getPathsByResourceName().entrySet()) {
                 List<Integer> list = pathsByResourceName.get(dependencyTmp.getKey());
@@ -149,6 +210,98 @@ public class ClassLoaderConfigurationFactory {
 
     private ClassLoaderConfiguration cachedClassLoaderConfiguration;
 
+    public void setNamedModulesConfiguration(final JPMSNamedModulesConfiguration namedModulesConfiguration) {
+        JPMSNamedModulesConfiguration subNamedModulesConfiguration;
+        Set<AddAccessibility> addExports = namedModulesConfiguration.getAddExports();
+        Set<AddAccessibility> addOpens = namedModulesConfiguration.getAddOpens();
+        Set<AddReads> addReads = namedModulesConfiguration.getAddReads();
+        if (JPMSNamedModulesConfiguration.EMPTY_INSTANCE.equals(namedModulesConfiguration)) {
+            this.namedModulesConfiguration = JPMSNamedModulesConfiguration.EMPTY_INSTANCE;
+            subNamedModulesConfiguration = JPMSNamedModulesConfiguration.EMPTY_INSTANCE;
+        } else {
+            Set<AddAccessibility> subAddExports = null;
+            Set<AddAccessibility> currentAddExports = null;
+            if (addExports != null) {
+                for (AddAccessibility addAccessibility : addExports) {
+                    if (dependenciesModuleNames.contains(addAccessibility.getSource()) && dependenciesModuleNames.contains(addAccessibility.getTarget())) {
+                        // valid one
+                        if (currentAddExports == null) {
+                            currentAddExports = new HashSet<AddAccessibility>();
+                        }
+                        currentAddExports.add(addAccessibility);
+
+                        if (!moduleNames.contains(addAccessibility.getSource()) && !moduleNames.contains(addAccessibility.getTarget())) {
+                            // not for us (but our dependency will used it)
+                            if (subAddExports == null) {
+                                subAddExports = new HashSet<AddAccessibility>();
+                            }
+                            subAddExports.add(addAccessibility);
+                        }
+                    }
+                }
+            }
+            Set<AddAccessibility> subAddOpens = null;
+            Set<AddAccessibility> currentAddOpens = null;
+            if (addOpens != null) {
+                for (AddAccessibility addAccessibility : addOpens) {
+
+                    if (dependenciesModuleNames.contains(addAccessibility.getSource()) && dependenciesModuleNames.contains(addAccessibility.getTarget())) {
+                        // valid one
+                        if (currentAddOpens == null) {
+                            currentAddOpens = new HashSet<AddAccessibility>();
+                        }
+                        currentAddOpens.add(addAccessibility);
+
+                        if (!moduleNames.contains(addAccessibility.getSource()) && !moduleNames.contains(addAccessibility.getTarget())) {
+                            // not for us (but our dependency will used it)
+                            if (subAddOpens == null) {
+                                subAddOpens = new HashSet<AddAccessibility>();
+                            }
+                            subAddOpens.add(addAccessibility);
+                        }
+                    }
+                }
+            }
+
+            Set<AddReads> subAddReads = addReads;
+            Set<AddReads> currentAddReads = null;
+            if (addReads != null) {
+                for (AddReads addAccessibility : addReads) {
+
+                    if (dependenciesModuleNames.contains(addAccessibility.getSource()) && dependenciesModuleNames.contains(addAccessibility.getTarget())) {
+                        // valid one
+                        if (currentAddReads == null) {
+                            currentAddReads = new HashSet<AddReads>();
+                        }
+                        currentAddReads.add(addAccessibility);
+
+                        if (!moduleNames.contains(addAccessibility.getSource()) && !moduleNames.contains(addAccessibility.getTarget())) {
+                            // not for us (but our dependency will used it)
+                            if (subAddReads == null) {
+                                subAddReads = new HashSet<AddReads>();
+                            }
+                            subAddReads.add(addAccessibility);
+                        }
+                    }
+                }
+            }
+
+            if (currentAddReads == null && currentAddExports == null && currentAddOpens == null) {
+                this.namedModulesConfiguration = JPMSNamedModulesConfiguration.EMPTY_INSTANCE;
+            } else {
+                this.namedModulesConfiguration = new JPMSNamedModulesConfiguration(currentAddReads, currentAddExports, currentAddOpens);
+            }
+            if (subAddReads == null && subAddExports == null && subAddOpens == null) {
+                subNamedModulesConfiguration = JPMSNamedModulesConfiguration.EMPTY_INSTANCE;
+            } else {
+                subNamedModulesConfiguration = new JPMSNamedModulesConfiguration(subAddReads, subAddExports, subAddOpens);
+            }
+        }
+        for (ClassLoaderConfigurationFactory dep : factoryDependencies) {
+            dep.setNamedModulesConfiguration(subNamedModulesConfiguration);
+        }
+    }
+
     public ClassLoaderConfiguration create(final StringParserFactory stringParserFactory) {
         if (cachedClassLoaderConfiguration == null) {
             List<MavenClassLoaderConfigurationKey> keyDependencies = new ArrayList<MavenClassLoaderConfigurationKey>(factoryDependencies.size());
@@ -165,24 +318,14 @@ public class ClassLoaderConfigurationFactory {
                 name = classLoaderConfigurationKey.getArtifacts().toString();
             } else {
                 classLoaderConfigurationKey = new MavenClassLoaderConfigurationKey(classLoaderConfigurationKey.getArtifacts(), keyDependencies, scope,
-                        classLoaderConfigurationKey.getModuleConfiguration());
+                        classLoaderConfigurationKey.getModuleConfiguration(), namedModulesConfiguration);
                 name = classLoaderConfigurationKey.getArtifacts().toString() + " of " + appName;
             }
-            cachedClassLoaderConfiguration = new ClassLoaderConfiguration(classLoaderConfigurationKey, name, scope == Scope.ATTACHMENT, urls, dependencies, paths, pathIdsList,
-                    pathsByResourceName, classLoaderConfigurationKey.getModuleConfiguration());
+            cachedClassLoaderConfiguration = new ClassLoaderConfiguration(classLoaderConfigurationKey, name, scope == Scope.ATTACHMENT, beforeUrls, afterUrls, dependencies, paths,
+                    pathIdsList, pathsByResourceName, classLoaderConfigurationKey.getModuleConfiguration(), namedModulesConfiguration);
             LOGGER.trace("Classloader rules created");
         }
         return cachedClassLoaderConfiguration;
-    }
-
-    @Override
-    public boolean equals(final Object obj) {
-        return super.equals(obj);
-    }
-
-    @Override
-    public int hashCode() {
-        return classLoaderConfigurationKey.hashCode();
     }
 
     @Override

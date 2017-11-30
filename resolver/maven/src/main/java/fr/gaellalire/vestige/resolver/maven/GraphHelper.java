@@ -19,6 +19,8 @@ package fr.gaellalire.vestige.resolver.maven;
 
 import java.util.List;
 
+import fr.gaellalire.vestige.spi.resolver.ResolverException;
+
 /**
  * @param <Node> type of input nodes
  * @param <Key> type of input node key
@@ -27,7 +29,7 @@ import java.util.List;
  */
 public interface GraphHelper<Node, Key, RNode> {
 
-    RNode merge(List<Key> nodes, List<RNode> nexts) throws Exception;
+    RNode merge(List<Key> nodes, List<RNode> nexts) throws ResolverException;
 
     Key getKey(Node node);
 

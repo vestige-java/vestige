@@ -57,8 +57,15 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>vestige.resolver.maven</artifactId>
-      <version>${project.version}</version>
+      <artifactId>vestige.spi.resolver.url_list</artifactId>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>vestige.spi.resolver.maven</artifactId>
+    </dependency>
+      <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpclient</artifactId>
+      </dependency>
   </dependencies>
 </project>

@@ -21,30 +21,29 @@ import java.security.Permission;
 import java.util.Collection;
 import java.util.Set;
 
-import fr.gaellalire.vestige.core.VestigeClassLoader;
-import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
-import fr.gaellalire.vestige.system.PublicVestigeSystem;
+import fr.gaellalire.vestige.spi.resolver.AttachableClassLoader;
+import fr.gaellalire.vestige.spi.system.VestigeSystem;
 
 /**
  * @author Gael Lalire
  */
 public class RuntimeApplicationInstallerContext {
 
-    private VestigeClassLoader<AttachedVestigeClassLoader> classLoader;
+    private AttachableClassLoader classLoader;
 
     private ApplicationInstaller applicationInstaller;
 
-    private PublicVestigeSystem vestigeSystem;
+    private VestigeSystem vestigeSystem;
 
     private Set<Permission> installerAdditionnalPermissions;
 
-    public RuntimeApplicationInstallerContext(final VestigeClassLoader<AttachedVestigeClassLoader> classLoader, final Set<Permission> installerAdditionnalPermissions, final PublicVestigeSystem vestigeSystem) {
+    public RuntimeApplicationInstallerContext(final AttachableClassLoader classLoader, final Set<Permission> installerAdditionnalPermissions, final VestigeSystem vestigeSystem) {
         this.classLoader = classLoader;
         this.installerAdditionnalPermissions = installerAdditionnalPermissions;
         this.vestigeSystem = vestigeSystem;
     }
 
-    public VestigeClassLoader<AttachedVestigeClassLoader> getClassLoader() {
+    public AttachableClassLoader getClassLoader() {
         return classLoader;
     }
 
@@ -56,7 +55,7 @@ public class RuntimeApplicationInstallerContext {
         return applicationInstaller;
     }
 
-    public PublicVestigeSystem getVestigeSystem() {
+    public VestigeSystem getVestigeSystem() {
         return vestigeSystem;
     }
 

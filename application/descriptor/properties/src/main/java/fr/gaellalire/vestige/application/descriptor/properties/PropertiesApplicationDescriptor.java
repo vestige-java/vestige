@@ -23,7 +23,7 @@ import java.util.Set;
 
 import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
-import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
+import fr.gaellalire.vestige.application.manager.ApplicationResolvedClassLoaderConfiguration;
 
 /**
  * @author Gael Lalire
@@ -45,7 +45,7 @@ public class PropertiesApplicationDescriptor implements ApplicationDescriptor {
         return null;
     }
 
-    public ClassLoaderConfiguration getInstallerClassLoaderConfiguration(final String configurationName) throws ApplicationException {
+    public ApplicationResolvedClassLoaderConfiguration getInstallerClassLoaderConfiguration(final String configurationName) throws ApplicationException {
         // TODO Auto-generated method stub
         return null;
     }
@@ -55,7 +55,7 @@ public class PropertiesApplicationDescriptor implements ApplicationDescriptor {
         return null;
     }
 
-    public ClassLoaderConfiguration getLauncherClassLoaderConfiguration(final String configurationName) throws ApplicationException {
+    public ApplicationResolvedClassLoaderConfiguration getLauncherClassLoaderConfiguration(final String configurationName) throws ApplicationException {
         // TODO Auto-generated method stub
         return null;
     }

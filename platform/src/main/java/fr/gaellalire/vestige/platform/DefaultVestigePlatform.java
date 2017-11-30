@@ -20,19 +20,16 @@ package fr.gaellalire.vestige.platform;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
-import java.net.URL;
 import java.net.URLStreamHandler;
 import java.net.URLStreamHandlerFactory;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.jar.JarFile;
@@ -40,24 +37,46 @@ import java.util.jar.JarFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.gaellalire.vestige.core.ModuleEncapsulationEnforcer;
 import fr.gaellalire.vestige.core.VestigeClassLoader;
+import fr.gaellalire.vestige.core.VestigeClassLoaderConfiguration;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;
-import fr.gaellalire.vestige.core.parser.ClassesStringParser;
+import fr.gaellalire.vestige.core.function.Function;
+import fr.gaellalire.vestige.core.parser.ClassStringParser;
 import fr.gaellalire.vestige.core.parser.NoStateStringParser;
+import fr.gaellalire.vestige.core.parser.ResourceEncapsulationEnforcer;
 import fr.gaellalire.vestige.core.parser.StringParser;
+import fr.gaellalire.vestige.core.resource.JarFileResourceLocator;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandler;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandlerFactory;
 import fr.gaellalire.vestige.jpms.JPMSAccessorLoader;
+import fr.gaellalire.vestige.jpms.JPMSInRepositoryConfiguration;
+import fr.gaellalire.vestige.jpms.JPMSInRepositoryModuleLayerAccessor;
+import fr.gaellalire.vestige.jpms.JPMSInRepositoryModuleLayerParentList;
 import fr.gaellalire.vestige.jpms.JPMSModuleAccessor;
+import fr.gaellalire.vestige.jpms.JPMSModuleLayerAccessor;
+import fr.gaellalire.vestige.jpms.JPMSModuleLayerRepository;
 
 /**
  * @author Gael Lalire
  */
 public class DefaultVestigePlatform implements VestigePlatform {
 
+    private static final JPMSModuleLayerAccessor BOOT_LAYER;
+
+    static {
+        if (JPMSAccessorLoader.INSTANCE == null) {
+            BOOT_LAYER = null;
+        } else {
+            BOOT_LAYER = JPMSAccessorLoader.INSTANCE.bootLayer();
+        }
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultVestigePlatform.class);
 
-    private static final List<List<VestigeClassLoader<?>>> NO_DEPENDENCY_LIST = Collections.singletonList(Collections.<VestigeClassLoader<?>> singletonList(null));
+    private static final VestigeClassLoaderConfiguration[] SELF_SEARCHED = new VestigeClassLoaderConfiguration[] {VestigeClassLoaderConfiguration.THIS_PARENT_SEARCHED};
+
+    private static final VestigeClassLoaderConfiguration[][] NO_DEPENDENCY_LIST = new VestigeClassLoaderConfiguration[][] {SELF_SEARCHED};
 
     private List<AttachedVestigeClassLoader> attached = new ArrayList<AttachedVestigeClassLoader>();
 
@@ -69,8 +88,11 @@ public class DefaultVestigePlatform implements VestigePlatform {
 
     private VestigeExecutor vestigeExecutor;
 
-    public DefaultVestigePlatform(final VestigeExecutor vestigeExecutor) {
+    private JPMSModuleLayerRepository moduleLayerRepository;
+
+    public DefaultVestigePlatform(final VestigeExecutor vestigeExecutor, final JPMSModuleLayerRepository moduleLayerRepository) {
         this.vestigeExecutor = vestigeExecutor;
+        this.moduleLayerRepository = moduleLayerRepository;
     }
 
     public void clean() {
@@ -90,7 +112,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
         }
     }
 
-    public int attach(final ClassLoaderConfiguration classLoaderConfiguration) throws InterruptedException {
+    public int attach(final ClassLoaderConfiguration classLoaderConfiguration) throws InterruptedException, IOException {
         int size = attached.size();
         int id = 0;
         while (id < size) {
@@ -101,13 +123,20 @@ public class DefaultVestigePlatform implements VestigePlatform {
         }
         Map<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>> attachmentMap = new HashMap<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>>();
         AttachedVestigeClassLoader load = attachDependencies(attachmentMap, classLoaderConfiguration);
+        Iterator<SoftReference<?>> iterator = load.getSoftReferences().iterator();
+        while (iterator.hasNext()) {
+            SoftReference<?> next = iterator.next();
+            if (next.get() == null) {
+                iterator.remove();
+            }
+        }
         Collection<VestigeClassLoader<AttachedVestigeClassLoader>> values = attachmentMap.values();
         int valueSize = values.size();
         List<WeakReference<AttachedVestigeClassLoader>> list = null;
         if (valueSize != 0) {
             list = new ArrayList<WeakReference<AttachedVestigeClassLoader>>(valueSize);
             for (VestigeClassLoader<AttachedVestigeClassLoader> classLoader : values) {
-                list.add(new WeakReference<AttachedVestigeClassLoader>(classLoader.getData()));
+                list.add(new WeakReference<AttachedVestigeClassLoader>(classLoader.getData(this)));
             }
         }
         if (id == size) {
@@ -131,7 +160,14 @@ public class DefaultVestigePlatform implements VestigePlatform {
             }
             id++;
         }
-        AttachedVestigeClassLoader load = classLoader.getData();
+        AttachedVestigeClassLoader load = classLoader.getData(this);
+        Iterator<SoftReference<?>> iterator = load.getSoftReferences().iterator();
+        while (iterator.hasNext()) {
+            SoftReference<?> next = iterator.next();
+            if (next.get() == null) {
+                iterator.remove();
+            }
+        }
         if (id == size) {
             attachedClassLoaders.add(null);
             attached.add(load);
@@ -144,17 +180,16 @@ public class DefaultVestigePlatform implements VestigePlatform {
         return id;
     }
 
-    public void clearCache(final Map<File, JarFile> cache) {
+    public void clearCache(final JarFileResourceLocator[] cache) {
         synchronized (cache) {
-            for (Entry<File, JarFile> entry : cache.entrySet()) {
+            for (JarFileResourceLocator entry : cache) {
                 try {
-                    LOGGER.info("Closing {}", entry.getKey());
-                    entry.getValue().close();
+                    LOGGER.info("Closing {}", entry);
+                    entry.close();
                 } catch (IOException e) {
                     LOGGER.error("Unable to close", e);
                 }
             }
-            cache.clear();
         }
     }
 
@@ -179,6 +214,13 @@ public class DefaultVestigePlatform implements VestigePlatform {
             unattached.addAll(unattachedVestigeClassLoaders);
         }
         removeAttachment(unload);
+        Iterator<SoftReference<?>> iterator = unload.getSoftReferences().iterator();
+        while (iterator.hasNext()) {
+            SoftReference<?> next = iterator.next();
+            if (next.get() == null) {
+                iterator.remove();
+            }
+        }
         clean();
     }
 
@@ -215,8 +257,8 @@ public class DefaultVestigePlatform implements VestigePlatform {
         return attached.get(id);
     }
 
-    public VestigeClassLoader<AttachedVestigeClassLoader> convertPath(final int path, final AttachedVestigeClassLoader attachedVestigeClassLoader,
-            final ClassLoaderConfiguration conf) {
+    public int addConvertedPath(final int path, final AttachedVestigeClassLoader attachedVestigeClassLoader, final ClassLoaderConfiguration conf, final int lastBeforeIndex,
+            final List<VestigeClassLoaderConfiguration> classLoaderConfigurations) {
         AttachedVestigeClassLoader currentAttachedVestigeClassLoader = attachedVestigeClassLoader;
         ClassLoaderConfiguration currentConf = conf;
         int currentPath = path;
@@ -226,36 +268,75 @@ public class DefaultVestigePlatform implements VestigePlatform {
             currentAttachedVestigeClassLoader = currentAttachedVestigeClassLoader.getDependencies().get(dependencyIndex);
             currentConf = currentConf.getDependencies().get(dependencyIndex);
         }
-        return currentAttachedVestigeClassLoader.getVestigeClassLoader();
+        // currentAttachedVestigeClassLoader.getVestigeClassLoader == null if this is the AttachedVestigeClassLoader given in parameter because it is a temporary
+        // AttachedVestigeClassLoader
+        VestigeClassLoaderConfiguration vestigeClassLoaderConfiguration = currentAttachedVestigeClassLoader.getVestigeClassLoader();
+        boolean beforeParent = currentConf.getBeforeUrls().size() != 0;
+        if (vestigeClassLoaderConfiguration == null) {
+            if (!beforeParent && classLoaderConfigurations.size() == lastBeforeIndex) {
+                // first after parent
+                vestigeClassLoaderConfiguration = VestigeClassLoaderConfiguration.THIS_PARENT_SEARCHED;
+            } else {
+                vestigeClassLoaderConfiguration = VestigeClassLoaderConfiguration.THIS_PARENT_UNSEARCHED;
+            }
+        } else if (!beforeParent && classLoaderConfigurations.size() == lastBeforeIndex) {
+            // first after parent
+            vestigeClassLoaderConfiguration = vestigeClassLoaderConfiguration.getVestigeClassLoader().getParentSeachedClassLoaderConfiguration();
+        }
+        if (beforeParent) {
+            classLoaderConfigurations.add(lastBeforeIndex, vestigeClassLoaderConfiguration);
+            return lastBeforeIndex + 1;
+        }
+        classLoaderConfigurations.add(vestigeClassLoaderConfiguration);
+        return lastBeforeIndex;
     }
 
-    public List<List<VestigeClassLoader<?>>> convert(final AttachedVestigeClassLoader attachedVestigeClassLoader, final ClassLoaderConfiguration conf) {
+    public VestigeClassLoaderConfiguration[][] convert(final AttachedVestigeClassLoader attachedVestigeClassLoader, final ClassLoaderConfiguration conf) {
         List<List<Integer>> pathsData = conf.getPathIdsList();
         if (pathsData == null || pathsData.size() == 0) {
             return NO_DEPENDENCY_LIST;
         }
-        List<List<VestigeClassLoader<?>>> data = new ArrayList<List<VestigeClassLoader<?>>>(pathsData.size());
+        VestigeClassLoaderConfiguration[][] data = new VestigeClassLoaderConfiguration[pathsData.size()][];
+        int i = 0;
         for (List<Integer> paths : pathsData) {
-            List<VestigeClassLoader<?>> classLoaders = null;
+            List<VestigeClassLoaderConfiguration> classLoaderConfigurations = null;
             if (paths != null) {
-                classLoaders = new ArrayList<VestigeClassLoader<?>>(paths.size());
+                classLoaderConfigurations = new ArrayList<VestigeClassLoaderConfiguration>(paths.size());
+                int lastBeforeIndex = 0;
                 for (Integer path : paths) {
-                    classLoaders.add(convertPath(path, attachedVestigeClassLoader, conf));
+                    lastBeforeIndex = addConvertedPath(path, attachedVestigeClassLoader, conf, lastBeforeIndex, classLoaderConfigurations);
+                }
+                if (classLoaderConfigurations.size() == lastBeforeIndex) {
+                    // all path are before parent, so we must add parent alone to avoid ClassNotFound on java.lang.Object
+                    classLoaderConfigurations.add(null);
                 }
             }
-            data.add(classLoaders);
+            data[i] = classLoaderConfigurations.toArray(new VestigeClassLoaderConfiguration[classLoaderConfigurations.size()]);
+            i++;
         }
         return data;
     }
 
     private AttachedVestigeClassLoader attachDependencies(final Map<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>> attachmentMap,
-            final ClassLoaderConfiguration classLoaderConfiguration) throws InterruptedException {
+            final ClassLoaderConfiguration classLoaderConfiguration) throws InterruptedException, IOException {
         Serializable key = classLoaderConfiguration.getKey();
+
+        JPMSNamedModulesConfiguration namedModulesConfiguration = classLoaderConfiguration.getNamedModulesConfiguration();
+        boolean selfNeedModuleDefine = BOOT_LAYER != null && namedModulesConfiguration != null;
+        JPMSInRepositoryModuleLayerParentList moduleLayerList = null;
+        if (selfNeedModuleDefine) {
+            moduleLayerList = moduleLayerRepository.createModuleLayerList();
+            moduleLayerList.addInRepositoryModuleLayerByIndex(JPMSModuleLayerRepository.BOOT_LAYER_INDEX);
+        }
 
         List<ClassLoaderConfiguration> configurationDependencies = classLoaderConfiguration.getDependencies();
         List<AttachedVestigeClassLoader> classLoaderDependencies = new ArrayList<AttachedVestigeClassLoader>();
         for (ClassLoaderConfiguration configurationDependency : configurationDependencies) {
-            classLoaderDependencies.add(attachDependencies(attachmentMap, configurationDependency));
+            AttachedVestigeClassLoader attachDependency = attachDependencies(attachmentMap, configurationDependency);
+            classLoaderDependencies.add(attachDependency);
+            if (selfNeedModuleDefine) {
+                moduleLayerList.addInRepositoryModuleLayerByIndex(attachDependency.getModuleLayer().getRepositoryIndex());
+            }
         }
         VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader = null;
         if (classLoaderConfiguration.isAttachmentScoped()) {
@@ -273,7 +354,15 @@ public class DefaultVestigePlatform implements VestigePlatform {
         if (vestigeClassLoader == null) {
             // search inside jar after dependencies
             // classLoaderDependencies.add(null);
-            URL[] urls = classLoaderConfiguration.getUrls();
+            List<File> afterUrls = classLoaderConfiguration.getAfterUrls();
+            List<File> beforeUrls = classLoaderConfiguration.getBeforeUrls();
+            JarFileResourceLocator[] urls = new JarFileResourceLocator[beforeUrls.size() + afterUrls.size()];
+            for (int i = 0; i < beforeUrls.size(); i++) {
+                urls[i] = new JarFileResourceLocator(beforeUrls.get(i));
+            }
+            for (int i = 0; i < afterUrls.size(); i++) {
+                urls[i + beforeUrls.size()] = new JarFileResourceLocator(afterUrls.get(i));
+            }
             String name = classLoaderConfiguration.getName();
 
             // for vestige class loader : null == current classloader
@@ -284,46 +373,97 @@ public class DefaultVestigePlatform implements VestigePlatform {
                 resourceStringParser = new NoStateStringParser(0);
                 classStringParser = resourceStringParser;
             } else {
-                classStringParser = new ClassesStringParser(resourceStringParser);
+                classStringParser = new ClassStringParser(resourceStringParser);
             }
 
             // create classloader with executor to remove this protection domain from access control
 
-            Map<File, JarFile> cache = new HashMap<File, JarFile>();
-            DelegateURLStreamHandlerFactory delegateURLStreamHandlerFactory = new DelegateURLStreamHandlerFactory();
-            DelegateURLStreamHandler delegateURLStreamHandler = new DelegateURLStreamHandler();
-            setURLStreamHandlerFactoryDelegate(delegateURLStreamHandlerFactory, delegateURLStreamHandler, cache);
+            ModuleEncapsulationEnforcer moduleEncapsulationEnforcer = null;
+            JPMSInRepositoryConfiguration<VestigeClassLoader<AttachedVestigeClassLoader>> configuration = null;
+            if (selfNeedModuleDefine) {
+                configuration = moduleLayerList.createConfiguration(beforeUrls, afterUrls, null, this);
+                moduleEncapsulationEnforcer = configuration.getModuleEncapsulationEnforcer();
+                resourceStringParser = new ResourceEncapsulationEnforcer(resourceStringParser, configuration.getEncapsulatedPackageNames(), -1);
+            }
             vestigeClassLoader = vestigeExecutor.createVestigeClassLoader(ClassLoader.getSystemClassLoader(), convert(attachedVestigeClassLoader, classLoaderConfiguration),
-                    classStringParser, resourceStringParser, delegateURLStreamHandlerFactory, urls);
-            if (JPMSAccessorLoader.INSTANCE != null) {
+                    classStringParser, resourceStringParser, moduleEncapsulationEnforcer, urls);
+            vestigeClassLoader.setDataProtector(null, this);
+
+            final VestigeClassLoader<AttachedVestigeClassLoader> finalClassLoader = vestigeClassLoader;
+
+            if (classLoaderConfiguration.isAttachmentScoped()) {
+                name = name + " @ " + Integer.toHexString(System.identityHashCode(attachmentMap));
+            }
+            attachedVestigeClassLoader = new AttachedVestigeClassLoader(vestigeClassLoader, classLoaderDependencies, name, classLoaderConfiguration.isAttachmentScoped(), urls,
+                    null);
+            vestigeClassLoader.setData(this, attachedVestigeClassLoader);
+
+            JPMSInRepositoryModuleLayerAccessor moduleLayer = null;
+            if (selfNeedModuleDefine) {
+                moduleLayer = configuration.defineModules(new Function<String, VestigeClassLoader<AttachedVestigeClassLoader>, RuntimeException>() {
+
+                    @Override
+                    public VestigeClassLoader<AttachedVestigeClassLoader> apply(final String t) throws RuntimeException {
+                        return finalClassLoader;
+                    }
+                });
+
+                if (namedModulesConfiguration != null) {
+                    Set<AddAccessibility> addExportsList = namedModulesConfiguration.getAddExports();
+                    if (addExportsList != null) {
+                        for (AddAccessibility addAccessibility : addExportsList) {
+                            moduleLayer.findModule(addAccessibility.getSource()).addExports(addAccessibility.getPn(), addAccessibility.getTarget());
+                        }
+                    }
+                    Set<AddAccessibility> addOpensList = namedModulesConfiguration.getAddOpens();
+                    if (addOpensList != null) {
+                        for (AddAccessibility addAccessibility : addOpensList) {
+                            moduleLayer.findModule(addAccessibility.getSource()).addOpens(addAccessibility.getPn(), addAccessibility.getTarget());
+                        }
+                    }
+                    Set<AddReads> addReadsList = namedModulesConfiguration.getAddReads();
+                    if (addReadsList != null) {
+                        for (AddReads addReads : addReadsList) {
+                            moduleLayer.findModule(addReads.getSource()).addReads(addReads.getTarget());
+                        }
+                    }
+                }
+            }
+
+            if (BOOT_LAYER != null) {
                 JPMSClassLoaderConfiguration jpmsConfiguration = classLoaderConfiguration.getModuleConfiguration();
                 for (ModuleConfiguration moduleConfiguration : jpmsConfiguration.getModuleConfigurations()) {
+                    String targetModuleName = moduleConfiguration.getTargetModuleName();
                     String moduleName = moduleConfiguration.getModuleName();
-                    JPMSModuleAccessor moduleAccessor = JPMSAccessorLoader.INSTANCE.findBootModule(moduleName);
-                    if (moduleAccessor != null) {
+                    if (selfNeedModuleDefine) {
+                        JPMSModuleAccessor moduleAccessor = moduleLayer.findModule(targetModuleName);
                         for (String packageName : moduleConfiguration.getAddExports()) {
-                            moduleAccessor.addExports(packageName, vestigeClassLoader);
+                            moduleAccessor.requireBootAddExports(moduleName, packageName);
                         }
                         for (String packageName : moduleConfiguration.getAddOpens()) {
-                            moduleAccessor.addOpens(packageName, vestigeClassLoader);
+                            moduleAccessor.requireBootAddOpens(moduleName, packageName);
+                        }
+                    } else {
+                        JPMSModuleAccessor moduleAccessor = BOOT_LAYER.findModule(moduleName);
+                        if (moduleAccessor != null) {
+                            for (String packageName : moduleConfiguration.getAddExports()) {
+                                moduleAccessor.addExports(packageName, vestigeClassLoader);
+                            }
+                            for (String packageName : moduleConfiguration.getAddOpens()) {
+                                moduleAccessor.addOpens(packageName, vestigeClassLoader);
+                            }
                         }
                     }
                 }
             }
 
             if (classLoaderConfiguration.isAttachmentScoped()) {
-                name = name + " @ " + Integer.toHexString(System.identityHashCode(attachmentMap));
-            }
-            attachedVestigeClassLoader = new AttachedVestigeClassLoader(vestigeClassLoader, classLoaderDependencies, Arrays.toString(urls), name,
-                    classLoaderConfiguration.isAttachmentScoped(), cache, delegateURLStreamHandlerFactory, delegateURLStreamHandler);
-            vestigeClassLoader.setData(attachedVestigeClassLoader);
-            if (classLoaderConfiguration.isAttachmentScoped()) {
                 attachmentMap.put(key, vestigeClassLoader);
             } else {
                 map.put(key, new WeakReference<AttachedVestigeClassLoader>(attachedVestigeClassLoader));
             }
         }
-        return vestigeClassLoader.getData();
+        return vestigeClassLoader.getData(this);
     }
 
     public static void setURLStreamHandlerFactoryDelegate(final DelegateURLStreamHandlerFactory delegateURLStreamHandlerFactory,
@@ -368,6 +508,11 @@ public class DefaultVestigePlatform implements VestigePlatform {
     @Override
     public List<WeakReference<AttachedVestigeClassLoader>> getAttachmentScopedUnattachedVestigeClassLoaders() {
         return unattached;
+    }
+
+    @Override
+    public void link(final JPMSInRepositoryModuleLayerAccessor moduleLayer, final VestigeClassLoader<AttachedVestigeClassLoader> classLoader) {
+        classLoader.getData(this).setModuleLayer(moduleLayer);
     }
 
 }

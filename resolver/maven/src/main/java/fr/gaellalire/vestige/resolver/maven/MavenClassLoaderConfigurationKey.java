@@ -18,10 +18,13 @@
 package fr.gaellalire.vestige.resolver.maven;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
 import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
+import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
+import fr.gaellalire.vestige.spi.resolver.Scope;
 
 /**
  * @author Gael Lalire
@@ -40,13 +43,16 @@ public class MavenClassLoaderConfigurationKey implements Serializable {
 
     private Scope scope;
 
+    private JPMSNamedModulesConfiguration namedModulesConfiguration;
+
     public MavenClassLoaderConfigurationKey(final List<MavenArtifact> artifacts, final List<MavenClassLoaderConfigurationKey> dependencies, final Scope scope,
-            final JPMSClassLoaderConfiguration moduleConfiguration) {
+            final JPMSClassLoaderConfiguration moduleConfiguration, final JPMSNamedModulesConfiguration namedModulesConfiguration) {
         this.artifacts = artifacts;
         this.dependencies = dependencies;
         hashCode = artifacts.hashCode() + dependencies.hashCode();
         this.scope = scope;
         this.moduleConfiguration = moduleConfiguration;
+        this.namedModulesConfiguration = namedModulesConfiguration;
     }
 
     public JPMSClassLoaderConfiguration getModuleConfiguration() {
@@ -68,30 +74,41 @@ public class MavenClassLoaderConfigurationKey implements Serializable {
 
     @Override
     public String toString() {
+        List<MavenClassLoaderConfigurationKey> alreadyPrinted = new ArrayList<MavenClassLoaderConfigurationKey>();
         StringBuilder builder = new StringBuilder();
-        toString(builder, 1);
+        toString(alreadyPrinted, builder, 1);
         return builder.toString();
     }
 
-    public void toString(final StringBuilder builder, final int indent) {
+    public void toString(final List<MavenClassLoaderConfigurationKey> alreadyPrinted, final StringBuilder builder, final int indent) {
+        int indexOf = alreadyPrinted.indexOf(this);
+        if (indexOf != -1) {
+            builder.append("@");
+            builder.append(indexOf);
+            return;
+        }
+        indexOf = alreadyPrinted.size();
+        alreadyPrinted.add(this);
         builder.append(artifacts.toString());
         switch (scope) {
         case ATTACHMENT:
             builder.append(" attachment scoped");
             break;
-        case INSTALLATION:
-            builder.append(" installation scoped");
+        case CLASS_LOADER_CONFIGURATION:
+            builder.append(" configuration scoped");
             break;
         default:
             break;
         }
+        builder.append(" @");
+        builder.append(indexOf);
         Iterator<MavenClassLoaderConfigurationKey> iterator = dependencies.iterator();
         while (iterator.hasNext()) {
             builder.append("\n");
             for (int i = 0; i < indent; i++) {
                 builder.append("  ");
             }
-            iterator.next().toString(builder, indent + 1);
+            iterator.next().toString(alreadyPrinted, builder, indent + 1);
         }
     }
 
@@ -119,7 +136,18 @@ public class MavenClassLoaderConfigurationKey implements Serializable {
         if (!dependencies.equals(other.dependencies)) {
             return false;
         }
-        if (!moduleConfiguration.equals(other.moduleConfiguration)) {
+        if (moduleConfiguration == null) {
+            if (other.moduleConfiguration != null) {
+                return false;
+            }
+        } else if (!moduleConfiguration.equals(other.moduleConfiguration)) {
+            return false;
+        }
+        if (namedModulesConfiguration == null) {
+            if (other.namedModulesConfiguration != null) {
+                return false;
+            }
+        } else if (!namedModulesConfiguration.equals(other.namedModulesConfiguration)) {
             return false;
         }
         return true;

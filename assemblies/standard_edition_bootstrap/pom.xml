@@ -86,7 +86,7 @@
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>vestige.resolver.maven</artifactId>
+      <artifactId>vestige.edition.maven_main_launcher</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>

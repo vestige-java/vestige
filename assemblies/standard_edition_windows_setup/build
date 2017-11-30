@@ -5,7 +5,7 @@ VESTIGE_VERSION=`cat ../standard_edition_standalone/pom.xml | grep -m 1 version 
 rm -r target
 mkdir -p target/vestige
 unzip -d target/vestige ../standard_edition_standalone/target/vestige.assemblies.standard_edition_standalone-$VESTIGE_VERSION-windows.zip
-sed -i~ -e 's/VESTIGE_BASE=.*/VESTIGE_BASE=%userprofile%\\Vestige/' -e 's/VESTIGE_DATA=.*/VESTIGE_DATA=%appdata%\\Vestige/' target/vestige/vestige.bat
+sed -i~ -e 's/VESTIGE_BASE=[^\r]*/VESTIGE_BASE=%userprofile%\\Vestige/' -e 's/VESTIGE_DATA=[^\r]*/VESTIGE_DATA=%appdata%\\Vestige/' target/vestige/vestige.bat
 rm target/vestige/vestige.bat~
 sed -e 's/MyAppVersion .*/MyAppVersion "'$VESTIGE_VERSION'"/' src/vestige.iss > target/vestige.iss
 cp src/CheckJava.class target

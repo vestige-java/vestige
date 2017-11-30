@@ -23,7 +23,7 @@ import java.util.Hashtable;
 import java.util.Map;
 
 import fr.gaellalire.vestige.core.StackedHandler;
-import fr.gaellalire.vestige.system.VestigeSystem;
+import fr.gaellalire.vestige.system.DefaultVestigeSystem;
 import fr.gaellalire.vestige.system.VestigeSystemHolder;
 
 /**
@@ -47,7 +47,7 @@ public class VestigeURLConnectionHandlersHashTable extends Hashtable<String, Con
 
     @Override
     public ContentHandler get(final Object mimeType) {
-        VestigeSystem system = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem system = vestigeSystemHolder.getVestigeSystem();
         Map<String, ContentHandler> urlConnectionContentHandlerByMime = system.getURLConnectionContentHandlerByMime();
         ContentHandler urlConnectionContentHandler = urlConnectionContentHandlerByMime.get(mimeType);
         if (urlConnectionContentHandler == null) {
@@ -65,7 +65,7 @@ public class VestigeURLConnectionHandlersHashTable extends Hashtable<String, Con
 
     @Override
     public ContentHandler put(final String mimeType, final ContentHandler urlStreamHandler) {
-        VestigeSystem system = vestigeSystemHolder.getVestigeSystem();
+        DefaultVestigeSystem system = vestigeSystemHolder.getVestigeSystem();
         return system.getURLConnectionContentHandlerByMime().put(mimeType, urlStreamHandler);
     }
 

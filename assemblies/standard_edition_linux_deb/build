@@ -27,8 +27,8 @@ cp src/lintian_vestige target/vestige_deb/usr/share/lintian/overrides/vestige
 cp src/conffiles target/vestige_deb/DEBIAN/
 cp src/postinst target/vestige_deb/DEBIAN/
 chmod +x target/vestige_deb/DEBIAN/postinst
-cp src/vestige.desktop target/vestige_deb/usr/share/applications/
-cp src/vestige_gtk_launcher.py target/vestige_deb/usr/bin/vestige
+cp ../standard_edition_linux_desktop/src/vestige.desktop target/vestige_deb/usr/share/applications/
+cp ../standard_edition_linux_desktop/src/vestige_gtk_launcher.py target/vestige_deb/usr/bin/vestige
 cp -r src/hicolor target/vestige_deb/usr/share/icons/
 chmod +x target/vestige_deb/usr/bin/*
 find target \( -name .svn -o -name .DS_Store \) -exec rm -rf {} \;

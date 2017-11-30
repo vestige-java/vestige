@@ -48,7 +48,7 @@ if [ ${#VESTIGE_OPTS[@]} -eq 0 ]; then
   VESTIGE_OPTS=($JAVA_OPTS)
 fi
 if [ ${#VESTIGE_DEBUG} -ne 0 ]; then
-  VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8000)
+  VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=8000)
 fi
 
 MAVEN_LAUNCHER_FILE="$DATADIR/m2/vestige-se.xml"
@@ -66,7 +66,14 @@ fi
 VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Dvestige.mavenRepository="$DATADIR/repository" -Djava.util.logging.manager=fr.gaellalire.vestige.core.logger.JULLogManager -Dlogback.logsDirectory="$VESTIGE_BASE/logs" -Dlogback.configurationFile="$LOGBACK_CONFIGURATION_FILE")
 
 if "$JAVA" --add-modules java.base -version >/dev/null 2>&1; then
-  VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" --add-modules java.xml.bind --patch-module "java.base=$DATADIR/lib/moduleEncapsulationBreaker.jar")
+  VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" --add-modules ALL-DEFAULT --patch-module "java.base=$DATADIR/lib/moduleEncapsulationBreaker.jar")
+  VESTIGE_ARGS=(-p "$DATADIR/lib/vestige.core-${vestige.core.version}.jar" -m fr.gaellalire.vestige.core --add-modules fr.gaellalire.vestige.edition.maven_main_launcher frmp "$DATADIR" "$DATADIR/unix-classpath.txt" fr.gaellalire.vestige.jvm_enhancer.boot)
+  VESTIGE_ARGS=("${VESTIGE_ARGS[@]}" "$DATADIR" "$DATADIR/jvm_enhancer.properties" fr.gaellalire.vestige.edition.maven_main_launcher)
+else
+  VESTIGE_ARGS=(-jar "$DATADIR/lib/vestige.core-${vestige.core.version}.jar" --before 'javax/xml/bind/.*' frcp "$DATADIR" "$DATADIR/unix-classpath.txt" fr.gaellalire.vestige.jvm_enhancer.boot.JVMEnhancer)
+  VESTIGE_ARGS=("${VESTIGE_ARGS[@]}" "$DATADIR" "$DATADIR/jvm_enhancer.properties" fr.gaellalire.vestige.edition.maven_main_launcher.MavenMainLauncher)
 fi
 
-exec "$JAVA" "${VESTIGE_OPTS[@]}" -jar "$DATADIR/lib/vestige.core-${vestige.core.version}.jar" frcp "$DATADIR" "$DATADIR/unix-classpath.txt" fr.gaellalire.vestige.jvm_enhancer.boot.JVMEnhancer "$DATADIR" "$DATADIR/jvm_enhancer.properties" fr.gaellalire.vestige.resolver.maven.VestigeMavenResolver "$MAVEN_LAUNCHER_FILE" "$MAVEN_SETTINGS_FILE" "$MAVEN_RESOLVER_CACHE_FILE" "$VESTIGE_BASE" "$VESTIGE_DATA" "$VESTIGE_SECURITY" "$VESTIGE_LISTENER_PORT"
+VESTIGE_ARGS=("${VESTIGE_ARGS[@]}" "$MAVEN_LAUNCHER_FILE" "$MAVEN_SETTINGS_FILE" "$MAVEN_RESOLVER_CACHE_FILE" "$VESTIGE_BASE" "$VESTIGE_DATA" "$VESTIGE_SECURITY" "$VESTIGE_LISTENER_PORT")
+
+exec "$JAVA" "${VESTIGE_OPTS[@]}" "${VESTIGE_ARGS[@]}"

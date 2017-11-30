@@ -20,7 +20,7 @@ package fr.gaellalire.vestige.application.manager;
 import java.net.URL;
 import java.util.List;
 
-import fr.gaellalire.vestige.job.JobHelper;
+import fr.gaellalire.vestige.spi.job.JobHelper;
 
 /**
  * @author Gael Lalire

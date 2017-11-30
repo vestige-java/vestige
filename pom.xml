@@ -153,18 +153,23 @@
     <at>@</at>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <slf4j.version>1.7.25</slf4j.version>
-    <vestige.core.version>1</vestige.core.version>
-    <vestige.jpms.version>1.0</vestige.jpms.version>
-    <vestige.jvm_enhancer.version>2.1</vestige.jvm_enhancer.version>
-    <vestige.maven.version>java6-1</vestige.maven.version>
+    <vestige.core.version>2</vestige.core.version>
+    <vestige.jpms.version>2.0</vestige.jpms.version>
+    <vestige.jvm_enhancer.version>3.0</vestige.jvm_enhancer.version>
+    <vestige.spi.system.version>1.0</vestige.spi.system.version>
+    <vestige.spi.job.version>1.0</vestige.spi.job.version>
+    <vestige.spi.resolver.version>1.0</vestige.spi.resolver.version>
+    <vestige.spi.resolver.url_list.version>1.0</vestige.spi.resolver.url_list.version>
+    <vestige.spi.resolver.maven.version>1.0</vestige.spi.resolver.maven.version>
+    <vestige.maven.version>java6-2</vestige.maven.version>
     <logback.version>1.2.3</logback.version>
     <jetty.version>8.1.11.v20130520</jetty.version>
     <milton.version>2.5.0.1</milton.version>
     <javax-servlet.version>3.0.0.v201112011016</javax-servlet.version>
     <bouncycastle.version>1.58</bouncycastle.version>
-    <httpcomponents.version>4.4.1</httpcomponents.version>
-    <proxy_vole.version>java6-2</proxy_vole.version>
-    <maven-resolver.version>java6-1</maven-resolver.version>
+    <httpcomponents.version>4.5.3</httpcomponents.version>
+    <proxy_vole.version>java6-3</proxy_vole.version>
+    <maven-resolver.version>java6-2</maven-resolver.version>
   </properties>
   <dependencyManagement>
     <dependencies>
@@ -177,6 +182,31 @@
         <groupId>fr.gaellalire.vestige</groupId>
         <artifactId>vestige.jpms</artifactId>
         <version>${vestige.jpms.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>fr.gaellalire.vestige</groupId>
+        <artifactId>vestige.spi.system</artifactId>
+        <version>${vestige.spi.system.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>fr.gaellalire.vestige</groupId>
+        <artifactId>vestige.spi.job</artifactId>
+        <version>${vestige.spi.job.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>fr.gaellalire.vestige</groupId>
+        <artifactId>vestige.spi.resolver</artifactId>
+        <version>${vestige.spi.resolver.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>fr.gaellalire.vestige</groupId>
+        <artifactId>vestige.spi.resolver.url_list</artifactId>
+        <version>${vestige.spi.resolver.url_list.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>fr.gaellalire.vestige</groupId>
+        <artifactId>vestige.spi.resolver.maven</artifactId>
+        <version>${vestige.spi.resolver.maven.version}</version>
       </dependency>
       <dependency>
         <groupId>org.slf4j</groupId>
@@ -273,6 +303,16 @@
         <groupId>org.codehaus.janino</groupId>
         <artifactId>janino</artifactId>
         <version>2.7.8</version>
+      </dependency>
+      <dependency>
+        <groupId>fr.gaellalire.jaxb</groupId>
+        <artifactId>jaxb-api</artifactId>
+        <version>2.2.12-b140109.1041</version>
+      </dependency>
+      <dependency>
+        <groupId>fr.gaellalire.jaxb</groupId>
+        <artifactId>jaxb-runtime</artifactId>
+        <version>2.2.11</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

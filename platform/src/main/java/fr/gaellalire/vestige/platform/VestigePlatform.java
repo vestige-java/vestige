@@ -17,21 +17,23 @@
 
 package fr.gaellalire.vestige.platform;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.lang.ref.WeakReference;
 import java.util.List;
 import java.util.Set;
 
 import fr.gaellalire.vestige.core.VestigeClassLoader;
+import fr.gaellalire.vestige.jpms.ModuleLayerLinker;
 
 /**
  * @author Gael Lalire
  */
-public interface VestigePlatform {
+public interface VestigePlatform extends ModuleLayerLinker<VestigeClassLoader<AttachedVestigeClassLoader>> {
 
     int attach(VestigeClassLoader<AttachedVestigeClassLoader> classLoader);
 
-    int attach(ClassLoaderConfiguration classLoaderConfiguration) throws InterruptedException;
+    int attach(ClassLoaderConfiguration classLoaderConfiguration) throws InterruptedException, IOException;
 
     void detach(int id);
 

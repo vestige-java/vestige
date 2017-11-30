@@ -9,7 +9,7 @@ import java.util.Properties;
 import java.util.logging.Logger;
 
 /**
- * @author gaellalire
+ * @author Gael Lalire
  */
 public class MockDriver implements Driver {
 

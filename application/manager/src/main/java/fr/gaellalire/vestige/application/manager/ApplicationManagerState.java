@@ -21,7 +21,7 @@ import java.net.URL;
 import java.util.List;
 import java.util.Set;
 
-import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
+import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 
 /**
  * @author Gael Lalire
@@ -30,13 +30,13 @@ public interface ApplicationManagerState {
 
     Set<String> getRepositoriesName() throws ApplicationException;
 
-    URL getRepositoryURL(final String repoName) throws ApplicationException;
+    URL getRepositoryURL(String repoName) throws ApplicationException;
 
     Set<String> getApplicationsName() throws ApplicationException;
 
     boolean isStarted(String installName) throws ApplicationException;
 
-    ClassLoaderConfiguration getClassLoaders(String installName) throws ApplicationException;
+    ResolvedClassLoaderConfiguration getClassLoaders(String installName) throws ApplicationException;
 
     String getRepositoryName(String installName) throws ApplicationException;
 

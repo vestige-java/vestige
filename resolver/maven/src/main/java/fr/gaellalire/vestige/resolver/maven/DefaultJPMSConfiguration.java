@@ -25,7 +25,7 @@ import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.ModuleConfiguration;
 
 /**
- * @author gaellalire
+ * @author Gael Lalire
  */
 public class DefaultJPMSConfiguration {
 

@@ -17,7 +17,8 @@
 
 package fr.gaellalire.vestige.resolver.maven;
 
-import java.net.URL;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -33,13 +34,17 @@ import org.eclipse.aether.collection.DependencyManager;
 import org.eclipse.aether.graph.DefaultDependencyNode;
 import org.eclipse.aether.graph.Dependency;
 import org.eclipse.aether.impl.ArtifactDescriptorReader;
-import org.eclipse.aether.impl.DependencyModifier;
 import org.eclipse.aether.internal.impl.DefaultDependencyCollector.PremanagedDependency;
 import org.eclipse.aether.resolution.ArtifactDescriptorException;
 import org.eclipse.aether.resolution.ArtifactDescriptorRequest;
 import org.eclipse.aether.resolution.ArtifactDescriptorResult;
 
+import fr.gaellalire.vestige.jpms.NamedModuleUtils;
 import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
+import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
+import fr.gaellalire.vestige.platform.ModuleConfiguration;
+import fr.gaellalire.vestige.spi.resolver.ResolverException;
+import fr.gaellalire.vestige.spi.resolver.Scope;
 
 /**
  * @author Gael Lalire
@@ -50,7 +55,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
     private Map<List<MavenArtifact>, ClassLoaderConfigurationFactory> cachedClassLoaderConfigurationFactory;
 
-    private Map<MavenArtifact, URL> urlByKey;
+    private Map<MavenArtifact, File> urlByKey;
 
     private ArtifactDescriptorReader descriptorReader;
 
@@ -62,16 +67,18 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
     private Scope scope;
 
-    private DependencyModifier dependencyModifier;
+    private DefaultDependencyModifier dependencyModifier;
 
     private DefaultJPMSConfiguration jpmsConfiguration;
 
     private ScopeModifier scopeModifier;
 
-    public ClassLoaderConfigurationGraphHelper(final String appName, final Map<MavenArtifact, URL> urlByKey, final ArtifactDescriptorReader descriptorReader,
-            final CollectRequest collectRequest, final RepositorySystemSession session, final DependencyModifier dependencyModifier,
+    private JPMSNamedModulesConfiguration namedModulesConfiguration;
+
+    public ClassLoaderConfigurationGraphHelper(final String appName, final Map<MavenArtifact, File> urlByKey, final ArtifactDescriptorReader descriptorReader,
+            final CollectRequest collectRequest, final RepositorySystemSession session, final DefaultDependencyModifier dependencyModifier,
             final DefaultJPMSConfiguration jpmsConfiguration, final Map<String, Map<String, MavenArtifact>> runtimeDependencies, final Scope scope,
-            final ScopeModifier scopeModifier) {
+            final ScopeModifier scopeModifier, final JPMSNamedModulesConfiguration namedModulesConfiguration) {
         cachedClassLoaderConfigurationFactory = new HashMap<List<MavenArtifact>, ClassLoaderConfigurationFactory>();
         this.appName = appName;
         this.urlByKey = urlByKey;
@@ -83,12 +90,13 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
         this.runtimeDependencies = runtimeDependencies;
         this.scope = scope;
         this.scopeModifier = scopeModifier;
+        this.namedModulesConfiguration = namedModulesConfiguration;
     }
 
     /**
      * Executed before any call to {@link ClassLoaderConfigurationFactory#create(fr.gaellalire.vestige.platform.StringParserFactory)}.
      */
-    public ClassLoaderConfigurationFactory merge(final List<MavenArtifact> nodes, final List<ClassLoaderConfigurationFactory> nexts) throws Exception {
+    public ClassLoaderConfigurationFactory merge(final List<MavenArtifact> nodes, final List<ClassLoaderConfigurationFactory> nexts) throws ResolverException {
         List<MavenClassLoaderConfigurationKey> dependencies = new ArrayList<MavenClassLoaderConfigurationKey>();
 
         for (ClassLoaderConfigurationFactory classLoaderConfiguration : nexts) {
@@ -97,24 +105,48 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
         JPMSClassLoaderConfiguration moduleConfiguration = JPMSClassLoaderConfiguration.EMPTY_INSTANCE;
         for (MavenArtifact mavenArtifact : nodes) {
-            moduleConfiguration = moduleConfiguration.merge(jpmsConfiguration.getModuleConfiguration(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId()));
+            JPMSClassLoaderConfiguration unnamedClassLoaderConfiguration = jpmsConfiguration.getModuleConfiguration(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId());
+            if (namedModulesConfiguration != null) {
+
+                String moduleName;
+                try {
+                    moduleName = NamedModuleUtils.getModuleName(urlByKey.get(mavenArtifact));
+                } catch (IOException e) {
+                    throw new ResolverException("Unable to calculate module name", e);
+                }
+
+                List<ModuleConfiguration> namedModuleConfigurations = new ArrayList<ModuleConfiguration>();
+                for (ModuleConfiguration unnamedModuleConfiguration : unnamedClassLoaderConfiguration.getModuleConfigurations()) {
+                    namedModuleConfigurations.add(new ModuleConfiguration(unnamedModuleConfiguration.getModuleName(), unnamedModuleConfiguration.getAddExports(),
+                            unnamedModuleConfiguration.getAddOpens(), moduleName));
+                }
+                moduleConfiguration = moduleConfiguration.merge(namedModuleConfigurations);
+
+            } else {
+                moduleConfiguration = moduleConfiguration.merge(unnamedClassLoaderConfiguration);
+            }
         }
 
-        MavenClassLoaderConfigurationKey key = new MavenClassLoaderConfigurationKey(nodes, dependencies, Scope.PLATFORM, moduleConfiguration);
+        MavenClassLoaderConfigurationKey key = new MavenClassLoaderConfigurationKey(nodes, dependencies, Scope.PLATFORM, moduleConfiguration, namedModulesConfiguration);
         ClassLoaderConfigurationFactory classLoaderConfigurationFactory = cachedClassLoaderConfigurationFactory.get(key.getArtifacts());
         // if artifacts are the same, dependencies too. With same artifacts dependencies can differ if they have different mavenConfig (not same application)
         if (classLoaderConfigurationFactory == null) {
-            URL[] urls = new URL[nodes.size()];
-            int i = 0;
+            List<File> beforeUrls = new ArrayList<File>();
+            List<File> afterUrls = new ArrayList<File>();
             Scope scope = this.scope;
             for (MavenArtifact artifact : nodes) {
-                urls[i] = urlByKey.get(artifact);
-                i++;
                 if (scopeModifier != null) {
                     scope = scopeModifier.modify(scope, artifact.getGroupId(), artifact.getArtifactId());
                 }
+                List<File> urls;
+                if (dependencyModifier.isBeforeParent(artifact.getGroupId(), artifact.getArtifactId())) {
+                    urls = beforeUrls;
+                } else {
+                    urls = afterUrls;
+                }
+                urls.add(urlByKey.get(artifact));
             }
-            classLoaderConfigurationFactory = new ClassLoaderConfigurationFactory(appName, key, scope, urls, nexts);
+            classLoaderConfigurationFactory = new ClassLoaderConfigurationFactory(appName, key, scope, beforeUrls, afterUrls, nexts);
             cachedClassLoaderConfigurationFactory.put(key.getArtifacts(), classLoaderConfigurationFactory);
         }
         return classLoaderConfigurationFactory;

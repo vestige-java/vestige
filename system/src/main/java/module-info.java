@@ -4,9 +4,11 @@ module fr.gaellalire.vestige.system {
 
     requires fr.gaellalire.vestige.core;
 
-    requires java.logging;
+    requires static java.logging;
 
-    requires java.sql;
+    requires static java.sql;
+    
+    requires transitive fr.gaellalire.vestige.spi.system;
 
     exports fr.gaellalire.vestige.system;
     

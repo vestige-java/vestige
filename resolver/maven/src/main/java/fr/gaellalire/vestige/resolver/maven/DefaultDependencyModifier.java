@@ -18,6 +18,7 @@
 package fr.gaellalire.vestige.resolver.maven;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
@@ -37,6 +38,8 @@ public class DefaultDependencyModifier implements DependencyModifier {
 
     private Map<String, Map<String, List<Dependency>>> addRules = new HashMap<String, Map<String, List<Dependency>>>();
 
+    private Map<String, Set<String>> beforeParents = new HashMap<String, Set<String>>();
+
     public void replace(final String groupId, final String artifactId, final List<Dependency> dependency, final Map<String, Set<String>> excepts) {
         Map<String, ReplacementRule> map = replacementRules.get(groupId);
         if (map == null) {
@@ -44,6 +47,23 @@ public class DefaultDependencyModifier implements DependencyModifier {
             replacementRules.put(groupId, map);
         }
         map.put(artifactId, new ReplacementRule(dependency, excepts));
+    }
+
+    public void addBeforeParent(final String groupId, final String artifactId) {
+        Set<String> set = beforeParents.get(groupId);
+        if (set == null) {
+            set = new HashSet<String>();
+            beforeParents.put(groupId, set);
+        }
+        set.add(artifactId);
+    }
+
+    public boolean isBeforeParent(final String groupId, final String artifactId) {
+        Set<String> set = beforeParents.get(groupId);
+        if (set == null) {
+            return false;
+        }
+        return set.contains(artifactId);
     }
 
     public void add(final String groupId, final String artifactId, final List<Dependency> dependency) {

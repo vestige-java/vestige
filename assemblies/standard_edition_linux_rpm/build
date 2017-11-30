@@ -12,9 +12,9 @@ rm target/vestige-$VESTIGE_RPM_VERSION/vestige~
 sed -e 's/Version:        .*/Version:        '$VESTIGE_RPM_VERSION'/' -e 's/standard_edition_bootstrap.*-jar-with-dependencies.jar/standard_edition_bootstrap-'$VESTIGE_VERSION'-jar-with-dependencies.jar/' src/vestige.spec > target/vestige.spec
 cp src/Makefile target/vestige-$VESTIGE_RPM_VERSION/
 cp -r src/hicolor target/vestige-$VESTIGE_RPM_VERSION/
-cp -r src/vestige_gtk_launcher.py target/vestige-$VESTIGE_RPM_VERSION/
+cp ../standard_edition_linux_desktop/src/vestige_gtk_launcher.py target/vestige-$VESTIGE_RPM_VERSION/
 chmod +x target/vestige-$VESTIGE_RPM_VERSION/vestige_gtk_launcher.py
-cp -r src/vestige.desktop target/vestige-$VESTIGE_RPM_VERSION/
+cp ../standard_edition_linux_desktop/src/vestige.desktop target/vestige-$VESTIGE_RPM_VERSION/
 find target \( -name .svn -o -name .DS_Store \) -exec rm -rf {} \;
 pushd target && tar -czf vestige.tar.gz vestige-$VESTIGE_RPM_VERSION && popd
 scp target/vestige.tar.gz rpmbuilder:rpmbuild/SOURCES/vestige.tar.gz

@@ -64,29 +64,29 @@ public class MicroEditionVestige {
         this.vestigeExecutor = vestigeExecutor;
         this.vestigePlatform = vestigePlatform;
 
-//        File appBaseFile = new File(baseFile, "app");
-//        File appDataFile = new File(dataFile, "app");
-//        try {
-//            resolverFile = new File(dataFile, "application-manager.ser");
-//            if (resolverFile.isFile()) {
-//                ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(resolverFile));
-//                try {
-//                    defaultApplicationManager = (DefaultApplicationManager) objectInputStream.readObject();
-//                } finally {
-//                    objectInputStream.close();
-//                }
-//            }
-//        } catch (Exception e) {
-//            LOGGER.warn("Unable to restore application manager", e);
-//        }
-//
-//        if (defaultApplicationManager == null) {
-//            defaultApplicationManager = new DefaultApplicationManager(appBaseFile, appDataFile);
-//        }
+        // File appBaseFile = new File(baseFile, "app");
+        // File appDataFile = new File(dataFile, "app");
+        // try {
+        // resolverFile = new File(dataFile, "application-manager.ser");
+        // if (resolverFile.isFile()) {
+        // ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(resolverFile));
+        // try {
+        // defaultApplicationManager = (DefaultApplicationManager) objectInputStream.readObject();
+        // } finally {
+        // objectInputStream.close();
+        // }
+        // }
+        // } catch (Exception e) {
+        // LOGGER.warn("Unable to restore application manager", e);
+        // }
+        //
+        // if (defaultApplicationManager == null) {
+        // defaultApplicationManager = new DefaultApplicationManager(appBaseFile, appDataFile);
+        // }
 
         applicationDescriptorFactory = new PropertiesApplicationDescriptorFactory();
 
-        final VestigeCommandExecutor vestigeCommandExecutor = new VestigeCommandExecutor(null, defaultApplicationManager, vestigePlatform);
+        final VestigeCommandExecutor vestigeCommandExecutor = new VestigeCommandExecutor(null, defaultApplicationManager);
         server = new TelnetServer(vestigeCommandExecutor, 8423);
     }
 
@@ -158,7 +158,7 @@ public class MicroEditionVestige {
             System.setProperties(vestigeProperties);
 
             VestigeExecutor vestigeExecutor = new VestigeExecutor();
-            VestigePlatform vestigePlatform = new DefaultVestigePlatform(vestigeExecutor);
+            VestigePlatform vestigePlatform = new DefaultVestigePlatform(vestigeExecutor, null);
             File baseFile = new File(args[0]);
             File dataFile = new File(args[1]);
             if (!baseFile.isDirectory()) {

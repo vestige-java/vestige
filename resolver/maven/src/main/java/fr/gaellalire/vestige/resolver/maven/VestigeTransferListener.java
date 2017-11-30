@@ -27,8 +27,8 @@ import org.eclipse.aether.transfer.TransferResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import fr.gaellalire.vestige.job.JobHelper;
-import fr.gaellalire.vestige.job.TaskHelper;
+import fr.gaellalire.vestige.spi.job.JobHelper;
+import fr.gaellalire.vestige.spi.job.TaskHelper;
 
 /**
  * @author Gael Lalire
