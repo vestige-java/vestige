@@ -14,8 +14,6 @@ module fr.gaellalire.vestige.admin.ssh {
 
     requires mina.core;
 
-    requires commons.io;
-
     // End of shame part
 
     exports fr.gaellalire.vestige.admin.ssh;
