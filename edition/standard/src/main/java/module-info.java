@@ -47,6 +47,8 @@ module fr.gaellalire.vestige.edition.standard {
     requires httpclient;
 
     requires httpcore;
+    
+    requires sshd.core;
 
     // End of shame part
 
