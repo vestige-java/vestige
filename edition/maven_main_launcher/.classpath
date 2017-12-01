@@ -27,7 +27,7 @@
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry excluding="module-info.java|fr/gaellalire/vestige/edition/maven_main_launcher/JPMSMavenMainLauncher.java" kind="src" output="target/classes" path="target/generated-sources/xjc">
+	<classpathentry excluding="module-info.java|fr/gaellalire/vestige/edition/maven_main_launcher/JPMSMavenMainLauncher.java" including="**/*.java" kind="src" output="target/classes" path="target/generated-sources/xjc">
 		<attributes>
 			<attribute name="optional" value="true"/>
 			<attribute name="maven.pomderived" value="true"/>
