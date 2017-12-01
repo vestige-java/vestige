@@ -73,9 +73,10 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultApplicationManager.class);
 
     static {
-        // ensure VestigeSystemInvocationHandler is loaded
+        // ensure classes used in application context are already loaded
         VestigeSystemInvocationHandler.class.getName();
         VestigeSystemJarURLConnection.init();
+        ApplicationInstallerInvoker.class.getName();
     }
 
     private VestigeSystem rootVestigeSystem;
