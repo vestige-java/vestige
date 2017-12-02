@@ -671,7 +671,10 @@ public class StandardEditionVestige implements Runnable {
             javaBaseModule.addOpens("sun.security.jca", JVMVestigeSystemActionExecutor.class);
             javaBaseModule.addOpens("java.lang.reflect", JVMVestigeSystemActionExecutor.class);
             javaBaseModule.addOpens("java.net", JVMVestigeSystemActionExecutor.class);
-            bootLayer.findModule("java.sql").addOpens("java.sql", JVMVestigeSystemActionExecutor.class);
+            JPMSModuleAccessor findModule = bootLayer.findModule("java.sql");
+            if (findModule != null) {
+                findModule.addOpens("java.sql", JVMVestigeSystemActionExecutor.class);
+            }
             moduleLayerRepository = jpmsAccessor.createModuleLayerRepository();
         }
         VestigePlatform vestigePlatform = new DefaultVestigePlatform(vestigeExecutor, moduleLayerRepository);
