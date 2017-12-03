@@ -45,14 +45,17 @@ public class MavenClassLoaderConfigurationKey implements Serializable {
 
     private JPMSNamedModulesConfiguration namedModulesConfiguration;
 
+    private boolean[] beforeParents;
+
     public MavenClassLoaderConfigurationKey(final List<MavenArtifact> artifacts, final List<MavenClassLoaderConfigurationKey> dependencies, final Scope scope,
-            final JPMSClassLoaderConfiguration moduleConfiguration, final JPMSNamedModulesConfiguration namedModulesConfiguration) {
+            final JPMSClassLoaderConfiguration moduleConfiguration, final JPMSNamedModulesConfiguration namedModulesConfiguration, final boolean[] beforeParents) {
         this.artifacts = artifacts;
         this.dependencies = dependencies;
         hashCode = artifacts.hashCode() + dependencies.hashCode();
         this.scope = scope;
         this.moduleConfiguration = moduleConfiguration;
         this.namedModulesConfiguration = namedModulesConfiguration;
+        this.beforeParents = beforeParents;
     }
 
     public JPMSClassLoaderConfiguration getModuleConfiguration() {
@@ -112,6 +115,10 @@ public class MavenClassLoaderConfigurationKey implements Serializable {
         }
     }
 
+    public boolean[] getBeforeParents() {
+        return beforeParents;
+    }
+
     @Override
     public boolean equals(final Object obj) {
         if (this == obj) {
@@ -149,6 +156,33 @@ public class MavenClassLoaderConfigurationKey implements Serializable {
             }
         } else if (!namedModulesConfiguration.equals(other.namedModulesConfiguration)) {
             return false;
+        }
+
+        if (beforeParents == null) {
+            if (other.beforeParents != null) {
+                for (int i = 0; i < other.beforeParents.length; i++) {
+                    if (other.beforeParents[i]) {
+                        return false;
+                    }
+                }
+            }
+        } else {
+            if (other.beforeParents == null) {
+                for (int i = 0; i < beforeParents.length; i++) {
+                    if (beforeParents[i]) {
+                        return false;
+                    }
+                }
+            } else {
+                if (beforeParents.length != other.beforeParents.length) {
+                    return false;
+                }
+                for (int i = 0; i < beforeParents.length; i++) {
+                    if (beforeParents[i] != other.beforeParents[i]) {
+                        return false;
+                    }
+                }
+            }
         }
         return true;
     }

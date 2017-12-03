@@ -104,6 +104,8 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
         }
 
         JPMSClassLoaderConfiguration moduleConfiguration = JPMSClassLoaderConfiguration.EMPTY_INSTANCE;
+        boolean[] beforeParents = null;
+        int i = 0;
         for (MavenArtifact mavenArtifact : nodes) {
             JPMSClassLoaderConfiguration unnamedClassLoaderConfiguration = jpmsConfiguration.getModuleConfiguration(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId());
             if (namedModulesConfiguration != null) {
@@ -125,28 +127,38 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
             } else {
                 moduleConfiguration = moduleConfiguration.merge(unnamedClassLoaderConfiguration);
             }
+            if (dependencyModifier.isBeforeParent(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId())) {
+                if (beforeParents == null) {
+                    beforeParents = new boolean[nodes.size()];
+                }
+                beforeParents[i] = true;
+            }
+            i++;
         }
 
-        MavenClassLoaderConfigurationKey key = new MavenClassLoaderConfigurationKey(nodes, dependencies, Scope.PLATFORM, moduleConfiguration, namedModulesConfiguration);
+        MavenClassLoaderConfigurationKey key = new MavenClassLoaderConfigurationKey(nodes, dependencies, Scope.PLATFORM, moduleConfiguration, namedModulesConfiguration,
+                beforeParents);
         ClassLoaderConfigurationFactory classLoaderConfigurationFactory = cachedClassLoaderConfigurationFactory.get(key.getArtifacts());
         // if artifacts are the same, dependencies too. With same artifacts dependencies can differ if they have different mavenConfig (not same application)
         if (classLoaderConfigurationFactory == null) {
             List<File> beforeUrls = new ArrayList<File>();
             List<File> afterUrls = new ArrayList<File>();
             Scope scope = this.scope;
+            i = 0;
             for (MavenArtifact artifact : nodes) {
                 if (scopeModifier != null) {
                     scope = scopeModifier.modify(scope, artifact.getGroupId(), artifact.getArtifactId());
                 }
                 List<File> urls;
-                if (dependencyModifier.isBeforeParent(artifact.getGroupId(), artifact.getArtifactId())) {
+                if (beforeParents != null && beforeParents[i]) {
                     urls = beforeUrls;
                 } else {
                     urls = afterUrls;
                 }
                 urls.add(urlByKey.get(artifact));
+                i++;
             }
-            classLoaderConfigurationFactory = new ClassLoaderConfigurationFactory(appName, key, scope, beforeUrls, afterUrls, nexts);
+            classLoaderConfigurationFactory = new ClassLoaderConfigurationFactory(appName, key, scope, beforeUrls, afterUrls, nexts, namedModulesConfiguration != null);
             cachedClassLoaderConfigurationFactory.put(key.getArtifacts(), classLoaderConfigurationFactory);
         }
         return classLoaderConfigurationFactory;
@@ -179,7 +191,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
         return a.getGroupId() + ':' + a.getArtifactId() + ':' + a.getClassifier() + ':' + a.getExtension();
     }
 
-    public List<NodeAndState> getNexts(final NodeAndState nodeAndState) {
+    public List<NodeAndState> getNexts(final NodeAndState nodeAndState) throws ResolverException {
 
         collectRequest.setRoot(nodeAndState.getDependencyNode().getDependency());
         try {
@@ -211,7 +223,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
             }
             return children;
         } catch (ArtifactDescriptorException e) {
-            throw new RuntimeException(e);
+            throw new ResolverException(e);
         }
     }
 

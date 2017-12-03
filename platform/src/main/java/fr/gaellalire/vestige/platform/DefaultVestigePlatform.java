@@ -78,6 +78,9 @@ public class DefaultVestigePlatform implements VestigePlatform {
 
     private static final VestigeClassLoaderConfiguration[][] NO_DEPENDENCY_LIST = new VestigeClassLoaderConfiguration[][] {SELF_SEARCHED};
 
+    private static final VestigeClassLoaderConfiguration[][] BEFORE_PARENT_NO_DEPENDENCY_LIST = new VestigeClassLoaderConfiguration[][] {
+            new VestigeClassLoaderConfiguration[] {VestigeClassLoaderConfiguration.THIS_PARENT_UNSEARCHED, null}};
+
     private List<AttachedVestigeClassLoader> attached = new ArrayList<AttachedVestigeClassLoader>();
 
     private List<List<WeakReference<AttachedVestigeClassLoader>>> attachedClassLoaders = new ArrayList<List<WeakReference<AttachedVestigeClassLoader>>>();
@@ -294,7 +297,11 @@ public class DefaultVestigePlatform implements VestigePlatform {
     public VestigeClassLoaderConfiguration[][] convert(final AttachedVestigeClassLoader attachedVestigeClassLoader, final ClassLoaderConfiguration conf) {
         List<List<Integer>> pathsData = conf.getPathIdsList();
         if (pathsData == null || pathsData.size() == 0) {
-            return NO_DEPENDENCY_LIST;
+            if (conf.getBeforeUrls().size() == 0) {
+                return NO_DEPENDENCY_LIST;
+            } else {
+                return BEFORE_PARENT_NO_DEPENDENCY_LIST;
+            }
         }
         VestigeClassLoaderConfiguration[][] data = new VestigeClassLoaderConfiguration[pathsData.size()][];
         int i = 0;
@@ -310,8 +317,8 @@ public class DefaultVestigePlatform implements VestigePlatform {
                     // all path are before parent, so we must add parent alone to avoid ClassNotFound on java.lang.Object
                     classLoaderConfigurations.add(null);
                 }
+                data[i] = classLoaderConfigurations.toArray(new VestigeClassLoaderConfiguration[classLoaderConfigurations.size()]);
             }
-            data[i] = classLoaderConfigurations.toArray(new VestigeClassLoaderConfiguration[classLoaderConfigurations.size()]);
             i++;
         }
         return data;
@@ -373,7 +380,10 @@ public class DefaultVestigePlatform implements VestigePlatform {
                 resourceStringParser = new NoStateStringParser(0);
                 classStringParser = resourceStringParser;
             } else {
-                classStringParser = new ClassStringParser(resourceStringParser);
+                classStringParser = classLoaderConfiguration.getPathIdsPositionByClassName();
+                if (classStringParser == null) {
+                    classStringParser = new ClassStringParser(resourceStringParser);
+                }
             }
 
             // create classloader with executor to remove this protection domain from access control

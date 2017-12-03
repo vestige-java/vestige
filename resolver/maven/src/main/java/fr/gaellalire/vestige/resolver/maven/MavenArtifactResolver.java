@@ -296,11 +296,17 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
             List<File> afterUrls = new ArrayList<File>();
             List<MavenArtifact> mavenArtifacts = new ArrayList<MavenArtifact>();
             JPMSClassLoaderConfiguration moduleConfiguration = JPMSClassLoaderConfiguration.EMPTY_INSTANCE;
+            boolean[] beforeParents = null;
+            int i = 0;
             for (Artifact artifact : artifacts) {
                 mavenArtifacts.add(new MavenArtifact(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion()));
                 List<File> urls;
-                if (dependencyModifier.isBeforeParent(groupId, artifactId)) {
+                if (dependencyModifier.isBeforeParent(artifact.getGroupId(), artifact.getArtifactId())) {
                     urls = beforeUrls;
+                    if (beforeParents == null) {
+                        beforeParents = new boolean[artifacts.size()];
+                    }
+                    beforeParents[i] = true;
                 } else {
                     urls = afterUrls;
                 }
@@ -325,10 +331,10 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
                 } else {
                     moduleConfiguration = moduleConfiguration.merge(unnamedClassLoaderConfiguration);
                 }
-
+                i++;
             }
             MavenClassLoaderConfigurationKey key = new MavenClassLoaderConfigurationKey(mavenArtifacts, Collections.<MavenClassLoaderConfigurationKey> emptyList(), scope,
-                    moduleConfiguration, jpmsNamedModulesConfiguration);
+                    moduleConfiguration, jpmsNamedModulesConfiguration, beforeParents);
             String name;
             if (scope == Scope.PLATFORM) {
                 name = key.getArtifacts().toString();
@@ -336,7 +342,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
                 name = appName;
             }
             classLoaderConfiguration = new ClassLoaderConfiguration(key, name, scope == Scope.ATTACHMENT, beforeUrls, afterUrls, Collections.<ClassLoaderConfiguration> emptyList(),
-                    null, null, null, key.getModuleConfiguration(), jpmsNamedModulesConfiguration);
+                    null, null, null, null, key.getModuleConfiguration(), jpmsNamedModulesConfiguration);
         }
         LOGGER.info("Classloader configuration created");
         return classLoaderConfiguration;

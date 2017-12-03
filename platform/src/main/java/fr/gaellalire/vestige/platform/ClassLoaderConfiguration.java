@@ -48,6 +48,8 @@ public class ClassLoaderConfiguration implements Serializable {
 
     private StringParser pathIdsPositionByResourceName;
 
+    private StringParser pathIdsPositionByClassName;
+
     private boolean attachmentScoped;
 
     private String name;
@@ -60,7 +62,7 @@ public class ClassLoaderConfiguration implements Serializable {
 
     public ClassLoaderConfiguration(final Serializable key, final String name, final boolean attachmentScoped, final List<File> beforeUrls, final List<File> afterUrls,
             final List<ClassLoaderConfiguration> dependencies, final List<Integer> paths, final List<List<Integer>> pathIdsList, final StringParser pathIdsPositionByResourceName,
-            final JPMSClassLoaderConfiguration moduleConfiguration, final JPMSNamedModulesConfiguration namedModulesConfiguration) {
+            final StringParser pathIdsPositionByClassName, final JPMSClassLoaderConfiguration moduleConfiguration, final JPMSNamedModulesConfiguration namedModulesConfiguration) {
         this.key = key;
         this.name = name;
         this.attachmentScoped = attachmentScoped;
@@ -70,6 +72,7 @@ public class ClassLoaderConfiguration implements Serializable {
         this.paths = paths;
         this.pathIdsList = pathIdsList;
         this.pathIdsPositionByResourceName = pathIdsPositionByResourceName;
+        this.pathIdsPositionByClassName = pathIdsPositionByClassName;
         this.permissions = new HashSet<Permission>();
         for (File url : beforeUrls) {
             this.permissions.add(new FilePermission(url.getPath(), "read"));
@@ -122,6 +125,10 @@ public class ClassLoaderConfiguration implements Serializable {
 
     public StringParser getPathIdsPositionByResourceName() {
         return pathIdsPositionByResourceName;
+    }
+
+    public StringParser getPathIdsPositionByClassName() {
+        return pathIdsPositionByClassName;
     }
 
     @Override

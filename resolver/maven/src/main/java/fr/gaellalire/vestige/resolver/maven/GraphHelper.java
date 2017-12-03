@@ -33,6 +33,6 @@ public interface GraphHelper<Node, Key, RNode> {
 
     Key getKey(Node node);
 
-    List<Node> getNexts(Node node);
+    List<Node> getNexts(Node node) throws ResolverException;
 
 }

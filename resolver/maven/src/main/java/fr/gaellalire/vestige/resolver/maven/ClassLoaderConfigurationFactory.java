@@ -36,7 +36,9 @@ import java.util.zip.ZipEntry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.gaellalire.vestige.core.VestigeClassLoader;
 import fr.gaellalire.vestige.core.parser.StringParser;
+import fr.gaellalire.vestige.jpms.ModuleDescriptor;
 import fr.gaellalire.vestige.jpms.NamedModuleUtils;
 import fr.gaellalire.vestige.platform.AddAccessibility;
 import fr.gaellalire.vestige.platform.AddReads;
@@ -52,6 +54,8 @@ import fr.gaellalire.vestige.spi.resolver.Scope;
 public class ClassLoaderConfigurationFactory {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClassLoaderConfigurationFactory.class);
+
+    public static final String CLASS_EXTENSION = ".class";
 
     public static final List<Integer> LOCAL_CLASSLOADER_PATH = Collections.singletonList(-1);
 
@@ -71,6 +75,10 @@ public class ClassLoaderConfigurationFactory {
 
     private TreeMap<String, Integer> pathsByResourceName;
 
+    private TreeMap<String, Integer> exportedPathsByResourceName;
+
+    private TreeMap<String, Integer> exportedPathsByClassName;
+
     private Scope scope;
 
     private JPMSNamedModulesConfiguration namedModulesConfiguration;
@@ -83,8 +91,12 @@ public class ClassLoaderConfigurationFactory {
         return pathIdsList;
     }
 
-    public TreeMap<String, Integer> getPathsByResourceName() {
-        return pathsByResourceName;
+    public TreeMap<String, Integer> getExportedPathsByResourceName() {
+        return exportedPathsByResourceName;
+    }
+
+    public TreeMap<String, Integer> getExportedPathsByClassName() {
+        return exportedPathsByClassName;
     }
 
     public MavenClassLoaderConfigurationKey getKey() {
@@ -107,31 +119,60 @@ public class ClassLoaderConfigurationFactory {
         return moduleNames;
     }
 
-    public static void readJar(final Map<String, List<Integer>> pathsByResourceName, final List<String> moduleNames, final File url) throws IOException {
+    public static void readJar(final Map<String, List<Integer>> pathsByResourceName, final Map<String, List<Integer>> exportedPathsByResourceName,
+            final Map<String, List<Integer>> exportedClasses, final List<String> moduleNames, final File url) throws IOException {
         JarInputStream openStream = new JarInputStream(new FileInputStream(url));
+        List<String> resources = new ArrayList<String>();
+        Set<String> packages = null;
         try {
             String moduleName = null;
             ZipEntry nextEntry = openStream.getNextEntry();
             while (nextEntry != null) {
                 String name = nextEntry.getName();
-                if (NamedModuleUtils.MODULE_INFO_ENTRY_NAME.equals(name)) {
-                    moduleName = NamedModuleUtils.getDescriptor(openStream).name();
+                if (exportedPathsByResourceName != null && NamedModuleUtils.MODULE_INFO_ENTRY_NAME.equals(name)) {
+                    ModuleDescriptor descriptor = NamedModuleUtils.getDescriptor(openStream);
+                    moduleName = descriptor.name();
+                    // seems that nothing is exported (even unqualified open or exported package) maybe automatic ?
+                    packages = Collections.emptySet();
+                    for (String resource : resources) {
+                        if (packages.contains(VestigeClassLoader.getPackageNameFromResourceName(resource))) {
+                            exportedPathsByResourceName.put(resource, LOCAL_CLASSLOADER_PATH);
+                        }
+                    }
+                    resources = null;
                 }
                 pathsByResourceName.put(name, LOCAL_CLASSLOADER_PATH);
+                if (exportedPathsByResourceName != null) {
+                    if (name.endsWith(CLASS_EXTENSION)) {
+                        // .class are not encapsulated so there are not exported either
+                        exportedClasses.put(name.substring(0, name.length() - CLASS_EXTENSION.length()).replace('/', '.'), LOCAL_CLASSLOADER_PATH);
+                    } else if (moduleName != null) {
+                        if (packages.contains(VestigeClassLoader.getPackageNameFromResourceName(name))) {
+                            // ignore
+                            exportedPathsByResourceName.put(name, LOCAL_CLASSLOADER_PATH);
+                        }
+                    } else {
+                        resources.add(name);
+                    }
+                }
                 nextEntry = openStream.getNextEntry();
             }
-            if (moduleName == null) {
-                Manifest manifest = openStream.getManifest();
-                moduleName = NamedModuleUtils.getAutomaticModuleName(manifest);
+            if (exportedPathsByResourceName != null) {
                 if (moduleName == null) {
-                    moduleName = NamedModuleUtils.getAutomaticModuleName(url.getName());
+                    Manifest manifest = openStream.getManifest();
+                    moduleName = NamedModuleUtils.getAutomaticModuleName(manifest);
+                    if (moduleName == null) {
+                        moduleName = NamedModuleUtils.getAutomaticModuleName(url.getName());
+                    }
+                    for (String resource : resources) {
+                        exportedPathsByResourceName.put(resource, LOCAL_CLASSLOADER_PATH);
+                    }
                 }
+                moduleNames.add(moduleName);
             }
-            moduleNames.add(moduleName);
         } finally {
             openStream.close();
         }
-
     }
 
     public Set<String> getDependenciesModuleNames() {
@@ -139,8 +180,17 @@ public class ClassLoaderConfigurationFactory {
     }
 
     public ClassLoaderConfigurationFactory(final String appName, final MavenClassLoaderConfigurationKey classLoaderConfigurationKey, final Scope scope, final List<File> beforeUrls,
-            final List<File> afterUrls, final List<ClassLoaderConfigurationFactory> dependencies) throws ResolverException {
+            final List<File> afterUrls, final List<ClassLoaderConfigurationFactory> dependencies, final boolean encapsulationActivated) throws ResolverException {
         TreeMap<String, List<Integer>> pathsByResourceName = new TreeMap<String, List<Integer>>();
+        TreeMap<String, List<Integer>> exportedPathsByResourceName = null;
+        TreeMap<String, List<Integer>> exportedPathsByClassName = null;
+        if (encapsulationActivated) {
+            exportedPathsByResourceName = new TreeMap<String, List<Integer>>();
+            exportedPathsByClassName = new TreeMap<String, List<Integer>>();
+            moduleNames = new ArrayList<String>();
+            this.dependenciesModuleNames = new HashSet<String>();
+        }
+
         this.appName = appName;
         this.beforeUrls = beforeUrls;
         this.afterUrls = afterUrls;
@@ -148,52 +198,109 @@ public class ClassLoaderConfigurationFactory {
         this.scope = scope;
         this.factoryDependencies = dependencies;
         paths = new ArrayList<Integer>();
-        pathIdsList = new ArrayList<List<Integer>>();
-        moduleNames = new ArrayList<String>();
-        this.dependenciesModuleNames = new HashSet<String>();
 
         try {
             ListIterator<File> listIterator = afterUrls.listIterator(afterUrls.size());
             while (listIterator.hasPrevious()) {
-                readJar(pathsByResourceName, moduleNames, listIterator.previous());
-            }
-            listIterator = beforeUrls.listIterator(beforeUrls.size());
-            while (listIterator.hasPrevious()) {
-                readJar(pathsByResourceName, moduleNames, listIterator.previous());
+                readJar(pathsByResourceName, exportedPathsByResourceName, exportedPathsByClassName, moduleNames, listIterator.previous());
             }
         } catch (IOException e) {
             throw new ResolverException("Unable to read jar content", e);
         }
-        Collections.reverse(moduleNames);
 
         int pos = dependencies.size();
         ListIterator<ClassLoaderConfigurationFactory> it = dependencies.listIterator(pos);
         while (it.hasPrevious()) {
             ClassLoaderConfigurationFactory dependency = it.previous();
-            dependenciesModuleNames.addAll(dependency.getDependenciesModuleNames());
-            dependenciesModuleNames.addAll(dependency.getModuleNames());
             pos--;
-            for (Entry<String, Integer> dependencyTmp : dependency.getPathsByResourceName().entrySet()) {
-                List<Integer> list = pathsByResourceName.get(dependencyTmp.getKey());
-                List<Integer> value = dependency.getPathIdsList().get(dependencyTmp.getValue());
-                if (list == null) {
-                    list = new ArrayList<Integer>(value.size());
-                    pathsByResourceName.put(dependencyTmp.getKey(), list);
-                } else if (list == LOCAL_CLASSLOADER_PATH) {
-                    list = new ArrayList<Integer>(list);
-                    pathsByResourceName.put(dependencyTmp.getKey(), list);
+            if (encapsulationActivated) {
+                dependenciesModuleNames.addAll(dependency.getDependenciesModuleNames());
+                dependenciesModuleNames.addAll(dependency.getModuleNames());
+                for (Entry<String, Integer> dependencyTmp : dependency.getExportedPathsByClassName().entrySet()) {
+                    List<Integer> list = exportedPathsByClassName.get(dependencyTmp.getKey());
+                    List<Integer> value = dependency.getPathIdsList().get(dependencyTmp.getValue());
+                    if (list == null) {
+                        list = new ArrayList<Integer>(value.size());
+                        exportedPathsByClassName.put(dependencyTmp.getKey(), list);
+                    } else if (list == LOCAL_CLASSLOADER_PATH) {
+                        list = new ArrayList<Integer>(list);
+                        exportedPathsByClassName.put(dependencyTmp.getKey(), list);
+                    }
+                    for (Integer clc : value) {
+                        list.add(addPath(pos, clc));
+                    }
                 }
-                for (Integer clc : value) {
-                    list.add(addPath(pos, clc));
+                for (Entry<String, Integer> dependencyTmp : dependency.getExportedPathsByResourceName().entrySet()) {
+                    List<Integer> list = pathsByResourceName.get(dependencyTmp.getKey());
+                    List<Integer> value = dependency.getPathIdsList().get(dependencyTmp.getValue());
+                    if (list == null) {
+                        list = new ArrayList<Integer>(value.size());
+                        pathsByResourceName.put(dependencyTmp.getKey(), list);
+                        exportedPathsByResourceName.put(dependencyTmp.getKey(), list);
+                    } else if (list == LOCAL_CLASSLOADER_PATH) {
+                        list = new ArrayList<Integer>(list);
+                        pathsByResourceName.put(dependencyTmp.getKey(), list);
+                        exportedPathsByResourceName.put(dependencyTmp.getKey(), list);
+                    }
+                    for (Integer clc : value) {
+                        list.add(addPath(pos, clc));
+                    }
+                }
+            } else {
+                for (Entry<String, Integer> dependencyTmp : dependency.pathsByResourceName.entrySet()) {
+                    List<Integer> list = pathsByResourceName.get(dependencyTmp.getKey());
+                    List<Integer> value = dependency.getPathIdsList().get(dependencyTmp.getValue());
+                    if (list == null) {
+                        list = new ArrayList<Integer>(value.size());
+                        pathsByResourceName.put(dependencyTmp.getKey(), list);
+                    } else if (list == LOCAL_CLASSLOADER_PATH) {
+                        list = new ArrayList<Integer>(list);
+                        pathsByResourceName.put(dependencyTmp.getKey(), list);
+                    }
+                    for (Integer clc : value) {
+                        list.add(addPath(pos, clc));
+                    }
                 }
             }
         }
 
-        pathIdsList = new ArrayList<List<Integer>>(new HashSet<List<Integer>>(pathsByResourceName.values()));
+        try {
+            ListIterator<File> listIterator = beforeUrls.listIterator(beforeUrls.size());
+            while (listIterator.hasPrevious()) {
+                readJar(pathsByResourceName, exportedPathsByResourceName, exportedPathsByClassName, moduleNames, listIterator.previous());
+            }
+        } catch (IOException e) {
+            throw new ResolverException("Unable to read jar content", e);
+        }
+
+        HashSet<List<Integer>> set = new HashSet<List<Integer>>(pathsByResourceName.values());
+        if (encapsulationActivated) {
+            // exportedPathsByResourceName is a subset of pathsByResourceName, no need to add it
+            set.addAll(exportedPathsByClassName.values());
+        }
+        pathIdsList = new ArrayList<List<Integer>>(set.size() + 1);
+        // index 0 is parent only
+        pathIdsList.add(Collections.<Integer> emptyList());
+        pathIdsList.addAll(set);
         this.pathsByResourceName = new TreeMap<String, Integer>();
         for (Entry<String, List<Integer>> entry : pathsByResourceName.entrySet()) {
-            this.pathsByResourceName.put(entry.getKey(), pathIdsList.indexOf(entry.getValue()));
+            String key = entry.getKey();
+            this.pathsByResourceName.put(key, pathIdsList.indexOf(entry.getValue()));
         }
+        if (encapsulationActivated) {
+            Collections.reverse(moduleNames);
+            this.exportedPathsByResourceName = new TreeMap<String, Integer>();
+            for (Entry<String, List<Integer>> entry : exportedPathsByResourceName.entrySet()) {
+                String key = entry.getKey();
+                this.exportedPathsByResourceName.put(key, pathIdsList.indexOf(entry.getValue()));
+            }
+            this.exportedPathsByClassName = new TreeMap<String, Integer>();
+            for (Entry<String, List<Integer>> entry : exportedPathsByClassName.entrySet()) {
+                String key = entry.getKey();
+                this.exportedPathsByClassName.put(key, pathIdsList.indexOf(entry.getValue()));
+            }
+        }
+
     }
 
     private int addPath(final int pos, final int path) {
@@ -313,16 +420,20 @@ public class ClassLoaderConfigurationFactory {
             }
             LOGGER.trace("Creating classloader rules for {}", classLoaderConfigurationKey.getArtifacts());
             StringParser pathsByResourceName = stringParserFactory.createStringParser(this.pathsByResourceName, 0);
+            StringParser pathsByClassName = null;
+            if (this.exportedPathsByClassName != null) {
+                pathsByClassName = stringParserFactory.createStringParser(this.exportedPathsByClassName, 0);
+            }
             String name;
             if (scope == Scope.PLATFORM) {
                 name = classLoaderConfigurationKey.getArtifacts().toString();
             } else {
                 classLoaderConfigurationKey = new MavenClassLoaderConfigurationKey(classLoaderConfigurationKey.getArtifacts(), keyDependencies, scope,
-                        classLoaderConfigurationKey.getModuleConfiguration(), namedModulesConfiguration);
+                        classLoaderConfigurationKey.getModuleConfiguration(), namedModulesConfiguration, classLoaderConfigurationKey.getBeforeParents());
                 name = classLoaderConfigurationKey.getArtifacts().toString() + " of " + appName;
             }
             cachedClassLoaderConfiguration = new ClassLoaderConfiguration(classLoaderConfigurationKey, name, scope == Scope.ATTACHMENT, beforeUrls, afterUrls, dependencies, paths,
-                    pathIdsList, pathsByResourceName, classLoaderConfigurationKey.getModuleConfiguration(), namedModulesConfiguration);
+                    pathIdsList, pathsByResourceName, pathsByClassName, classLoaderConfigurationKey.getModuleConfiguration(), namedModulesConfiguration);
             LOGGER.trace("Classloader rules created");
         }
         return cachedClassLoaderConfiguration;
