@@ -205,7 +205,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
                     managedDependencies);
             DependencyManager dependencyManager = nodeAndState.getDependencyManager().deriveChildManager(context);
 
-            List<Dependency> dependencies = descriptorResult.getDependencies();
+            List<Dependency> dependencies = new ArrayList<Dependency>(descriptorResult.getDependencies());
             ListIterator<Dependency> dependencyIterator = dependencies.listIterator();
             // remove only test scope (provided and optional are ignored only if not repeated by another dependency)
             while (dependencyIterator.hasNext()) {
