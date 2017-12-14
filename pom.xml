@@ -361,8 +361,8 @@
     </snapshotRepository>
   </distributionManagement>
   <scm>
-    <connection>scm:git:git@gaellalire.fr:gaellalire/vestige.git</connection>
-    <developerConnection>scm:git:git@gaellalire.fr:gaellalire/vestige.git</developerConnection>
+    <connection>scm:git:git@gaellalire.fr:vestige/vestige.git</connection>
+    <developerConnection>scm:git:git@gaellalire.fr:vestige/vestige.git</developerConnection>
     <tag>HEAD</tag>
   </scm>
   <reporting>
