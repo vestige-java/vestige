@@ -437,7 +437,8 @@ public final class MavenMainLauncher {
         }
         JarFileResourceLocator[] cache = attachedVestigeClassLoader.getCache();
         Object convertedAttachedVestigeClassLoader = attachedVestigeClassLoaderConstructor.newInstance(attachedVestigeClassLoader.getVestigeClassLoader(), list,
-                attachedVestigeClassLoader.getName(), attachedVestigeClassLoader.isAttachmentScoped(), cache, loadedModuleLayers.get(attachedVestigeClassLoader.getModuleLayer()));
+                attachedVestigeClassLoader.getName(), attachedVestigeClassLoader.isAttachmentScoped(), cache, loadedModuleLayers.get(attachedVestigeClassLoader.getModuleLayer()),
+                attachedVestigeClassLoader.isJPMSActivated());
         attachedVestigeClassLoaderAttachment.set(convertedAttachedVestigeClassLoader, attachedVestigeClassLoader.getAttachments());
 
         uncheckedVestigeClassLoader.setData(loadedVestigePlatform, convertedAttachedVestigeClassLoader);
@@ -477,7 +478,7 @@ public final class MavenMainLauncher {
 
         Class<?> attachedVestigeClassLoaderClass = Class.forName(AttachedVestigeClassLoader.class.getName(), false, mavenResolverClassLoader);
         Constructor<?> attachedVestigeClassLoaderConstructor = attachedVestigeClassLoaderClass.getConstructor(VestigeClassLoader.class, List.class, String.class, boolean.class,
-                JarFileResourceLocator[].class, Class.forName(JPMSInRepositoryModuleLayerAccessor.class.getName(), false, mavenResolverClassLoader));
+                JarFileResourceLocator[].class, Class.forName(JPMSInRepositoryModuleLayerAccessor.class.getName(), false, mavenResolverClassLoader), boolean.class);
         Field attachedVestigeClassLoaderAttachment = attachedVestigeClassLoaderClass.getDeclaredField("attachments");
         attachedVestigeClassLoaderAttachment.setAccessible(true);
 

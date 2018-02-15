@@ -27,6 +27,7 @@ import java.io.ObjectOutputStream;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.security.AllPermission;
 import java.security.Permission;
@@ -39,6 +40,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
@@ -49,6 +51,7 @@ import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.gaellalire.vestige.application.manager.proxy.ProxyInvocationHandler;
 import fr.gaellalire.vestige.job.Job;
 import fr.gaellalire.vestige.job.JobController;
 import fr.gaellalire.vestige.job.JobListener;
@@ -74,7 +77,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
     static {
         // ensure classes used in application context are already loaded
-        VestigeSystemInvocationHandler.class.getName();
+        ProxyInvocationHandler.class.getName();
         VestigeSystemJarURLConnection.init();
         ApplicationInstallerInvoker.class.getName();
     }
@@ -107,13 +110,16 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
     private List<VestigeResolver> vestigeResolvers;
 
+    private Map<String, Object> injectableByClassName;
+
     public DefaultApplicationManager(final JobManager actionManager, final File appBaseFile, final File appDataFile, final VestigeSystem vestigeSystem,
             final VestigeSystem managerVestigeSystem, final PrivateVestigeSecurityManager vestigeSecurityManager, final ApplicationRepositoryManager applicationDescriptorFactory,
-            final File resolverFile, final File nextResolverFile, final List<VestigeResolver> vestigeResolvers) {
+            final File resolverFile, final File nextResolverFile, final List<VestigeResolver> vestigeResolvers, final Map<String, Object> injectableByClassName) {
         this.jobManager = actionManager;
         this.appBaseFile = appBaseFile;
         this.appDataFile = appDataFile;
         this.vestigeResolvers = vestigeResolvers;
+        this.injectableByClassName = injectableByClassName;
 
         AllPermission allPermission = new AllPermission();
         PermissionCollection allPermissionCollection = allPermission.newPermissionCollection();
@@ -167,7 +173,6 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 applicationContext.setResolve(readResolvedClassLoaderConfiguration(objectInputStream));
             }
             return defaultApplicationManagerState;
-
         } finally {
             objectInputStream.close();
         }
@@ -270,6 +275,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         applicationContext.setUninterruptedMigrationVersion(uninterruptedMigrationVersion);
         applicationContext.setName(installName);
 
+        applicationContext.setAddInjects(applicationDescriptor.getLauncherAddInjects());
+        applicationContext.setInstallerAddInjects(applicationDescriptor.getInstallerAddInjects());
+
         return applicationContext;
     }
 
@@ -368,14 +376,15 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                         final VestigeSystem vestigeSystem = finalRuntimeApplicationInstallerContext.getVestigeSystem();
 
                         final String installerClassName = applicationContext.getInstallerClassName();
+                        final List<AddInject> addInjects = applicationContext.getInstallerAddInjects();
                         VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader,
                                 finalRuntimeApplicationInstallerContext.getInstallerAdditionnalPermissions(), null, applicationContext.getName() + "-installer", vestigeSystem,
                                 new VestigeSecureCallable<Void>() {
 
                                     @Override
                                     public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
-                                        ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(
-                                                callConstructor(installerClassLoader, installerClassLoader.loadClass(installerClassName), base, data, vestigeSystem));
+                                        ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(callConstructorAndInject(installerClassLoader,
+                                                installerClassLoader.loadClass(installerClassName), base, data, addInjects, vestigeSystem));
                                         applicationInstaller.install();
                                         return null;
                                     }
@@ -520,14 +529,15 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                         try {
                             final ClassLoader installerClassLoader = installerAttach.getAttachableClassLoader().getClassLoader();
                             final VestigeSystem vestigeSystem = runtimeApplicationInstallerContext.getVestigeSystem();
+                            final List<AddInject> addInjects = applicationContext.getInstallerAddInjects();
                             VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader,
                                     runtimeApplicationInstallerContext.getInstallerAdditionnalPermissions(), null, applicationContext.getName() + "-installer", vestigeSystem,
                                     new VestigeSecureCallable<Void>() {
 
                                         @Override
                                         public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
-                                            ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(callConstructor(installerClassLoader,
-                                                    installerClassLoader.loadClass(applicationContext.getInstallerClassName()), base, data, vestigeSystem));
+                                            ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(callConstructorAndInject(installerClassLoader,
+                                                    installerClassLoader.loadClass(applicationContext.getInstallerClassName()), base, data, addInjects, vestigeSystem));
                                             applicationInstaller.uninstall();
                                             return null;
                                         }
@@ -733,9 +743,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                 public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
                                     ApplicationInstaller applicationInstaller = finalRuntimeApplicationInstallerContext.getApplicationInstaller();
                                     if (applicationInstaller == null) {
-                                        applicationInstaller = new ApplicationInstallerInvoker(
-                                                callConstructor(installerClassLoader, installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()),
-                                                        migratorApplicationContext.getBase(), migratorApplicationContext.getData(), vestigeSystem));
+                                        applicationInstaller = new ApplicationInstallerInvoker(callConstructorAndInject(installerClassLoader,
+                                                installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()), migratorApplicationContext.getBase(),
+                                                migratorApplicationContext.getData(), migratorApplicationContext.getInstallerAddInjects(), vestigeSystem));
                                         finalRuntimeApplicationInstallerContext.setApplicationInstaller(applicationInstaller);
                                     }
                                     try {
@@ -945,9 +955,10 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                             public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
                                                 ApplicationInstaller applicationInstaller = finalRuntimeApplicationInstallerContext.getApplicationInstaller();
                                                 if (applicationInstaller == null) {
-                                                    applicationInstaller = new ApplicationInstallerInvoker(callConstructor(installerClassLoader,
+                                                    applicationInstaller = new ApplicationInstallerInvoker(callConstructorAndInject(installerClassLoader,
                                                             installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()),
-                                                            migratorApplicationContext.getBase(), migratorApplicationContext.getData(), vestigeSystem));
+                                                            migratorApplicationContext.getBase(), migratorApplicationContext.getData(), migratorApplicationContext.getAddInjects(),
+                                                            vestigeSystem));
                                                     finalRuntimeApplicationInstallerContext.setApplicationInstaller(applicationInstaller);
                                                 }
                                                 Exception migrateException = null;
@@ -1084,9 +1095,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                         public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
                                             ApplicationInstaller applicationInstaller = finalRuntimeApplicationInstallerContext.getApplicationInstaller();
                                             if (applicationInstaller == null) {
-                                                applicationInstaller = new ApplicationInstallerInvoker(
-                                                        callConstructor(installerClassLoader, installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()),
-                                                                migratorApplicationContext.getBase(), migratorApplicationContext.getData(), vestigeSystem));
+                                                applicationInstaller = new ApplicationInstallerInvoker(callConstructorAndInject(installerClassLoader,
+                                                        installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()), migratorApplicationContext.getBase(),
+                                                        migratorApplicationContext.getData(), migratorApplicationContext.getInstallerAddInjects(), vestigeSystem));
                                                 finalRuntimeApplicationInstallerContext.setApplicationInstaller(applicationInstaller);
                                             }
                                             Exception migrateException = null;
@@ -1236,85 +1247,83 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         start(applicationContext, null, null, installName);
     }
 
-    public Object callConstructor(final ClassLoader classLoader, final Class<?> loadClass, final File home, final File data, final VestigeSystem vestigeSystem)
-            throws IllegalArgumentException, InstantiationException, IllegalAccessException, InvocationTargetException, ApplicationException {
+    public static Class<?> superSearch(final String className, final Class<?> cl) {
+        for (Class<?> itf : cl.getInterfaces()) {
+            if (className.equals(itf.getName())) {
+                return itf;
+            }
+        }
+        Class<?> superclass = cl.getSuperclass();
+        if (superclass != null) {
+            return superSearch(className, superclass);
+        }
+        return null;
+    }
+
+    public Object callConstructorAndInject(final ClassLoader classLoader, final Class<?> loadClass, final File home, final File data, final List<AddInject> addInjects,
+            final VestigeSystem vestigeSystem) throws IllegalArgumentException, InstantiationException, IllegalAccessException, InvocationTargetException, ApplicationException {
         // level : constructor
         // 0 : ()
         // 1 : (File)
         // 2 : (File, File)
-        // 3 : (File, File, VestigeSystem)
         // The first file is base directory, the optional second file is data
         // directory
 
-        Class<?> bestItfType = null;
-        Constructor<?> bestConstructor = null;
-        int level = -1;
-        for (Constructor<?> constructor : loadClass.getConstructors()) {
-            Class<?>[] parameterTypes = constructor.getParameterTypes();
-            switch (parameterTypes.length) {
-            case 0:
-                if (level < 0) {
-                    level = 0;
-                    bestConstructor = constructor;
+        Object applicationObject;
+        Constructor<?> constructor = null;
+        try {
+            constructor = loadClass.getConstructor(File.class, File.class);
+            applicationObject = constructor.newInstance(home, data);
+        } catch (NoSuchMethodException e1) {
+            try {
+                constructor = loadClass.getConstructor(File.class);
+                applicationObject = constructor.newInstance(home);
+            } catch (NoSuchMethodException e2) {
+                try {
+                    constructor = loadClass.getConstructor();
+                    applicationObject = constructor.newInstance();
+                } catch (NoSuchMethodException e) {
+                    throw new ApplicationException("No constructor found");
                 }
-                break;
-            case 1:
-                if (level < 1) {
-                    if (!parameterTypes[0].equals(File.class)) {
-                        break;
-                    }
-                    level = 1;
-                    bestConstructor = constructor;
-                }
-                break;
-            case 2:
-                if (level < 1) {
-                    if (!parameterTypes[0].equals(File.class)) {
-                        break;
-                    }
-                    if (!parameterTypes[1].equals(File.class)) {
-                        break;
-                    }
-                    level = 2;
-                    bestConstructor = constructor;
-                }
-                break;
-            case 3:
-                if (vestigeSystem == null) {
-                    break;
-                }
-                if (!parameterTypes[0].equals(File.class)) {
-                    break;
-                }
-                if (!parameterTypes[1].equals(File.class)) {
-                    break;
-                }
-                if (!parameterTypes[2].isInterface()) {
-                    break;
-                }
-                if (level == 3) {
-                    LOGGER.warn("Two constructors with two args are available", level);
-                    break;
-                }
-                level = 3;
-                bestConstructor = constructor;
-                bestItfType = parameterTypes[2];
-                break;
-            default:
             }
         }
-        switch (level) {
-        case 0:
-            return bestConstructor.newInstance();
-        case 1:
-            return bestConstructor.newInstance(home);
-        case 2:
-            return bestConstructor.newInstance(home, data);
-        case 3:
-            return bestConstructor.newInstance(home, data, VestigeSystemInvocationHandler.createProxy(classLoader, bestItfType, vestigeSystem));
-        default:
-            throw new ApplicationException("No constructor found");
+
+        if (addInjects != null) {
+            for (AddInject addInject : addInjects) {
+                String serviceClassName = addInject.getServiceClassName();
+
+                Object object;
+                if (VestigeSystem.class.getName().equals(serviceClassName)) {
+                    if (vestigeSystem == rootVestigeSystem) {
+                        LOGGER.error("Cannot inject vestige system if it is not private");
+                        continue;
+                    }
+                    object = vestigeSystem;
+                } else {
+                    object = injectableByClassName.get(serviceClassName);
+                    if (object == null) {
+                        LOGGER.error("Cannot inject " + serviceClassName);
+                        continue;
+                    }
+                }
+                Class<?> rcl;
+                Method method;
+                try {
+                    rcl = classLoader.loadClass(addInject.getTargetServiceClassName());
+                    method = loadClass.getMethod(addInject.getSetterName(), rcl);
+                } catch (Exception e) {
+                    LOGGER.error("Cannot inject " + serviceClassName, e);
+                    continue;
+                }
+                if (!rcl.isInstance(object)) {
+                    Class<?> cl = superSearch(serviceClassName, object.getClass());
+                    object = ProxyInvocationHandler.createProxy(classLoader, cl, rcl, object);
+                }
+                method.invoke(applicationObject, object);
+            }
         }
+
+        return applicationObject;
     }
 
     /**
@@ -1385,14 +1394,16 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                             final Callable<?> applicationCallable;
                             RuntimeApplicationContext runtimeApplicationContext;
                             if (finalPreviousRuntimeApplicationContext == null) {
-                                Object applicationObject = callConstructor(classLoader, classLoader.loadClass(applicationContext.getClassName()), applicationContext.getBase(),
-                                        applicationContext.getData(), vestigeSystem);
+                                Class<?> cl = classLoader.loadClass(applicationContext.getClassName());
+                                Object applicationObject = callConstructorAndInject(classLoader, cl, applicationContext.getBase(), applicationContext.getData(),
+                                        applicationContext.getAddInjects(), vestigeSystem);
                                 if (applicationObject instanceof Callable<?>) {
                                     applicationCallable = (Callable<?>) applicationObject;
                                 } else {
                                     final Runnable runnable = (Runnable) applicationObject;
                                     applicationCallable = new RunnableProxy(runnable);
                                 }
+
                                 runtimeApplicationContext = new RuntimeApplicationContext(attachableClassLoader, applicationCallable, vestigeSystem, runMutex == null);
                                 if (constructorMutex != null) {
                                     synchronized (constructorMutex) {

@@ -98,7 +98,6 @@
     <xs:sequence>
       <xs:element name="addBeforeParent" type="AddBeforeParent" minOccurs="0" maxOccurs="1" />
       <xs:element name="addDependency" type="AddDependency" minOccurs="0" maxOccurs="unbounded" />
-      <xs:element name="addLayerDependency" type="AddDependency" minOccurs="0" maxOccurs="unbounded" />
       <xs:element name="addExports" type="ModulePackageName" minOccurs="0" maxOccurs="unbounded" />
       <xs:element name="addOpens" type="ModulePackageName" minOccurs="0" maxOccurs="unbounded" />      
     </xs:sequence>

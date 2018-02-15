@@ -21,6 +21,7 @@ import java.security.Permission;
 import java.util.List;
 import java.util.Set;
 
+import fr.gaellalire.vestige.application.manager.AddInject;
 import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationResolvedClassLoaderConfiguration;
@@ -86,6 +87,18 @@ public class PropertiesApplicationDescriptor implements ApplicationDescriptor {
 
     @Override
     public String getJavaSpecificationVersion() throws ApplicationException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public List<AddInject> getLauncherAddInjects() throws ApplicationException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public List<AddInject> getInstallerAddInjects() throws ApplicationException {
         // TODO Auto-generated method stub
         return null;
     }

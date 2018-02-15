@@ -67,6 +67,26 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     private transient boolean locked;
 
+    private List<AddInject> addInjects;
+
+    private List<AddInject> installerAddInjects;
+
+    public List<AddInject> getInstallerAddInjects() {
+        return installerAddInjects;
+    }
+
+    public void setInstallerAddInjects(final List<AddInject> installerAddInjects) {
+        this.installerAddInjects = installerAddInjects;
+    }
+
+    public List<AddInject> getAddInjects() {
+        return addInjects;
+    }
+
+    public void setAddInjects(final List<AddInject> addInjects) {
+        this.addInjects = addInjects;
+    }
+
     public boolean isLocked() {
         return locked;
     }

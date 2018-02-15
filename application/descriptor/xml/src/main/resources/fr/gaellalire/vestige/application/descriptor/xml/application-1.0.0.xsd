@@ -60,20 +60,28 @@
   </xs:complexType>
 
   <xs:complexType name="Installer">
-    <xs:choice>
-      <xs:element name="mavenInstaller" type="MavenClassType" />
-      <xs:element name="urlsInstaller" type="URLsClassType" />
-    </xs:choice>
+    <xs:sequence>
+      <xs:choice>
+        <xs:element name="mavenResolver" type="MavenClassType" />
+        <xs:element name="urlListResolver" type="URLsClassType" />
+      </xs:choice>
+      <xs:element name="inject" type="Inject" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="class" type="xs:string" use="required" />
+    <xs:attribute name="privateSystem" type="xs:boolean" use="optional" default="false" />
     <xs:attribute name="supportedMigration" type="VersionRangeList" use="optional" />
     <xs:attribute name="uninterruptedMigration" type="VersionRangeList" use="optional" />
-    <xs:attribute name="privateSystem" type="xs:boolean" use="optional" default="false" />
   </xs:complexType>
 
   <xs:complexType name="Launcher">
-    <xs:choice>
-      <xs:element name="mavenLauncher" type="MavenClassType" />
-      <xs:element name="urlsLauncher" type="URLsClassType" />
-    </xs:choice>
+    <xs:sequence>
+      <xs:choice>
+        <xs:element name="mavenResolver" type="MavenClassType" />
+        <xs:element name="urlListResolver" type="URLsClassType" />
+      </xs:choice>
+      <xs:element name="inject" type="Inject" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="class" type="xs:string" use="required" />
     <xs:attribute name="privateSystem" type="xs:boolean" use="optional" default="false" />
   </xs:complexType>
 
@@ -81,9 +89,8 @@
     <xs:sequence>
       <xs:element name="url" type="xs:anyURI" minOccurs="0" maxOccurs="unbounded" />
       <xs:element name="addExports" type="ModulePackageName" minOccurs="0" maxOccurs="unbounded" />
-      <xs:element name="addOpens" type="ModulePackageName" minOccurs="0" maxOccurs="unbounded" />      
+      <xs:element name="addOpens" type="ModulePackageName" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
-    <xs:attribute name="class" type="xs:string" use="required" />
     <xs:attribute name="scope" type="Scope" default="PLATFORM" />
   </xs:complexType>
 
@@ -125,12 +132,17 @@
       <xs:element name="activateNamedModules" type="ActivateNamedModules" minOccurs="0" maxOccurs="1" />
       <xs:element name="modifyScope" type="ModifyScope" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
-    <xs:attribute name="class" type="xs:string" use="required" />
     <xs:attribute name="groupId" type="xs:string" use="required" />
     <xs:attribute name="artifactId" type="xs:string" use="required" />
     <xs:attribute name="version" type="xs:string" use="required" />
     <xs:attribute name="mode" type="Mode" default="FIXED_DEPENDENCIES" />
     <xs:attribute name="scope" type="Scope" default="PLATFORM" />
+  </xs:complexType>
+
+  <xs:complexType name="Inject">
+    <xs:attribute name="serviceClassName" type="xs:string" use="required" />
+    <xs:attribute name="targetServiceClassName" type="xs:string" use="optional" />
+    <xs:attribute name="setterName" type="xs:string" use="required" />
   </xs:complexType>
 
   <xs:simpleType name="Mode">
@@ -159,7 +171,6 @@
     <xs:sequence>
       <xs:element name="addBeforeParent" type="AddBeforeParent" minOccurs="0" maxOccurs="1" />
       <xs:element name="addDependency" type="AddDependency" minOccurs="0" maxOccurs="unbounded" />
-      <xs:element name="addLayerDependency" type="AddDependency" minOccurs="0" maxOccurs="unbounded" />
       <xs:element name="addExports" type="ModulePackageName" minOccurs="0" maxOccurs="unbounded" />
       <xs:element name="addOpens" type="ModulePackageName" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>

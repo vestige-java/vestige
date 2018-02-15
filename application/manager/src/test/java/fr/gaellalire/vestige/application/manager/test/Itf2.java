@@ -17,18 +17,11 @@
 
 package fr.gaellalire.vestige.application.manager.test;
 
-import org.junit.Test;
-
 /**
  * @author Gael Lalire
  */
-public class TestAction {
+public interface Itf2 {
 
-    @Test
-    public void testName() throws Exception {
-
-
-
-    }
+    void method();
 
 }

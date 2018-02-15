@@ -52,7 +52,7 @@ set LOGBACK_CONFIGURATION_FILE=%VESTIGE_BASE%\logback.xml
 
 if not exist "%LOGBACK_CONFIGURATION_FILE%" copy /Y "%CONFDIR%\template\logback.xml" "%LOGBACK_CONFIGURATION_FILE%" 2> nul > nul
 
-set VESTIGE_OPTS=%VESTIGE_OPTS% -Dvestige.mavenRepository="%DATADIR%\repository" -Djava.util.logging.manager=fr.gaellalire.vestige.core.logger.JULLogManager -Dlogback.logsDirectory="%VESTIGE_BASE%\logs" -Dlogback.configurationFile="%LOGBACK_CONFIGURATION_FILE%"
+set VESTIGE_OPTS=%VESTIGE_OPTS% -Dvestige.mavenRepository="%DATADIR%\repository" -Djava.util.logging.manager=fr.gaellalire.vestige.core.logger.JULLogManager -Dlogback.logsDirectory="%VESTIGE_BASE%\logs" -Dlogback.configurationFile="%LOGBACK_CONFIGURATION_FILE%"  -Djavax.net.ssl.trustStore="%VESTIGE_BASE%\cacert.jks"
 
 "%JAVA%" --add-modules java.base -version 2> nul > nul
 if %ERRORLEVEL% equ 0 (

@@ -46,12 +46,15 @@ public class AttachedVestigeClassLoader {
 
     private JPMSInRepositoryModuleLayerAccessor moduleLayer;
 
+    private boolean jpmsActivated;
+
     public AttachedVestigeClassLoader(final List<AttachedVestigeClassLoader> dependencies) {
         this.dependencies = dependencies;
     }
 
     public AttachedVestigeClassLoader(final VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader, final List<AttachedVestigeClassLoader> dependencies,
-            final String name, final boolean attachmentScoped, final JarFileResourceLocator[] cache, final JPMSInRepositoryModuleLayerAccessor moduleLayer) {
+            final String name, final boolean attachmentScoped, final JarFileResourceLocator[] cache, final JPMSInRepositoryModuleLayerAccessor moduleLayer,
+            final boolean jpmsActivated) {
         this.vestigeClassLoader = vestigeClassLoader;
         this.dependencies = dependencies;
         this.name = name;
@@ -59,6 +62,7 @@ public class AttachedVestigeClassLoader {
         softReferences = new ArrayList<SoftReference<?>>();
         this.cache = cache;
         this.moduleLayer = moduleLayer;
+        this.jpmsActivated = jpmsActivated;
     }
 
     public void setModuleLayer(final JPMSInRepositoryModuleLayerAccessor moduleLayer) {
@@ -101,10 +105,17 @@ public class AttachedVestigeClassLoader {
         return attachmentScoped;
     }
 
+    public boolean isJPMSActivated() {
+        return jpmsActivated;
+    }
+
     @Override
     public String toString() {
         if (name != null) {
-            return name.toString();
+            if (jpmsActivated) {
+                return name + " (JPMS)";
+            }
+            return name;
         }
         return super.toString();
     }

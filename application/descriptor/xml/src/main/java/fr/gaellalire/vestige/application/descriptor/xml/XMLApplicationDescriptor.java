@@ -20,6 +20,7 @@ package fr.gaellalire.vestige.application.descriptor.xml;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.Permission;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -33,12 +34,14 @@ import fr.gaellalire.vestige.application.descriptor.xml.schema.application.AddEx
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.AddOpens;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.AddReads;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Application;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Inject;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Installer;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Launcher;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.MavenClassType;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Mode;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ModifyScope;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.URLsClassType;
+import fr.gaellalire.vestige.application.manager.AddInject;
 import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationResolvedClassLoaderConfiguration;
@@ -159,15 +162,7 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
         if (installer == null) {
             return null;
         }
-        MavenClassType mavenInstaller = installer.getMavenInstaller();
-        if (mavenInstaller != null) {
-            return mavenInstaller.getClazz();
-        }
-        URLsClassType urlsInstaller = installer.getUrlsInstaller();
-        if (urlsInstaller != null) {
-            return urlsInstaller.getClazz();
-        }
-        throw new ApplicationException("missing child");
+        return installer.getClazz();
     }
 
     public ApplicationResolvedClassLoaderConfiguration getInstallerClassLoaderConfiguration(final String configurationName) throws ApplicationException {
@@ -175,7 +170,7 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
         if (installer == null) {
             return null;
         }
-        URLsClassType urlsInstaller = installer.getUrlsInstaller();
+        URLsClassType urlsInstaller = installer.getUrlListResolver();
         if (urlsInstaller != null) {
             URLListRequest urlListRequest = xmlApplicationRepositoryManager.getVestigeURLListResolver().createURLListRequest(convertScope(urlsInstaller.getScope()),
                     configurationName);
@@ -201,20 +196,12 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
                 throw new ApplicationException(e);
             }
         }
-        return resolve(configurationName, installer.getMavenInstaller(), jobHelper);
+        return resolve(configurationName, installer.getMavenResolver(), jobHelper);
     }
 
     public String getLauncherClassName() throws ApplicationException {
         Launcher launcher = application.getLauncher();
-        MavenClassType mavenLauncher = launcher.getMavenLauncher();
-        if (mavenLauncher != null) {
-            return mavenLauncher.getClazz();
-        }
-        URLsClassType urlsLauncher = launcher.getUrlsLauncher();
-        if (urlsLauncher != null) {
-            return urlsLauncher.getClazz();
-        }
-        throw new ApplicationException("missing child");
+        return launcher.getClazz();
     }
 
     public boolean isInstallerPrivateSystem() throws ApplicationException {
@@ -233,9 +220,30 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
         return launcher.isPrivateSystem();
     }
 
+    public List<AddInject> getLauncherAddInjects() {
+        List<AddInject> addInjects = new ArrayList<AddInject>();
+        for (Inject inject : application.getLauncher().getInject()) {
+            addInjects.add(new AddInject(inject.getServiceClassName(), inject.getTargetServiceClassName(), inject.getSetterName()));
+        }
+        return addInjects;
+    }
+
+    @Override
+    public List<AddInject> getInstallerAddInjects() throws ApplicationException {
+        Installer installer = application.getInstaller();
+        if (installer == null) {
+            return Collections.<AddInject> emptyList();
+        }
+        List<AddInject> addInjects = new ArrayList<AddInject>();
+        for (Inject inject : installer.getInject()) {
+            addInjects.add(new AddInject(inject.getServiceClassName(), inject.getTargetServiceClassName(), inject.getSetterName()));
+        }
+        return addInjects;
+    }
+
     public ApplicationResolvedClassLoaderConfiguration getLauncherClassLoaderConfiguration(final String configurationName) throws ApplicationException {
         Launcher launcher = application.getLauncher();
-        URLsClassType urlsLauncher = launcher.getUrlsLauncher();
+        URLsClassType urlsLauncher = launcher.getUrlListResolver();
         if (urlsLauncher != null) {
             URLListRequest urlListRequest = xmlApplicationRepositoryManager.getVestigeURLListResolver().createURLListRequest(convertScope(urlsLauncher.getScope()),
                     configurationName);
@@ -262,7 +270,7 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
                 throw new ApplicationException(e);
             }
         }
-        return resolve(configurationName, launcher.getMavenLauncher(), jobHelper);
+        return resolve(configurationName, launcher.getMavenResolver(), jobHelper);
     }
 
     public static Scope convertScope(final fr.gaellalire.vestige.application.descriptor.xml.schema.application.Scope scope) throws ApplicationException {

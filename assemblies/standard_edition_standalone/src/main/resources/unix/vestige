@@ -63,7 +63,7 @@ if [ ! -f "$LOGBACK_CONFIGURATION_FILE" ]; then
   cp "$CONFDIR/template/logback.xml" "$LOGBACK_CONFIGURATION_FILE"
 fi
 
-VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Dvestige.mavenRepository="$DATADIR/repository" -Djava.util.logging.manager=fr.gaellalire.vestige.core.logger.JULLogManager -Dlogback.logsDirectory="$VESTIGE_BASE/logs" -Dlogback.configurationFile="$LOGBACK_CONFIGURATION_FILE")
+VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Dvestige.mavenRepository="$DATADIR/repository" -Djava.util.logging.manager=fr.gaellalire.vestige.core.logger.JULLogManager -Dlogback.logsDirectory="$VESTIGE_BASE/logs" -Dlogback.configurationFile="$LOGBACK_CONFIGURATION_FILE" -Djavax.net.ssl.trustStore="$VESTIGE_BASE/cacert.jks")
 
 if "$JAVA" --add-modules java.base -version >/dev/null 2>&1; then
   VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" --add-modules ALL-DEFAULT --patch-module "java.base=$DATADIR/lib/moduleEncapsulationBreaker.jar")

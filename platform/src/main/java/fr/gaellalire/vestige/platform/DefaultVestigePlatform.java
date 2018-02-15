@@ -405,7 +405,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
                 name = name + " @ " + Integer.toHexString(System.identityHashCode(attachmentMap));
             }
             attachedVestigeClassLoader = new AttachedVestigeClassLoader(vestigeClassLoader, classLoaderDependencies, name, classLoaderConfiguration.isAttachmentScoped(), urls,
-                    null);
+                    null, namedModulesConfiguration != null);
             vestigeClassLoader.setData(this, attachedVestigeClassLoader);
 
             JPMSInRepositoryModuleLayerAccessor moduleLayer = null;

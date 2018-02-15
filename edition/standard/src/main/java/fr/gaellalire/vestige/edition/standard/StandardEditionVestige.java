@@ -33,6 +33,7 @@ import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.channels.SocketChannel;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -354,8 +355,13 @@ public class StandardEditionVestige implements Runnable {
 
         JobManager actionManager = new DefaultJobManager();
 
+        Map<String, Object> injectableByClassName = new HashMap<String, Object>();
+        // FIXME use secure version, because the app may lack permission
+        injectableByClassName.put(VestigeMavenResolver.class.getName(), vestigeMavenResolver);
+        injectableByClassName.put(VestigeURLListResolver.class.getName(), vestigeURLListResolver);
+
         defaultApplicationManager = new DefaultApplicationManager(actionManager, appBaseFile, appDataFile, applicationsVestigeSystem, standardEditionVestigeSystem,
-                vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile, vestigeResolvers);
+                vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile, vestigeResolvers, injectableByClassName);
         try {
             defaultApplicationManager.restoreState();
         } catch (ApplicationException e) {

@@ -48,4 +48,8 @@ public interface ApplicationDescriptor {
 
     Set<Permission> getPermissions() throws ApplicationException;
 
+    List<AddInject> getLauncherAddInjects() throws ApplicationException;
+
+    List<AddInject> getInstallerAddInjects() throws ApplicationException;
+
 }
