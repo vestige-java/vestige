@@ -329,7 +329,7 @@
     <!-- </repository> -->
     <repository>
       <id>gaellalire_nexus</id>
-      <url>http://gaellalire.fr/nexus/content/repositories/releases</url>
+      <url>https://gaellalire.fr/nexus/content/repositories/releases</url>
       <releases>
         <enabled>true</enabled>
       </releases>
@@ -341,7 +341,7 @@
   <pluginRepositories>
     <pluginRepository>
       <id>gaellalire_nexus</id>
-      <url>http://gaellalire.fr/nexus/content/repositories/releases</url>
+      <url>https://gaellalire.fr/nexus/content/repositories/releases</url>
       <releases>
         <enabled>true</enabled>
       </releases>
@@ -353,11 +353,11 @@
   <distributionManagement>
     <repository>
       <id>gaellalire_nexus</id>
-      <url>http://gaellalire.fr/nexus/content/repositories/releases/</url>
+      <url>https://gaellalire.fr/nexus/content/repositories/releases/</url>
     </repository>
     <snapshotRepository>
       <id>gaellalire_nexus</id>
-      <url>http://gaellalire.fr/nexus/content/repositories/snapshots/</url>
+      <url>https://gaellalire.fr/nexus/content/repositories/snapshots/</url>
     </snapshotRepository>
   </distributionManagement>
   <scm>
