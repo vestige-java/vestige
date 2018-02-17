@@ -36,6 +36,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -200,15 +201,20 @@ public class StandardEditionVestige implements Runnable {
         }
         if (LOGGER.isInfoEnabled()) {
             startTimeMillis = System.currentTimeMillis();
-            String implementationVersion = null;
-            Package cPackage = StandardEditionVestige.class.getPackage();
-            if (cPackage != null) {
-                implementationVersion = cPackage.getImplementationVersion();
+            Properties vestigeProperties = new Properties();
+            try {
+                InputStream vestigeStream = StandardEditionVestige.class.getResourceAsStream("vestige.properties");
+                if (vestigeStream != null) {
+                    vestigeProperties.load(vestigeStream);
+                }
+            } catch (IOException e) {
+                LOGGER.debug("Cannot load vestige.properties", e);
             }
-            if (implementationVersion == null) {
+            String version = vestigeProperties.getProperty("version");
+            if (version == null) {
                 LOGGER.info("Starting Vestige SE");
             } else {
-                LOGGER.info("Starting Vestige SE version {}", implementationVersion);
+                LOGGER.info("Starting Vestige SE version {}", version);
             }
         } else {
             startTimeMillis = 0;
