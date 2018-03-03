@@ -15,7 +15,7 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.edition.standard.secure;
+package fr.gaellalire.vestige.resolver.maven.secure;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -24,30 +24,43 @@ import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.maven.MavenContextBuilder;
 import fr.gaellalire.vestige.spi.resolver.maven.VestigeMavenResolver;
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
+import fr.gaellalire.vestige.system.PrivateVestigePolicy;
 
 /**
  * @author Gael Lalire
  */
 public class SecureVestigeMavenResolver implements VestigeMavenResolver {
 
-    private VestigeSystem vestigeSystem;
+    private VestigeSystem secureVestigeSystem;
+
+    private PrivateVestigePolicy vestigePolicy;
 
     private VestigeMavenResolver delegate;
 
-    public SecureVestigeMavenResolver(final VestigeSystem vestigeSystem, final VestigeMavenResolver delegate) {
-        this.vestigeSystem = vestigeSystem;
+    public SecureVestigeMavenResolver(final VestigeSystem secureVestigeSystem, final PrivateVestigePolicy vestigePolicy, final VestigeMavenResolver delegate) {
+        this.secureVestigeSystem = secureVestigeSystem;
+        this.vestigePolicy = vestigePolicy;
         this.delegate = delegate;
     }
 
     @Override
     public MavenContextBuilder createMavenContextBuilder() {
-        return new SecureMavenContextBuilder(vestigeSystem, delegate.createMavenContextBuilder());
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return new SecureMavenContextBuilder(secureVestigeSystem, vestigePolicy, delegate.createMavenContextBuilder());
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public ResolvedClassLoaderConfiguration restoreSavedResolvedClassLoaderConfiguration(final ObjectInputStream objectInputStream) throws IOException {
-        // TODO Auto-generated method stub
-        return null;
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return delegate.restoreSavedResolvedClassLoaderConfiguration(new SecureObjectInputStream(vestigeSystem, objectInputStream));
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
     }
 
 }

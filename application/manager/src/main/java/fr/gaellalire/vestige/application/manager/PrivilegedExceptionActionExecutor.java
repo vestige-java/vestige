@@ -17,9 +17,6 @@
 
 package fr.gaellalire.vestige.application.manager;
 
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-
 /**
  * @author Gael Lalire
  */
@@ -28,16 +25,17 @@ public interface PrivilegedExceptionActionExecutor {
     PrivilegedExceptionActionExecutor DIRECT_EXECUTOR = new PrivilegedExceptionActionExecutor() {
 
         @Override
-        public <E> E doPrivileged(final PrivilegedExceptionAction<E> action) throws PrivilegedActionException {
-            try {
-                return action.run();
-            } catch (Exception e) {
-                throw new PrivilegedActionException(e);
-            }
+        public void setPrivileged() {
+        }
+
+        @Override
+        public void unsetPrivileged() {
         }
 
     };
 
-    <E> E doPrivileged(PrivilegedExceptionAction<E> action) throws PrivilegedActionException;
+    void setPrivileged();
+
+    void unsetPrivileged();
 
 }

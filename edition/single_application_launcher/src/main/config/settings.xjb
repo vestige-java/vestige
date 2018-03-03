@@ -1,0 +1,17 @@
+<jaxb:bindings    
+    xmlns:jaxb="http://java.sun.com/xml/ns/jaxb"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"        xmlns:xjc="http://java.sun.com/xml/ns/jaxb/xjc"
+    jaxb:extensionBindingPrefixes="xjc"   
+    jaxb:version="2.0">
+        <jaxb:globalBindings generateIsSetMethod="true">
+            <xjc:javaType name="java.lang.String"
+                xmlType="xsd:string"
+                adapter="fr.gaellalire.vestige.utils.jaxb.StringAdapter"/>
+            <xjc:javaType name="java.lang.Integer"
+                xmlType="xsd:int"
+                adapter="fr.gaellalire.vestige.utils.jaxb.IntegerAdapter"/>
+            <xjc:javaType name="java.lang.Boolean"
+                xmlType="xsd:boolean"
+                adapter="fr.gaellalire.vestige.utils.jaxb.BooleanAdapter"/>
+        </jaxb:globalBindings>
+</jaxb:bindings>

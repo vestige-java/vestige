@@ -15,7 +15,7 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.edition.standard.secure;
+package fr.gaellalire.vestige.resolver.maven.secure;
 
 import fr.gaellalire.vestige.spi.resolver.Scope;
 import fr.gaellalire.vestige.spi.resolver.maven.MavenContext;
@@ -25,41 +25,61 @@ import fr.gaellalire.vestige.spi.resolver.maven.ReplaceDependencyRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolveMavenArtifactRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolveMode;
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
+import fr.gaellalire.vestige.system.PrivateVestigePolicy;
 
 /**
  * @author Gael Lalire
  */
 public class SecureMavenContextBuilder implements MavenContextBuilder, MavenContext {
 
-    private VestigeSystem vestigeSystem;
+    private VestigeSystem secureVestigeSystem;
+
+    private PrivateVestigePolicy vestigePolicy;
 
     private MavenContextBuilder delegate;
 
     private MavenContext mavenContext;
 
-    public SecureMavenContextBuilder(final VestigeSystem vestigeSystem, final MavenContextBuilder delegate) {
-        this.vestigeSystem = vestigeSystem;
+    public SecureMavenContextBuilder(final VestigeSystem secureVestigeSystem, final PrivateVestigePolicy vestigePolicy, final MavenContextBuilder delegate) {
+        this.secureVestigeSystem = secureVestigeSystem;
+        this.vestigePolicy = vestigePolicy;
         this.delegate = delegate;
     }
 
-    public SecureMavenContextBuilder(final VestigeSystem vestigeSystem, final MavenContext mavenContext) {
-        this.vestigeSystem = vestigeSystem;
+    public SecureMavenContextBuilder(final VestigeSystem secureVestigeSystem, final PrivateVestigePolicy vestigePolicy, final MavenContext mavenContext) {
+        this.secureVestigeSystem = secureVestigeSystem;
+        this.vestigePolicy = vestigePolicy;
         this.mavenContext = mavenContext;
     }
 
     @Override
     public void addAdditionalRepository(final String id, final String layout, final String url) {
-        delegate.addAdditionalRepository(id, layout, url);
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            delegate.addAdditionalRepository(id, layout, url);
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public ModifyDependencyRequest addModifyDependency(final String groupId, final String artifactId) {
-        return delegate.addModifyDependency(groupId, artifactId);
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return delegate.addModifyDependency(groupId, artifactId);
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public ReplaceDependencyRequest addReplaceDependency(final String groupId, final String artifactId) {
-        return delegate.addReplaceDependency(groupId, artifactId);
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return delegate.addReplaceDependency(groupId, artifactId);
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
@@ -78,14 +98,18 @@ public class SecureMavenContextBuilder implements MavenContextBuilder, MavenCont
         if (mavenContext == delegate) {
             return this;
         }
-        return new SecureMavenContextBuilder(vestigeSystem, mavenContext);
+        return new SecureMavenContextBuilder(secureVestigeSystem, vestigePolicy, mavenContext);
     }
 
     @Override
     public ResolveMavenArtifactRequest resolve(final ResolveMode resolveMode, final Scope scope, final String groupId, final String artifactId, final String version,
             final String name) {
-        // TODO Auto-generated method stub
-        return null;
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return new SecureResolveMavenArtifactRequest(secureVestigeSystem, vestigePolicy, mavenContext.resolve(resolveMode, scope, groupId, artifactId, version, name));
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
     }
 
 }

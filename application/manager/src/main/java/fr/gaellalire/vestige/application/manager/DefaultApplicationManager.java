@@ -29,10 +29,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
-import java.security.AllPermission;
 import java.security.Permission;
-import java.security.PermissionCollection;
-import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -113,20 +110,15 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
     private Map<String, Object> injectableByClassName;
 
     public DefaultApplicationManager(final JobManager actionManager, final File appBaseFile, final File appDataFile, final VestigeSystem vestigeSystem,
-            final VestigeSystem managerVestigeSystem, final PrivateVestigeSecurityManager vestigeSecurityManager, final ApplicationRepositoryManager applicationDescriptorFactory,
-            final File resolverFile, final File nextResolverFile, final List<VestigeResolver> vestigeResolvers, final Map<String, Object> injectableByClassName) {
+            final VestigeSystem managerVestigeSystem, final PrivateVestigePolicy vestigePolicy, final PrivateVestigeSecurityManager vestigeSecurityManager,
+            final ApplicationRepositoryManager applicationDescriptorFactory, final File resolverFile, final File nextResolverFile, final List<VestigeResolver> vestigeResolvers,
+            final Map<String, Object> injectableByClassName) {
         this.jobManager = actionManager;
         this.appBaseFile = appBaseFile;
         this.appDataFile = appDataFile;
         this.vestigeResolvers = vestigeResolvers;
         this.injectableByClassName = injectableByClassName;
 
-        AllPermission allPermission = new AllPermission();
-        PermissionCollection allPermissionCollection = allPermission.newPermissionCollection();
-        allPermissionCollection.add(allPermission);
-
-        PrivateVestigePolicy vestigePolicy = new PrivateVestigePolicy(allPermissionCollection);
-        vestigeSystem.setPolicy(vestigePolicy);
         this.rootVestigeSystem = vestigeSystem;
         this.vestigeSecureExecutor = new VestigeSecureExecutor(vestigeSecurityManager, vestigePolicy, managerVestigeSystem);
         this.applicationDescriptorFactory = applicationDescriptorFactory;
@@ -768,17 +760,15 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                     } catch (Exception e) {
                                         // uninstall because we can't decide between from and to version, this uninstall does not remove files
                                         // so user can backup them, reinstall the app in the correct version and copy/correct the backup
-                                        privilegedExecutor.doPrivileged(new PrivilegedExceptionAction<Void>() {
-
-                                            @Override
-                                            public Void run() throws Exception {
-                                                synchronized (state) {
-                                                    state.uninstall(installName);
-                                                    saveState();
-                                                }
-                                                return null;
+                                        privilegedExecutor.setPrivileged();
+                                        try {
+                                            synchronized (state) {
+                                                state.uninstall(installName);
+                                                saveState();
                                             }
-                                        });
+                                        } finally {
+                                            privilegedExecutor.unsetPrivileged();
+                                        }
                                         throw e;
                                     }
                                     return null;
@@ -987,19 +977,17 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                                 }
                                                 try {
                                                     if (migrateException == null) {
-                                                        privilegedExecutor.doPrivileged(new PrivilegedExceptionAction<Void>() {
-
-                                                            @Override
-                                                            public Void run() throws Exception {
-                                                                synchronized (state) {
-                                                                    fromApplicationContext.setMigrationApplicationContext(null);
-                                                                    toApplicationContext.setMigrationApplicationContext(fromApplicationContext);
-                                                                    state.install(installName, toApplicationContext);
-                                                                    saveState();
-                                                                }
-                                                                return null;
+                                                        privilegedExecutor.setPrivileged();
+                                                        try {
+                                                            synchronized (state) {
+                                                                fromApplicationContext.setMigrationApplicationContext(null);
+                                                                toApplicationContext.setMigrationApplicationContext(fromApplicationContext);
+                                                                state.install(installName, toApplicationContext);
+                                                                saveState();
                                                             }
-                                                        });
+                                                        } finally {
+                                                            privilegedExecutor.unsetPrivileged();
+                                                        }
                                                         task = jobHelper.addTask("Calling commitMigration method");
                                                         try {
                                                             applicationInstaller.commitMigration();
@@ -1017,17 +1005,15 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                                 } catch (Exception e) {
                                                     // uninstall because we can't decide between from and to version, this uninstall does not remove files
                                                     // so user can backup them, reinstall the app in the correct version and copy/correct the backup
-                                                    privilegedExecutor.doPrivileged(new PrivilegedExceptionAction<Void>() {
-
-                                                        @Override
-                                                        public Void run() throws Exception {
-                                                            synchronized (state) {
-                                                                state.uninstall(installName);
-                                                                saveState();
-                                                            }
-                                                            return null;
+                                                    privilegedExecutor.setPrivileged();
+                                                    try {
+                                                        synchronized (state) {
+                                                            state.uninstall(installName);
+                                                            saveState();
                                                         }
-                                                    });
+                                                    } finally {
+                                                        privilegedExecutor.unsetPrivileged();
+                                                    }
                                                     throw e;
                                                 }
                                                 if (migrateException != null) {
@@ -1123,19 +1109,17 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                             }
                                             try {
                                                 if (migrateException == null) {
-                                                    privilegedExecutor.doPrivileged(new PrivilegedExceptionAction<Void>() {
-
-                                                        @Override
-                                                        public Void run() throws Exception {
-                                                            synchronized (state) {
-                                                                fromApplicationContext.setMigrationApplicationContext(null);
-                                                                toApplicationContext.setMigrationApplicationContext(fromApplicationContext);
-                                                                state.install(installName, toApplicationContext);
-                                                                saveState();
-                                                            }
-                                                            return null;
+                                                    privilegedExecutor.setPrivileged();
+                                                    try {
+                                                        synchronized (state) {
+                                                            fromApplicationContext.setMigrationApplicationContext(null);
+                                                            toApplicationContext.setMigrationApplicationContext(fromApplicationContext);
+                                                            state.install(installName, toApplicationContext);
+                                                            saveState();
                                                         }
-                                                    });
+                                                    } finally {
+                                                        privilegedExecutor.unsetPrivileged();
+                                                    }
                                                     task = jobHelper.addTask("Calling commitMigration method");
                                                     try {
                                                         applicationInstaller.commitMigration();
@@ -1153,17 +1137,15 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                             } catch (Exception e) {
                                                 // uninstall because we can't decide between from and to version, this uninstall does not remove files
                                                 // so user can backup them, reinstall the app in the correct version and copy/correct the backup
-                                                privilegedExecutor.doPrivileged(new PrivilegedExceptionAction<Void>() {
-
-                                                    @Override
-                                                    public Void run() throws Exception {
-                                                        synchronized (state) {
-                                                            state.uninstall(installName);
-                                                            saveState();
-                                                        }
-                                                        return null;
+                                                privilegedExecutor.setPrivileged();
+                                                try {
+                                                    synchronized (state) {
+                                                        state.uninstall(installName);
+                                                        saveState();
                                                     }
-                                                });
+                                                } finally {
+                                                    privilegedExecutor.unsetPrivileged();
+                                                }
                                                 throw e;
                                             }
                                             if (migrateException != null) {

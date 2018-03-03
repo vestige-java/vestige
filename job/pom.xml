@@ -35,6 +35,10 @@
       <artifactId>vestige.spi.job</artifactId>
     </dependency>
     <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>vestige.spi.system</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>

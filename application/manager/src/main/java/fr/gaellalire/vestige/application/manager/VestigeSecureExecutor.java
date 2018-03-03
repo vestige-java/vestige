@@ -63,8 +63,7 @@ public class VestigeSecureExecutor {
 
     private VestigeSystem handlerVestigeSystem;
 
-    public VestigeSecureExecutor(final PrivateVestigeSecurityManager vestigeSecurityManager, final PrivateVestigePolicy vestigePolicy,
-            final VestigeSystem handlerVestigeSystem) {
+    public VestigeSecureExecutor(final PrivateVestigeSecurityManager vestigeSecurityManager, final PrivateVestigePolicy vestigePolicy, final VestigeSystem handlerVestigeSystem) {
         this.vestigeSecurityManager = vestigeSecurityManager;
         this.vestigePolicy = vestigePolicy;
         this.handlerVestigeSystem = handlerVestigeSystem;
@@ -149,18 +148,17 @@ public class VestigeSecureExecutor {
             privilegedExecutor = new PrivilegedExceptionActionExecutor() {
 
                 @Override
-                public <T> T doPrivileged(final PrivilegedExceptionAction<T> action) throws PrivilegedActionException {
+                public void setPrivileged() {
                     vestigePolicy.unsetPermissionCollection();
                     vestigeSecurityManager.unsetThreadGroups();
                     handlerVestigeSystem.setCurrentSystem();
-                    try {
-                        return action.run();
-                    } catch (Exception e) {
-                        throw new PrivilegedActionException(e);
-                    } finally {
-                        vestigeSecurityManager.setThreadGroups(accessibleThreadGroups);
-                        vestigePolicy.setPermissionCollection(permissions);
-                    }
+                }
+
+                @Override
+                public void unsetPrivileged() {
+                    vestigeSecurityManager.setThreadGroups(accessibleThreadGroups);
+                    vestigePolicy.setPermissionCollection(permissions);
+                    appVestigeSystem.setCurrentSystem();
                 }
 
             };
@@ -180,9 +178,7 @@ public class VestigeSecureExecutor {
                             return AccessController.doPrivileged(new PrivilegedExceptionAction<E>() {
                                 @Override
                                 public E run() throws Exception {
-                                    if (appVestigeSystem != null) {
-                                        appVestigeSystem.setCurrentSystem();
-                                    }
+                                    appVestigeSystem.setCurrentSystem();
                                     VestigeSystemCache vestigeSystemCache = appVestigeSystem.pushVestigeSystemCache();
                                     try {
                                         return callable.call(privilegedExecutor);
@@ -195,9 +191,7 @@ public class VestigeSecureExecutor {
                             throw e.getException();
                         }
                     } else {
-                        if (appVestigeSystem != null) {
-                            appVestigeSystem.setCurrentSystem();
-                        }
+                        appVestigeSystem.setCurrentSystem();
                         VestigeSystemCache vestigeSystemCache = appVestigeSystem.pushVestigeSystemCache();
                         try {
                             return callable.call(privilegedExecutor);
