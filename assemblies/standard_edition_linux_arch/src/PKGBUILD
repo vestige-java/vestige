@@ -1,0 +1,43 @@
+# Maintainer: Gael Lalire <vestige@gaellalire.fr>
+pkgname=vestige
+pkgver=1.0.0
+pkgrel=1
+epoch=
+pkgdesc="Java Application Manager"
+arch=('any')
+url="http://gaellalire.fr/vestige"
+license=('GPL3')
+groups=()
+depends=(bash java-runtime-headless 'pygtk>=2.6' python2-dbus python2-libappindicator)
+makedepends=()
+checkdepends=()
+optdepends=()
+provides=()
+conflicts=()
+replaces=()
+backup=()
+options=()
+install=vestige.install
+changelog=
+source=()
+noextract=()
+md5sums=()
+validpgpkeys=()
+
+prepare() {
+	echo $PWD
+	cp -R "../vestige_arch" "$pkgname-$pkgver" 
+}
+
+build() {
+	cd "$pkgname-$pkgver"
+}
+
+check() {
+	cd "$pkgname-$pkgver"
+}
+
+package() {
+	cd "$pkgname-$pkgver"
+	cp -R . "$pkgdir/"
+}

@@ -11,7 +11,7 @@ sed -i~ -e 's/VESTIGE_BASE=.*/VESTIGE_BASE="$HOME\/vestige"/' -e 's/VESTIGE_DATA
 rm target/vestige-$VESTIGE_RPM_VERSION/vestige~
 sed -e 's/Version:        .*/Version:        '$VESTIGE_RPM_VERSION'/' -e 's/standard_edition_bootstrap.*-jar-with-dependencies.jar/standard_edition_bootstrap-'$VESTIGE_VERSION'-jar-with-dependencies.jar/' src/vestige.spec > target/vestige.spec
 cp src/Makefile target/vestige-$VESTIGE_RPM_VERSION/
-cp -r src/hicolor target/vestige-$VESTIGE_RPM_VERSION/
+cp -r ../standard_edition_linux_desktop/src/hicolor target/vestige-$VESTIGE_RPM_VERSION/
 cp ../standard_edition_linux_desktop/src/vestige_gtk_launcher.py target/vestige-$VESTIGE_RPM_VERSION/
 chmod +x target/vestige-$VESTIGE_RPM_VERSION/vestige_gtk_launcher.py
 cp ../standard_edition_linux_desktop/src/vestige.desktop target/vestige-$VESTIGE_RPM_VERSION/

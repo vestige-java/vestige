@@ -29,7 +29,7 @@ cp src/postinst target/vestige_deb/DEBIAN/
 chmod +x target/vestige_deb/DEBIAN/postinst
 cp ../standard_edition_linux_desktop/src/vestige.desktop target/vestige_deb/usr/share/applications/
 cp ../standard_edition_linux_desktop/src/vestige_gtk_launcher.py target/vestige_deb/usr/bin/vestige
-cp -r src/hicolor target/vestige_deb/usr/share/icons/
+cp -r ../standard_edition_linux_desktop/src/hicolor target/vestige_deb/usr/share/icons/
 chmod +x target/vestige_deb/usr/bin/*
 find target \( -name .svn -o -name .DS_Store \) -exec rm -rf {} \;
 ssh debbuilder rm -rf '~/target'

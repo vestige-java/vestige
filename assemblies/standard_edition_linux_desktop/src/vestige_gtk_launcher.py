@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 import dbus
 import dbus.bus
 import dbus.service
@@ -58,6 +58,18 @@ class Vestige(dbus.service.Object):
         scroller.add(self.console)
         self.consoleWin.add(scroller)
 
+        self.menu = gtk.Menu()
+
+        self.adminItem = gtk.MenuItem("Open web administration")
+        self.adminItem.connect("activate", lambda e : self.showAdmin())
+        self.menu.append(self.adminItem)
+        self.adminItem.set_sensitive(False)
+
+        self.folderItem = gtk.MenuItem("Open base folder")
+        self.folderItem.connect("activate", lambda e : self.openFolder())
+        self.menu.append(self.folderItem)
+        self.folderItem.set_sensitive(False)
+
         serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         serversocket.bind(('127.0.0.1', 0))
         serversocket.listen(1)
@@ -76,17 +88,6 @@ class Vestige(dbus.service.Object):
             buf.insert_at_cursor("Error: vestige script cannot be launched")
             self.processQuit();
 
-        self.menu = gtk.Menu()
-
-        self.adminItem = gtk.MenuItem("Open web administration")
-        self.adminItem.connect("activate", lambda e : self.showAdmin())
-        self.menu.append(self.adminItem)
-        self.adminItem.set_sensitive(False)
-
-        self.folderItem = gtk.MenuItem("Open base folder")
-        self.folderItem.connect("activate", lambda e : self.openFolder())
-        self.menu.append(self.folderItem)
-        self.folderItem.set_sensitive(False)
 
         consoleItem = gtk.MenuItem("Show command line output")
         consoleItem.connect("activate", lambda e : self.showWin())

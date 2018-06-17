@@ -21,7 +21,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
@@ -629,9 +628,13 @@ public class StandardEditionVestige implements Runnable {
             try {
                 if (listenerPort != 0) {
                     LOGGER.debug("Connect to listener at port {}", listenerPort);
-                    socketChannel = SocketChannel.open(new InetSocketAddress("127.0.0.1", listenerPort));
-                    vestigeStateListener = new PrintWriterVestigeStateListener(new PrintWriter(socketChannel.socket().getOutputStream(), true));
+                    socketChannel = SocketChannel.open();
+                    socketChannel.configureBlocking(true);
+                    socketChannel.connect(new InetSocketAddress("127.0.0.1", listenerPort));
+                    socketChannel.configureBlocking(false);
+                    vestigeStateListener = new NIOWriterVestigeStateListener(socketChannel);
                     vestigeStateListener.starting();
+                    new VestigeStateListenerWatcher(socketChannel).start();
                 } else {
                     vestigeStateListener = new NoopVestigeStateListener();
                 }

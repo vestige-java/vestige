@@ -17,6 +17,7 @@
 
 package fr.gaellalire.vestige.system;
 
+import java.io.FileNotFoundException;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,6 +25,7 @@ import java.net.JarURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.security.Permission;
+import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 import org.slf4j.Logger;
@@ -64,6 +66,13 @@ public class VestigeSystemJarURLConnection extends JarURLConnection {
                 connected = true;
             }
         }
+        String entryName = getEntryName();
+        if (entryName != null) {
+            JarEntry jarEntry = getJarEntry();
+            if (jarEntry == null) {
+                throw new FileNotFoundException("JAR entry " + entryName + " not found in " + cachedJarFile.getName());
+            }
+        }
     }
 
     /**
@@ -91,7 +100,16 @@ public class VestigeSystemJarURLConnection extends JarURLConnection {
 
     @Override
     public InputStream getInputStream() throws IOException {
-        return new JarInputStream(getJarFile().getInputStream(getJarEntry()));
+        String entryName = getEntryName();
+        if (entryName == null) {
+            throw new IOException("no entry name specified");
+        } else {
+            JarEntry jarEntry = getJarEntry();
+            if (jarEntry == null) {
+                throw new FileNotFoundException("JAR entry " + entryName + " not found in " + cachedJarFile.getName());
+            }
+            return new JarInputStream(getJarFile().getInputStream(jarEntry));
+        }
     }
 
     @Override
@@ -101,7 +119,12 @@ public class VestigeSystemJarURLConnection extends JarURLConnection {
 
     public long getContentLengthLong() {
         try {
-            return getJarEntry().getSize();
+            JarEntry jarEntry = getJarEntry();
+            if (jarEntry == null) {
+                return cachedJarFile.getFile().length();
+            } else {
+                return jarEntry.getSize();
+            }
         } catch (IOException e) {
             LOGGER.error("Unable to get content length", e);
             return -1;
@@ -110,12 +133,11 @@ public class VestigeSystemJarURLConnection extends JarURLConnection {
 
     @Override
     public int getContentLength() {
-        try {
-            return (int) getJarEntry().getSize();
-        } catch (IOException e) {
-            LOGGER.error("Unable to get content length", e);
+        long result = getContentLengthLong();
+        if (result > Integer.MAX_VALUE) {
             return -1;
         }
+        return (int) result;
     }
 
     @Override

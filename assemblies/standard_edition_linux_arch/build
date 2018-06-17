@@ -1,0 +1,35 @@
+#!/bin/bash
+
+VESTIGE_VERSION=`cat ../standard_edition_standalone/pom.xml | grep -m 1 version | sed 's/.*>\(.*\)<\/version>/\1/g'`
+VESTIGE_ARCH_VERSION=`echo $VESTIGE_VERSION | sed 's/-SNAPSHOT//g'`
+
+rm -r target
+mkdir -p target/vestige_arch/etc/vestige
+mkdir -p target/vestige_arch/usr/bin
+mkdir -p target/vestige_arch/usr/share/icons
+mkdir -p target/vestige_arch/usr/share/applications
+unzip -d target/vestige ../standard_edition_standalone/target/vestige.assemblies.standard_edition_standalone-$VESTIGE_VERSION-unix.zip
+sed -i~ -e 's/VESTIGE_BASE=.*/VESTIGE_BASE="$HOME\/vestige"/' -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="$HOME\/.vestige"/' -e 's/DATADIR=.*/DATADIR=\/usr\/share\/vestige/' -e 's/CONFDIR=.*/CONFDIR=\/etc\/vestige\//' target/vestige/vestige
+rm target/vestige/vestige~
+mkdir -p target/vestige_arch/usr/share/vestige
+mv target/vestige/repository target/vestige_arch/usr/share/vestige/repository
+mv target/vestige/lib target/vestige_arch/usr/share/vestige/lib
+mv target/vestige/m2 target/vestige_arch/usr/share/vestige/m2
+mv target/vestige/unix-classpath.txt target/vestige_arch/usr/share/vestige/
+mv target/vestige/vestige target/vestige_arch/usr/share/vestige/vestige
+chmod +x target/vestige_arch/usr/share/vestige/vestige
+mv target/vestige/jvm_enhancer.properties target/vestige_arch/usr/share/vestige/
+rm target/vestige/README
+mv target/vestige/* target/vestige_arch/etc/vestige/
+sed -e 's/pkgver=.*/pkgver='$VESTIGE_ARCH_VERSION'/' src/PKGBUILD > target/PKGBUILD
+cp src/vestige.install target/
+chmod +x target/vestige.install
+cp ../standard_edition_linux_desktop/src/vestige.desktop target/vestige_arch/usr/share/applications/
+cp ../standard_edition_linux_desktop/src/vestige_gtk_launcher.py target/vestige_arch/usr/bin/vestige
+cp -r ../standard_edition_linux_desktop/src/hicolor target/vestige_arch/usr/share/icons/
+chmod +x target/vestige_arch/usr/bin/*
+find target \( -name .svn -o -name .DS_Store \) -exec rm -rf {} \;
+ssh archbuilder rm -rf '~/target'
+scp -r target archbuilder:.
+ssh archbuilder 'cd target && makepkg -s'
+scp archbuilder:target/vestige-${VESTIGE_ARCH_VERSION}-1-any.pkg.tar.xz target/vestige-${VESTIGE_ARCH_VERSION}-1-any.pkg.tar.xz 
