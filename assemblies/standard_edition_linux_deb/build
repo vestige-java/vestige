@@ -9,6 +9,7 @@ mkdir -p target/vestige_deb/usr/bin
 mkdir -p target/vestige_deb/usr/share/icons
 mkdir -p target/vestige_deb/usr/share/applications
 mkdir -p target/vestige_deb/usr/share/lintian/overrides
+mkdir -p target/vestige_deb/usr/share/doc/vestige
 unzip -d target/vestige ../standard_edition_standalone/target/vestige.assemblies.standard_edition_standalone-$VESTIGE_VERSION-unix.zip
 sed -i~ -e 's/VESTIGE_BASE=.*/VESTIGE_BASE="$HOME\/vestige"/' -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="$HOME\/.vestige"/' -e 's/DATADIR=.*/DATADIR=\/usr\/share\/vestige/' -e 's/CONFDIR=.*/CONFDIR=\/etc\/vestige\//' target/vestige/vestige
 rm target/vestige/vestige~
@@ -23,6 +24,7 @@ mv target/vestige/jvm_enhancer.properties target/vestige_deb/usr/share/vestige/
 rm target/vestige/README
 mv target/vestige/* target/vestige_deb/etc/vestige/
 sed -e 's/Version: .*/Version: '$VESTIGE_VERSION'/' src/control > target/vestige_deb/DEBIAN/control
+cp src/copyright target/vestige_deb/usr/share/doc/vestige/copyright
 cp src/lintian_vestige target/vestige_deb/usr/share/lintian/overrides/vestige
 cp src/conffiles target/vestige_deb/DEBIAN/
 cp src/postinst target/vestige_deb/DEBIAN/
