@@ -67,10 +67,10 @@ VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Dvestige.mavenRepository="$DATADIR/repositor
 
 if "$JAVA" --add-modules java.base -version >/dev/null 2>&1; then
   VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" --add-modules ALL-DEFAULT --patch-module "java.base=$DATADIR/lib/moduleEncapsulationBreaker.jar")
-  VESTIGE_ARGS=(-p "$DATADIR/lib/vestige.core-${vestige.core.version}.jar" -m fr.gaellalire.vestige.core --add-modules fr.gaellalire.vestige.edition.maven_main_launcher frmp "$DATADIR" "$DATADIR/unix-classpath.txt" fr.gaellalire.vestige.jvm_enhancer.boot)
+  VESTIGE_ARGS=(-p "$DATADIR/lib/vestige.core-${vestige.core.version}.jar" -m fr.gaellalire.vestige.core --add-modules fr.gaellalire.vestige.edition.maven_main_launcher frmpe "$DATADIR" "$DATADIR/unix-classpath.txt" UTF-8 fr.gaellalire.vestige.jvm_enhancer.boot)
   VESTIGE_ARGS=("${VESTIGE_ARGS[@]}" "$DATADIR" "$DATADIR/jvm_enhancer.properties" fr.gaellalire.vestige.edition.maven_main_launcher)
 else
-  VESTIGE_ARGS=(-jar "$DATADIR/lib/vestige.core-${vestige.core.version}.jar" --before 'javax/xml/bind/.*' frcp "$DATADIR" "$DATADIR/unix-classpath.txt" fr.gaellalire.vestige.jvm_enhancer.boot.JVMEnhancer)
+  VESTIGE_ARGS=(-jar "$DATADIR/lib/vestige.core-${vestige.core.version}.jar" --before 'javax/xml/bind/.*' frcpe "$DATADIR" "$DATADIR/unix-classpath.txt" UTF-8 fr.gaellalire.vestige.jvm_enhancer.boot.JVMEnhancer)
   VESTIGE_ARGS=("${VESTIGE_ARGS[@]}" "$DATADIR" "$DATADIR/jvm_enhancer.properties" fr.gaellalire.vestige.edition.maven_main_launcher.MavenMainLauncher)
 fi
 
