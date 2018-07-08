@@ -32,10 +32,15 @@ public final class ConfFileUtils {
     private ConfFileUtils() {
     }
 
-    public static void copy(final InputStream inputStream, final File destFile) throws IOException {
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+    public static void copy(final InputStream inputStream, final File destFile, final String destCharset) throws IOException {
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"));
         try {
-            PrintWriter printWriter = new PrintWriter(destFile);
+            PrintWriter printWriter;
+            if (destCharset == null) {
+                printWriter = new PrintWriter(destFile);
+            } else {
+                printWriter = new PrintWriter(destFile, destCharset);
+            }
             try {
                 String line = bufferedReader.readLine();
                 while (line != null) {

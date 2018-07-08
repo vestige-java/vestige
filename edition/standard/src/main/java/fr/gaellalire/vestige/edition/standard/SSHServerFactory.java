@@ -73,7 +73,8 @@ public class SSHServerFactory implements Callable<VestigeServer> {
         File privateKey = new File(sshBase, "vestige_rsa");
         if (!privateKey.exists()) {
             sshBase.mkdirs();
-            ConfFileUtils.copy(StandardEditionVestige.class.getResourceAsStream("vestige_rsa"), privateKey);
+            // FIXME, this should be UTF-8 or ASCII file, but this version of mina use default encoding, have to update or patch mina ...
+            ConfFileUtils.copy(StandardEditionVestige.class.getResourceAsStream("vestige_rsa"), privateKey, null);
         }
         LOGGER.info("Use {} for private SSH key file", privateKey);
         KeyPairProvider keyPairProvider = new FileKeyPairProvider(new String[] {privateKey.getPath()});

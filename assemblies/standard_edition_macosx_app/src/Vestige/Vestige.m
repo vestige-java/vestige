@@ -41,40 +41,44 @@ static void handleConnect(CFSocketRef socket,
     switch(streamEvent) {
         case NSStreamEventEndEncountered:;
         case NSStreamEventHasBytesAvailable:;
-            uint8_t buf[4096];
-            uint8_t *buffer = NULL;
-            NSUInteger len = 0;
-            
-            int amount = [istream read:buf maxLength:sizeof(buf)];
-            buffer = buf;
-            len = amount;
-            
-            char * command = (char *) &buf[0];
-            for (int i = 0; i < len; i++) {
-                if (buf[i] == '\n') {
-                    buf[i] = 0;
-                    int webLen = strlen("Web ");
-                    int baseLen = strlen("Base ");
-                    if (strlen(command) > webLen && strncmp(command, "Web ", webLen) == 0) {
-                        url = [[NSString alloc] initWithFormat:@"%s", &command[webLen]];
-                        [openWebAdminItem setEnabled:TRUE];
-                        [statusMenu update];
-                    } else if (strlen(command) > baseLen && strncmp(command, "Base ", baseLen) == 0) {
-                        base = [[NSString alloc] initWithFormat:@"%s", &command[baseLen]];
-                        [openBaseFolderItem setEnabled:TRUE];
-                        [statusMenu update];
-                    } else if (strcmp(command, "Starting") == 0) {
-                        procState = 1;
-                    } else if (strcmp(command, "Started") == 0) {
-                        procState = 2;
-                    } else if (strcmp(command, "Stopping") == 0) {
-                        procState = 3;
-                    } else if (strcmp(command, "Stopped") == 0) {
-                        procState = 4;
-                    }
-                    command = (char *) &buf[i + 1];
+            if (bufferSizeBytes != 4) {
+                bufferSizeBytes += [istream read:((uint8_t *)&bufferSize)+bufferSizeBytes maxLength:4 - bufferSizeBytes];
+                if (bufferSizeBytes != 4) {
+                    return;
                 }
+                bufferSize = ntohl(bufferSize);
+                bufferRemain = bufferSize;
+                return;
             }
+            
+            bufferRemain -= [istream read:buffer + (bufferSize - bufferRemain) maxLength:bufferRemain];
+            if (bufferRemain != 0) {
+                return;
+            }
+            bufferSizeBytes = 0;
+            
+            NSString * command = [[NSString alloc] initWithBytesNoCopy:buffer length:bufferSize encoding:NSUTF8StringEncoding freeWhenDone:false];
+
+            int webLen = strlen("Web ");
+            int baseLen = strlen("Base ");
+            if ([command hasPrefix:@"Web "]) {
+                url = [[NSString alloc] initWithString:[command substringFromIndex:webLen]];
+                [openWebAdminItem setEnabled:TRUE];
+                [statusMenu update];
+            } else if ([command hasPrefix:@"Base "]) {
+                base = [[NSString alloc] initWithString:[command substringFromIndex:baseLen]];
+                [openBaseFolderItem setEnabled:TRUE];
+                [statusMenu update];
+            } else if ([command compare:@"Starting"] == 0) {
+                procState = 1;
+            } else if ([command compare:@"Started"] == 0) {
+                procState = 2;
+            } else if ([command compare:@"Stopping"] == 0) {
+                procState = 3;
+            } else if ([command compare:@"Stopped"] == 0) {
+                procState = 4;
+            }
+            
             break;
         default:
             break;
@@ -89,7 +93,7 @@ static void handleConnect(CFSocketRef socket,
     }
     
     NSTextStorage *buffer_text = [textView textStorage];
-    NSString *s = [[NSString alloc] initWithData: data encoding:[NSString defaultCStringEncoding]];
+    NSString *s = [[NSString alloc] initWithData: data encoding:NSUTF8StringEncoding];
     NSAttributedString *str = [[NSAttributedString alloc] initWithString: s];
     
     [buffer_text beginEditing];
@@ -243,6 +247,7 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
     procState = 0;
     forceStop = false;
     quit = false;
+    bufferSizeBytes = 0;
     
     statusItem = [[[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength] retain];
     statusMenu = [[NSMenu alloc] init];
@@ -350,6 +355,7 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
     NSMutableDictionary *env = [[NSMutableDictionary alloc] init];
     [env addEntriesFromDictionary:[[NSProcessInfo processInfo] environment]];
     [env setObject:[@(port) stringValue] forKey:@"VESTIGE_LISTENER_PORT"];
+    [env setObject:@"UTF-8" forKey:@"VESTIGE_CONSOLE_ENCODING"];
     [task setEnvironment:env];
     
     CFRunLoopSourceRef socketsource = CFSocketCreateRunLoopSource(kCFAllocatorDefault, ipv4cfsock, 0);

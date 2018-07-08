@@ -184,6 +184,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             }
             if (resolverFile.isFile()) {
                 state = readDefaultApplicationManagerState(resolverFile);
+            } else {
+                state.createRepository("gls", new URL("https://gaellalire.fr/vestige/repository/"));
             }
         } catch (Exception e) {
             throw new ApplicationException("Unable to restore old state", e);

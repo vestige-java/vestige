@@ -225,7 +225,7 @@ public class StandardEditionVestige implements Runnable {
         File settingsFile = new File(baseFile, "settings.xml");
         if (!settingsFile.exists()) {
             try {
-                ConfFileUtils.copy(StandardEditionVestige.class.getResourceAsStream("settings.xml"), settingsFile);
+                ConfFileUtils.copy(StandardEditionVestige.class.getResourceAsStream("settings.xml"), settingsFile, "UTF-8");
             } catch (FileNotFoundException e) {
                 throw new RuntimeException("Settings file does not exists", e);
             } catch (IOException e) {

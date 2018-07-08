@@ -19,6 +19,10 @@
     bool atLoginStarted;
     bool forceStop;
     bool quit;
+    uint8_t buffer[32767];
+    int32_t bufferRemain;
+    int32_t bufferSize;
+    int bufferSizeBytes;
 }
 
 - (void)stream:(NSStream *)stream handleEvent:(NSStreamEvent)streamEvent;

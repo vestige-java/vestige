@@ -161,7 +161,7 @@
     <vestige.spi.resolver.version>1.0</vestige.spi.resolver.version>
     <vestige.spi.resolver.url_list.version>1.0</vestige.spi.resolver.url_list.version>
     <vestige.spi.resolver.maven.version>1.0</vestige.spi.resolver.maven.version>
-    <vestige.maven.version>java6-2</vestige.maven.version>
+    <vestige.maven.version>java6-3</vestige.maven.version>
     <logback.version>1.2.3</logback.version>
     <jetty.version>8.1.11.v20130520</jetty.version>
     <milton.version>2.5.0.1</milton.version>

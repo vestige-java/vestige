@@ -107,7 +107,7 @@
     <!-- maven dependencies are copied into this jar, so we avoid multiple package issues -->
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>maven</artifactId>
+      <artifactId>vestige.maven</artifactId>
       <version>${vestige.maven.version}</version>
     </dependency>
 

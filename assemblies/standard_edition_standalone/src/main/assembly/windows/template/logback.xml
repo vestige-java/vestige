@@ -24,6 +24,7 @@
       <OnMismatch>DENY</OnMismatch>
     </filter>
     <encoder>
+      <charset>${logback.consoleCharset:-${file.encoding}}</charset>
       <pattern>%d{HH:mm:ss.SSS} %level -> %msg%n</pattern>
     </encoder>
   </appender>

@@ -12,6 +12,19 @@ import gobject
 import subprocess
 import socket
 import time
+import struct
+
+def decodeBytesUtf8Safe(toDec):
+    okLen = len(toDec)
+    outStr = ""
+    while okLen>0:
+        try:
+            outStr = toDec[:okLen].decode("UTF-8")
+        except UnicodeDecodeError as ex:
+            okLen -= 1
+        else:
+            break
+    return outStr,toDec[okLen:]
 
 class Vestige(dbus.service.Object):
     def __init__(self, bus, path, name):
@@ -25,6 +38,13 @@ class Vestige(dbus.service.Object):
         self.quit = False
         self.forceStop = False
         self.autostartPath = os.getenv("HOME") + "/.config/autostart/vestige.desktop"
+        
+        self.buffer = ""
+        self.bufferRemain = 0
+        self.bufferSize = 0
+        self.bufferSizeBytes = 0
+
+        self.consoleBuffer = ""
 
         if not os.environ.get("DESKTOP_SESSION", "").lower().startswith("gnome") or not "deprecated" in os.environ.get("GNOME_DESKTOP_SESSION_ID", ""):
             try:
@@ -77,7 +97,8 @@ class Vestige(dbus.service.Object):
 
         procenv = os.environ.copy()
 
-        procenv["VESTIGE_LISTENER_PORT"] = str(serversocket.getsockname()[1]);
+        procenv["VESTIGE_LISTENER_PORT"] = str(serversocket.getsockname()[1])
+        procenv["VESTIGE_CONSOLE_ENCODING"] = "UTF-8"
         try:
             self.proc = subprocess.Popen("/usr/share/vestige/vestige", env=procenv, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             gobject.io_add_watch(self.proc.stdout, gobject.IO_IN, self.write_to_buffer)
@@ -128,32 +149,32 @@ class Vestige(dbus.service.Object):
         if self.procState == 5:
             gtk.main_quit()
         else:
-            self.proc.terminate();
-            self.stopItem.set_label("Force stop");
-            self.forceStop = True;
+            self.proc.terminate()
+            self.stopItem.set_label("Force stop")
+            self.forceStop = True
 
     def stopVestige(self):
         try:
             if self.proc is not None:
                 if self.forceStop:
-                    self.proc.kill();
+                    self.proc.kill()
                 else:
                     self.proc.terminate();
-                    self.stopItem.set_label("Force stop");
-                    self.forceStop = True;
+                    self.stopItem.set_label("Force stop")
+                    self.forceStop = True
         except:
             pass
 
     def toggleStartAtLogin(self, widget):
         # seems that widget change its state before calling activate
         if widget.active:
-            autostartPathDirname = os.path.dirname(self.autostartPath);
+            autostartPathDirname = os.path.dirname(self.autostartPath)
             if not os.path.exists(autostartPathDirname):
-                os.makedirs(autostartPathDirname);
-            os.symlink('/usr/share/applications/vestige.desktop', self.autostartPath);
+                os.makedirs(autostartPathDirname)
+            os.symlink('/usr/share/applications/vestige.desktop', self.autostartPath)
         else:
             try:
-                os.remove(self.autostartPath);
+                os.remove(self.autostartPath)
             except:
                 pass
 
@@ -189,34 +210,59 @@ class Vestige(dbus.service.Object):
         return True
 
     def handler(self, conn, args):
-        lines = conn.recv(1024)
-        if not len(lines):
+        if self.bufferSizeBytes != 4:
+            nbuffer = conn.recv(4 - self.bufferSizeBytes)
+            if not len(nbuffer):
+                return False
+            
+            self.bufferSizeBytes += len(nbuffer)
+            self.buffer += nbuffer
+            if self.bufferSizeBytes != 4:
+                return True
+            self.bufferSize = struct.unpack('!i', self.buffer)[0]
+            self.buffer = ""
+            self.bufferRemain = self.bufferSize
+            return True;
+
+        nbuffer = conn.recv(self.bufferRemain)
+        if not len(nbuffer):
             return False
 
-        for line in lines.splitlines():
-            if line.startswith("Web "):
-                self.url = line[len("Web "):]
-                self.adminItem.set_sensitive(True)
-            elif line.startswith("Base "):
-                self.baseFolder = line[len("Base "):]
-                self.folderItem.set_sensitive(True)
-            elif line == "Starting":
-                self.procState = 1
-            elif line == "Started":
-                self.procState = 2
-            elif line == "Stopping":
-                self.procState = 3
-            elif line == "Stopped":
-                self.procState = 4
+        self.bufferRemain -= len(nbuffer)
+        self.buffer += nbuffer
+        
+        if self.bufferRemain != 0:
+            return True;
+        self.bufferSizeBytes = 0;
+            
+        line = self.buffer.decode("UTF-8")
+        self.buffer = ""
+                    
+        if line.startswith("Web "):
+            self.url = line[len("Web "):]
+            self.adminItem.set_sensitive(True)
+        elif line.startswith("Base "):
+            self.baseFolder = line[len("Base "):]
+            self.folderItem.set_sensitive(True)
+        elif line == "Starting":
+            self.procState = 1
+        elif line == "Started":
+            self.procState = 2
+        elif line == "Stopping":
+            self.procState = 3
+        elif line == "Stopped":
+            self.procState = 4
 
         return True
 
     def write_to_buffer(self, fd, condition):
         if condition == gobject.IO_IN:
-            char = fd.read(1)
+            self.consoleBuffer += fd.read(1)
+
+            decoded, self.consoleBuffer = decodeBytesUtf8Safe(self.consoleBuffer)
             buf = self.console.get_buffer()
             buf.place_cursor(buf.get_end_iter());
-            buf.insert_at_cursor(char)
+            buf.insert_at_cursor(decoded)
             return True
         else:
             return True

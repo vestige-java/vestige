@@ -51,6 +51,13 @@ if [ ${#VESTIGE_DEBUG} -ne 0 ]; then
   VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=8000)
 fi
 
+VESTIGE_CONSOLE_ENCODING_OPTION=""
+
+if [ ${#VESTIGE_CONSOLE_ENCODING} -ne 0 ]; then
+  VESTIGE_CONSOLE_ENCODING_OPTION="--console-encoding $VESTIGE_CONSOLE_ENCODING"
+  VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Dlogback.consoleCharset=$VESTIGE_CONSOLE_ENCODING)
+fi
+
 MAVEN_LAUNCHER_FILE="$DATADIR/m2/vestige-se.xml"
 
 MAVEN_SETTINGS_FILE="$VESTIGE_BASE/m2/settings.xml"
@@ -67,10 +74,10 @@ VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Dvestige.mavenRepository="$DATADIR/repositor
 
 if "$JAVA" --add-modules java.base -version >/dev/null 2>&1; then
   VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" --add-modules ALL-DEFAULT --patch-module "java.base=$DATADIR/lib/moduleEncapsulationBreaker.jar")
-  VESTIGE_ARGS=(-p "$DATADIR/lib/vestige.core-${vestige.core.version}.jar" -m fr.gaellalire.vestige.core --add-modules fr.gaellalire.vestige.edition.maven_main_launcher frmpe "$DATADIR" "$DATADIR/unix-classpath.txt" UTF-8 fr.gaellalire.vestige.jvm_enhancer.boot)
+  VESTIGE_ARGS=(-p "$DATADIR/lib/vestige.core-${vestige.core.version}.jar" -m fr.gaellalire.vestige.core $VESTIGE_CONSOLE_ENCODING_OPTION --add-modules fr.gaellalire.vestige.edition.maven_main_launcher fremp "$DATADIR" "$DATADIR/unix-classpath.txt" UTF-8 fr.gaellalire.vestige.jvm_enhancer.boot)
   VESTIGE_ARGS=("${VESTIGE_ARGS[@]}" "$DATADIR" "$DATADIR/jvm_enhancer.properties" fr.gaellalire.vestige.edition.maven_main_launcher)
 else
-  VESTIGE_ARGS=(-jar "$DATADIR/lib/vestige.core-${vestige.core.version}.jar" --before 'javax/xml/bind/.*' frcpe "$DATADIR" "$DATADIR/unix-classpath.txt" UTF-8 fr.gaellalire.vestige.jvm_enhancer.boot.JVMEnhancer)
+  VESTIGE_ARGS=(-jar "$DATADIR/lib/vestige.core-${vestige.core.version}.jar" $VESTIGE_CONSOLE_ENCODING_OPTION --before 'javax/xml/bind/.*' frecp "$DATADIR" "$DATADIR/unix-classpath.txt" UTF-8 fr.gaellalire.vestige.jvm_enhancer.boot.JVMEnhancer)
   VESTIGE_ARGS=("${VESTIGE_ARGS[@]}" "$DATADIR" "$DATADIR/jvm_enhancer.properties" fr.gaellalire.vestige.edition.maven_main_launcher.MavenMainLauncher)
 fi
 

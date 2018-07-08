@@ -42,6 +42,13 @@ if not defined VESTIGE_OPTS set VESTIGE_OPTS=%JAVA_OPTS%
 
 if defined VESTIGE_DEBUG set VESTIGE_OPTS=%VESTIGE_OPTS% -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=8000
 
+set VESTIGE_CONSOLE_ENCODING_OPTION=
+
+if defined VESTIGE_CONSOLE_ENCODING (
+  set VESTIGE_CONSOLE_ENCODING_OPTION=--console-encoding %VESTIGE_CONSOLE_ENCODING%
+  set VESTIGE_OPTS=%VESTIGE_OPTS% -Dlogback.consoleCharset=%VESTIGE_CONSOLE_ENCODING%
+)
+
 set MAVEN_LAUNCHER_FILE=%DATADIR%\m2\vestige-se.xml
 
 set MAVEN_SETTINGS_FILE=%VESTIGE_BASE%\m2\settings.xml
@@ -57,10 +64,10 @@ set VESTIGE_OPTS=%VESTIGE_OPTS% -Dvestige.mavenRepository="%DATADIR%\repository"
 "%JAVA%" --add-modules java.base -version 2> nul > nul
 if %ERRORLEVEL% equ 0 (
   set VESTIGE_OPTS=!VESTIGE_OPTS! --add-modules ALL-DEFAULT --patch-module "java.base=%DATADIR%\lib\moduleEncapsulationBreaker.jar"
-  set VESTIGE_ARGS=-p "%DATADIR%\lib\vestige.core-${vestige.core.version}.jar" -m fr.gaellalire.vestige.core --add-modules fr.gaellalire.vestige.edition.maven_main_launcher frmpe "%DATADIR%" "%DATADIR%\windows-classpath.txt" UTF-8 fr.gaellalire.vestige.jvm_enhancer.boot
+  set VESTIGE_ARGS=-p "%DATADIR%\lib\vestige.core-${vestige.core.version}.jar" -m fr.gaellalire.vestige.core %VESTIGE_CONSOLE_ENCODING_OPTION% --add-modules fr.gaellalire.vestige.edition.maven_main_launcher fremp "%DATADIR%" "%DATADIR%\windows-classpath.txt" UTF-8 fr.gaellalire.vestige.jvm_enhancer.boot
   set VESTIGE_ARGS=!VESTIGE_ARGS! "%DATADIR%" "%DATADIR%\jvm_enhancer.properties" fr.gaellalire.vestige.edition.maven_main_launcher
 ) else (
-  set VESTIGE_ARGS=-jar "%DATADIR%\lib\vestige.core-${vestige.core.version}.jar" --before javax/xml/bind/.* frcpe "%DATADIR%" "%DATADIR%\windows-classpath.txt" UTF-8 fr.gaellalire.vestige.jvm_enhancer.boot.JVMEnhancer
+  set VESTIGE_ARGS=-jar "%DATADIR%\lib\vestige.core-${vestige.core.version}.jar" %VESTIGE_CONSOLE_ENCODING_OPTION% --before javax/xml/bind/.* frecp "%DATADIR%" "%DATADIR%\windows-classpath.txt" UTF-8 fr.gaellalire.vestige.jvm_enhancer.boot.JVMEnhancer
   set VESTIGE_ARGS=!VESTIGE_ARGS! "%DATADIR%" "%DATADIR%\jvm_enhancer.properties" fr.gaellalire.vestige.edition.maven_main_launcher.MavenMainLauncher
 )
 

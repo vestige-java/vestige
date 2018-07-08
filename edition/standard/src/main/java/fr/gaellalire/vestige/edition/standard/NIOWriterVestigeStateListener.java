@@ -37,7 +37,7 @@ public class NIOWriterVestigeStateListener implements VestigeStateListener {
 
     private static final Charset UTF8_CHARSET = Charset.forName("UTF-8");
 
-    private static final ByteBuffer EOL = ByteBuffer.wrap(String.format("%n").getBytes());
+    private ByteBuffer headerByteBuffer = ByteBuffer.allocate(4);
 
     private SocketChannel socketChannel;
 
@@ -50,18 +50,25 @@ public class NIOWriterVestigeStateListener implements VestigeStateListener {
     }
 
     public void write(final String s) {
+        write(s, UTF8_CHARSET);
+    }
+
+    public void write(final String s, final Charset charset) {
         try {
-            ByteBuffer wrap = ByteBuffer.wrap(s.getBytes(UTF8_CHARSET));
+            ByteBuffer wrap = ByteBuffer.wrap(s.getBytes(charset));
+            headerByteBuffer.clear();
+            int limit = wrap.limit();
+            headerByteBuffer.putInt(limit);
+            headerByteBuffer.flip();
+            socketChannel.write(headerByteBuffer);
+            while (headerByteBuffer.hasRemaining()) {
+                selector.select();
+                socketChannel.write(headerByteBuffer);
+            }
             socketChannel.write(wrap);
             while (wrap.hasRemaining()) {
                 selector.select();
                 socketChannel.write(wrap);
-            }
-            EOL.clear();
-            socketChannel.write(EOL);
-            while (EOL.hasRemaining()) {
-                selector.select();
-                socketChannel.write(EOL);
             }
         } catch (IOException e) {
             LOGGER.trace("IOException", e);

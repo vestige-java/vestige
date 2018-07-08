@@ -1,14 +1,20 @@
 #define _WIN32_WINNT 0x05010000
 
-#include <windows.h>
+#ifdef UNICODE
+#define _UNICODE
+#endif
+
+#include <TCHAR.H>
 #include <winsock2.h>
+#include <windows.h>
 #include "resources.h"
 #include <stdio.h>
+#include <string.h>
 
 #define MY_WM_NOTIFYICON WM_USER+1
 #define WM_SOCKET WM_USER+2
-#define VESTIGE_CLASSNAME "fr.gaellalire.vestige"
-#define VESTIGE_VALUE_NAME "Vestige"
+#define VESTIGE_CLASSNAME TEXT("fr.gaellalire.vestige")
+#define VESTIGE_VALUE_NAME TEXT("Vestige")
 
 NOTIFYICONDATA TrayIcon;
 HINSTANCE hinst;
@@ -29,7 +35,13 @@ int atLoginStarted;
 int forceStop;
 HANDLE hjob;
 
-char * url, *base;
+char buffer[32767];
+INT32 bufferRemain;
+INT32 bufferSize;
+int bufferSizeBytes;
+
+
+TCHAR * url, *base;
 
 LRESULT CALLBACK MainWndProc( HWND, UINT, WPARAM, LPARAM);
 
@@ -51,16 +63,29 @@ BOOL CALLBACK PostCloseEnum(HWND hWnd, LPARAM lParam) {
 }
 
 DWORD WINAPI WaitForBatCommand(void * param) {
-    char chBuf[1024];
+    TCHAR chBuf[1024];
+#ifdef UNICODE
+    TCHAR wchBuf[1024 * 2];
+#endif
     DWORD dwRead;
 
     while (ReadFile(g_hChildStd_OUT_Rd, chBuf, sizeof(chBuf) - 1, &dwRead, NULL)) {
+#ifdef UNICODE
+        int mbRet = MultiByteToWideChar(CP_UTF8, 0, (char *) & chBuf[0], dwRead, wchBuf, 1024 * 2);
+        wchBuf[mbRet] = 0;
+#else
         chBuf[dwRead] = 0;
+#endif
+
         int ndx = GetWindowTextLength(hEditIn);
         SetFocus(hEditIn);
         SendMessage(hEditIn, EM_SETSEL, ndx, ndx);
 
+#ifdef UNICODE
+        SendMessage(hEditIn, EM_REPLACESEL, 0, (LPARAM) & wchBuf[0]);
+#else
         SendMessage(hEditIn, EM_REPLACESEL, 0, (LPARAM) & chBuf[0]);
+#endif
     }
     WaitForSingleObject(vestigeProc, INFINITE);
     if (consoleWinShown || procState < 2) {
@@ -109,8 +134,8 @@ void toggleStartAtLogin() {
     }
 }
 
-int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
-        LPSTR lpCmdLine, int nCmdShow) {
+int APIENTRY _tWinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
+        LPTSTR lpCmdLine, int nCmdShow) {
     MSG msg;
     WNDCLASS wc;
     DWORD pid;
@@ -123,7 +148,7 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
     saAttr.bInheritHandle = TRUE;
     saAttr.lpSecurityDescriptor = NULL;
 
-    if (CreateMutex (NULL, FALSE, "VestigeMutex") == NULL) {
+    if (CreateMutex (NULL, FALSE, TEXT("VestigeMutex")) == NULL) {
         hWnd = FindWindowEx(NULL, NULL, VESTIGE_CLASSNAME, NULL);
         if (hWnd) {
             // notify other
@@ -135,10 +160,10 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
     forceStop = 0;
     GetModuleFileName(NULL, szPath, MAX_PATH);
     GetModuleFileName(NULL, szPathDirectory, MAX_PATH);
-    char * lastSep = strrchr(szPathDirectory, '\\');
+    TCHAR * lastSep = _tcsrchr(szPathDirectory, '\\');
     *lastSep = 0;
-    snprintf(szPathBat, MAX_PATH, "cmd /c \"%s\\vestige.bat\" < nul", szPathDirectory);
-    RegOpenKey(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", &hKey);
+    _sntprintf(szPathBat, MAX_PATH, TEXT("cmd /c \"%s\\vestige.bat\" < nul"), szPathDirectory);
+    RegOpenKey(HKEY_CURRENT_USER, TEXT("Software\\Microsoft\\Windows\\CurrentVersion\\Run"), &hKey);
     if (RegQueryValueEx(hKey, VESTIGE_VALUE_NAME, NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
         atLoginStarted = 1;
     } else {
@@ -148,6 +173,7 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
     consoleWinShown = FALSE;
     procState = 0;
     hinst = hinstance;
+    bufferSizeBytes = 0;
     wc.style = 0;
     wc.lpfnWndProc = MainWndProc;
     wc.cbClsExtra = 0;
@@ -161,11 +187,11 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
 
     if(!RegisterClass(&wc)) return FALSE;
 
-    hWnd = CreateWindow(wc.lpszClassName, "Vestige: command line output", WS_OVERLAPPEDWINDOW,
+    hWnd = CreateWindow(wc.lpszClassName, TEXT("Vestige: command line output"), WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT, CW_USEDEFAULT, 700, 500,
             NULL, NULL, hinstance, NULL);
 
-    hmenu = LoadMenu(hinst, "VESTIGE_MENU");
+    hmenu = LoadMenu(hinst, TEXT("VESTIGE_MENU"));
 
     WSADATA WsaDat;
     WSAStartup(MAKEWORD(2,2),&WsaDat);
@@ -182,10 +208,11 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
     getsockname(ssocket, (SOCKADDR *)&SockAddr, &SockAddrSize);
     listen(ssocket, 1);
 
-    char portString[10];
-    sprintf(portString, "%d", ntohs(SockAddr.sin_port));
+    TCHAR portString[10];
+    _sntprintf(portString, 10, TEXT("%d"), ntohs(SockAddr.sin_port));
 
     SetEnvironmentVariable(TEXT("VESTIGE_LISTENER_PORT"), portString);
+    SetEnvironmentVariable(TEXT("VESTIGE_CONSOLE_ENCODING"), TEXT("UTF-8"));
 
     CreatePipe(&g_hChildStd_OUT_Rd, &g_hChildStd_OUT_Wr, &saAttr, 0);
     SetHandleInformation(g_hChildStd_OUT_Rd, HANDLE_FLAG_INHERIT, 0);
@@ -206,8 +233,8 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
     GetClientRect(hWnd, &rc);
 
     hEditIn=CreateWindowEx(WS_EX_CLIENTEDGE,
-            "EDIT",
-            "",
+            TEXT("EDIT"),
+            TEXT(""),
             WS_CHILD|WS_VISIBLE|ES_MULTILINE|
             ES_AUTOVSCROLL|ES_AUTOHSCROLL |
             WS_HSCROLL | WS_VSCROLL | ES_READONLY,
@@ -230,7 +257,7 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
     TrayIcon.hIcon = (HICON) LoadImage(hinstance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, 0, 0, LR_SHARED);
     TrayIcon.uCallbackMessage = MY_WM_NOTIFYICON;
     TrayIcon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-    strcpy(TrayIcon.szTip, "Vestige");
+    _tcscpy(TrayIcon.szTip, TEXT("Vestige"));
 
     if (atLoginStarted) {
         CheckMenuItem(hmenu, IDM_START_LOGIN, MF_CHECKED);
@@ -245,7 +272,7 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
             0,// default startup flags
             &dwThreadID);
 
-    hAccel = LoadAccelerators(hinstance, "VESTIGE_ACCELERATORS") ;
+    hAccel = LoadAccelerators(hinstance, TEXT("VESTIGE_ACCELERATORS")) ;
 
     while (GetMessage(&msg, NULL, 0, 0)) {
       if (!TranslateAccelerator (hWnd, hAccel, &msg)) {
@@ -274,7 +301,7 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
 
 LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     RECT rc;
-    char cbuf[1024];
+    TCHAR cbuf[1024];
     switch (uMsg) {
     case WM_CREATE:
     case WM_SIZE:
@@ -323,16 +350,16 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 info.fMask = MIIM_ID;
                 HMENU hpopup = GetSubMenu(hmenu, 0);
                 GetMenuItemInfo(hpopup, 5, TRUE, &info);
-                ModifyMenu(hpopup, info.wID, MF_BYCOMMAND | MF_STRING, info.wID, "Force stop");
+                ModifyMenu(hpopup, info.wID, MF_BYCOMMAND | MF_STRING, info.wID, TEXT("Force stop"));
                 forceStop = 1;
             }
             break;
         case IDM_OPEN_WEB:
-            sprintf(cbuf, "url.dll,FileProtocolHandler %s", url);
-            ShellExecute(NULL, "open", "rundll32.exe", cbuf, NULL, SW_SHOWNORMAL);
+            _sntprintf(cbuf, 1024, TEXT("url.dll,FileProtocolHandler %s"), url);
+            ShellExecute(NULL, TEXT("open"), TEXT("rundll32.exe"), cbuf, NULL, SW_SHOWNORMAL);
             break;
         case IDM_OPEN_BASE:
-            ShellExecute(NULL, "open", base, NULL, NULL, SW_SHOWNORMAL);
+            ShellExecute(NULL, TEXT("open"), base, NULL, NULL, SW_SHOWNORMAL);
             break;
         case IDM_SHOW_CONSOLE:
             consoleWinShown = TRUE;
@@ -357,38 +384,53 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_SOCKET: {
         switch (WSAGETSELECTEVENT(lParam)) {
         case FD_READ: {
-            int i;
-            char szIncoming[1024];
-            ZeroMemory(szIncoming, sizeof(szIncoming));
 
-            int len = recv(csocket, (char*) szIncoming, sizeof(szIncoming) / sizeof(szIncoming[0]), 0);
-
-            char * command = (char *) &szIncoming[0];
-            for (i = 0; i < len; i++) {
-                if (szIncoming[i] == '\r') {
-                    szIncoming[i] = 0;
-                    int webLen = strlen("Web ");
-                    int baseLen = strlen("Base ");
-                    if (strlen(command) > webLen && strncmp(command, "Web ", webLen) == 0) {
-                        url = (char *) malloc(strlen(&command[webLen]) + 1);
-                        strcpy(url, &command[webLen]);
-                        EnableMenuItem(hmenu, IDM_OPEN_WEB, MF_ENABLED);
-                    } else if (strlen(command) > baseLen && strncmp(command, "Base ", baseLen) == 0) {
-                        base = (char *) malloc(strlen(&command[baseLen]) + 1);
-                        strcpy(base, &command[baseLen]);
-                        EnableMenuItem(hmenu, IDM_OPEN_BASE, MF_ENABLED);
-                    } else if (strcmp(command, "Starting") == 0) {
-                        procState = 1;
-                    } else if (strcmp(command, "Started") == 0) {
-                        procState = 2;
-                    } else if (strcmp(command, "Stopping") == 0) {
-                        procState = 3;
-                    } else if (strcmp(command, "Stopped") == 0) {
-                        procState = 4;
-                    }
-                    command = (char *) &szIncoming[i + 2];
+            if (bufferSizeBytes != 4) {
+                bufferSizeBytes += recv(csocket, ((char *)&bufferSize)+bufferSizeBytes, 4 - bufferSizeBytes, 0);
+                if (bufferSizeBytes != 4) {
+                    return 0;
                 }
+                bufferSize = ntohl(bufferSize);
+                bufferRemain = bufferSize;
+                return 0;
             }
+
+            bufferRemain -= recv(csocket, buffer + (bufferSize - bufferRemain), bufferRemain, 0);
+            if (bufferRemain != 0) {
+                return 0;
+            }
+            bufferSizeBytes = 0;
+
+#ifdef UNICODE
+            TCHAR command[bufferSize * 2];
+            int mbRet = MultiByteToWideChar(CP_UTF8, 0, &buffer[0], bufferSize, command, 1024);
+            command[mbRet] = 0;
+#else
+            TCHAR * command = (TCHAR  *) &buffer[0];
+            command[bufferSize] = 0;
+#endif
+
+            int webLen = _tcslen(TEXT("Web "));
+            int baseLen = _tcslen(TEXT("Base "));
+            if (_tcslen(command) > webLen && _tcsncmp(command, TEXT("Web "), webLen) == 0) {
+                url = (TCHAR *) malloc((_tcslen(&command[webLen]) + 1) * sizeof(TCHAR));
+                _tcscpy(url, &command[webLen]);
+                EnableMenuItem(hmenu, IDM_OPEN_WEB, MF_ENABLED);
+            } else if (_tcslen(command) > baseLen && _tcsncmp(command, TEXT("Base "), baseLen) == 0) {
+                base = (TCHAR *) malloc((_tcslen(&command[baseLen]) + 1) * sizeof(TCHAR));
+                _tcscpy(base, &command[baseLen]);
+                EnableMenuItem(hmenu, IDM_OPEN_BASE, MF_ENABLED);
+            } else if (_tcscmp(command, TEXT("Starting")) == 0) {
+                procState = 1;
+            } else if (_tcscmp(command, TEXT("Started")) == 0) {
+                procState = 2;
+            } else if (_tcscmp(command, TEXT("Stopping")) == 0) {
+                procState = 3;
+            } else if (_tcscmp(command, TEXT("Stopped")) == 0) {
+                procState = 4;
+            }
+            return 0;
+
         }
             break;
         case FD_ACCEPT: {
