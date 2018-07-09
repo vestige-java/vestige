@@ -148,7 +148,7 @@ int APIENTRY _tWinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
     saAttr.bInheritHandle = TRUE;
     saAttr.lpSecurityDescriptor = NULL;
 
-    if (CreateMutex (NULL, FALSE, TEXT("VestigeMutex")) == NULL) {
+    if (CreateMutex (NULL, FALSE, TEXT("VestigeMutex")) == NULL || GetLastError() == ERROR_ALREADY_EXISTS) {
         hWnd = FindWindowEx(NULL, NULL, VESTIGE_CLASSNAME, NULL);
         if (hWnd) {
             // notify other
