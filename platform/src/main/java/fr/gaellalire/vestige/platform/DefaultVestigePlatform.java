@@ -361,14 +361,14 @@ public class DefaultVestigePlatform implements VestigePlatform {
         if (vestigeClassLoader == null) {
             // search inside jar after dependencies
             // classLoaderDependencies.add(null);
-            List<File> afterUrls = classLoaderConfiguration.getAfterUrls();
-            List<File> beforeUrls = classLoaderConfiguration.getBeforeUrls();
+            List<SecureFile> afterUrls = classLoaderConfiguration.getAfterUrls();
+            List<SecureFile> beforeUrls = classLoaderConfiguration.getBeforeUrls();
             JarFileResourceLocator[] urls = new JarFileResourceLocator[beforeUrls.size() + afterUrls.size()];
             for (int i = 0; i < beforeUrls.size(); i++) {
-                urls[i] = new JarFileResourceLocator(beforeUrls.get(i));
+                urls[i] = new JarFileResourceLocator(beforeUrls.get(i).getFile());
             }
             for (int i = 0; i < afterUrls.size(); i++) {
-                urls[i + beforeUrls.size()] = new JarFileResourceLocator(afterUrls.get(i));
+                urls[i + beforeUrls.size()] = new JarFileResourceLocator(afterUrls.get(i).getFile());
             }
             String name = classLoaderConfiguration.getName();
 
@@ -391,7 +391,15 @@ public class DefaultVestigePlatform implements VestigePlatform {
             ModuleEncapsulationEnforcer moduleEncapsulationEnforcer = null;
             JPMSInRepositoryConfiguration<VestigeClassLoader<AttachedVestigeClassLoader>> configuration = null;
             if (selfNeedModuleDefine) {
-                configuration = moduleLayerList.createConfiguration(beforeUrls, afterUrls, null, this);
+                List<File> beforeFiles = new ArrayList<File>(beforeUrls.size());
+                for (SecureFile secureFile : beforeUrls) {
+                    beforeFiles.add(secureFile.getFile());
+                }
+                List<File> afterFiles = new ArrayList<File>(afterUrls.size());
+                for (SecureFile secureFile : afterUrls) {
+                    afterFiles.add(secureFile.getFile());
+                }
+                configuration = moduleLayerList.createConfiguration(beforeFiles, afterFiles, null, this);
                 moduleEncapsulationEnforcer = configuration.getModuleEncapsulationEnforcer();
                 resourceStringParser = new ResourceEncapsulationEnforcer(resourceStringParser, configuration.getEncapsulatedPackageNames(), -1);
             }

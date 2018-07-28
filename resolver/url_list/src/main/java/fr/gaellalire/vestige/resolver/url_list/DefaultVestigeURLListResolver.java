@@ -31,6 +31,7 @@ import java.util.List;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.ModuleConfiguration;
+import fr.gaellalire.vestige.platform.SecureFile;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.resolver.common.DefaultResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.job.JobHelper;
@@ -64,11 +65,11 @@ public class DefaultVestigeURLListResolver implements VestigeURLListResolver {
             public ResolvedClassLoaderConfiguration execute(final JobHelper jobHelper) throws ResolverException {
                 URLClassLoaderConfigurationKey key;
                 String name;
-                List<File> files = new ArrayList<File>();
+                List<SecureFile> files = new ArrayList<SecureFile>();
                 // FIXME copy url content in a dir
                 for (URL url : urls) {
                     try {
-                        files.add(new File(url.toURI()));
+                        files.add(new SecureFile(new File(url.toURI())));
                     } catch (URISyntaxException e) {
                         throw new ResolverException("Unable to get URL", e);
                     }
@@ -82,7 +83,7 @@ public class DefaultVestigeURLListResolver implements VestigeURLListResolver {
                     name = configurationName;
                 }
                 return new DefaultResolvedClassLoaderConfiguration(vestigePlatform,
-                        new ClassLoaderConfiguration(key, name, scope == Scope.ATTACHMENT, Collections.<File> emptyList(), files,
+                        new ClassLoaderConfiguration(key, name, scope == Scope.ATTACHMENT, Collections.<SecureFile> emptyList(), files,
                                 Collections.<ClassLoaderConfiguration> emptyList(), null, null, null, null, JPMSClassLoaderConfiguration.EMPTY_INSTANCE.merge(moduleConfigurations),
                                 null));
             }

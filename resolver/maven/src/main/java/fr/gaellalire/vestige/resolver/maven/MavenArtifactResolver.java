@@ -86,6 +86,7 @@ import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
 import fr.gaellalire.vestige.platform.MinimalStringParserFactory;
 import fr.gaellalire.vestige.platform.ModuleConfiguration;
+import fr.gaellalire.vestige.platform.SecureFile;
 import fr.gaellalire.vestige.platform.StringParserFactory;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.resolver.common.DefaultResolvedClassLoaderConfiguration;
@@ -292,15 +293,15 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
             }
             classLoaderConfiguration = removeCycle.create(stringParserFactory);
         } else {
-            List<File> beforeUrls = new ArrayList<File>();
-            List<File> afterUrls = new ArrayList<File>();
+            List<SecureFile> beforeUrls = new ArrayList<SecureFile>();
+            List<SecureFile> afterUrls = new ArrayList<SecureFile>();
             List<MavenArtifact> mavenArtifacts = new ArrayList<MavenArtifact>();
             JPMSClassLoaderConfiguration moduleConfiguration = JPMSClassLoaderConfiguration.EMPTY_INSTANCE;
             boolean[] beforeParents = null;
             int i = 0;
             for (Artifact artifact : artifacts) {
                 mavenArtifacts.add(new MavenArtifact(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion()));
-                List<File> urls;
+                List<SecureFile> urls;
                 if (dependencyModifier.isBeforeParent(artifact.getGroupId(), artifact.getArtifactId())) {
                     urls = beforeUrls;
                     if (beforeParents == null) {
@@ -311,7 +312,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
                     urls = afterUrls;
                 }
                 File file = artifact.getFile();
-                urls.add(file);
+                urls.add(new SecureFile(file));
 
                 JPMSClassLoaderConfiguration unnamedClassLoaderConfiguration = jpmsConfiguration.getModuleConfiguration(artifact.getGroupId(), artifact.getArtifactId());
                 if (jpmsNamedModulesConfiguration != null) {

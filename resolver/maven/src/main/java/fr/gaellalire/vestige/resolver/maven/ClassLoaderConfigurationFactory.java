@@ -44,6 +44,7 @@ import fr.gaellalire.vestige.platform.AddAccessibility;
 import fr.gaellalire.vestige.platform.AddReads;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
+import fr.gaellalire.vestige.platform.SecureFile;
 import fr.gaellalire.vestige.platform.StringParserFactory;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.Scope;
@@ -63,9 +64,9 @@ public class ClassLoaderConfigurationFactory {
 
     private String appName;
 
-    private List<File> beforeUrls;
+    private List<SecureFile> beforeUrls;
 
-    private List<File> afterUrls;
+    private List<SecureFile> afterUrls;
 
     private List<Integer> paths;
 
@@ -103,11 +104,11 @@ public class ClassLoaderConfigurationFactory {
         return classLoaderConfigurationKey;
     }
 
-    public List<File> getBeforeUrls() {
+    public List<SecureFile> getBeforeUrls() {
         return beforeUrls;
     }
 
-    public List<File> getAfterUrls() {
+    public List<SecureFile> getAfterUrls() {
         return afterUrls;
     }
 
@@ -179,8 +180,9 @@ public class ClassLoaderConfigurationFactory {
         return dependenciesModuleNames;
     }
 
-    public ClassLoaderConfigurationFactory(final String appName, final MavenClassLoaderConfigurationKey classLoaderConfigurationKey, final Scope scope, final List<File> beforeUrls,
-            final List<File> afterUrls, final List<ClassLoaderConfigurationFactory> dependencies, final boolean encapsulationActivated) throws ResolverException {
+    public ClassLoaderConfigurationFactory(final String appName, final MavenClassLoaderConfigurationKey classLoaderConfigurationKey, final Scope scope,
+            final List<SecureFile> beforeUrls, final List<SecureFile> afterUrls, final List<ClassLoaderConfigurationFactory> dependencies, final boolean encapsulationActivated)
+            throws ResolverException {
         TreeMap<String, List<Integer>> pathsByResourceName = new TreeMap<String, List<Integer>>();
         TreeMap<String, List<Integer>> exportedPathsByResourceName = null;
         TreeMap<String, List<Integer>> exportedPathsByClassName = null;
@@ -200,9 +202,9 @@ public class ClassLoaderConfigurationFactory {
         paths = new ArrayList<Integer>();
 
         try {
-            ListIterator<File> listIterator = afterUrls.listIterator(afterUrls.size());
+            ListIterator<SecureFile> listIterator = afterUrls.listIterator(afterUrls.size());
             while (listIterator.hasPrevious()) {
-                readJar(pathsByResourceName, exportedPathsByResourceName, exportedPathsByClassName, moduleNames, listIterator.previous());
+                readJar(pathsByResourceName, exportedPathsByResourceName, exportedPathsByClassName, moduleNames, listIterator.previous().getFile());
             }
         } catch (IOException e) {
             throw new ResolverException("Unable to read jar content", e);
@@ -265,9 +267,9 @@ public class ClassLoaderConfigurationFactory {
         }
 
         try {
-            ListIterator<File> listIterator = beforeUrls.listIterator(beforeUrls.size());
+            ListIterator<SecureFile> listIterator = beforeUrls.listIterator(beforeUrls.size());
             while (listIterator.hasPrevious()) {
-                readJar(pathsByResourceName, exportedPathsByResourceName, exportedPathsByClassName, moduleNames, listIterator.previous());
+                readJar(pathsByResourceName, exportedPathsByResourceName, exportedPathsByClassName, moduleNames, listIterator.previous().getFile());
             }
         } catch (IOException e) {
             throw new ResolverException("Unable to read jar content", e);

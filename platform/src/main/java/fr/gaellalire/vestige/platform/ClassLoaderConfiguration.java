@@ -17,7 +17,6 @@
 
 package fr.gaellalire.vestige.platform;
 
-import java.io.File;
 import java.io.FilePermission;
 import java.io.Serializable;
 import java.security.Permission;
@@ -36,9 +35,9 @@ public class ClassLoaderConfiguration implements Serializable {
 
     private Serializable key;
 
-    private List<File> beforeUrls;
+    private List<SecureFile> beforeUrls;
 
-    private List<File> afterUrls;
+    private List<SecureFile> afterUrls;
 
     private List<ClassLoaderConfiguration> dependencies;
 
@@ -60,7 +59,7 @@ public class ClassLoaderConfiguration implements Serializable {
 
     private JPMSNamedModulesConfiguration namedModulesConfiguration;
 
-    public ClassLoaderConfiguration(final Serializable key, final String name, final boolean attachmentScoped, final List<File> beforeUrls, final List<File> afterUrls,
+    public ClassLoaderConfiguration(final Serializable key, final String name, final boolean attachmentScoped, final List<SecureFile> beforeUrls, final List<SecureFile> afterUrls,
             final List<ClassLoaderConfiguration> dependencies, final List<Integer> paths, final List<List<Integer>> pathIdsList, final StringParser pathIdsPositionByResourceName,
             final StringParser pathIdsPositionByClassName, final JPMSClassLoaderConfiguration moduleConfiguration, final JPMSNamedModulesConfiguration namedModulesConfiguration) {
         this.key = key;
@@ -74,11 +73,11 @@ public class ClassLoaderConfiguration implements Serializable {
         this.pathIdsPositionByResourceName = pathIdsPositionByResourceName;
         this.pathIdsPositionByClassName = pathIdsPositionByClassName;
         this.permissions = new HashSet<Permission>();
-        for (File url : beforeUrls) {
-            this.permissions.add(new FilePermission(url.getPath(), "read"));
+        for (SecureFile url : beforeUrls) {
+            this.permissions.add(new FilePermission(url.getFile().getPath(), "read"));
         }
-        for (File url : afterUrls) {
-            this.permissions.add(new FilePermission(url.getPath(), "read"));
+        for (SecureFile url : afterUrls) {
+            this.permissions.add(new FilePermission(url.getFile().getPath(), "read"));
         }
         for (ClassLoaderConfiguration dependency : dependencies) {
             this.permissions.addAll(dependency.getPermissions());
@@ -107,11 +106,11 @@ public class ClassLoaderConfiguration implements Serializable {
         return name;
     }
 
-    public List<File> getBeforeUrls() {
+    public List<SecureFile> getBeforeUrls() {
         return beforeUrls;
     }
 
-    public List<File> getAfterUrls() {
+    public List<SecureFile> getAfterUrls() {
         return afterUrls;
     }
 
@@ -165,23 +164,24 @@ public class ClassLoaderConfiguration implements Serializable {
         return moduleConfiguration;
     }
 
-    public boolean areAllURLConnectable() {
-        for (File url : beforeUrls) {
-            if (!url.exists()) {
-                return false;
+    public boolean verify() {
+        boolean result = true;
+        for (SecureFile url : beforeUrls) {
+            if (!url.verify()) {
+                result = false;
             }
         }
-        for (File url : afterUrls) {
-            if (!url.exists()) {
-                return false;
+        for (SecureFile url : afterUrls) {
+            if (!url.verify()) {
+                result = false;
             }
         }
         for (ClassLoaderConfiguration dependency : dependencies) {
-            if (!dependency.areAllURLConnectable()) {
-                return false;
+            if (!dependency.verify()) {
+                result = false;
             }
         }
-        return true;
+        return result;
     }
 
 }

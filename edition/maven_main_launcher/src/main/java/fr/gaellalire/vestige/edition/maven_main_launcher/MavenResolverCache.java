@@ -37,7 +37,8 @@ public class MavenResolverCache implements Serializable {
 
     private long lastModified;
 
-    public MavenResolverCache(final List<ClassLoaderConfiguration> classLoaderConfigurations, final String className, final ClassLoaderConfiguration classLoaderConfiguration, final long lastModified) {
+    public MavenResolverCache(final List<ClassLoaderConfiguration> classLoaderConfigurations, final String className, final ClassLoaderConfiguration classLoaderConfiguration,
+            final long lastModified) {
         this.launchCaches = classLoaderConfigurations;
         this.className = className;
         this.classLoaderConfiguration = classLoaderConfiguration;
@@ -60,16 +61,17 @@ public class MavenResolverCache implements Serializable {
         return classLoaderConfiguration;
     }
 
-    public boolean areAllURLConnectable() {
-        if (!classLoaderConfiguration.areAllURLConnectable()) {
-            return false;
+    public boolean verify() {
+        boolean result = true;
+        if (!classLoaderConfiguration.verify()) {
+            result = false;
         }
         for (ClassLoaderConfiguration launchCache : launchCaches) {
-            if (launchCache.areAllURLConnectable()) {
-                return false;
+            if (launchCache.verify()) {
+                result = false;
             }
         }
-        return true;
+        return result;
     }
 
 }

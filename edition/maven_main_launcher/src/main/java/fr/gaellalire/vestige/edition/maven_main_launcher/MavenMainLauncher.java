@@ -219,7 +219,7 @@ public final class MavenMainLauncher {
         }
 
         long lastModified = mavenLauncherFile.lastModified();
-        if (mavenResolverCache == null || lastModified != mavenResolverCache.getLastModified() || !mavenResolverCache.areAllURLConnectable()) {
+        if (mavenResolverCache == null || lastModified != mavenResolverCache.getLastModified() || !mavenResolverCache.verify()) {
             JAXBContext jc = JAXBContext.newInstance(ObjectFactory.class.getPackage().getName());
             Unmarshaller unMarshaller = jc.createUnmarshaller();
 
@@ -321,6 +321,10 @@ public final class MavenMainLauncher {
                 }
             } catch (Exception e) {
                 LOGGER.warn("Unable to save main resolver", e);
+            }
+            if (!mavenResolverCache.verify()) {
+                LOGGER.error("Unable to fix maven repository, aborting vestige run");
+                return;
             }
         } else {
             LOGGER.info("Maven launcher file not modified, use resolver cache");

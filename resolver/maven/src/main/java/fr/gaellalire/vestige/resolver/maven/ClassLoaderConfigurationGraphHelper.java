@@ -43,6 +43,7 @@ import fr.gaellalire.vestige.jpms.NamedModuleUtils;
 import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
 import fr.gaellalire.vestige.platform.ModuleConfiguration;
+import fr.gaellalire.vestige.platform.SecureFile;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.Scope;
 
@@ -141,21 +142,21 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
         ClassLoaderConfigurationFactory classLoaderConfigurationFactory = cachedClassLoaderConfigurationFactory.get(key.getArtifacts());
         // if artifacts are the same, dependencies too. With same artifacts dependencies can differ if they have different mavenConfig (not same application)
         if (classLoaderConfigurationFactory == null) {
-            List<File> beforeUrls = new ArrayList<File>();
-            List<File> afterUrls = new ArrayList<File>();
+            List<SecureFile> beforeUrls = new ArrayList<SecureFile>();
+            List<SecureFile> afterUrls = new ArrayList<SecureFile>();
             Scope scope = this.scope;
             i = 0;
             for (MavenArtifact artifact : nodes) {
                 if (scopeModifier != null) {
                     scope = scopeModifier.modify(scope, artifact.getGroupId(), artifact.getArtifactId());
                 }
-                List<File> urls;
+                List<SecureFile> urls;
                 if (beforeParents != null && beforeParents[i]) {
                     urls = beforeUrls;
                 } else {
                     urls = afterUrls;
                 }
-                urls.add(urlByKey.get(artifact));
+                urls.add(new SecureFile(urlByKey.get(artifact)));
                 i++;
             }
             classLoaderConfigurationFactory = new ClassLoaderConfigurationFactory(appName, key, scope, beforeUrls, afterUrls, nexts, namedModulesConfiguration != null);
