@@ -13,6 +13,7 @@ AppId={{AEACCA02-66BF-4C3A-9D5E-383D3A6AD6EB}
 AppName={#MyAppName}
 AppMutex=VestigeMutex
 AppVersion={#MyAppVersion}
+VersionInfoVersion={#MyAppVersion}.0
 AppVerName={#MyAppName} {#MyAppVersion}
 DefaultDirName={pf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
