@@ -74,7 +74,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
     static {
         // ensure classes used in application context are already loaded
-        ProxyInvocationHandler.class.getName();
+        ProxyInvocationHandler.init();
         VestigeSystemJarURLConnection.init();
         ApplicationInstallerInvoker.class.getName();
     }

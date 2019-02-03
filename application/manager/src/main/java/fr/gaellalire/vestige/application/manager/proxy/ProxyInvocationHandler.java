@@ -20,6 +20,7 @@ package fr.gaellalire.vestige.application.manager.proxy;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
@@ -47,6 +48,30 @@ public class ProxyInvocationHandler implements InvocationHandler {
     private ClassLoader classLoader;
 
     private Object source;
+
+    public static void init() {
+        // preload ClassLoaderObjectInputStream
+        ClassLoaderObjectInputStream.class.getName();
+    }
+
+    /**
+     * @author Gael Lalire
+     */
+    private static class ClassLoaderObjectInputStream extends ObjectInputStream {
+
+        private ClassLoader classLoader;
+
+        ClassLoaderObjectInputStream(final InputStream in, final ClassLoader classLoader) throws IOException {
+            super(in);
+            this.classLoader = classLoader;
+        }
+
+        @Override
+        protected Class<?> resolveClass(final ObjectStreamClass desc) throws IOException, ClassNotFoundException {
+            return Class.forName(desc.getName(), false, classLoader);
+        }
+
+    }
 
     public ProxyInvocationHandler(final ClassLoader classLoader, final Class<?> sourceItf, final Object source) {
         this.classLoader = classLoader;
@@ -83,14 +108,19 @@ public class ProxyInvocationHandler implements InvocationHandler {
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         ObjectOutputStream objectOutputStream = new ObjectOutputStream(out);
-        objectOutputStream.writeObject(throwable);
+        try {
+            objectOutputStream.writeObject(throwable);
+        } finally {
+            objectOutputStream.close();
+        }
 
-        Throwable o = (Throwable) new ObjectInputStream(new ByteArrayInputStream(out.toByteArray())) {
-            @Override
-            protected Class<?> resolveClass(final ObjectStreamClass desc) throws IOException, ClassNotFoundException {
-                return Class.forName(desc.getName(), false, classLoader);
-            }
-        }.readObject();
+        Throwable o;
+        ClassLoaderObjectInputStream in = new ClassLoaderObjectInputStream(new ByteArrayInputStream(out.toByteArray()), classLoader);
+        try {
+            o = (Throwable) in.readObject();
+        } finally {
+            in.close();
+        }
 
         if (savedCause != null) {
             try {
