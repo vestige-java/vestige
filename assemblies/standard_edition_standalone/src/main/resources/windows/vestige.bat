@@ -40,7 +40,11 @@ if not defined VESTIGE_LISTENER_PORT set VESTIGE_LISTENER_PORT=0
 
 if not defined VESTIGE_OPTS set VESTIGE_OPTS=%JAVA_OPTS%
 
-if defined VESTIGE_DEBUG set VESTIGE_OPTS=%VESTIGE_OPTS% -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=8000
+if defined VESTIGE_DEBUG (
+  if not defined VESTIGE_DEBUG_SUSPEND set VESTIGE_DEBUG_SUSPEND=n
+  if not defined VESTIGE_DEBUG_PORT set VESTIGE_DEBUG_PORT=8000
+  set VESTIGE_OPTS=%VESTIGE_OPTS% -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=%VESTIGE_DEBUG_SUSPEND%,address=%VESTIGE_DEBUG_PORT%
+)
 
 set VESTIGE_CONSOLE_ENCODING_OPTION=
 

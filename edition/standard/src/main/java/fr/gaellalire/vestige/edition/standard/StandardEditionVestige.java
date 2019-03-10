@@ -328,6 +328,8 @@ public class StandardEditionVestige implements Runnable {
         if (vestigeMavenResolver == null) {
             try {
                 vestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile);
+                // the mvn protocol of the launching code may not be the same as ours
+                // vestigeSystem.setURLStreamHandlerForProtocol(MavenArtifactResolver.MVN_PROTOCOL, MavenArtifactResolver.URL_STREAM_HANDLER);
             } catch (NoLocalRepositoryManagerException e) {
                 LOGGER.error("NoLocalRepositoryManagerException", e);
                 return;

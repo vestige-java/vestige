@@ -15,55 +15,39 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.resolver.maven.secure;
+package fr.gaellalire.vestige.resolver.common.secure;
 
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.security.Permission;
-import java.util.Collection;
-
+import fr.gaellalire.vestige.spi.resolver.AttachableClassLoader;
 import fr.gaellalire.vestige.spi.resolver.AttachedClassLoader;
-import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
-import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
 
 /**
  * @author Gael Lalire
  */
-public class SecureResolvedClassLoaderConfiguration implements ResolvedClassLoaderConfiguration {
+public class SecureAttachedClassLoader implements AttachedClassLoader {
 
     private VestigeSystem secureVestigeSystem;
 
-    private ResolvedClassLoaderConfiguration delegate;
+    private AttachedClassLoader delegate;
 
-    public SecureResolvedClassLoaderConfiguration(final VestigeSystem secureVestigeSystem, final ResolvedClassLoaderConfiguration delegate) {
+    public SecureAttachedClassLoader(final VestigeSystem secureVestigeSystem, final AttachedClassLoader delegate) {
         this.secureVestigeSystem = secureVestigeSystem;
         this.delegate = delegate;
     }
 
     @Override
-    public AttachedClassLoader attach() throws ResolverException, InterruptedException {
+    public AttachableClassLoader getAttachableClassLoader() {
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {
-            return new SecureAttachedClassLoader(secureVestigeSystem, delegate.attach());
+            return new SecureAttachableClassLoader(secureVestigeSystem, delegate.getAttachableClassLoader());
         } finally {
             vestigeSystem.setCurrentSystem();
         }
     }
 
     @Override
-    public void save(final ObjectOutputStream objectOutputStream) throws IOException {
-        delegate.save(objectOutputStream);
-    }
-
-    @Override
-    public Collection<Permission> getPermissions() {
-        return delegate.getPermissions();
-    }
-
-    @Override
-    public boolean isAttachmentScoped() {
-        return delegate.isAttachmentScoped();
+    public void detach() {
+        delegate.detach();
     }
 
 }

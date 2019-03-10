@@ -206,7 +206,7 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
 
     @Override
     public ResolveMavenArtifactRequest resolve(final ResolveMode resolveMode, final Scope scope, final String groupId, final String artifactId, final String version,
-            final String name) {
+            final String extension, final String name) {
         return new ResolveMavenArtifactRequest() {
 
             private boolean namedModuleActivated;
@@ -237,10 +237,10 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
                     }
                 }
 
-                final ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve(name, groupId, artifactId, version, additionalRepositories,
+                final ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve(name, groupId, artifactId, version, extension, additionalRepositories,
                         defaultDependencyModifier, defaultJPMSConfiguration, jpmsNamedModulesConfiguration, resolveMode == ResolveMode.FIXED_DEPENDENCIES, scope, scopeModifier,
-                        superPomRepositoriesUsed, pomRepositoriesIgnored, jobHelper);
-                return new DefaultResolvedClassLoaderConfiguration(vestigePlatform, classLoaderConfiguration);
+                        superPomRepositoriesUsed, pomRepositoriesIgnored, false, jobHelper);
+                return new DefaultResolvedClassLoaderConfiguration(vestigePlatform, classLoaderConfiguration, defaultDependencyModifier.isBeforeParent(groupId, artifactId));
             }
 
             @Override
@@ -273,6 +273,12 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
             }
         };
 
+    }
+
+    @Override
+    public ResolveMavenArtifactRequest resolve(final ResolveMode resolveMode, final Scope scope, final String groupId, final String artifactId, final String version,
+            final String name) {
+        return resolve(resolveMode, scope, groupId, artifactId, version, "jar", name);
     }
 
 }

@@ -153,14 +153,14 @@
     <at>@</at>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <slf4j.version>1.7.25</slf4j.version>
-    <vestige.core.version>3</vestige.core.version>
+    <vestige.core.version>4</vestige.core.version>
     <vestige.jpms.version>2.0</vestige.jpms.version>
     <vestige.jvm_enhancer.version>3.0</vestige.jvm_enhancer.version>
     <vestige.spi.system.version>1.0</vestige.spi.system.version>
     <vestige.spi.job.version>1.0</vestige.spi.job.version>
-    <vestige.spi.resolver.version>1.0</vestige.spi.resolver.version>
+    <vestige.spi.resolver.version>1.1-SNAPSHOT</vestige.spi.resolver.version>
     <vestige.spi.resolver.url_list.version>1.0</vestige.spi.resolver.url_list.version>
-    <vestige.spi.resolver.maven.version>1.0</vestige.spi.resolver.maven.version>
+    <vestige.spi.resolver.maven.version>1.1-SNAPSHOT</vestige.spi.resolver.maven.version>
     <vestige.maven.version>java6-3</vestige.maven.version>
     <logback.version>1.2.3</logback.version>
     <jetty.version>8.1.11.v20130520</jetty.version>

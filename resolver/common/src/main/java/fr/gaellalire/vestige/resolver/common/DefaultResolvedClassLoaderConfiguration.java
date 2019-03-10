@@ -28,6 +28,7 @@ import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.spi.resolver.AttachedClassLoader;
 import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
+import fr.gaellalire.vestige.spi.resolver.VestigeJar;
 
 /**
  * @author Gael Lalire
@@ -38,7 +39,10 @@ public class DefaultResolvedClassLoaderConfiguration implements ResolvedClassLoa
 
     private ClassLoaderConfiguration classLoaderConfiguration;
 
-    public DefaultResolvedClassLoaderConfiguration(final VestigePlatform vestigePlatform, final ClassLoaderConfiguration classLoaderConfiguration) {
+    private boolean firstBeforeParent;
+
+    public DefaultResolvedClassLoaderConfiguration(final VestigePlatform vestigePlatform, final ClassLoaderConfiguration classLoaderConfiguration,
+            final boolean firstBeforeParent) {
         this.vestigePlatform = vestigePlatform;
         this.classLoaderConfiguration = classLoaderConfiguration;
     }
@@ -48,6 +52,7 @@ public class DefaultResolvedClassLoaderConfiguration implements ResolvedClassLoa
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         ObjectOutputStream internObjectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
         try {
+            internObjectOutputStream.writeBoolean(firstBeforeParent);
             internObjectOutputStream.writeObject(classLoaderConfiguration);
         } finally {
             internObjectOutputStream.close();
@@ -83,6 +88,12 @@ public class DefaultResolvedClassLoaderConfiguration implements ResolvedClassLoa
     @Override
     public String toString() {
         return classLoaderConfiguration.toString();
+    }
+
+    @Override
+    public VestigeJar getFirstVestigeJar() {
+        DefaultVestigeJarContext defaultVestigeJarContext = new DefaultVestigeJarContext(classLoaderConfiguration, firstBeforeParent);
+        return new DefaultVestigeJar(defaultVestigeJarContext.next(), defaultVestigeJarContext);
     }
 
 }

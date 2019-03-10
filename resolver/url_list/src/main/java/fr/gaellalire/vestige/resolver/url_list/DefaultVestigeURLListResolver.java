@@ -69,7 +69,8 @@ public class DefaultVestigeURLListResolver implements VestigeURLListResolver {
                 // FIXME copy url content in a dir
                 for (URL url : urls) {
                     try {
-                        files.add(new SecureFile(new File(url.toURI())));
+                        // FIXME url permission ??
+                        files.add(new SecureFile(new File(url.toURI()), url, null));
                     } catch (URISyntaxException e) {
                         throw new ResolverException("Unable to get URL", e);
                     }
@@ -85,7 +86,8 @@ public class DefaultVestigeURLListResolver implements VestigeURLListResolver {
                 return new DefaultResolvedClassLoaderConfiguration(vestigePlatform,
                         new ClassLoaderConfiguration(key, name, scope == Scope.ATTACHMENT, Collections.<SecureFile> emptyList(), files,
                                 Collections.<ClassLoaderConfiguration> emptyList(), null, null, null, null, JPMSClassLoaderConfiguration.EMPTY_INSTANCE.merge(moduleConfigurations),
-                                null));
+                                null),
+                        true);
             }
 
             public void addExports(final String moduleName, final String packageName) {
@@ -116,7 +118,7 @@ public class DefaultVestigeURLListResolver implements VestigeURLListResolver {
                 }
 
             }.readObject();
-            return new DefaultResolvedClassLoaderConfiguration(vestigePlatform, classLoaderConfiguration);
+            return new DefaultResolvedClassLoaderConfiguration(vestigePlatform, classLoaderConfiguration, true);
         } catch (ClassNotFoundException e) {
             throw new IOException("ClassNotFoundException", e);
         }

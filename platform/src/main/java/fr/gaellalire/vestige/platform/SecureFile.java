@@ -22,9 +22,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
+import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
 
 /**
  * @author Gael Lalire
@@ -37,49 +37,59 @@ public class SecureFile implements Serializable {
 
     private long lastModified;
 
-    private byte[] checksum;
+    private String sha1sum;
 
-    private byte[] signature;
+    private URL codeBase;
 
-    public SecureFile(final File file) {
-        this.file = file;
-        try {
-            this.checksum = createChecksum(file);
-        } catch (Exception e) {
-            // no md5
+    public static String toHexString(final byte[] bytes) {
+        if (bytes == null) {
+            return null;
         }
+
+        StringBuilder buffer = new StringBuilder(bytes.length * 2);
+
+        for (byte aByte : bytes) {
+            int b = aByte & 0xFF;
+            if (b < 0x10) {
+                buffer.append('0');
+            }
+            buffer.append(Integer.toHexString(b));
+        }
+
+        return buffer.toString();
+    }
+
+    public SecureFile(final File file, final URL codeBase, final String sha1sum) {
+        this.file = file;
+        this.codeBase = codeBase;
+        this.sha1sum = sha1sum;
     }
 
     public boolean verify() {
         if (!file.exists()) {
             return false;
         }
-        if (signature == null) {
-            // unsecure but faster check with checksum & lastModified
-            long fileLastModified = file.lastModified();
-            if (lastModified != fileLastModified && checksum != null) {
-                // check md5
-                try {
-                    byte[] fileChecksum = createChecksum(file);
-                    if (!Arrays.equals(checksum, fileChecksum)) {
-                        file.delete();
-                        return false;
-                    }
-                    lastModified = fileLastModified;
-                } catch (Exception e) {
-                    file.delete();
+        // unsecure but faster check with checksum & lastModified
+        long fileLastModified = file.lastModified();
+        if (lastModified != fileLastModified && sha1sum != null) {
+            // check md5
+            try {
+                if (!sha1sum.equals(createChecksum(file))) {
                     return false;
                 }
+                lastModified = fileLastModified;
+            } catch (Exception e) {
+                return false;
             }
         }
         return true;
     }
 
-    public static byte[] createChecksum(final File filename) throws IOException, NoSuchAlgorithmException {
+    public static String createChecksum(final File filename) throws IOException, NoSuchAlgorithmException {
         InputStream fis = new FileInputStream(filename);
 
         byte[] buffer = new byte[1024];
-        MessageDigest complete = MessageDigest.getInstance("SHA1");
+        MessageDigest complete = MessageDigest.getInstance("SHA-1");
         int numRead;
 
         do {
@@ -90,11 +100,15 @@ public class SecureFile implements Serializable {
         } while (numRead != -1);
 
         fis.close();
-        return complete.digest();
+        return toHexString(complete.digest());
     }
 
     public File getFile() {
         return file;
+    }
+
+    public URL getCodeBase() {
+        return codeBase;
     }
 
 }

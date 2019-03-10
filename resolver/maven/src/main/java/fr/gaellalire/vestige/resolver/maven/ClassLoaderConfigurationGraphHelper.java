@@ -19,6 +19,8 @@ package fr.gaellalire.vestige.resolver.maven;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -150,13 +152,18 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
                 if (scopeModifier != null) {
                     scope = scopeModifier.modify(scope, artifact.getGroupId(), artifact.getArtifactId());
                 }
+
                 List<SecureFile> urls;
                 if (beforeParents != null && beforeParents[i]) {
                     urls = beforeUrls;
                 } else {
                     urls = afterUrls;
                 }
-                urls.add(new SecureFile(urlByKey.get(artifact)));
+                try {
+                    urls.add(new SecureFile(urlByKey.get(artifact), new URL(artifact.toString()), artifact.getSha1sum()));
+                } catch (MalformedURLException e) {
+                    throw new ResolverException("Unable to create Maven URL", e);
+                }
                 i++;
             }
             classLoaderConfigurationFactory = new ClassLoaderConfigurationFactory(appName, key, scope, beforeUrls, afterUrls, nexts, namedModulesConfiguration != null);

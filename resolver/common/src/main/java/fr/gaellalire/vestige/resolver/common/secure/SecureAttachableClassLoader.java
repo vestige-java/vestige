@@ -15,7 +15,7 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.resolver.maven.secure;
+package fr.gaellalire.vestige.resolver.common.secure;
 
 import fr.gaellalire.vestige.spi.resolver.AttachableClassLoader;
 import fr.gaellalire.vestige.spi.resolver.AttachedClassLoader;

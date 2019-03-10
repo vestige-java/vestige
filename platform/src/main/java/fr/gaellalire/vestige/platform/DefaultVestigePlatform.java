@@ -365,10 +365,12 @@ public class DefaultVestigePlatform implements VestigePlatform {
             List<SecureFile> beforeUrls = classLoaderConfiguration.getBeforeUrls();
             JarFileResourceLocator[] urls = new JarFileResourceLocator[beforeUrls.size() + afterUrls.size()];
             for (int i = 0; i < beforeUrls.size(); i++) {
-                urls[i] = new JarFileResourceLocator(beforeUrls.get(i).getFile());
+                SecureFile secureFile = beforeUrls.get(i);
+                urls[i] = new JarFileResourceLocator(secureFile.getFile(), secureFile.getCodeBase());
             }
             for (int i = 0; i < afterUrls.size(); i++) {
-                urls[i + beforeUrls.size()] = new JarFileResourceLocator(afterUrls.get(i).getFile());
+                SecureFile secureFile = afterUrls.get(i);
+                urls[i + beforeUrls.size()] = new JarFileResourceLocator(secureFile.getFile(), secureFile.getCodeBase());
             }
             String name = classLoaderConfiguration.getName();
 

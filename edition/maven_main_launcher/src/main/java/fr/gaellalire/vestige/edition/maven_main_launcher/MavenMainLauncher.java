@@ -33,6 +33,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.net.URLStreamHandlerFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -60,6 +61,7 @@ import fr.gaellalire.vestige.core.executor.VestigeExecutor;
 import fr.gaellalire.vestige.core.executor.callable.InvokeMethod;
 import fr.gaellalire.vestige.core.function.Function;
 import fr.gaellalire.vestige.core.resource.JarFileResourceLocator;
+import fr.gaellalire.vestige.core.url.DelegateURLStreamHandler;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandlerFactory;
 import fr.gaellalire.vestige.edition.maven_main_launcher.schema.ActivateNamedModules;
 import fr.gaellalire.vestige.edition.maven_main_launcher.schema.AddDependency;
@@ -89,6 +91,7 @@ import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
 import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
 import fr.gaellalire.vestige.platform.ModuleConfiguration;
 import fr.gaellalire.vestige.platform.VestigePlatform;
+import fr.gaellalire.vestige.platform.VestigeURLStreamHandlerFactory;
 import fr.gaellalire.vestige.resolver.maven.DefaultDependencyModifier;
 import fr.gaellalire.vestige.resolver.maven.DefaultJPMSConfiguration;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
@@ -204,6 +207,12 @@ public final class MavenMainLauncher {
         // JPMSAccessorLoader.INSTANCE.getModule(VestigePlatform.class).addOpens("fr.gaellalire.vestige.platform", MavenMainLauncher.class);
         // }
 
+        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile);
+        VestigeURLStreamHandlerFactory vestigeURLStreamHandlerFactory = new VestigeURLStreamHandlerFactory();
+        MavenArtifactResolver.replaceMavenURLStreamHandler(mavenArtifactResolver.getBaseDir(), vestigeURLStreamHandlerFactory);
+        DelegateURLStreamHandlerFactory streamHandlerFactory = vestigeCoreContext.getStreamHandlerFactory();
+        streamHandlerFactory.setDelegate(vestigeURLStreamHandlerFactory);
+
         MavenResolverCache mavenResolverCache = null;
         try {
             if (mavenResolverCacheFile.isFile()) {
@@ -284,7 +293,6 @@ public final class MavenMainLauncher {
                 pomRepositoriesIgnored = mavenConfig.isPomRepositoriesIgnored();
                 superPomRepositoriesUsed = mavenConfig.isSuperPomRepositoriesUsed();
             }
-            MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile);
             List<ClassLoaderConfiguration> launchCaches = new ArrayList<ClassLoaderConfiguration>();
             int attachCount = 0;
             for (MavenAttachType mavenClassType : mavenLauncher.getAttach()) {
@@ -292,8 +300,8 @@ public final class MavenMainLauncher {
                 Scope mavenScope = convertScope(mavenClassType.getScope());
 
                 ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve("vestige-attach-" + attachCount, mavenClassType.getGroupId(),
-                        mavenClassType.getArtifactId(), mavenClassType.getVersion(), additionalRepositories, defaultDependencyModifier, defaultJPMSConfiguration, null,
-                        resolveMode == ResolveMode.FIXED_DEPENDENCIES, mavenScope, null, superPomRepositoriesUsed, pomRepositoriesIgnored, DummyJobHelper.INSTANCE);
+                        mavenClassType.getArtifactId(), mavenClassType.getVersion(), "jar", additionalRepositories, defaultDependencyModifier, defaultJPMSConfiguration, null,
+                        resolveMode == ResolveMode.FIXED_DEPENDENCIES, mavenScope, null, superPomRepositoriesUsed, pomRepositoriesIgnored, true, DummyJobHelper.INSTANCE);
                 launchCaches.add(classLoaderConfiguration);
                 attachCount++;
             }
@@ -304,8 +312,8 @@ public final class MavenMainLauncher {
             Scope mavenScope = convertScope(mavenClassType.getScope());
 
             ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve("vestige", mavenClassType.getGroupId(), mavenClassType.getArtifactId(),
-                    mavenClassType.getVersion(), additionalRepositories, defaultDependencyModifier, defaultJPMSConfiguration, namedModulesConfiguration,
-                    resolveMode == ResolveMode.FIXED_DEPENDENCIES, mavenScope, null, superPomRepositoriesUsed, pomRepositoriesIgnored, DummyJobHelper.INSTANCE);
+                    mavenClassType.getVersion(), "jar", additionalRepositories, defaultDependencyModifier, defaultJPMSConfiguration, namedModulesConfiguration,
+                    resolveMode == ResolveMode.FIXED_DEPENDENCIES, mavenScope, null, superPomRepositoriesUsed, pomRepositoriesIgnored, true, DummyJobHelper.INSTANCE);
 
             mavenResolverCache = new MavenResolverCache(launchCaches, mavenClassType.getClazz(), classLoaderConfiguration, lastModified);
             try {
@@ -362,6 +370,9 @@ public final class MavenMainLauncher {
             // convert, this will initialize some classes in mavenResolverClassLoader so we must set the contextClassLoader
             loadedVestigePlatform = convertVestigePlatform(mavenResolverClassLoader, vestigePlatform, vestigeExecutor,
                     convertModuleRepository(mavenResolverClassLoader, repository, loadedModuleLayers), loadedModuleLayers);
+
+            installConvertedVestigeURLStreamHandlerFactory(mavenResolverClassLoader, streamHandlerFactory, vestigeURLStreamHandlerFactory, mavenArtifactResolver.getBaseDir());
+
         } finally {
             currentThread.setContextClassLoader(contextClassLoader);
         }
@@ -374,6 +385,18 @@ public final class MavenMainLauncher {
         vestigeExecutor.createWorker("resolver-maven-main", false, 1);
         vestigeExecutor.submit(new InvokeMethod(mavenResolverClassLoader, vestigeMain, null, new Object[] {vestigeExecutor, loadedVestigePlatform, addShutdownHook,
                 removeShutdownHook, privilegedClassloaders, new WeakReference<ClassLoader>(MavenMainLauncher.class.getClassLoader()), dargs}));
+    }
+
+    private static void installConvertedVestigeURLStreamHandlerFactory(final VestigeClassLoader<AttachedVestigeClassLoader> mavenResolverClassLoader,
+            final DelegateURLStreamHandlerFactory streamHandlerFactory, final VestigeURLStreamHandlerFactory vestigeURLStreamHandlerFactory, final File baseDir) throws Exception {
+        Class<?> vestigeURLStreamHandlerFactoryClass = Class.forName(VestigeURLStreamHandlerFactory.class.getName(), false, mavenResolverClassLoader);
+        Map<String, DelegateURLStreamHandler> copyMap = vestigeURLStreamHandlerFactory.copyMap();
+        URLStreamHandlerFactory newInstance = (URLStreamHandlerFactory) vestigeURLStreamHandlerFactoryClass.getConstructor(Map.class).newInstance(copyMap);
+
+        Class<?> mavenArtifactResolverClass = Class.forName(MavenArtifactResolver.class.getName(), false, mavenResolverClassLoader);
+        mavenArtifactResolverClass.getMethod("replaceMavenURLStreamHandler", File.class, vestigeURLStreamHandlerFactoryClass).invoke(null, baseDir, newInstance);
+
+        streamHandlerFactory.setDelegate(newInstance);
     }
 
     public static Object convertLayerAccessor(final VestigeClassLoader<?> mavenResolverClassLoader, final Object loadedRepo, final Method addMethod,

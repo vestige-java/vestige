@@ -21,6 +21,7 @@ import java.security.Permission;
 import java.security.PermissionCollection;
 
 import fr.gaellalire.vestige.job.secure.SecureJobHelper;
+import fr.gaellalire.vestige.resolver.common.secure.SecureResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.job.JobHelper;
 import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;

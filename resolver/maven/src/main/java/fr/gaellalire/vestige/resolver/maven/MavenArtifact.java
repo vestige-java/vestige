@@ -32,12 +32,19 @@ public class MavenArtifact implements Serializable {
 
     private String version;
 
+    private String extension;
+
+    // SHA1Sum is not in equals method, but it could be (not shared between two resolving)
+    private String sha1sum;
+
     private int hashCode;
 
-    public MavenArtifact(final String groupId, final String artifactId, final String version) {
+    public MavenArtifact(final String groupId, final String artifactId, final String version, final String extension, final String sha1sum) {
         this.groupId = groupId;
         this.artifactId = artifactId;
         this.version = version;
+        this.extension = extension;
+        this.sha1sum = sha1sum;
         if (version == null) {
             hashCode = groupId.hashCode() + artifactId.hashCode();
         } else {
@@ -49,24 +56,20 @@ public class MavenArtifact implements Serializable {
         return groupId;
     }
 
-    public void setGroupId(final String groupId) {
-        this.groupId = groupId;
-    }
-
     public String getArtifactId() {
         return artifactId;
-    }
-
-    public void setArtifactId(final String artifactId) {
-        this.artifactId = artifactId;
     }
 
     public String getVersion() {
         return version;
     }
 
-    public void setVersion(final String version) {
-        this.version = version;
+    public String getExtension() {
+        return extension;
+    }
+
+    public String getSha1sum() {
+        return sha1sum;
     }
 
     @Override
@@ -99,11 +102,21 @@ public class MavenArtifact implements Serializable {
         } else if (!version.equals(other.version)) {
             return false;
         }
+        if (extension == null) {
+            if (other.extension != null) {
+                return false;
+            }
+        } else if (!extension.equals(other.extension)) {
+            return false;
+        }
         return true;
     }
 
     @Override
     public String toString() {
+        if (!"jar".equals(extension)) {
+            return "mvn:" + groupId + "/" + artifactId + "/" + version + "/" + extension;
+        }
         return "mvn:" + groupId + "/" + artifactId + "/" + version;
     }
 

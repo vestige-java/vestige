@@ -104,9 +104,16 @@ public class SecureMavenContextBuilder implements MavenContextBuilder, MavenCont
     @Override
     public ResolveMavenArtifactRequest resolve(final ResolveMode resolveMode, final Scope scope, final String groupId, final String artifactId, final String version,
             final String name) {
+        return resolve(resolveMode, scope, groupId, artifactId, version, "jar", name);
+    }
+
+    @Override
+    public ResolveMavenArtifactRequest resolve(final ResolveMode resolveMode, final Scope scope, final String groupId, final String artifactId, final String version,
+            final String extension, final String name) {
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {
-            return new SecureResolveMavenArtifactRequest(secureVestigeSystem, vestigePolicy, mavenContext.resolve(resolveMode, scope, groupId, artifactId, version, name));
+            return new SecureResolveMavenArtifactRequest(secureVestigeSystem, vestigePolicy,
+                    mavenContext.resolve(resolveMode, scope, groupId, artifactId, version, extension, name));
         } finally {
             vestigeSystem.setCurrentSystem();
         }

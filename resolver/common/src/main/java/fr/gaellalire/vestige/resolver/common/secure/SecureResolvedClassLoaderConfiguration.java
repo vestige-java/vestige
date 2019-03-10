@@ -15,7 +15,7 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.application.manager;
+package fr.gaellalire.vestige.resolver.common.secure;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -26,24 +26,30 @@ import fr.gaellalire.vestige.spi.resolver.AttachedClassLoader;
 import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.VestigeJar;
+import fr.gaellalire.vestige.spi.system.VestigeSystem;
 
 /**
  * @author Gael Lalire
  */
-public class ApplicationResolvedClassLoaderConfiguration implements ResolvedClassLoaderConfiguration {
+public class SecureResolvedClassLoaderConfiguration implements ResolvedClassLoaderConfiguration {
+
+    private VestigeSystem secureVestigeSystem;
 
     private ResolvedClassLoaderConfiguration delegate;
 
-    private int resolverIndex;
-
-    public ApplicationResolvedClassLoaderConfiguration(final ResolvedClassLoaderConfiguration delegate, final int resolverIndex) {
+    public SecureResolvedClassLoaderConfiguration(final VestigeSystem secureVestigeSystem, final ResolvedClassLoaderConfiguration delegate) {
+        this.secureVestigeSystem = secureVestigeSystem;
         this.delegate = delegate;
-        this.resolverIndex = resolverIndex;
     }
 
     @Override
     public AttachedClassLoader attach() throws ResolverException, InterruptedException {
-        return delegate.attach();
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return new SecureAttachedClassLoader(secureVestigeSystem, delegate.attach());
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
@@ -56,22 +62,19 @@ public class ApplicationResolvedClassLoaderConfiguration implements ResolvedClas
         return delegate.getPermissions();
     }
 
+    @Override
     public boolean isAttachmentScoped() {
         return delegate.isAttachmentScoped();
     }
 
-    public int getResolverIndex() {
-        return resolverIndex;
-    }
-
-    @Override
-    public String toString() {
-        return delegate.toString();
-    }
-
     @Override
     public VestigeJar getFirstVestigeJar() {
-        return delegate.getFirstVestigeJar();
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return new SecureVestigeJar(secureVestigeSystem, delegate.getFirstVestigeJar());
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
     }
 
 }
