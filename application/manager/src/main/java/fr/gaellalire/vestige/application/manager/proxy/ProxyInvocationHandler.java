@@ -24,13 +24,14 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
+
+import fr.gaellalire.vestige.application.manager.PrivilegedExceptionActionExecutor;
 
 /**
  * Proxy interfaces method parameters must be shared between source and target. <br>
@@ -48,6 +49,8 @@ public class ProxyInvocationHandler implements InvocationHandler {
     private ClassLoader classLoader;
 
     private Object source;
+
+    private PrivilegedExceptionActionExecutor privilegedExecutor;
 
     public static void init() {
         // preload ClassLoaderObjectInputStream
@@ -73,9 +76,10 @@ public class ProxyInvocationHandler implements InvocationHandler {
 
     }
 
-    public ProxyInvocationHandler(final ClassLoader classLoader, final Class<?> sourceItf, final Object source) {
+    public ProxyInvocationHandler(final ClassLoader classLoader, final Class<?> sourceItf, final Object source, final PrivilegedExceptionActionExecutor privilegedExecutor) {
         this.classLoader = classLoader;
         this.source = source;
+        this.privilegedExecutor = privilegedExecutor;
 
         for (Method method : sourceItf.getMethods()) {
             String methodName = method.getName();
@@ -90,24 +94,35 @@ public class ProxyInvocationHandler implements InvocationHandler {
         }
     }
 
-    public static Object createProxy(final ClassLoader classLoader, final Class<?> sourceItf, final Class<?> itf, final Object source) {
-        return Proxy.newProxyInstance(classLoader, new Class<?>[] {itf}, new ProxyInvocationHandler(classLoader, sourceItf, source));
+    public static Object createProxy(final ClassLoader classLoader, final Class<?> sourceItf, final Class<?> itf, final Object source,
+            final PrivilegedExceptionActionExecutor privilegedExecutor) {
+        return Proxy.newProxyInstance(classLoader, new Class<?>[] {itf}, new ProxyInvocationHandler(classLoader, sourceItf, source, privilegedExecutor));
     }
 
-    public static Throwable convertException(final ClassLoader classLoader, final Throwable throwable) throws IOException, ClassNotFoundException {
-        Field causeField = null;
-        Object savedCause = null;
-        try {
-            causeField = Throwable.class.getDeclaredField("cause");
-            causeField.setAccessible(true);
-            savedCause = causeField.get(throwable);
-            causeField.set(throwable, null);
-        } catch (Exception e) {
-            // serialize all stacktrace
-        }
+    public Throwable convertException(final ClassLoader classLoader, final Throwable throwable) throws IOException, ClassNotFoundException {
+        final Throwable savedCause = throwable.getCause();
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        ObjectOutputStream objectOutputStream = new ObjectOutputStream(out);
+        ObjectOutputStream objectOutputStream;
+        privilegedExecutor.setPrivileged();
+        try {
+            objectOutputStream = new ObjectOutputStream(out) {
+                {
+                    enableReplaceObject(true);
+                }
+
+                @Override
+                protected Object replaceObject(final Object obj) throws IOException {
+                    if (obj == savedCause) {
+                        // fix the cause to self to be able to call initCause later
+                        return throwable;
+                    }
+                    return obj;
+                }
+            };
+        } finally {
+            privilegedExecutor.unsetPrivileged();
+        }
         try {
             objectOutputStream.writeObject(throwable);
         } finally {
@@ -122,15 +137,7 @@ public class ProxyInvocationHandler implements InvocationHandler {
             in.close();
         }
 
-        if (savedCause != null) {
-            try {
-                causeField.set(o, savedCause);
-                causeField.set(throwable, savedCause);
-                causeField.setAccessible(false);
-            } catch (Exception e) {
-                // should not happen
-            }
-        }
+        o.initCause(savedCause);
 
         return o;
     }
@@ -157,7 +164,7 @@ public class ProxyInvocationHandler implements InvocationHandler {
                 if (parameterType.isEnum()) {
                     dargs[i] = Enum.valueOf((Class) parameterType, ((Enum<?>) args[i]).name());
                 } else if (parameterType != parameterTypeArray[i]) {
-                    dargs[i] = createProxy(parameterType.getClassLoader(), parameterTypeArray[i], parameterType, args[i]);
+                    dargs[i] = createProxy(parameterType.getClassLoader(), parameterTypeArray[i], parameterType, args[i], privilegedExecutor);
                 } else {
                     dargs[i] = args[i];
                 }
@@ -167,7 +174,7 @@ public class ProxyInvocationHandler implements InvocationHandler {
             Object invoke = delegateMethod.invoke(source, dargs);
 
             if (invoke != null && delegateMethod.getReturnType() != method.getReturnType()) {
-                return createProxy(classLoader, delegateMethod.getReturnType(), method.getReturnType(), invoke);
+                return createProxy(classLoader, delegateMethod.getReturnType(), method.getReturnType(), invoke, privilegedExecutor);
             }
             return invoke;
         } catch (InvocationTargetException e) {

@@ -21,6 +21,7 @@ import org.easymock.EasyMock;
 import org.junit.Assert;
 import org.junit.Test;
 
+import fr.gaellalire.vestige.application.manager.PrivilegedExceptionActionExecutor;
 import fr.gaellalire.vestige.application.manager.proxy.ProxyInvocationHandler;
 
 /**
@@ -41,6 +42,8 @@ public class TestProxy {
         Object createMock = EasyMock.createMock(loadClass1);
         Object createMock2 = EasyMock.createMock(loadClass1a2);
 
+        PrivilegedExceptionActionExecutor privilegedExceptionActionExecutor = EasyMock.createMock(PrivilegedExceptionActionExecutor.class);
+
         Assert.assertNotSame(loadClass1, loadClass2);
         Assert.assertNotSame(loadClass1a2, loadClass2a2);
         Assert.assertNotSame(loadClass1e, loadClass2e);
@@ -57,7 +60,7 @@ public class TestProxy {
         EasyMock.replay(createMock);
         EasyMock.replay(createMock2);
 
-        Object createProxy = ProxyInvocationHandler.createProxy(cl2, loadClass1, loadClass2, createMock);
+        Object createProxy = ProxyInvocationHandler.createProxy(cl2, loadClass1, loadClass2, createMock, privilegedExceptionActionExecutor);
         loadClass2.getMethod("hello").invoke(createProxy);
         Object invoke = loadClass2.getMethod("withReturn").invoke(createProxy);
         loadClass2a2.getMethod("method").invoke(invoke);

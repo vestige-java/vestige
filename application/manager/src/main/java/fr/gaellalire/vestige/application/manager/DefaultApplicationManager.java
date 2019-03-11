@@ -378,7 +378,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                     @Override
                                     public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
                                         ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(callConstructorAndInject(installerClassLoader,
-                                                installerClassLoader.loadClass(installerClassName), base, data, addInjects, vestigeSystem));
+                                                installerClassLoader.loadClass(installerClassName), base, data, addInjects, vestigeSystem, privilegedExecutor));
                                         applicationInstaller.install();
                                         return null;
                                     }
@@ -530,8 +530,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
                                         @Override
                                         public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
-                                            ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(callConstructorAndInject(installerClassLoader,
-                                                    installerClassLoader.loadClass(applicationContext.getInstallerClassName()), base, data, addInjects, vestigeSystem));
+                                            ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(
+                                                    callConstructorAndInject(installerClassLoader, installerClassLoader.loadClass(applicationContext.getInstallerClassName()), base,
+                                                            data, addInjects, vestigeSystem, privilegedExecutor));
                                             applicationInstaller.uninstall();
                                             return null;
                                         }
@@ -739,7 +740,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                     if (applicationInstaller == null) {
                                         applicationInstaller = new ApplicationInstallerInvoker(callConstructorAndInject(installerClassLoader,
                                                 installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()), migratorApplicationContext.getBase(),
-                                                migratorApplicationContext.getData(), migratorApplicationContext.getInstallerAddInjects(), vestigeSystem));
+                                                migratorApplicationContext.getData(), migratorApplicationContext.getInstallerAddInjects(), vestigeSystem, privilegedExecutor));
                                         finalRuntimeApplicationInstallerContext.setApplicationInstaller(applicationInstaller);
                                     }
                                     try {
@@ -950,7 +951,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                                     applicationInstaller = new ApplicationInstallerInvoker(callConstructorAndInject(installerClassLoader,
                                                             installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()),
                                                             migratorApplicationContext.getBase(), migratorApplicationContext.getData(), migratorApplicationContext.getAddInjects(),
-                                                            vestigeSystem));
+                                                            vestigeSystem, privilegedExecutor));
                                                     finalRuntimeApplicationInstallerContext.setApplicationInstaller(applicationInstaller);
                                                 }
                                                 Exception migrateException = null;
@@ -1085,7 +1086,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                             if (applicationInstaller == null) {
                                                 applicationInstaller = new ApplicationInstallerInvoker(callConstructorAndInject(installerClassLoader,
                                                         installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()), migratorApplicationContext.getBase(),
-                                                        migratorApplicationContext.getData(), migratorApplicationContext.getInstallerAddInjects(), vestigeSystem));
+                                                        migratorApplicationContext.getData(), migratorApplicationContext.getInstallerAddInjects(), vestigeSystem,
+                                                        privilegedExecutor));
                                                 finalRuntimeApplicationInstallerContext.setApplicationInstaller(applicationInstaller);
                                             }
                                             Exception migrateException = null;
@@ -1245,7 +1247,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
     }
 
     public Object callConstructorAndInject(final ClassLoader classLoader, final Class<?> loadClass, final File home, final File data, final List<AddInject> addInjects,
-            final VestigeSystem vestigeSystem) throws IllegalArgumentException, InstantiationException, IllegalAccessException, InvocationTargetException, ApplicationException {
+            final VestigeSystem vestigeSystem, final PrivilegedExceptionActionExecutor privilegedExecutor)
+            throws IllegalArgumentException, InstantiationException, IllegalAccessException, InvocationTargetException, ApplicationException {
         // level : constructor
         // 0 : ()
         // 1 : (File)
@@ -1301,7 +1304,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 }
                 if (!rcl.isInstance(object)) {
                     Class<?> cl = superSearch(serviceClassName, object.getClass());
-                    object = ProxyInvocationHandler.createProxy(classLoader, cl, rcl, object);
+                    object = ProxyInvocationHandler.createProxy(classLoader, cl, rcl, object, privilegedExecutor);
                 }
                 method.invoke(applicationObject, object);
             }
@@ -1380,7 +1383,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                             if (finalPreviousRuntimeApplicationContext == null) {
                                 Class<?> cl = classLoader.loadClass(applicationContext.getClassName());
                                 Object applicationObject = callConstructorAndInject(classLoader, cl, applicationContext.getBase(), applicationContext.getData(),
-                                        applicationContext.getAddInjects(), vestigeSystem);
+                                        applicationContext.getAddInjects(), vestigeSystem, privilegedExecutor);
                                 if (applicationObject instanceof Callable<?>) {
                                     applicationCallable = (Callable<?>) applicationObject;
                                 } else {
