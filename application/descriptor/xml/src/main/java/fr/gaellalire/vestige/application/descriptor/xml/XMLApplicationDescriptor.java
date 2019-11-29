@@ -39,7 +39,9 @@ import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Insta
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Launcher;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.MavenClassType;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Mode;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ModifyLoadedDependency;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ModifyScope;
+import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ModulePackageName;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.URLsClassType;
 import fr.gaellalire.vestige.application.manager.AddInject;
 import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
@@ -49,9 +51,12 @@ import fr.gaellalire.vestige.application.manager.VersionUtils;
 import fr.gaellalire.vestige.spi.job.JobHelper;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.Scope;
+import fr.gaellalire.vestige.spi.resolver.maven.CreateClassLoaderConfigurationRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.MavenContext;
+import fr.gaellalire.vestige.spi.resolver.maven.ModifyLoadedDependencyRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolveMavenArtifactRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolveMode;
+import fr.gaellalire.vestige.spi.resolver.maven.ResolvedMavenArtifact;
 import fr.gaellalire.vestige.spi.resolver.url_list.URLListRequest;
 
 /**
@@ -306,33 +311,60 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
             throw new ApplicationException("Unknown launch mode " + mode);
         }
 
-        ResolveMavenArtifactRequest resolveMavenArtifactRequest = mavenContext.resolve(resolveMode, convertScope(mavenClassType.getScope()), mavenClassType.getGroupId(),
-                mavenClassType.getArtifactId(), mavenClassType.getVersion(), configurationName);
+        ResolveMavenArtifactRequest resolveMavenArtifactRequest = mavenContext.resolve(mavenClassType.getGroupId(), mavenClassType.getArtifactId(), mavenClassType.getVersion());
+
+        ResolvedMavenArtifact resolvedMavenArtifact;
+        try {
+            resolvedMavenArtifact = resolveMavenArtifactRequest.execute(actionHelper);
+        } catch (ResolverException e) {
+            throw new ApplicationException(e);
+        }
+
+        CreateClassLoaderConfigurationRequest createClassLoaderConfigurationRequest = resolvedMavenArtifact.createClassLoaderConfiguration(configurationName, resolveMode,
+                convertScope(mavenClassType.getScope()));
 
         for (ModifyScope modifyScope : mavenClassType.getModifyScope()) {
-            resolveMavenArtifactRequest.addModifyScope(modifyScope.getGroupId(), modifyScope.getArtifactId(), convertScope(modifyScope.getScope()));
+            createClassLoaderConfigurationRequest.addModifyScope(modifyScope.getGroupId(), modifyScope.getArtifactId(), convertScope(modifyScope.getScope()));
+        }
+
+        List<ModifyLoadedDependency> modifyLoadedDependencyList = mavenClassType.getModifyLoadedDependency();
+        if (modifyLoadedDependencyList != null) {
+            for (ModifyLoadedDependency modifyDependency : modifyLoadedDependencyList) {
+                ModifyLoadedDependencyRequest modifyDependencyRequest = createClassLoaderConfigurationRequest.addModifyLoadedDependency(modifyDependency.getGroupId(),
+                        modifyDependency.getArtifactId());
+                for (ModulePackageName addExports : modifyDependency.getAddExports()) {
+                    modifyDependencyRequest.addExports(addExports.getModule(), addExports.getPackage());
+                }
+                for (ModulePackageName addExports : modifyDependency.getAddOpens()) {
+                    modifyDependencyRequest.addOpens(addExports.getModule(), addExports.getPackage());
+                }
+                if (modifyDependency.getAddBeforeParent() != null) {
+                    modifyDependencyRequest.setBeforeParent(true);
+                }
+                modifyDependencyRequest.execute();
+            }
         }
 
         ActivateNamedModules activateNamedModules = mavenClassType.getActivateNamedModules();
         if (activateNamedModules != null) {
-            resolveMavenArtifactRequest.setNamedModuleActivated(true);
+            createClassLoaderConfigurationRequest.setNamedModuleActivated(true);
             for (AddReads addReads : activateNamedModules.getAddReads()) {
-                resolveMavenArtifactRequest.addReads(addReads.getSource(), addReads.getTarget());
+                createClassLoaderConfigurationRequest.addReads(addReads.getSource(), addReads.getTarget());
             }
             for (AddExports addExports : activateNamedModules.getAddExports()) {
-                resolveMavenArtifactRequest.addExports(addExports.getSource(), addExports.getPn(), addExports.getTarget());
+                createClassLoaderConfigurationRequest.addExports(addExports.getSource(), addExports.getPn(), addExports.getTarget());
             }
             for (AddOpens addOpens : activateNamedModules.getAddOpens()) {
-                resolveMavenArtifactRequest.addOpens(addOpens.getSource(), addOpens.getPn(), addOpens.getTarget());
+                createClassLoaderConfigurationRequest.addOpens(addOpens.getSource(), addOpens.getPn(), addOpens.getTarget());
             }
         }
 
         try {
-            return new ApplicationResolvedClassLoaderConfiguration(resolveMavenArtifactRequest.execute(actionHelper),
-                    xmlApplicationRepositoryManager.getVestigeMavenResolverIndex());
+            return new ApplicationResolvedClassLoaderConfiguration(createClassLoaderConfigurationRequest.execute(), xmlApplicationRepositoryManager.getVestigeMavenResolverIndex());
         } catch (ResolverException e) {
             throw new ApplicationException(e);
         }
+
     }
 
     @Override

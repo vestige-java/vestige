@@ -27,7 +27,11 @@ import java.io.ObjectStreamClass;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
+import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -142,11 +146,32 @@ public class ProxyInvocationHandler implements InvocationHandler {
         return o;
     }
 
+    public Class<?> getTypeClass(final Type parameterizedType) {
+        Type type = ((ParameterizedType) parameterizedType).getActualTypeArguments()[0];
+        final Class<?> result;
+        if (type instanceof WildcardType) {
+            result = (Class<?>) ((WildcardType) type).getUpperBounds()[0];
+        } else {
+            result = (Class<?>) type;
+        }
+        return result;
+    }
+
     @SuppressWarnings({"rawtypes", "unchecked"})
     @Override
     public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {
         Map<Integer, Method> map = delegateMethods.get(method.getName());
         if (map == null) {
+            if (Object.class.equals(method.getDeclaringClass())) {
+                // hashCode, equals, or toString
+                if ("equals".equals(method.getName())) {
+                    return args[0] == proxy;
+                }
+                if ("hashCode".equals(method.getName())) {
+                    return System.identityHashCode(proxy);
+                }
+                return method.invoke(source, args);
+            }
             throw new UnsupportedOperationException("Method " + method.getName() + " not found");
         }
         Class<?>[] parameterTypeArray = method.getParameterTypes();
@@ -173,8 +198,28 @@ public class ProxyInvocationHandler implements InvocationHandler {
         try {
             Object invoke = delegateMethod.invoke(source, dargs);
 
-            if (invoke != null && delegateMethod.getReturnType() != method.getReturnType()) {
-                return createProxy(classLoader, delegateMethod.getReturnType(), method.getReturnType(), invoke, privilegedExecutor);
+            if (invoke != null) {
+                if (Enumeration.class.equals(method.getReturnType())) {
+                    final Class<?> genericReturnType = getTypeClass(method.getGenericReturnType());
+                    final Class<?> delegateGenericReturnType = getTypeClass(delegateMethod.getGenericReturnType());
+                    if (genericReturnType != delegateGenericReturnType) {
+                        final Enumeration<?> enumeration = (Enumeration<?>) invoke;
+                        return new Enumeration<Object>() {
+
+                            @Override
+                            public boolean hasMoreElements() {
+                                return enumeration.hasMoreElements();
+                            }
+
+                            @Override
+                            public Object nextElement() {
+                                return createProxy(classLoader, delegateGenericReturnType, genericReturnType, enumeration.nextElement(), privilegedExecutor);
+                            }
+                        };
+                    }
+                } else if (delegateMethod.getReturnType() != method.getReturnType()) {
+                    return createProxy(classLoader, delegateMethod.getReturnType(), method.getReturnType(), invoke, privilegedExecutor);
+                }
             }
             return invoke;
         } catch (InvocationTargetException e) {

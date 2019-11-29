@@ -92,10 +92,12 @@ import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
 import fr.gaellalire.vestige.platform.ModuleConfiguration;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.platform.VestigeURLStreamHandlerFactory;
+import fr.gaellalire.vestige.resolver.maven.CreateClassLoaderConfigurationParameters;
 import fr.gaellalire.vestige.resolver.maven.DefaultDependencyModifier;
 import fr.gaellalire.vestige.resolver.maven.DefaultJPMSConfiguration;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
 import fr.gaellalire.vestige.resolver.maven.MavenRepository;
+import fr.gaellalire.vestige.resolver.maven.ResolveParameters;
 import fr.gaellalire.vestige.spi.job.DummyJobHelper;
 import fr.gaellalire.vestige.spi.resolver.Scope;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolveMode;
@@ -242,7 +244,7 @@ public final class MavenMainLauncher {
             MavenConfig mavenConfig = mavenLauncher.getConfig();
             List<MavenRepository> additionalRepositories = new ArrayList<MavenRepository>();
             boolean pomRepositoriesIgnored = false;
-            boolean superPomRepositoriesUsed = true;
+            boolean superPomRepositoriesIgnored = true;
             if (mavenConfig != null) {
                 for (Object object : mavenConfig.getModifyDependencyOrReplaceDependencyOrAdditionalRepository()) {
                     if (object instanceof ModifyDependency) {
@@ -291,7 +293,7 @@ public final class MavenMainLauncher {
                     }
                 }
                 pomRepositoriesIgnored = mavenConfig.isPomRepositoriesIgnored();
-                superPomRepositoriesUsed = mavenConfig.isSuperPomRepositoriesUsed();
+                superPomRepositoriesIgnored = mavenConfig.isSuperPomRepositoriesIgnored();
             }
             List<ClassLoaderConfiguration> launchCaches = new ArrayList<ClassLoaderConfiguration>();
             int attachCount = 0;
@@ -299,9 +301,27 @@ public final class MavenMainLauncher {
                 ResolveMode resolveMode = convertMode(mavenClassType.getMode());
                 Scope mavenScope = convertScope(mavenClassType.getScope());
 
-                ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve("vestige-attach-" + attachCount, mavenClassType.getGroupId(),
-                        mavenClassType.getArtifactId(), mavenClassType.getVersion(), "jar", additionalRepositories, defaultDependencyModifier, defaultJPMSConfiguration, null,
-                        resolveMode == ResolveMode.FIXED_DEPENDENCIES, mavenScope, null, superPomRepositoriesUsed, pomRepositoriesIgnored, true, DummyJobHelper.INSTANCE);
+                ResolveParameters resolveRequest = new ResolveParameters();
+                resolveRequest.setGroupId(mavenClassType.getGroupId());
+                resolveRequest.setArtifactId(mavenClassType.getArtifactId());
+                resolveRequest.setVersion(mavenClassType.getVersion());
+                resolveRequest.setExtension("jar");
+                resolveRequest.setAdditionalRepositories(additionalRepositories);
+                resolveRequest.setDependencyModifier(defaultDependencyModifier);
+                resolveRequest.setSuperPomRepositoriesIgnored(superPomRepositoriesIgnored);
+                resolveRequest.setPomRepositoriesIgnored(pomRepositoriesIgnored);
+                resolveRequest.setChecksumVerified(true);
+
+                CreateClassLoaderConfigurationParameters createClassLoaderConfigurationParameters = new CreateClassLoaderConfigurationParameters();
+
+                createClassLoaderConfigurationParameters.setAppName("vestige-attach-" + attachCount);
+                createClassLoaderConfigurationParameters.setJpmsConfiguration(defaultJPMSConfiguration);
+                createClassLoaderConfigurationParameters.setManyLoaders(resolveMode == ResolveMode.FIXED_DEPENDENCIES);
+                createClassLoaderConfigurationParameters.setScope(mavenScope);
+
+                ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
+                        .createClassLoaderConfiguration(createClassLoaderConfigurationParameters);
+
                 launchCaches.add(classLoaderConfiguration);
                 attachCount++;
             }
@@ -311,9 +331,26 @@ public final class MavenMainLauncher {
             ResolveMode resolveMode = convertMode(mavenClassType.getMode());
             Scope mavenScope = convertScope(mavenClassType.getScope());
 
-            ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve("vestige", mavenClassType.getGroupId(), mavenClassType.getArtifactId(),
-                    mavenClassType.getVersion(), "jar", additionalRepositories, defaultDependencyModifier, defaultJPMSConfiguration, namedModulesConfiguration,
-                    resolveMode == ResolveMode.FIXED_DEPENDENCIES, mavenScope, null, superPomRepositoriesUsed, pomRepositoriesIgnored, true, DummyJobHelper.INSTANCE);
+            ResolveParameters resolveRequest = new ResolveParameters();
+            resolveRequest.setGroupId(mavenClassType.getGroupId());
+            resolveRequest.setArtifactId(mavenClassType.getArtifactId());
+            resolveRequest.setVersion(mavenClassType.getVersion());
+            resolveRequest.setExtension("jar");
+            resolveRequest.setAdditionalRepositories(additionalRepositories);
+            resolveRequest.setDependencyModifier(defaultDependencyModifier);
+            resolveRequest.setSuperPomRepositoriesIgnored(superPomRepositoriesIgnored);
+            resolveRequest.setPomRepositoriesIgnored(pomRepositoriesIgnored);
+            resolveRequest.setChecksumVerified(true);
+
+            CreateClassLoaderConfigurationParameters createClassLoaderConfigurationParameters = new CreateClassLoaderConfigurationParameters();
+            createClassLoaderConfigurationParameters.setAppName("vestige");
+            createClassLoaderConfigurationParameters.setJpmsConfiguration(defaultJPMSConfiguration);
+            createClassLoaderConfigurationParameters.setJpmsNamedModulesConfiguration(namedModulesConfiguration);
+            createClassLoaderConfigurationParameters.setManyLoaders(resolveMode == ResolveMode.FIXED_DEPENDENCIES);
+            createClassLoaderConfigurationParameters.setScope(mavenScope);
+
+            ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
+                    .createClassLoaderConfiguration(createClassLoaderConfigurationParameters);
 
             mavenResolverCache = new MavenResolverCache(launchCaches, mavenClassType.getClazz(), classLoaderConfiguration, lastModified);
             try {

@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.security.Permission;
 import java.util.Collection;
+import java.util.Enumeration;
 
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.VestigePlatform;
@@ -91,9 +92,20 @@ public class DefaultResolvedClassLoaderConfiguration implements ResolvedClassLoa
     }
 
     @Override
-    public VestigeJar getFirstVestigeJar() {
-        DefaultVestigeJarContext defaultVestigeJarContext = new DefaultVestigeJarContext(classLoaderConfiguration, firstBeforeParent);
-        return new DefaultVestigeJar(defaultVestigeJarContext.next(), defaultVestigeJarContext);
+    public Enumeration<? extends VestigeJar> getVestigeJarEnumeration() {
+        final DefaultVestigeJarContext defaultVestigeJarContext = new DefaultVestigeJarContext(classLoaderConfiguration, firstBeforeParent);
+        return new Enumeration<VestigeJar>() {
+
+            @Override
+            public boolean hasMoreElements() {
+                return defaultVestigeJarContext.hasNext();
+            }
+
+            @Override
+            public VestigeJar nextElement() {
+                return new DefaultVestigeJar(defaultVestigeJarContext.next());
+            }
+        };
     }
 
 }

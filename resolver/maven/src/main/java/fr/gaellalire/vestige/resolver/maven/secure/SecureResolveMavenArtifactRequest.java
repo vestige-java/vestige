@@ -17,16 +17,11 @@
 
 package fr.gaellalire.vestige.resolver.maven.secure;
 
-import java.security.Permission;
-import java.security.PermissionCollection;
-
 import fr.gaellalire.vestige.job.secure.SecureJobHelper;
-import fr.gaellalire.vestige.resolver.common.secure.SecureResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.job.JobHelper;
-import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
-import fr.gaellalire.vestige.spi.resolver.Scope;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolveMavenArtifactRequest;
+import fr.gaellalire.vestige.spi.resolver.maven.ResolvedMavenArtifact;
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
 import fr.gaellalire.vestige.system.PrivateVestigePolicy;
 
@@ -48,60 +43,16 @@ public class SecureResolveMavenArtifactRequest implements ResolveMavenArtifactRe
     }
 
     @Override
-    public void addModifyScope(final String groupId, final String artifactId, final Scope scope) {
-        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
-        try {
-            delegate.addModifyScope(groupId, artifactId, scope);
-        } finally {
-            vestigeSystem.setCurrentSystem();
-        }
+    public void setExtension(final String extension) {
+        delegate.setExtension(extension);
     }
 
     @Override
-    public void setNamedModuleActivated(final boolean namedModuleActivated) {
-        delegate.setNamedModuleActivated(namedModuleActivated);
-    }
-
-    @Override
-    public void addReads(final String source, final String target) {
+    public ResolvedMavenArtifact execute(final JobHelper jobHelper) throws ResolverException {
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {
-            delegate.addReads(source, target);
-        } finally {
-            vestigeSystem.setCurrentSystem();
-        }
-    }
-
-    @Override
-    public void addExports(final String source, final String pn, final String target) {
-        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
-        try {
-            delegate.addExports(source, pn, target);
-        } finally {
-            vestigeSystem.setCurrentSystem();
-        }
-    }
-
-    @Override
-    public void addOpens(final String source, final String pn, final String target) {
-        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
-        try {
-            delegate.addOpens(source, pn, target);
-        } finally {
-            vestigeSystem.setCurrentSystem();
-        }
-    }
-
-    @Override
-    public ResolvedClassLoaderConfiguration execute(final JobHelper jobHelper) throws ResolverException {
-        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
-        try {
-            ResolvedClassLoaderConfiguration execute = delegate.execute(new SecureJobHelper(vestigeSystem, jobHelper));
-            PermissionCollection permissionCollection = vestigePolicy.getPermissionCollection();
-            for (Permission permission : execute.getPermissions()) {
-                permissionCollection.add(permission);
-            }
-            return new SecureResolvedClassLoaderConfiguration(secureVestigeSystem, execute);
+            ResolvedMavenArtifact execute = delegate.execute(new SecureJobHelper(vestigeSystem, jobHelper));
+            return new SecureResolvedMavenArtifact(secureVestigeSystem, vestigePolicy, execute);
         } finally {
             vestigeSystem.setCurrentSystem();
         }

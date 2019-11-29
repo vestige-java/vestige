@@ -15,21 +15,30 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.application.manager.test;
+package fr.gaellalire.vestige.resolver.maven;
 
-import java.util.Enumeration;
+import fr.gaellalire.vestige.platform.SecureFile;
 
 /**
  * @author Gael Lalire
  */
-public interface Itf {
+public class MavenArtifactAndMetadata {
 
-    void hello();
+    private MavenArtifact mavenArtifact;
 
-    Itf2 withReturn();
+    private SecureFile secureFile;
 
-    void withException() throws MyException;
+    public MavenArtifactAndMetadata(final MavenArtifact mavenArtifact, final SecureFile secureFile) {
+        this.mavenArtifact = mavenArtifact;
+        this.secureFile = secureFile;
+    }
 
-    Enumeration<Itf2> enumTest();
+    public MavenArtifact getMavenArtifact() {
+        return mavenArtifact;
+    }
+
+    public SecureFile getSecureFile() {
+        return secureFile;
+    }
 
 }

@@ -17,9 +17,11 @@
 
 package fr.gaellalire.vestige.resolver.common.secure;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.Enumeration;
 import java.util.jar.Manifest;
 
 import fr.gaellalire.vestige.spi.resolver.VestigeJar;
@@ -45,33 +47,33 @@ public class SecureVestigeJar implements VestigeJar {
         return delegate.getCodeBase();
     }
 
-    @Override
-    public VestigeJar getNext() {
-        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
-        try {
-            VestigeJar next = delegate.getNext();
-            if (next == null) {
-                return null;
-            }
-            return new SecureVestigeJar(secureVestigeSystem, next);
-        } finally {
-            vestigeSystem.setCurrentSystem();
-        }
-    }
-
-    @Override
-    public VestigeJarEntry getFirstEntry() throws IOException {
-        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
-        try {
-            VestigeJarEntry firstEntry = delegate.getFirstEntry();
-            if (firstEntry == null) {
-                return null;
-            }
-            return new SecureVestigeJarEntry(secureVestigeSystem, firstEntry);
-        } finally {
-            vestigeSystem.setCurrentSystem();
-        }
-    }
+    // @Override
+    // public VestigeJar getNext() {
+    // VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+    // try {
+    // VestigeJar next = delegate.getNext();
+    // if (next == null) {
+    // return null;
+    // }
+    // return new SecureVestigeJar(secureVestigeSystem, next);
+    // } finally {
+    // vestigeSystem.setCurrentSystem();
+    // }
+    // }
+    //
+    // @Override
+    // public VestigeJarEntry getFirstEntry() throws IOException {
+    // VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+    // try {
+    // VestigeJarEntry firstEntry = delegate.getFirstEntry();
+    // if (firstEntry == null) {
+    // return null;
+    // }
+    // return new SecureVestigeJarEntry(secureVestigeSystem, firstEntry);
+    // } finally {
+    // vestigeSystem.setCurrentSystem();
+    // }
+    // }
 
     @Override
     public long getLastModified() {
@@ -98,6 +100,28 @@ public class SecureVestigeJar implements VestigeJar {
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {
             return delegate.open();
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
+    }
+
+    @Override
+    @Deprecated
+    public File getFile() {
+        return delegate.getFile();
+    }
+
+    @Override
+    public Enumeration<? extends VestigeJarEntry> getEntries() throws IOException {
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return new SecureEnumeration<VestigeJarEntry>(vestigeSystem, new ElementSecureMaker<VestigeJarEntry>() {
+
+                @Override
+                public VestigeJarEntry makeSecure(final VestigeJarEntry e) {
+                    return new SecureVestigeJarEntry(secureVestigeSystem, e);
+                }
+            }, delegate.getEntries());
         } finally {
             vestigeSystem.setCurrentSystem();
         }

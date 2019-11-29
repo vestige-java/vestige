@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" xmlns:tns="http://gaellalire.fr/vestige/APPLICATION" xmlns="http://gaellalire.fr/vestige/APPLICATION"
-  targetNamespace="http://gaellalire.fr/vestige/APPLICATION" version="1.0.0">
+  targetNamespace="http://gaellalire.fr/vestige/APPLICATION" version="2.0.0">
   <xs:element name="application" type="Application">
     <xs:annotation>
-      <xs:documentation source="version">1.0.0</xs:documentation>
+      <xs:documentation source="version">2.0.0</xs:documentation>
       <xs:documentation source="description">
         Root element of the user
         configuration file.
@@ -130,6 +130,7 @@
   <xs:complexType name="MavenClassType">
     <xs:sequence>
       <xs:element name="activateNamedModules" type="ActivateNamedModules" minOccurs="0" maxOccurs="1" />
+      <xs:element name="modifyLoadedDependency" type="ModifyLoadedDependency" minOccurs="0" maxOccurs="unbounded" />
       <xs:element name="modifyScope" type="ModifyScope" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
     <xs:attribute name="groupId" type="xs:string" use="required" />
@@ -167,12 +168,19 @@
   <xs:complexType name="AddBeforeParent">
   </xs:complexType>
 
-  <xs:complexType name="ModifyDependency">
+  <xs:complexType name="ModifyLoadedDependency">
     <xs:sequence>
       <xs:element name="addBeforeParent" type="AddBeforeParent" minOccurs="0" maxOccurs="1" />
-      <xs:element name="addDependency" type="AddDependency" minOccurs="0" maxOccurs="unbounded" />
       <xs:element name="addExports" type="ModulePackageName" minOccurs="0" maxOccurs="unbounded" />
       <xs:element name="addOpens" type="ModulePackageName" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="groupId" type="xs:string" use="required" />
+    <xs:attribute name="artifactId" type="xs:string" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="ModifyDependency">
+    <xs:sequence>
+      <xs:element name="addDependency" type="AddDependency" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
     <xs:attribute name="groupId" type="xs:string" use="required" />
     <xs:attribute name="artifactId" type="xs:string" use="required" />

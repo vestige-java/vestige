@@ -15,21 +15,14 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.application.manager.test;
-
-import java.util.Enumeration;
+package fr.gaellalire.vestige.resolver.common.secure;
 
 /**
  * @author Gael Lalire
+ * @param <E> element type
  */
-public interface Itf {
+public interface ElementSecureMaker<E> {
 
-    void hello();
-
-    Itf2 withReturn();
-
-    void withException() throws MyException;
-
-    Enumeration<Itf2> enumTest();
+    E makeSecure(E e);
 
 }

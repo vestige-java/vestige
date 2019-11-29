@@ -17,13 +17,11 @@
 
 package fr.gaellalire.vestige.resolver.maven.secure;
 
-import fr.gaellalire.vestige.spi.resolver.Scope;
 import fr.gaellalire.vestige.spi.resolver.maven.MavenContext;
 import fr.gaellalire.vestige.spi.resolver.maven.MavenContextBuilder;
 import fr.gaellalire.vestige.spi.resolver.maven.ModifyDependencyRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.ReplaceDependencyRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolveMavenArtifactRequest;
-import fr.gaellalire.vestige.spi.resolver.maven.ResolveMode;
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
 import fr.gaellalire.vestige.system.PrivateVestigePolicy;
 
@@ -83,8 +81,8 @@ public class SecureMavenContextBuilder implements MavenContextBuilder, MavenCont
     }
 
     @Override
-    public void setSuperPomRepositoriesUsed(final boolean superPomRepositoriesUsed) {
-        delegate.setSuperPomRepositoriesUsed(superPomRepositoriesUsed);
+    public void setSuperPomRepositoriesIgnored(final boolean superPomRepositoriesIgnored) {
+        delegate.setSuperPomRepositoriesIgnored(superPomRepositoriesIgnored);
     }
 
     @Override
@@ -102,18 +100,10 @@ public class SecureMavenContextBuilder implements MavenContextBuilder, MavenCont
     }
 
     @Override
-    public ResolveMavenArtifactRequest resolve(final ResolveMode resolveMode, final Scope scope, final String groupId, final String artifactId, final String version,
-            final String name) {
-        return resolve(resolveMode, scope, groupId, artifactId, version, "jar", name);
-    }
-
-    @Override
-    public ResolveMavenArtifactRequest resolve(final ResolveMode resolveMode, final Scope scope, final String groupId, final String artifactId, final String version,
-            final String extension, final String name) {
+    public ResolveMavenArtifactRequest resolve(final String groupId, final String artifactId, final String version) {
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {
-            return new SecureResolveMavenArtifactRequest(secureVestigeSystem, vestigePolicy,
-                    mavenContext.resolve(resolveMode, scope, groupId, artifactId, version, extension, name));
+            return new SecureResolveMavenArtifactRequest(secureVestigeSystem, vestigePolicy, mavenContext.resolve(groupId, artifactId, version));
         } finally {
             vestigeSystem.setCurrentSystem();
         }

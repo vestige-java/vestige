@@ -46,7 +46,6 @@ import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Confi
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ExceptIn;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.MavenConfig;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ModifyDependency;
-import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ModulePackageName;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ObjectFactory;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.Permissions;
 import fr.gaellalire.vestige.application.descriptor.xml.schema.application.ReplaceDependency;
@@ -259,15 +258,6 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
                 for (AddDependency addDependency : addDependencies) {
                     modifyDependencyRequest.addDependency(addDependency.getGroupId(), addDependency.getArtifactId(), addDependency.getVersion());
                 }
-                for (ModulePackageName addExports : modifyDependency.getAddExports()) {
-                    modifyDependencyRequest.addExports(addExports.getModule(), addExports.getPackage());
-                }
-                for (ModulePackageName addExports : modifyDependency.getAddOpens()) {
-                    modifyDependencyRequest.addOpens(addExports.getModule(), addExports.getPackage());
-                }
-                if (modifyDependency.getAddBeforeParent() != null) {
-                    modifyDependencyRequest.setBeforeParent(true);
-                }
                 modifyDependencyRequest.execute();
             } else if (object instanceof ReplaceDependency) {
                 ReplaceDependency replaceDependency = (ReplaceDependency) object;
@@ -289,7 +279,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
                 mavenResolverRequestContext.addAdditionalRepository(additionalRepository.getId(), additionalRepository.getLayout(), additionalRepository.getUrl());
             }
         }
-        mavenResolverRequestContext.setSuperPomRepositoriesUsed(mavenConfig.isSuperPomRepositoriesUsed());
+        mavenResolverRequestContext.setSuperPomRepositoriesIgnored(mavenConfig.isSuperPomRepositoriesUsed());
         mavenResolverRequestContext.setPomRepositoriesIgnored(mavenConfig.isPomRepositoriesIgnored());
         return mavenResolverRequestContext.build();
     }

@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.security.Permission;
 import java.util.Collection;
+import java.util.Enumeration;
 
 import fr.gaellalire.vestige.spi.resolver.AttachedClassLoader;
 import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
@@ -70,8 +71,8 @@ public class ApplicationResolvedClassLoaderConfiguration implements ResolvedClas
     }
 
     @Override
-    public VestigeJar getFirstVestigeJar() {
-        return delegate.getFirstVestigeJar();
+    public Enumeration<? extends VestigeJar> getVestigeJarEnumeration() {
+        return delegate.getVestigeJarEnumeration();
     }
 
 }

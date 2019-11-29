@@ -32,7 +32,7 @@ import org.eclipse.aether.impl.DependencyModifier;
 /**
  * @author Gael Lalire
  */
-public class DefaultDependencyModifier implements DependencyModifier {
+public class DefaultDependencyModifier implements BeforeParentController, DependencyModifier {
 
     private Map<String, Map<String, ReplacementRule>> replacementRules = new HashMap<String, Map<String, ReplacementRule>>();
 

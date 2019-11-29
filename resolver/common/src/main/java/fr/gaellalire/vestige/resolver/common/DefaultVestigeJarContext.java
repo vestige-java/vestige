@@ -19,6 +19,7 @@ package fr.gaellalire.vestige.resolver.common;
 
 import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.Stack;
 
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
@@ -51,7 +52,29 @@ public class DefaultVestigeJarContext {
         this.firstBeforeParent = firstBeforeParent;
     }
 
+    private SecureFile calculatedNext;
+
+    public boolean hasNext() {
+        if (calculatedNext == null) {
+            calculatedNext = calculateNext();
+        }
+        if (calculatedNext == null) {
+            return false;
+        }
+        return true;
+    }
+
     public SecureFile next() {
+        SecureFile result;
+        if (hasNext()) {
+            result = calculatedNext;
+            calculatedNext = null;
+            return result;
+        }
+        throw new NoSuchElementException();
+    }
+
+    public SecureFile calculateNext() {
         SecureFile nextSecureFile = null;
         if (!firstBeforeParent) {
             // change the first jar

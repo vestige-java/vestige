@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" xmlns:tns="http://gaellalire.fr/vestige/MAVEN_LAUNCHER" xmlns="http://gaellalire.fr/vestige/MAVEN_LAUNCHER"
-  targetNamespace="http://gaellalire.fr/vestige/MAVEN_LAUNCHER" version="1.0.0">
+  targetNamespace="http://gaellalire.fr/vestige/MAVEN_LAUNCHER" version="2.0.0">
 
   <xs:element name="mavenLauncher" type="MavenLauncher">
     <xs:annotation>
-      <xs:documentation source="version">1.0.0</xs:documentation>
+      <xs:documentation source="version">2.0.0</xs:documentation>
       <xs:documentation source="description">
         Root element of the user
         configuration file.
@@ -138,7 +138,7 @@
       <xs:element name="additionalRepository" type="AdditionalRepository" />
       <xs:element name="fileAdditionalRepository" type="FileAdditionalRepository" />
     </xs:choice>
-    <xs:attribute name="superPomRepositoriesUsed" type="xs:boolean" use="optional" default="true" />
+    <xs:attribute name="superPomRepositoriesIgnored" type="xs:boolean" use="optional" default="false" />
     <xs:attribute name="pomRepositoriesIgnored" type="xs:boolean" use="optional" default="false" />
   </xs:complexType>
 

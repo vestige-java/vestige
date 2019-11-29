@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.security.Permission;
 import java.util.Collection;
+import java.util.Enumeration;
 
 import fr.gaellalire.vestige.spi.resolver.AttachedClassLoader;
 import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
@@ -68,10 +69,16 @@ public class SecureResolvedClassLoaderConfiguration implements ResolvedClassLoad
     }
 
     @Override
-    public VestigeJar getFirstVestigeJar() {
+    public Enumeration<VestigeJar> getVestigeJarEnumeration() {
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {
-            return new SecureVestigeJar(secureVestigeSystem, delegate.getFirstVestigeJar());
+            return new SecureEnumeration<VestigeJar>(secureVestigeSystem, new ElementSecureMaker<VestigeJar>() {
+
+                @Override
+                public VestigeJar makeSecure(final VestigeJar e) {
+                    return new SecureVestigeJar(secureVestigeSystem, e);
+                }
+            }, delegate.getVestigeJarEnumeration());
         } finally {
             vestigeSystem.setCurrentSystem();
         }

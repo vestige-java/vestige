@@ -19,7 +19,6 @@ package fr.gaellalire.vestige.resolver.common;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.cert.Certificate;
-import java.util.Enumeration;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -34,16 +33,9 @@ public class DefaultVestigeJarEntry implements VestigeJarEntry {
 
     private JarEntry je;
 
-    private Enumeration<JarEntry> entries;
-
-    private boolean nextRead;
-
-    private DefaultVestigeJarEntry nextEntry;
-
-    public DefaultVestigeJarEntry(final JarFile jarFile, final JarEntry je, final Enumeration<JarEntry> entries) {
+    public DefaultVestigeJarEntry(final JarFile jarFile, final JarEntry je) {
         this.jarFile = jarFile;
         this.je = je;
-        this.entries = entries;
     }
 
     @Override
@@ -74,18 +66,6 @@ public class DefaultVestigeJarEntry implements VestigeJarEntry {
     @Override
     public Certificate[] getCertificates() {
         return je.getCertificates();
-    }
-
-    @Override
-    public VestigeJarEntry nextEntry() {
-        if (nextRead) {
-            return nextEntry;
-        }
-        nextRead = true;
-        if (entries.hasMoreElements()) {
-            nextEntry = new DefaultVestigeJarEntry(jarFile, entries.nextElement(), entries);
-        }
-        return nextEntry;
     }
 
 }

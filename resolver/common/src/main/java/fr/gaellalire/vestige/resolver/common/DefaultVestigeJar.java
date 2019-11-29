@@ -43,16 +43,14 @@ public class DefaultVestigeJar implements VestigeJar {
 
     private JarFile jarFile;
 
-    private VestigeJar next;
+    // private DefaultVestigeJarContext context;
 
-    private DefaultVestigeJarContext context;
-
-    public DefaultVestigeJar(final SecureFile secureFile, final DefaultVestigeJarContext context) {
+    public DefaultVestigeJar(final SecureFile secureFile /* , final DefaultVestigeJarContext context */) {
         // randomAccessFile.getChannel().lock();
         // checksum / signature
         this.file = secureFile.getFile();
         this.codeBase = secureFile.getCodeBase();
-        this.context = context;
+        // this.context = context;
 
     }
 
@@ -64,24 +62,20 @@ public class DefaultVestigeJar implements VestigeJar {
     }
 
     @Override
-    public VestigeJar getNext() {
-        if (context != null) {
-            SecureFile nextSecureFile = context.next();
-            if (nextSecureFile != null) {
-                next = new DefaultVestigeJar(nextSecureFile, context);
-            }
-            context = null;
-        }
-        return next;
-    }
+    public Enumeration<VestigeJarEntry> getEntries() throws IOException {
+        final Enumeration<JarEntry> entries = getJarFile().entries();
+        return new Enumeration<VestigeJarEntry>() {
 
-    @Override
-    public VestigeJarEntry getFirstEntry() throws IOException {
-        Enumeration<JarEntry> entries = getJarFile().entries();
-        if (!entries.hasMoreElements()) {
-            return null;
-        }
-        return new DefaultVestigeJarEntry(getJarFile(), entries.nextElement(), entries);
+            @Override
+            public boolean hasMoreElements() {
+                return entries.hasMoreElements();
+            }
+
+            @Override
+            public VestigeJarEntry nextElement() {
+                return new DefaultVestigeJarEntry(jarFile, entries.nextElement());
+            }
+        };
     }
 
     @Override
@@ -112,6 +106,12 @@ public class DefaultVestigeJar implements VestigeJar {
     @Override
     public InputStream open() throws IOException {
         return new FileInputStream(file);
+    }
+
+    @Override
+    @Deprecated
+    public File getFile() {
+        return file;
     }
 
 }

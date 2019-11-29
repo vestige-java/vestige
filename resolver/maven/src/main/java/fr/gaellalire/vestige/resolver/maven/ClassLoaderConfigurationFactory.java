@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -444,6 +445,24 @@ public class ClassLoaderConfigurationFactory {
     @Override
     public String toString() {
         return classLoaderConfigurationKey.toString();
+    }
+
+    public boolean removeFile(final File fileExcluded) {
+        Iterator<SecureFile> iterator = afterUrls.iterator();
+        while (iterator.hasNext()) {
+            if (fileExcluded.equals(iterator.next().getFile())) {
+                iterator.remove();
+                return true;
+            }
+        }
+        iterator = beforeUrls.iterator();
+        while (iterator.hasNext()) {
+            if (fileExcluded.equals(iterator.next().getFile())) {
+                iterator.remove();
+                return true;
+            }
+        }
+        return false;
     }
 
 }

@@ -17,60 +17,46 @@
 
 package fr.gaellalire.vestige.resolver.common.secure;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.security.cert.Certificate;
+import java.util.Enumeration;
 
-import fr.gaellalire.vestige.spi.resolver.VestigeJarEntry;
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
 
 /**
  * @author Gael Lalire
+ * @param <E> element type
  */
-public class SecureVestigeJarEntry implements VestigeJarEntry {
+public class SecureEnumeration<E> implements Enumeration<E> {
 
     private VestigeSystem secureVestigeSystem;
 
-    private VestigeJarEntry delegate;
+    private ElementSecureMaker<E> elementSecureMaker;
 
-    public SecureVestigeJarEntry(final VestigeSystem secureVestigeSystem, final VestigeJarEntry delegate) {
+    private Enumeration<? extends E> delegate;
+
+    public SecureEnumeration(final VestigeSystem secureVestigeSystem, final ElementSecureMaker<E> elementSecureMaker, final Enumeration<? extends E> delegate) {
         this.secureVestigeSystem = secureVestigeSystem;
+        this.elementSecureMaker = elementSecureMaker;
         this.delegate = delegate;
     }
 
     @Override
-    public long getSize() {
-        return delegate.getSize();
-    }
-
-    @Override
-    public InputStream open() throws IOException {
+    public boolean hasMoreElements() {
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {
-            return delegate.open();
+            return delegate.hasMoreElements();
         } finally {
             vestigeSystem.setCurrentSystem();
         }
     }
 
     @Override
-    public boolean isDirectory() {
-        return delegate.isDirectory();
-    }
-
-    @Override
-    public long getModificationTime() {
-        return delegate.getModificationTime();
-    }
-
-    @Override
-    public String getName() {
-        return delegate.getName();
-    }
-
-    @Override
-    public Certificate[] getCertificates() {
-        return delegate.getCertificates();
+    public E nextElement() {
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return elementSecureMaker.makeSecure(delegate.nextElement());
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
     }
 
 }

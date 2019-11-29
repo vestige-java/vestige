@@ -22,24 +22,11 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 
-import org.eclipse.aether.RepositorySystemSession;
 import org.eclipse.aether.artifact.Artifact;
-import org.eclipse.aether.collection.CollectRequest;
-import org.eclipse.aether.collection.DependencyManager;
-import org.eclipse.aether.graph.DefaultDependencyNode;
-import org.eclipse.aether.graph.Dependency;
-import org.eclipse.aether.impl.ArtifactDescriptorReader;
-import org.eclipse.aether.internal.impl.DefaultDependencyCollector.PremanagedDependency;
-import org.eclipse.aether.resolution.ArtifactDescriptorException;
-import org.eclipse.aether.resolution.ArtifactDescriptorRequest;
-import org.eclipse.aether.resolution.ArtifactDescriptorResult;
 
 import fr.gaellalire.vestige.jpms.NamedModuleUtils;
 import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
@@ -60,17 +47,11 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
     private Map<MavenArtifact, File> urlByKey;
 
-    private ArtifactDescriptorReader descriptorReader;
-
-    private CollectRequest collectRequest;
-
-    private RepositorySystemSession session;
-
     private Map<String, Map<String, MavenArtifact>> runtimeDependencies;
 
     private Scope scope;
 
-    private DefaultDependencyModifier dependencyModifier;
+    private BeforeParentController beforeParentController;
 
     private DefaultJPMSConfiguration jpmsConfiguration;
 
@@ -78,17 +59,16 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
     private JPMSNamedModulesConfiguration namedModulesConfiguration;
 
-    public ClassLoaderConfigurationGraphHelper(final String appName, final Map<MavenArtifact, File> urlByKey, final ArtifactDescriptorReader descriptorReader,
-            final CollectRequest collectRequest, final RepositorySystemSession session, final DefaultDependencyModifier dependencyModifier,
-            final DefaultJPMSConfiguration jpmsConfiguration, final Map<String, Map<String, MavenArtifact>> runtimeDependencies, final Scope scope,
-            final ScopeModifier scopeModifier, final JPMSNamedModulesConfiguration namedModulesConfiguration) {
+    private DependencyReader dependencyReader;
+
+    public ClassLoaderConfigurationGraphHelper(final String appName, final Map<MavenArtifact, File> urlByKey, final DependencyReader dependencyReader,
+            final BeforeParentController beforeParentController, final DefaultJPMSConfiguration jpmsConfiguration, final Map<String, Map<String, MavenArtifact>> runtimeDependencies,
+            final Scope scope, final ScopeModifier scopeModifier, final JPMSNamedModulesConfiguration namedModulesConfiguration) {
         cachedClassLoaderConfigurationFactory = new HashMap<List<MavenArtifact>, ClassLoaderConfigurationFactory>();
         this.appName = appName;
         this.urlByKey = urlByKey;
-        this.descriptorReader = descriptorReader;
-        this.collectRequest = collectRequest;
-        this.session = session;
-        this.dependencyModifier = dependencyModifier;
+        this.dependencyReader = dependencyReader;
+        this.beforeParentController = beforeParentController;
         this.jpmsConfiguration = jpmsConfiguration;
         this.runtimeDependencies = runtimeDependencies;
         this.scope = scope;
@@ -99,8 +79,15 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
     /**
      * Executed before any call to {@link ClassLoaderConfigurationFactory#create(fr.gaellalire.vestige.platform.StringParserFactory)}.
      */
-    public ClassLoaderConfigurationFactory merge(final List<MavenArtifact> nodes, final List<ClassLoaderConfigurationFactory> nexts) throws ResolverException {
+    public ClassLoaderConfigurationFactory merge(final List<MavenArtifact> pnodes, final List<ClassLoaderConfigurationFactory> nexts) throws ResolverException {
         List<MavenClassLoaderConfigurationKey> dependencies = new ArrayList<MavenClassLoaderConfigurationKey>();
+
+        List<MavenArtifact> nodes = new ArrayList<MavenArtifact>(pnodes.size());
+        for (MavenArtifact mavenArtifact : pnodes) {
+            if (!mavenArtifact.isVirtual()) {
+                nodes.add(mavenArtifact);
+            }
+        }
 
         for (ClassLoaderConfigurationFactory classLoaderConfiguration : nexts) {
             dependencies.add(classLoaderConfiguration.getKey());
@@ -130,7 +117,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
             } else {
                 moduleConfiguration = moduleConfiguration.merge(unnamedClassLoaderConfiguration);
             }
-            if (dependencyModifier.isBeforeParent(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId())) {
+            if (beforeParentController.isBeforeParent(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId())) {
                 if (beforeParents == null) {
                     beforeParents = new boolean[nodes.size()];
                 }
@@ -172,67 +159,8 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
         return classLoaderConfigurationFactory;
     }
 
-    private List<Dependency> mergeDeps(final List<Dependency> dominant, final List<Dependency> recessive) {
-        List<Dependency> result;
-        if (dominant == null || dominant.isEmpty()) {
-            result = recessive;
-        } else if (recessive == null || recessive.isEmpty()) {
-            result = dominant;
-        } else {
-            int initialCapacity = dominant.size() + recessive.size();
-            result = new ArrayList<Dependency>(initialCapacity);
-            Collection<String> ids = new HashSet<String>(initialCapacity, 1.0f);
-            for (Dependency dependency : dominant) {
-                ids.add(getId(dependency.getArtifact()));
-                result.add(dependency);
-            }
-            for (Dependency dependency : recessive) {
-                if (!ids.contains(getId(dependency.getArtifact()))) {
-                    result.add(dependency);
-                }
-            }
-        }
-        return result;
-    }
-
-    private static String getId(final Artifact a) {
-        return a.getGroupId() + ':' + a.getArtifactId() + ':' + a.getClassifier() + ':' + a.getExtension();
-    }
-
     public List<NodeAndState> getNexts(final NodeAndState nodeAndState) throws ResolverException {
-
-        collectRequest.setRoot(nodeAndState.getDependencyNode().getDependency());
-        try {
-            ArtifactDescriptorRequest descriptorRequest = new ArtifactDescriptorRequest();
-            descriptorRequest.setArtifact(nodeAndState.getDependencyNode().getArtifact());
-            descriptorRequest.setRepositories(collectRequest.getRepositories());
-            descriptorRequest.setRequestContext(collectRequest.getRequestContext());
-            ArtifactDescriptorResult descriptorResult = descriptorReader.readArtifactDescriptor(session, descriptorRequest);
-            List<Dependency> managedDependencies = mergeDeps(nodeAndState.getManagedDependencies(), descriptorResult.getManagedDependencies());
-            DefaultDependencyCollectionContext context = new DefaultDependencyCollectionContext(session, null, nodeAndState.getDependencyNode().getDependency(),
-                    managedDependencies);
-            DependencyManager dependencyManager = nodeAndState.getDependencyManager().deriveChildManager(context);
-
-            List<Dependency> dependencies = new ArrayList<Dependency>(descriptorResult.getDependencies());
-            ListIterator<Dependency> dependencyIterator = dependencies.listIterator();
-            // remove only test scope (provided and optional are ignored only if not repeated by another dependency)
-            while (dependencyIterator.hasNext()) {
-                if ("test".equals(dependencyIterator.next().getScope())) {
-                    dependencyIterator.remove();
-                }
-            }
-
-            dependencies = dependencyModifier.modify(nodeAndState.getDependencyNode().getDependency(), dependencies);
-            List<NodeAndState> children = new ArrayList<NodeAndState>(dependencies.size());
-            for (Dependency dependency : dependencies) {
-                PremanagedDependency preManaged = PremanagedDependency.create(dependencyManager, dependency, false, false);
-                dependency = preManaged.getManagedDependency();
-                children.add(new NodeAndState(managedDependencies, new DefaultDependencyNode(dependency), dependencyManager));
-            }
-            return children;
-        } catch (ArtifactDescriptorException e) {
-            throw new ResolverException(e);
-        }
+        return dependencyReader.getDependencies(nodeAndState);
     }
 
     public MavenArtifact getKey(final NodeAndState nodeAndState) {

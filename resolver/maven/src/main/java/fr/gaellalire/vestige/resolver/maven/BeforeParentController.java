@@ -15,21 +15,13 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.application.manager.test;
-
-import java.util.Enumeration;
+package fr.gaellalire.vestige.resolver.maven;
 
 /**
  * @author Gael Lalire
  */
-public interface Itf {
+public interface BeforeParentController {
 
-    void hello();
-
-    Itf2 withReturn();
-
-    void withException() throws MyException;
-
-    Enumeration<Itf2> enumTest();
+    boolean isBeforeParent(String groupId, String artifactId);
 
 }

@@ -39,6 +39,12 @@ public class MavenArtifact implements Serializable {
 
     private int hashCode;
 
+    private boolean virtual;
+
+    public MavenArtifact() {
+        virtual = true;
+    }
+
     public MavenArtifact(final String groupId, final String artifactId, final String version, final String extension, final String sha1sum) {
         this.groupId = groupId;
         this.artifactId = artifactId;
@@ -77,6 +83,10 @@ public class MavenArtifact implements Serializable {
         return hashCode;
     }
 
+    public boolean isVirtual() {
+        return virtual;
+    }
+
     @Override
     public boolean equals(final Object obj) {
         if (this == obj) {
@@ -89,6 +99,9 @@ public class MavenArtifact implements Serializable {
             return false;
         }
         MavenArtifact other = (MavenArtifact) obj;
+        if (virtual || other.virtual) {
+            return false;
+        }
         if (!artifactId.equals(other.artifactId)) {
             return false;
         }
@@ -114,6 +127,9 @@ public class MavenArtifact implements Serializable {
 
     @Override
     public String toString() {
+        if (virtual) {
+            return "virtual";
+        }
         if (!"jar".equals(extension)) {
             return "mvn:" + groupId + "/" + artifactId + "/" + version + "/" + extension;
         }

@@ -31,10 +31,7 @@ import java.net.URLConnection;
 import java.net.URLStreamHandler;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -69,6 +66,7 @@ import org.eclipse.aether.graph.DependencyNode;
 import org.eclipse.aether.impl.ArtifactDescriptorReader;
 import org.eclipse.aether.impl.DefaultServiceLocator;
 import org.eclipse.aether.impl.DependencyCollector;
+import org.eclipse.aether.impl.DependencyModifier;
 import org.eclipse.aether.impl.VersionRangeResolver;
 import org.eclipse.aether.impl.VersionResolver;
 import org.eclipse.aether.internal.impl.DefaultDependencyCollector;
@@ -91,21 +89,14 @@ import org.slf4j.LoggerFactory;
 
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandler;
 import fr.gaellalire.vestige.core.url.VestigeURLStreamHandler;
-import fr.gaellalire.vestige.jpms.NamedModuleUtils;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
-import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
-import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
-import fr.gaellalire.vestige.platform.MinimalStringParserFactory;
-import fr.gaellalire.vestige.platform.ModuleConfiguration;
 import fr.gaellalire.vestige.platform.SecureFile;
-import fr.gaellalire.vestige.platform.StringParserFactory;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.platform.VestigeURLStreamHandlerFactory;
 import fr.gaellalire.vestige.resolver.common.DefaultResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.job.JobHelper;
 import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
-import fr.gaellalire.vestige.spi.resolver.Scope;
 import fr.gaellalire.vestige.spi.resolver.maven.MavenContextBuilder;
 import fr.gaellalire.vestige.spi.resolver.maven.VestigeMavenResolver;
 
@@ -166,8 +157,6 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
         return localRepository.getBasedir();
     }
 
-    private StringParserFactory stringParserFactory;
-
     private RepositorySystem repoSystem;
 
     private DependencyCollector dependencyCollector;
@@ -192,7 +181,6 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
 
     public MavenArtifactResolver(final VestigePlatform vestigePlatform, final File settingsFile) throws NoLocalRepositoryManagerException {
         this.vestigePlatform = vestigePlatform;
-        stringParserFactory = new MinimalStringParserFactory();
         File localRepositoryFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "repository");
         try {
             DefaultSettingsBuilder defaultSettingsBuilder = new DefaultSettingsBuilderFactory().newInstance();
@@ -327,38 +315,49 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
         }
     }
 
-    public ClassLoaderConfiguration resolve(final String appName, final String groupId, final String artifactId, final String version, final String extension,
-            final List<MavenRepository> additionalRepositories, final DefaultDependencyModifier dependencyModifier, final DefaultJPMSConfiguration jpmsConfiguration,
-            final JPMSNamedModulesConfiguration jpmsNamedModulesConfiguration, final boolean manyLoaders, final Scope scope, final ScopeModifier scopeModifier,
-            final boolean useSuperPomRepositories, final boolean ignorePomRepositories, final boolean checksum, final JobHelper actionHelper) throws ResolverException {
+    private static final DependencyModifier NOOP_DEPENDENCY_MODIFIER = new DependencyModifier() {
 
-        Map<String, Map<String, MavenArtifact>> runtimeDependencies = new HashMap<String, Map<String, MavenArtifact>>();
+        public List<Dependency> modify(final Dependency dependency, final List<Dependency> children) {
+            return children;
+        }
+    };
 
-        Dependency dependency = new Dependency(new DefaultArtifact(groupId, artifactId, extension, version), "runtime");
+    public DefaultResolvedMavenArtifact resolve(final ResolveParameters resolveRequest, final JobHelper actionHelper) throws ResolverException {
+
+        Dependency dependency = new Dependency(
+                new DefaultArtifact(resolveRequest.getGroupId(), resolveRequest.getArtifactId(), resolveRequest.getExtension(), resolveRequest.getVersion()), "runtime");
 
         CollectRequest collectRequest = new CollectRequest();
         collectRequest.setRoot(dependency);
-        if (useSuperPomRepositories) {
+        if (!resolveRequest.isSuperPomRepositoriesIgnored()) {
             collectRequest.setRepositories(new ArrayList<RemoteRepository>(superPomRemoteRepositories));
         }
-        for (MavenRepository additionalRepository : additionalRepositories) {
-            RemoteRepository.Builder repositoryBuilder = new RemoteRepository.Builder(additionalRepository.getId(), additionalRepository.getLayout(),
-                    additionalRepository.getUrl());
-            if (proxy != null) {
-                repositoryBuilder.setProxy(proxy);
+        List<MavenRepository> additionalRepositories = resolveRequest.getAdditionalRepositories();
+        if (additionalRepositories != null) {
+            for (MavenRepository additionalRepository : additionalRepositories) {
+                RemoteRepository.Builder repositoryBuilder = new RemoteRepository.Builder(additionalRepository.getId(), additionalRepository.getLayout(),
+                        additionalRepository.getUrl());
+                if (proxy != null) {
+                    repositoryBuilder.setProxy(proxy);
+                }
+                collectRequest.addRepository(repositoryBuilder.build());
             }
-            collectRequest.addRepository(repositoryBuilder.build());
         }
 
         DefaultRepositorySystemSession session = createSession(actionHelper);
 
-        session.setIgnoreArtifactDescriptorRepositories(ignorePomRepositories);
+        session.setIgnoreArtifactDescriptorRepositories(resolveRequest.isPomRepositoriesIgnored());
 
         boolean firstTry = true;
         doresolve: while (true) {
 
-            LOGGER.info("Collecting dependencies for {}", appName);
+            LOGGER.info("Collecting dependencies for {}", dependency);
             DependencyNode node;
+            DependencyModifier dependencyModifier = resolveRequest.getDependencyModifier();
+            if (dependencyModifier == null) {
+                dependencyModifier = NOOP_DEPENDENCY_MODIFIER;
+            }
+
             try {
                 node = dependencyCollector.collectDependencies(session, collectRequest, dependencyModifier).getRoot();
             } catch (DependencyCollectionException e) {
@@ -381,128 +380,43 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
             List<Artifact> artifacts = nlg.getArtifacts(true);
             LOGGER.info("Dependencies collected");
 
-            LOGGER.info("Creating classloader configuration for {}", appName);
-            ClassLoaderConfiguration classLoaderConfiguration;
+            List<MavenArtifactAndMetadata> mavenArtifactAndMetadatas = new ArrayList<MavenArtifactAndMetadata>(artifacts.size());
 
-            if (manyLoaders) {
-                Map<MavenArtifact, File> urlByKey = new HashMap<MavenArtifact, File>();
-                for (Artifact artifact : artifacts) {
-                    Map<String, MavenArtifact> map = runtimeDependencies.get(artifact.getGroupId());
-                    if (map == null) {
-                        map = new HashMap<String, MavenArtifact>();
-                        runtimeDependencies.put(artifact.getGroupId(), map);
+            for (Artifact artifact : artifacts) {
+                String sha1 = null;
+                if (resolveRequest.isChecksumVerified()) {
+                    sha1 = getSha1(artifact, firstTry);
+                    if (sha1 == null) {
+                        hasNullSha1 = true;
                     }
-                    String sha1 = null;
-                    if (checksum) {
-                        sha1 = getSha1(artifact, firstTry);
-                        if (sha1 == null) {
-                            hasNullSha1 = true;
-                        }
-                        if (hasNullSha1) {
-                            // stop here we have to redownload
-                            continue;
-                        }
+                    if (hasNullSha1) {
+                        // stop here we have to redownload
+                        continue;
                     }
-                    MavenArtifact mavenArtifact = new MavenArtifact(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion(), artifact.getExtension(), sha1);
-                    map.put(artifact.getArtifactId(), mavenArtifact);
-                    urlByKey.put(mavenArtifact, artifact.getFile());
                 }
-                if (hasNullSha1) {
-                    firstTry = false;
-                    continue doresolve;
+                MavenArtifact mavenArtifact = new MavenArtifact(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion(), artifact.getExtension(), sha1);
+                File file = artifact.getFile();
+                SecureFile secureFile;
+                try {
+                    secureFile = new SecureFile(file, new URL(mavenArtifact.toString()), mavenArtifact.getSha1sum());
+                } catch (MalformedURLException e) {
+                    throw new ResolverException("Unable to create Maven URL", e);
                 }
-
-                ClassLoaderConfigurationGraphHelper classLoaderConfigurationGraphHelper = new ClassLoaderConfigurationGraphHelper(appName, urlByKey, descriptorReader,
-                        collectRequest, session, dependencyModifier, jpmsConfiguration, runtimeDependencies, scope, scopeModifier, jpmsNamedModulesConfiguration);
-
-                GraphCycleRemover<NodeAndState, MavenArtifact, ClassLoaderConfigurationFactory> graphCycleRemover = new GraphCycleRemover<NodeAndState, MavenArtifact, ClassLoaderConfigurationFactory>(
-                        classLoaderConfigurationGraphHelper);
-                ClassLoaderConfigurationFactory removeCycle = graphCycleRemover.removeCycle(new NodeAndState(null, node, session.getDependencyManager()));
-                if (jpmsNamedModulesConfiguration != null) {
-                    removeCycle.setNamedModulesConfiguration(jpmsNamedModulesConfiguration);
-                }
-                classLoaderConfiguration = removeCycle.create(stringParserFactory);
-            } else {
-                List<SecureFile> beforeUrls = new ArrayList<SecureFile>();
-                List<SecureFile> afterUrls = new ArrayList<SecureFile>();
-                List<MavenArtifact> mavenArtifacts = new ArrayList<MavenArtifact>();
-                JPMSClassLoaderConfiguration moduleConfiguration = JPMSClassLoaderConfiguration.EMPTY_INSTANCE;
-                boolean[] beforeParents = null;
-                int i = 0;
-                for (Artifact artifact : artifacts) {
-                    String sha1 = null;
-                    if (checksum) {
-                        sha1 = getSha1(artifact, firstTry);
-                        if (sha1 == null) {
-                            hasNullSha1 = true;
-                        }
-                        if (hasNullSha1) {
-                            // stop here we have to redownload
-                            continue;
-                        }
-                    }
-                    MavenArtifact mavenArtifact = new MavenArtifact(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion(), artifact.getExtension(), sha1);
-                    mavenArtifacts.add(mavenArtifact);
-                    List<SecureFile> urls;
-                    if (dependencyModifier.isBeforeParent(artifact.getGroupId(), artifact.getArtifactId())) {
-                        urls = beforeUrls;
-                        if (beforeParents == null) {
-                            beforeParents = new boolean[artifacts.size()];
-                        }
-                        beforeParents[i] = true;
-                    } else {
-                        urls = afterUrls;
-                    }
-                    File file = artifact.getFile();
-                    try {
-                        urls.add(new SecureFile(file, new URL(mavenArtifact.toString()), mavenArtifact.getSha1sum()));
-                    } catch (MalformedURLException e) {
-                        throw new ResolverException("Unable to create Maven URL", e);
-                    }
-
-                    JPMSClassLoaderConfiguration unnamedClassLoaderConfiguration = jpmsConfiguration.getModuleConfiguration(artifact.getGroupId(), artifact.getArtifactId());
-                    if (jpmsNamedModulesConfiguration != null) {
-                        String moduleName;
-                        try {
-                            moduleName = NamedModuleUtils.getModuleName(file);
-                        } catch (IOException e) {
-                            throw new ResolverException("Unable to calculate module name", e);
-                        }
-
-                        List<ModuleConfiguration> namedModuleConfigurations = new ArrayList<ModuleConfiguration>();
-                        for (ModuleConfiguration unnamedModuleConfiguration : unnamedClassLoaderConfiguration.getModuleConfigurations()) {
-                            namedModuleConfigurations.add(new ModuleConfiguration(unnamedModuleConfiguration.getModuleName(), unnamedModuleConfiguration.getAddExports(),
-                                    unnamedModuleConfiguration.getAddOpens(), moduleName));
-                        }
-                        moduleConfiguration = moduleConfiguration.merge(namedModuleConfigurations);
-                    } else {
-                        moduleConfiguration = moduleConfiguration.merge(unnamedClassLoaderConfiguration);
-                    }
-                    i++;
-                }
-                if (hasNullSha1) {
-                    firstTry = false;
-                    continue doresolve;
-                }
-                MavenClassLoaderConfigurationKey key = new MavenClassLoaderConfigurationKey(mavenArtifacts, Collections.<MavenClassLoaderConfigurationKey> emptyList(), scope,
-                        moduleConfiguration, jpmsNamedModulesConfiguration, beforeParents);
-                String name;
-                if (scope == Scope.PLATFORM) {
-                    name = key.getArtifacts().toString();
-                } else {
-                    name = appName;
-                }
-                classLoaderConfiguration = new ClassLoaderConfiguration(key, name, scope == Scope.ATTACHMENT, beforeUrls, afterUrls,
-                        Collections.<ClassLoaderConfiguration> emptyList(), null, null, null, null, key.getModuleConfiguration(), jpmsNamedModulesConfiguration);
+                mavenArtifactAndMetadatas.add(new MavenArtifactAndMetadata(mavenArtifact, secureFile));
             }
-            LOGGER.info("Classloader configuration created");
-            return classLoaderConfiguration;
+            if (hasNullSha1) {
+                firstTry = false;
+                continue doresolve;
+            }
+
+            return new DefaultResolvedMavenArtifact(vestigePlatform, new DependencyReader(descriptorReader, collectRequest, session, dependencyModifier),
+                    new NodeAndState(null, node, session.getDependencyManager()), mavenArtifactAndMetadatas, true);
         }
     }
 
     @Override
     public MavenContextBuilder createMavenContextBuilder() {
-        return new MavenConfigResolved(this, vestigePlatform);
+        return new MavenConfigResolved(this);
     }
 
     @Override

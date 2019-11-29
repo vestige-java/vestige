@@ -18,7 +18,6 @@
 package fr.gaellalire.vestige.resolver.maven;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -28,36 +27,25 @@ import java.util.Set;
 import org.eclipse.aether.artifact.DefaultArtifact;
 import org.eclipse.aether.graph.Dependency;
 
-import fr.gaellalire.vestige.platform.AddAccessibility;
-import fr.gaellalire.vestige.platform.AddReads;
-import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
-import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
-import fr.gaellalire.vestige.platform.ModuleConfiguration;
-import fr.gaellalire.vestige.platform.VestigePlatform;
-import fr.gaellalire.vestige.resolver.common.DefaultResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.job.JobHelper;
-import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
-import fr.gaellalire.vestige.spi.resolver.Scope;
 import fr.gaellalire.vestige.spi.resolver.maven.MavenContext;
 import fr.gaellalire.vestige.spi.resolver.maven.MavenContextBuilder;
 import fr.gaellalire.vestige.spi.resolver.maven.ModifyDependencyRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.ReplaceDependencyRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolveMavenArtifactRequest;
-import fr.gaellalire.vestige.spi.resolver.maven.ResolveMode;
+import fr.gaellalire.vestige.spi.resolver.maven.ResolvedMavenArtifact;
 
 /**
  * @author Gael Lalire
  */
 public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
 
-    private VestigePlatform vestigePlatform;
-
     private MavenArtifactResolver mavenArtifactResolver;
 
     private boolean builded;
 
-    private boolean superPomRepositoriesUsed;
+    private boolean superPomRepositoriesIgnored;
 
     private boolean pomRepositoriesIgnored;
 
@@ -65,26 +53,20 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
 
     private DefaultDependencyModifier defaultDependencyModifier;
 
-    private DefaultJPMSConfiguration defaultJPMSConfiguration;
-
     private void checkBuild() {
         if (builded) {
             throw new IllegalStateException("MavenContext is already build");
         }
     }
 
-    public MavenConfigResolved(final MavenArtifactResolver mavenArtifactResolver, final VestigePlatform vestigePlatform) {
+    public MavenConfigResolved(final MavenArtifactResolver mavenArtifactResolver) {
         this.mavenArtifactResolver = mavenArtifactResolver;
-        this.vestigePlatform = vestigePlatform;
-        superPomRepositoriesUsed = true;
-        pomRepositoriesIgnored = false;
         additionalRepositories = new ArrayList<MavenRepository>();
         defaultDependencyModifier = new DefaultDependencyModifier();
-        defaultJPMSConfiguration = new DefaultJPMSConfiguration();
     }
 
-    public boolean isSuperPomRepositoriesUsed() {
-        return superPomRepositoriesUsed;
+    public boolean isSuperPomRepositoriesIgnored() {
+        return superPomRepositoriesIgnored;
     }
 
     public boolean isPomRepositoriesIgnored() {
@@ -99,10 +81,6 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
         return defaultDependencyModifier;
     }
 
-    public DefaultJPMSConfiguration getDefaultJPMSConfiguration() {
-        return defaultJPMSConfiguration;
-    }
-
     @Override
     public void addAdditionalRepository(final String id, final String layout, final String url) {
         checkBuild();
@@ -115,37 +93,14 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
 
             private List<Dependency> dependencies = new ArrayList<Dependency>();
 
-            private List<ModuleConfiguration> moduleConfigurations = new ArrayList<ModuleConfiguration>();
-
-            private boolean beforeParent = false;
-
-            @Override
-            public void addOpens(final String moduleName, final String packageName) {
-                moduleConfigurations.add(new ModuleConfiguration(moduleName, Collections.<String> emptySet(), Collections.singleton(packageName), null));
-            }
-
-            @Override
-            public void addExports(final String moduleName, final String packageName) {
-                moduleConfigurations.add(new ModuleConfiguration(moduleName, Collections.singleton(packageName), Collections.<String> emptySet(), null));
-            }
-
             @Override
             public void addDependency(final String groupId, final String artifactId, final String version) {
                 dependencies.add(new Dependency(new DefaultArtifact(groupId, artifactId, "jar", version), "runtime"));
             }
 
             @Override
-            public void setBeforeParent(final boolean beforeParent) {
-                this.beforeParent = beforeParent;
-            }
-
-            @Override
             public void execute() {
                 checkBuild();
-                defaultJPMSConfiguration.addModuleConfiguration(groupId, artifactId, moduleConfigurations);
-                if (beforeParent) {
-                    defaultDependencyModifier.addBeforeParent(groupId, artifactId);
-                }
                 defaultDependencyModifier.add(groupId, artifactId, dependencies);
             }
 
@@ -187,9 +142,9 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
     }
 
     @Override
-    public void setSuperPomRepositoriesUsed(final boolean superPomRepositoriesUsed) {
+    public void setSuperPomRepositoriesIgnored(final boolean superPomRepositoriesIgnored) {
         checkBuild();
-        this.superPomRepositoriesUsed = superPomRepositoriesUsed;
+        this.superPomRepositoriesIgnored = superPomRepositoriesIgnored;
     }
 
     @Override
@@ -205,80 +160,33 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
     }
 
     @Override
-    public ResolveMavenArtifactRequest resolve(final ResolveMode resolveMode, final Scope scope, final String groupId, final String artifactId, final String version,
-            final String extension, final String name) {
+    public ResolveMavenArtifactRequest resolve(final String groupId, final String artifactId, final String version) {
+        final ResolveParameters resolveRequest = new ResolveParameters();
+        resolveRequest.setGroupId(groupId);
+        resolveRequest.setArtifactId(artifactId);
+        resolveRequest.setVersion(version);
         return new ResolveMavenArtifactRequest() {
 
-            private boolean namedModuleActivated;
+            private String extension = "jar";
 
-            private Set<AddReads> addReads;
-
-            private Set<AddAccessibility> addExports;
-
-            private Set<AddAccessibility> addOpens;
-
-            private ScopeModifier scopeModifier;
-
-            public void addModifyScope(final String groupId, final String artifactId, final Scope scope) {
-                if (scopeModifier == null) {
-                    scopeModifier = new ScopeModifier();
-                }
-                scopeModifier.put(groupId, artifactId, scope);
+            @Override
+            public void setExtension(final String extension) {
+                this.extension = extension;
             }
 
             @Override
-            public ResolvedClassLoaderConfiguration execute(final JobHelper jobHelper) throws ResolverException {
-                JPMSNamedModulesConfiguration jpmsNamedModulesConfiguration = null;
-                if (namedModuleActivated) {
-                    if (addReads == null && addExports == null && addOpens == null) {
-                        jpmsNamedModulesConfiguration = JPMSNamedModulesConfiguration.EMPTY_INSTANCE;
-                    } else {
-                        jpmsNamedModulesConfiguration = new JPMSNamedModulesConfiguration(addReads, addExports, addOpens);
-                    }
-                }
+            public ResolvedMavenArtifact execute(final JobHelper jobHelper) throws ResolverException {
+                resolveRequest.setAdditionalRepositories(additionalRepositories);
+                resolveRequest.setDependencyModifier(defaultDependencyModifier);
+                resolveRequest.setSuperPomRepositoriesIgnored(superPomRepositoriesIgnored);
+                resolveRequest.setPomRepositoriesIgnored(pomRepositoriesIgnored);
+                resolveRequest.setExtension(extension);
 
-                final ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve(name, groupId, artifactId, version, extension, additionalRepositories,
-                        defaultDependencyModifier, defaultJPMSConfiguration, jpmsNamedModulesConfiguration, resolveMode == ResolveMode.FIXED_DEPENDENCIES, scope, scopeModifier,
-                        superPomRepositoriesUsed, pomRepositoriesIgnored, false, jobHelper);
-                return new DefaultResolvedClassLoaderConfiguration(vestigePlatform, classLoaderConfiguration, defaultDependencyModifier.isBeforeParent(groupId, artifactId));
+                return mavenArtifactResolver.resolve(resolveRequest, jobHelper);
             }
 
-            @Override
-            public void setNamedModuleActivated(final boolean namedModuleActivated) {
-                this.namedModuleActivated = namedModuleActivated;
-            }
-
-            @Override
-            public void addReads(final String source, final String target) {
-                if (addReads == null) {
-                    addReads = new HashSet<AddReads>();
-                }
-                addReads.add(new AddReads(source, target));
-            }
-
-            @Override
-            public void addExports(final String source, final String pn, final String target) {
-                if (addExports == null) {
-                    addExports = new HashSet<AddAccessibility>();
-                }
-                addExports.add(new AddAccessibility(source, pn, target));
-            }
-
-            @Override
-            public void addOpens(final String source, final String pn, final String target) {
-                if (addOpens == null) {
-                    addOpens = new HashSet<AddAccessibility>();
-                }
-                addOpens.add(new AddAccessibility(source, pn, target));
-            }
         };
 
-    }
-
-    @Override
-    public ResolveMavenArtifactRequest resolve(final ResolveMode resolveMode, final Scope scope, final String groupId, final String artifactId, final String version,
-            final String name) {
-        return resolve(resolveMode, scope, groupId, artifactId, version, "jar", name);
     }
 
 }
