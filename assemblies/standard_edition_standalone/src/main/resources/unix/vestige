@@ -23,17 +23,21 @@ if [ "$JAVA_OPTS" = "" ]; then
   JAVA_OPTS=-Djava.net.useSystemProxies=true
 fi
 
-if [ "$VESTIGE_BASE" = "" ]; then
-  VESTIGE_BASE="$DIRNAME/base"
+if [ "$VESTIGE_CONFIG" = "" ]; then
+  VESTIGE_CONFIG="$DIRNAME/config"
 fi
 
-if [ ! -d "$VESTIGE_BASE" ]; then
-  mkdir -p "$VESTIGE_BASE"
-  cp -R "$CONFDIR/template/." "$VESTIGE_BASE"
+if [ ! -d "$VESTIGE_CONFIG" ]; then
+  mkdir -p "$VESTIGE_CONFIG"
+  cp -R "$CONFDIR/template/." "$VESTIGE_CONFIG"
 fi
 
 if [ "$VESTIGE_DATA" = "" ]; then
   VESTIGE_DATA="$DIRNAME/data"
+fi
+
+if [ "$VESTIGE_CACHE" = "" ]; then
+  VESTIGE_CACHE="$DIRNAME/cache"
 fi
 
 if [ "$VESTIGE_SECURITY" = "" ]; then
@@ -44,9 +48,15 @@ if [ "$VESTIGE_LISTENER_PORT" = "" ]; then
   VESTIGE_LISTENER_PORT=0
 fi
 
-if [ ${#VESTIGE_OPTS[@]} -eq 0 ]; then
+# VESTIGE_OPTS=("-Doption=value" "-Xmx1024m")
+# export DECLARE_VESTIGE_OPTS=$(declare -p VESTIGE_OPTS)
+DECLARE_VESTIGE_OPTS=$(echo "$DECLARE_VESTIGE_OPTS" | grep "^declare -a VESTIGE_OPTS=")
+if [ "${#DECLARE_VESTIGE_OPTS}" -ne 0 ]; then
+  eval "$DECLARE_VESTIGE_OPTS" >/dev/null 2>&1 || VESTIGE_OPTS=($JAVA_OPTS)
+else
   VESTIGE_OPTS=($JAVA_OPTS)
 fi
+
 if [ ${#VESTIGE_DEBUG} -ne 0 ]; then
   if [ "$VESTIGE_DEBUG_SUSPEND" = "" ]; then
     VESTIGE_DEBUG_SUSPEND="n"
@@ -57,36 +67,52 @@ if [ ${#VESTIGE_DEBUG} -ne 0 ]; then
   VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=${VESTIGE_DEBUG_SUSPEND},address=${VESTIGE_DEBUG_PORT})
 fi
 
-VESTIGE_CONSOLE_ENCODING_OPTION=""
-
 if [ ${#VESTIGE_CONSOLE_ENCODING} -ne 0 ]; then
-  VESTIGE_CONSOLE_ENCODING_OPTION="--console-encoding $VESTIGE_CONSOLE_ENCODING"
-  VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Dlogback.consoleCharset=$VESTIGE_CONSOLE_ENCODING)
+  VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Dconsole.encoding=$VESTIGE_CONSOLE_ENCODING -Dsun.stdout.encoding=$VESTIGE_CONSOLE_ENCODING -Dsun.stderr.encoding=$VESTIGE_CONSOLE_ENCODING)
 fi
 
-MAVEN_LAUNCHER_FILE="$DATADIR/m2/vestige-se.xml"
+MAVEN_SETTINGS_FILE="$VESTIGE_CONFIG/m2/settings.xml"
 
-MAVEN_SETTINGS_FILE="$VESTIGE_BASE/m2/settings.xml"
+LOGBACK_LOGS_DIRECTORY="$VESTIGE_CACHE/logs"
 
-MAVEN_RESOLVER_CACHE_FILE="$VESTIGE_DATA/m2/resolver-cache.ser"
+mkdir -p "$LOGBACK_LOGS_DIRECTORY"
 
-LOGBACK_CONFIGURATION_FILE="$VESTIGE_BASE/logback.xml"
+LOGBACK_CONFIGURATION_FILE="$VESTIGE_CONFIG/logback.xml"
 
 if [ ! -f "$LOGBACK_CONFIGURATION_FILE" ]; then
-  cp "$CONFDIR/template/logback.xml" "$LOGBACK_CONFIGURATION_FILE"
+  LOGBACK_CONFIGURATION_FILE="$CONFDIR/logback.xml"
 fi
 
-VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Dvestige.mavenRepository="$DATADIR/repository" -Djava.util.logging.manager=fr.gaellalire.vestige.core.logger.JULLogManager -Dlogback.logsDirectory="$VESTIGE_BASE/logs" -Dlogback.configurationFile="$LOGBACK_CONFIGURATION_FILE" -Djavax.net.ssl.trustStore="$VESTIGE_BASE/cacert.jks")
+MAVEN_CACERTS="$VESTIGE_CONFIG\cacerts.p12"
+
+if [ ! -f "$MAVEN_CACERTS" ]; then
+  MAVEN_CACERTS="$CONFDIR/cacerts.p12"
+fi
+
+VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" -Dvestige.mavenRepository="$DATADIR/repository" -Djava.util.logging.manager=fr.gaellalire.vestige.core.logger.JULLogManager)
+
+VESTIGE_CORE_FILE_ENCODING=UTF-8
+
+VESTIGE_CORE_RELATIVE_DIRECTORY="$DATADIR"
 
 if "$JAVA" --add-modules java.base -version >/dev/null 2>&1; then
+  export VESTIGE_CORE_MODULEPATH_FILE="$DATADIR/unix-classpath.txt"
   VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" --add-modules ALL-DEFAULT --patch-module "java.base=$DATADIR/lib/moduleEncapsulationBreaker.jar")
-  VESTIGE_ARGS=(-p "$DATADIR/lib/vestige.core-${vestige.core.version}.jar" -m fr.gaellalire.vestige.core $VESTIGE_CONSOLE_ENCODING_OPTION --add-modules fr.gaellalire.vestige.edition.maven_main_launcher fremp "$DATADIR" "$DATADIR/unix-classpath.txt" UTF-8 fr.gaellalire.vestige.jvm_enhancer.boot)
+  VESTIGE_ARGS=(-p "$DATADIR/lib/vestige.core-${vestige.core.version}.jar" -m fr.gaellalire.vestige.core --env-to-prop LOGBACK_LOGS_DIRECTORY logback.logsDirectory --env-to-prop LOGBACK_CONFIGURATION_FILE logback.configurationFile --add-modules fr.gaellalire.vestige.edition.maven_main_launcher emp fr.gaellalire.vestige.jvm_enhancer.boot)
   VESTIGE_ARGS=("${VESTIGE_ARGS[@]}" "$DATADIR" "$DATADIR/jvm_enhancer.properties" fr.gaellalire.vestige.edition.maven_main_launcher)
+  MAVEN_LAUNCHER_FILE="$DATADIR/m2/vestige-se.xml"
+  MAVEN_RESOLVER_CACHE_FILE="$VESTIGE_CACHE/m2/resolver-cache.ser"
 else
-  VESTIGE_ARGS=(-jar "$DATADIR/lib/vestige.core-${vestige.core.version}.jar" $VESTIGE_CONSOLE_ENCODING_OPTION --before 'javax/xml/bind/.*' frecp "$DATADIR" "$DATADIR/unix-classpath.txt" UTF-8 fr.gaellalire.vestige.jvm_enhancer.boot.JVMEnhancer)
+  export VESTIGE_CORE_CLASSPATH_FILE="$DATADIR/unix-classpath-6to8.txt"
+  VESTIGE_ARGS=(-jar "$DATADIR/lib/vestige.core-${vestige.core.version}.jar" --env-to-prop LOGBACK_LOGS_DIRECTORY logback.logsDirectory --env-to-prop LOGBACK_CONFIGURATION_FILE logback.configurationFile --before 'javax/xml/bind/.*' ecp fr.gaellalire.vestige.jvm_enhancer.boot.JVMEnhancer)
   VESTIGE_ARGS=("${VESTIGE_ARGS[@]}" "$DATADIR" "$DATADIR/jvm_enhancer.properties" fr.gaellalire.vestige.edition.maven_main_launcher.MavenMainLauncher)
+  MAVEN_LAUNCHER_FILE="$DATADIR/m2/vestige-se-6to8.xml"
+  MAVEN_RESOLVER_CACHE_FILE="$VESTIGE_CACHE/m2/resolver-cache-6to8.ser"
 fi
 
-VESTIGE_ARGS=("${VESTIGE_ARGS[@]}" "$MAVEN_LAUNCHER_FILE" "$MAVEN_SETTINGS_FILE" "$MAVEN_RESOLVER_CACHE_FILE" "$VESTIGE_BASE" "$VESTIGE_DATA" "$VESTIGE_SECURITY" "$VESTIGE_LISTENER_PORT")
+if [ "$HOSTNAME" != "" ]; then
+  export HOSTNAME
+fi
+export VESTIGE_CORE_FILE_ENCODING VESTIGE_CORE_RELATIVE_DIRECTORY LOGBACK_LOGS_DIRECTORY LOGBACK_CONFIGURATION_FILE MAVEN_LAUNCHER_FILE MAVEN_SETTINGS_FILE MAVEN_CACERTS MAVEN_RESOLVER_CACHE_FILE VESTIGE_CONFIG VESTIGE_DATA VESTIGE_CACHE VESTIGE_SECURITY VESTIGE_LISTENER_PORT
 
 exec "$JAVA" "${VESTIGE_OPTS[@]}" "${VESTIGE_ARGS[@]}"

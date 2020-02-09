@@ -26,6 +26,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import fr.gaellalire.vestige.spi.job.AbstractJobHelper;
+import fr.gaellalire.vestige.spi.job.AbstractTaskHelper;
 import fr.gaellalire.vestige.spi.job.JobHelper;
 import fr.gaellalire.vestige.spi.job.TaskHelper;
 
@@ -39,11 +41,11 @@ public class DefaultJobManager implements JobManager {
     private Map<String, JobController> jobs = new TreeMap<String, JobController>();
 
     /**
-     *
      * @author Gael Lalire
      */
     private static final class Result {
         private volatile boolean done;
+
         private volatile Exception exception;
 
         private Result() {
@@ -53,7 +55,7 @@ public class DefaultJobManager implements JobManager {
     @Override
     public JobController submitJob(final String jobIdPrefix, final String description, final Job action, final JobListener jobListener) {
         final List<DefaultTaskData> defaultTaskDatas = new ArrayList<DefaultTaskData>();
-        final JobHelper actionHelper = new JobHelper() {
+        final JobHelper actionHelper = new AbstractJobHelper() {
 
             @Override
             public TaskHelper addTask(final String taskDescription) {
@@ -68,7 +70,7 @@ public class DefaultJobManager implements JobManager {
                     taskListener = null;
                 }
 
-                return new TaskHelper() {
+                return new AbstractTaskHelper() {
 
                     @Override
                     public void setProgress(final float progress) {

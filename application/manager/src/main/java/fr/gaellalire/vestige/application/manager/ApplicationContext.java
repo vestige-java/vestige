@@ -20,6 +20,7 @@ package fr.gaellalire.vestige.application.manager;
 import java.io.File;
 import java.io.Serializable;
 import java.lang.ref.WeakReference;
+import java.net.URL;
 import java.security.Permission;
 import java.util.List;
 import java.util.Set;
@@ -45,9 +46,11 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     private String name;
 
-    private File base;
+    private File config;
 
     private File data;
+
+    private File cache;
 
     private int autoMigrateLevel;
 
@@ -59,7 +62,7 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     private Set<List<Integer>> uninterruptedMigrationVersion;
 
-    private String repoName;
+    private URL repoURL;
 
     private boolean autoStarted;
 
@@ -111,12 +114,12 @@ public class ApplicationContext implements Serializable, Cloneable {
         this.autoStarted = autoStarted;
     }
 
-    public String getRepoName() {
-        return repoName;
+    public URL getRepoURL() {
+        return repoURL;
     }
 
-    public void setRepoName(final String repoName) {
-        this.repoName = repoName;
+    public void setRepoURL(final URL repoURL) {
+        this.repoURL = repoURL;
     }
 
     public String getRepoApplicationName() {
@@ -191,12 +194,12 @@ public class ApplicationContext implements Serializable, Cloneable {
         this.exception = exception;
     }
 
-    public File getBase() {
-        return base;
+    public File getConfig() {
+        return config;
     }
 
-    public void setBase(final File base) {
-        this.base = base;
+    public void setConfig(final File config) {
+        this.config = config;
     }
 
     public RuntimeApplicationInstallerContext getRuntimeApplicationInstallerContext() {
@@ -315,6 +318,14 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     public void setData(final File data) {
         this.data = data;
+    }
+
+    public File getCache() {
+        return cache;
+    }
+
+    public void setCache(final File cache) {
+        this.cache = cache;
     }
 
     // private void writeObject(ObjectOutputStream out) throws IOException {

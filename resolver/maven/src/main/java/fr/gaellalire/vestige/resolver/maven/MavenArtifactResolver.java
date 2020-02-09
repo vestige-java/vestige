@@ -20,8 +20,9 @@ package fr.gaellalire.vestige.resolver.maven;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamClass;
 import java.net.MalformedURLException;
@@ -32,8 +33,11 @@ import java.net.URLStreamHandler;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.net.ssl.SSLContext;
 
 import org.apache.http.impl.client.SystemDefaultCredentialsProvider;
 import org.apache.http.impl.conn.DefaultSchemePortResolver;
@@ -72,6 +76,9 @@ import org.eclipse.aether.impl.VersionResolver;
 import org.eclipse.aether.internal.impl.DefaultDependencyCollector;
 import org.eclipse.aether.internal.impl.SimpleLocalRepositoryManagerFactory;
 import org.eclipse.aether.repository.Authentication;
+import org.eclipse.aether.repository.AuthenticationContext;
+import org.eclipse.aether.repository.AuthenticationDigest;
+import org.eclipse.aether.repository.AuthenticationSelector;
 import org.eclipse.aether.repository.LocalRepository;
 import org.eclipse.aether.repository.NoLocalRepositoryManagerException;
 import org.eclipse.aether.repository.Proxy;
@@ -171,6 +178,8 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
 
     private LocalRepository localRepository;
 
+    private AuthenticationSelector authenticationSelector;
+
     private SimpleLocalRepositoryManagerFactory simpleLocalRepositoryManagerFactory = new SimpleLocalRepositoryManagerFactory();
 
     // Don't know why it was introduce, provoke unwanted download because excluded dependencies were read anyway
@@ -179,7 +188,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
 
     private VestigePlatform vestigePlatform;
 
-    public MavenArtifactResolver(final VestigePlatform vestigePlatform, final File settingsFile) throws NoLocalRepositoryManagerException {
+    public MavenArtifactResolver(final VestigePlatform vestigePlatform, final File settingsFile, final SSLContext sslContext) throws NoLocalRepositoryManagerException {
         this.vestigePlatform = vestigePlatform;
         File localRepositoryFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "repository");
         try {
@@ -216,6 +225,23 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
         locator.addService(VersionRangeResolver.class, DefaultVersionRangeResolver.class);
         locator.addService(ArtifactDescriptorReader.class, DefaultArtifactDescriptorReader.class);
         locator.addService(RepositoryConnectorFactory.class, BasicRepositoryConnectorFactory.class);
+        authenticationSelector = new AuthenticationSelector() {
+
+            @Override
+            public Authentication getAuthentication(final RemoteRepository repository) {
+                return new Authentication() {
+
+                    @Override
+                    public void fill(final AuthenticationContext context, final String key, final Map<String, String> data) {
+                        context.put(AuthenticationContext.SSL_CONTEXT, sslContext);
+                    }
+
+                    @Override
+                    public void digest(final AuthenticationDigest digest) {
+                    }
+                };
+            }
+        };
 
         HttpTransporterFactory httpTransporterFactory = new HttpTransporterFactory();
         httpTransporterFactory.setDefaultCredentialsProvider(new SystemDefaultCredentialsProvider());
@@ -245,6 +271,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
             RemoteRepository.Builder repositoryBuilder = new RemoteRepository.Builder(repository.getId(), repository.getLayout(), url);
             repositoryBuilder.setSnapshotPolicy(ArtifactDescriptorUtils.toRepositoryPolicy(repository.getSnapshots()));
             repositoryBuilder.setReleasePolicy(ArtifactDescriptorUtils.toRepositoryPolicy(repository.getReleases()));
+            repositoryBuilder.setAuthentication(authenticationSelector.getAuthentication(repositoryBuilder.build()));
             if (proxy != null) {
                 repositoryBuilder.setProxy(proxy);
             }
@@ -257,6 +284,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
         DefaultRepositorySystemSession session = MavenRepositorySystemUtils.newSession();
         session.setTransferListener(new VestigeTransferListener(actionHelper));
         session.setOffline(offline);
+        session.setAuthenticationSelector(authenticationSelector);
         try {
             session.setLocalRepositoryManager(simpleLocalRepositoryManagerFactory.newInstance(session, localRepository));
         } catch (NoLocalRepositoryManagerException e) {
@@ -264,6 +292,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
         }
         // user agent may prevent NTLM access without authentification
         session.setConfigProperty(ConfigurationProperties.USER_AGENT, "Apache-HttpClient/4.5.3");
+
         return session;
     }
 
@@ -285,7 +314,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
         String sha1;
 
         try {
-            BufferedReader bufferedReader = new BufferedReader(new FileReader(checksumFile));
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(checksumFile), "UTF-8"));
             try {
                 sha1 = bufferedReader.readLine();
             } finally {
@@ -296,9 +325,10 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
         }
 
         try {
-            if (!sha1.equals(SecureFile.createChecksum(file))) {
+            String createChecksum = SecureFile.createChecksum(file);
+            if (!sha1.equals(createChecksum)) {
                 if (!firstTry) {
-                    throw new ResolverException("SHA-1 did not match for " + artifact);
+                    throw new ResolverException("SHA-1 did not match for " + artifact + ". Expected " + sha1 + " got " + createChecksum);
                 }
                 File[] listFiles = file.getParentFile().listFiles();
                 for (File sfile : listFiles) {
@@ -332,19 +362,21 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
         if (!resolveRequest.isSuperPomRepositoriesIgnored()) {
             collectRequest.setRepositories(new ArrayList<RemoteRepository>(superPomRemoteRepositories));
         }
+        final DefaultRepositorySystemSession session = createSession(actionHelper);
+
         List<MavenRepository> additionalRepositories = resolveRequest.getAdditionalRepositories();
         if (additionalRepositories != null) {
             for (MavenRepository additionalRepository : additionalRepositories) {
                 RemoteRepository.Builder repositoryBuilder = new RemoteRepository.Builder(additionalRepository.getId(), additionalRepository.getLayout(),
                         additionalRepository.getUrl());
+                Authentication auth = session.getAuthenticationSelector().getAuthentication(repositoryBuilder.build());
+                repositoryBuilder.setAuthentication(auth);
                 if (proxy != null) {
                     repositoryBuilder.setProxy(proxy);
                 }
                 collectRequest.addRepository(repositoryBuilder.build());
             }
         }
-
-        DefaultRepositorySystemSession session = createSession(actionHelper);
 
         session.setIgnoreArtifactDescriptorRepositories(resolveRequest.isPomRepositoriesIgnored());
 

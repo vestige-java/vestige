@@ -101,8 +101,8 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         return vestigeURLListResolverIndex;
     }
 
-    public boolean hasApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version,
-            final CompatibilityChecker compatibilityChecker) throws ApplicationException {
+    public boolean hasApplicationDescriptor(final URL context, final String appName, final List<Integer> version, final CompatibilityChecker compatibilityChecker)
+            throws ApplicationException {
         URL url;
         try {
             url = new URL(context, appName + "/" + appName + "-" + VersionUtils.toString(version) + ".xml");
@@ -134,7 +134,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
             JAXBContext jc = JAXBContext.newInstance(ObjectFactory.class.getPackage().getName());
             unMarshaller = jc.createUnmarshaller();
 
-            URL xsdURL = XMLApplicationRepositoryManager.class.getResource("application-1.0.0.xsd");
+            URL xsdURL = XMLApplicationRepositoryManager.class.getResource("application.xsd");
             SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
             Schema schema = schemaFactory.newSchema(xsdURL);
             unMarshaller.setSchema(schema);
@@ -144,7 +144,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         return ((JAXBElement<Application>) unMarshaller.unmarshal(inputStream)).getValue();
     }
 
-    public ApplicationDescriptor createApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version, final JobHelper jobHelper)
+    public ApplicationDescriptor createApplicationDescriptor(final URL context, final String appName, final List<Integer> version, final JobHelper jobHelper)
             throws ApplicationException {
         TaskHelper task = jobHelper.addTask("Reading application descriptor");
         URL url;
@@ -302,7 +302,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
             JAXBContext jc = JAXBContext.newInstance(fr.gaellalire.vestige.application.descriptor.xml.schema.repository.ObjectFactory.class.getPackage().getName());
             unMarshaller = jc.createUnmarshaller();
 
-            URL xsdURL = XMLApplicationRepositoryManager.class.getResource("repository-1.0.0.xsd");
+            URL xsdURL = XMLApplicationRepositoryManager.class.getResource("repository.xsd");
             SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
             Schema schema = schemaFactory.newSchema(xsdURL);
             unMarshaller.setSchema(schema);

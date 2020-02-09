@@ -107,8 +107,18 @@ public class NIOWriterVestigeStateListener implements VestigeStateListener {
     }
 
     @Override
-    public void base(final File file) {
-        write("Base " + file.getAbsolutePath());
+    public void config(final File file) {
+        write("Config " + file.getAbsolutePath());
+    }
+
+    @Override
+    public void certificateAuthorityGenerated(final File file) {
+        write("CA " + file.getAbsolutePath());
+    }
+
+    @Override
+    public void clientP12Generated(final File file) {
+        write("ClientP12 " + file.getAbsolutePath());
     }
 
 }

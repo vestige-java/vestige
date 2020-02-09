@@ -50,7 +50,7 @@ public class RepositoryApplicationNameArgument implements Argument {
     }
 
     public void propose(final ProposeContext proposeContext) {
-        for (String proposition : applicationManager.getRepositoryMetadata(repositoryArgument.getRepository()).listApplicationsName()) {
+        for (String proposition : applicationManager.getRepositoryMetadata(applicationManager.getRepositoryURL(repositoryArgument.getRepository())).listApplicationsName()) {
             proposeContext.addProposition(proposition);
         }
     }

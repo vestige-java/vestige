@@ -489,7 +489,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
         };
         if (Modifier.isFinal(field.getModifiers())) {
             // unset for get too (prevent caching)
-            return unsetFinalField(field, callable);
+            return FinalUnsetter.unsetFinalField(field, callable);
         } else {
             return callable.call();
         }
@@ -514,30 +514,9 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
             }
         };
         if (Modifier.isFinal(field.getModifiers())) {
-            unsetFinalField(field, callable);
+            FinalUnsetter.unsetFinalField(field, callable);
         } else {
             callable.call();
-        }
-    }
-
-    public static <E> E unsetFinalField(final Field field, final Callable<E> callable) throws Exception {
-        Field modifiersField = Field.class.getDeclaredField("modifiers");
-        boolean accessible = modifiersField.isAccessible();
-        if (!accessible) {
-            modifiersField.setAccessible(true);
-        }
-        try {
-            int modifiers = field.getModifiers();
-            modifiersField.setInt(field, modifiers & ~Modifier.FINAL);
-            try {
-                return callable.call();
-            } finally {
-                modifiersField.setInt(field, modifiers);
-            }
-        } finally {
-            if (!accessible) {
-                modifiersField.setAccessible(false);
-            }
         }
     }
 

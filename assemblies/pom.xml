@@ -13,6 +13,7 @@
   </build>
   <modules>
     <module>standard_edition_bootstrap</module>
+    <module>standard_edition_6to8_bootstrap</module>
     <module>standard_edition_standalone</module>
   </modules>
 </project>

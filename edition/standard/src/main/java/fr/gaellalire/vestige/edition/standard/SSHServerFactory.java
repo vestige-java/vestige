@@ -17,20 +17,50 @@
 
 package fr.gaellalire.vestige.edition.standard;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.math.BigInteger;
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.SecureRandom;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.RSAPrivateCrtKeySpec;
+import java.security.spec.RSAPrivateKeySpec;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.Callable;
 
 import org.apache.sshd.SshServer;
+import org.apache.sshd.common.Channel;
 import org.apache.sshd.common.KeyPairProvider;
 import org.apache.sshd.common.NamedFactory;
+import org.apache.sshd.common.PtyMode;
+import org.apache.sshd.common.forward.TcpipServerChannel;
 import org.apache.sshd.common.io.mina.MinaServiceFactoryFactory;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
+import org.apache.sshd.common.util.Buffer;
 import org.apache.sshd.server.Command;
 import org.apache.sshd.server.CommandFactory;
+import org.apache.sshd.server.Environment;
 import org.apache.sshd.server.ServerFactoryManager;
+import org.apache.sshd.server.channel.ChannelSession;
 import org.apache.sshd.server.command.ScpCommandFactory;
 import org.apache.sshd.server.sftp.SftpSubsystem;
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
+import org.bouncycastle.crypto.generators.RSAKeyPairGenerator;
+import org.bouncycastle.crypto.params.RSAKeyGenerationParameters;
+import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
+import org.bouncycastle.crypto.util.SubjectPublicKeyInfoFactory;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.jcajce.JcaMiscPEMGenerator;
+import org.bouncycastle.util.encoders.Base64;
+import org.bouncycastle.util.io.pem.PemWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +79,7 @@ public class SSHServerFactory implements Callable<VestigeServer> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SSHServerFactory.class);
 
-    private File sshBase;
+    private File sshConfig;
 
     private File sshData;
 
@@ -59,26 +89,159 @@ public class SSHServerFactory implements Callable<VestigeServer> {
 
     private VestigeCommandExecutor vestigeCommandExecutor;
 
-    public SSHServerFactory(final File sshBase, final File sshData, final SSH ssh, final File appHomeFile, final VestigeCommandExecutor vestigeCommandExecutor) {
-        this.sshBase = sshBase;
+    private File commandHistory;
+
+    public SSHServerFactory(final File sshConfig, final File sshData, final File commandHistory, final SSH ssh, final File appHomeFile,
+            final VestigeCommandExecutor vestigeCommandExecutor) {
+        this.sshConfig = sshConfig;
         this.sshData = sshData;
+        this.commandHistory = commandHistory;
         this.ssh = ssh;
         this.appHomeFile = appHomeFile;
         this.vestigeCommandExecutor = vestigeCommandExecutor;
     }
 
+    private KeyPair generateKeyPair() throws Exception {
+        RSAKeyPairGenerator keyGen = new RSAKeyPairGenerator();
+        BigInteger publicExponent = new BigInteger("10001", 16);
+        keyGen.init(new RSAKeyGenerationParameters(publicExponent, SecureRandom.getInstance("DEFAULT", BouncyCastleProvider.PROVIDER_NAME), 2048, 80));
+        AsymmetricCipherKeyPair keys = keyGen.generateKeyPair();
+
+        RSAPrivateCrtKeyParameters rsaKeyParameters = (RSAPrivateCrtKeyParameters) keys.getPrivate();
+        RSAPrivateKeySpec privateSpec = new RSAPrivateCrtKeySpec(rsaKeyParameters.getModulus(), publicExponent, rsaKeyParameters.getExponent(), rsaKeyParameters.getP(),
+                rsaKeyParameters.getQ(), rsaKeyParameters.getDP(), rsaKeyParameters.getDQ(), rsaKeyParameters.getQInv());
+        KeyFactory factory = KeyFactory.getInstance("RSA", BouncyCastleProvider.PROVIDER_NAME);
+
+        PrivateKey privateKey = factory.generatePrivate(privateSpec);
+        PublicKey publicKey = factory.generatePublic(new X509EncodedKeySpec(SubjectPublicKeyInfoFactory.createSubjectPublicKeyInfo(keys.getPublic()).getEncoded()));
+
+        return new KeyPair(publicKey, privateKey);
+    }
+
+    @SuppressWarnings("unchecked")
     public VestigeServer call() throws Exception {
         final Bind bind = ssh.getBind();
+        sshConfig.mkdirs();
+        sshData.mkdirs();
 
-        File privateKey = new File(sshBase, "vestige_rsa");
+        File privateKey = new File(sshConfig, "server_rsa");
         if (!privateKey.exists()) {
-            sshBase.mkdirs();
-            // FIXME, this should be UTF-8 or ASCII file, but this version of mina use default encoding, have to update or patch mina ...
-            ConfFileUtils.copy(StandardEditionVestige.class.getResourceAsStream("vestige_rsa"), privateKey, null);
+            PemWriter pw = new PemWriter(new FileWriter(privateKey));
+            privateKey.setReadable(false, false);
+            privateKey.setWritable(false, false);
+            privateKey.setReadable(true, true);
+            privateKey.setWritable(true, true);
+            privateKey.setExecutable(false, false);
+            KeyPair keyPair = generateKeyPair();
+            try {
+                pw.writeObject(new JcaMiscPEMGenerator(keyPair.getPrivate()));
+            } finally {
+                pw.close();
+            }
+
+            File publicKey = new File(sshData, "known_hosts");
+
+            RSAPublicKey rsaPublicKey = (RSAPublicKey) keyPair.getPublic();
+            ByteArrayOutputStream byteOs = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(byteOs);
+            dos.writeInt("ssh-rsa".getBytes().length);
+            dos.write("ssh-rsa".getBytes());
+            dos.writeInt(rsaPublicKey.getPublicExponent().toByteArray().length);
+            dos.write(rsaPublicKey.getPublicExponent().toByteArray());
+            dos.writeInt(rsaPublicKey.getModulus().toByteArray().length);
+            dos.write(rsaPublicKey.getModulus().toByteArray());
+            String enc = Base64.toBase64String(byteOs.toByteArray());
+            FileWriter fileWriter = new FileWriter(publicKey);
+            publicKey.setReadable(false, false);
+            publicKey.setWritable(false, false);
+            publicKey.setReadable(true, true);
+            publicKey.setWritable(true, true);
+            publicKey.setExecutable(false, false);
+
+            try {
+                fileWriter.write("* ssh-rsa " + enc);
+            } finally {
+                fileWriter.close();
+            }
         }
         LOGGER.info("Use {} for private SSH key file", privateKey);
+
+        File authorizedKeysFile = new File(sshConfig, "authorized_keys");
+        if (!authorizedKeysFile.exists()) {
+            File clientPrivateKey = new File(sshData, "client_rsa");
+            PemWriter pw = new PemWriter(new FileWriter(clientPrivateKey));
+            clientPrivateKey.setReadable(false, false);
+            clientPrivateKey.setWritable(false, false);
+            clientPrivateKey.setReadable(true, true);
+            clientPrivateKey.setWritable(true, true);
+            clientPrivateKey.setExecutable(false, false);
+            KeyPair keyPair = generateKeyPair();
+            try {
+                pw.writeObject(new JcaMiscPEMGenerator(keyPair.getPrivate()));
+            } finally {
+                pw.close();
+            }
+
+            RSAPublicKey rsaPublicKey = (RSAPublicKey) keyPair.getPublic();
+            ByteArrayOutputStream byteOs = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(byteOs);
+            dos.writeInt("ssh-rsa".getBytes().length);
+            dos.write("ssh-rsa".getBytes());
+            dos.writeInt(rsaPublicKey.getPublicExponent().toByteArray().length);
+            dos.write(rsaPublicKey.getPublicExponent().toByteArray());
+            dos.writeInt(rsaPublicKey.getModulus().toByteArray().length);
+            dos.write(rsaPublicKey.getModulus().toByteArray());
+            String enc = Base64.toBase64String(byteOs.toByteArray());
+            FileWriter fileWriter = new FileWriter(authorizedKeysFile);
+            authorizedKeysFile.setReadable(false, false);
+            authorizedKeysFile.setWritable(false, false);
+            authorizedKeysFile.setReadable(true, true);
+            authorizedKeysFile.setWritable(true, true);
+            authorizedKeysFile.setExecutable(false, false);
+            try {
+                fileWriter.write("ssh-rsa " + enc + " vestige");
+            } finally {
+                fileWriter.close();
+            }
+        }
+        LOGGER.info("Use {} for authorized public SSH keys file", authorizedKeysFile);
+
         KeyPairProvider keyPairProvider = new FileKeyPairProvider(new String[] {privateKey.getPath()});
         final SshServer sshServer = SshServer.setUpDefaultServer();
+        sshServer.setChannelFactories(Arrays.<NamedFactory<Channel>> asList(new ChannelSession.Factory() {
+            @Override
+            public Channel create() {
+                return new ChannelSession() {
+
+                    @Override
+                    protected boolean handlePtyReq(final Buffer buffer) throws IOException {
+                        String term = buffer.getString();
+                        int tColumns = buffer.getInt();
+                        int tRows = buffer.getInt();
+                        int tWidth = buffer.getInt();
+                        int tHeight = buffer.getInt();
+                        byte[] modes = buffer.getBytes();
+                        for (int i = 0; i < modes.length && modes[i] != 0;) {
+                            PtyMode mode = PtyMode.fromInt(modes[i++]);
+                            if (mode != null) {
+                                int val = ((modes[i++] << 24) & 0xff000000) | ((modes[i++] << 16) & 0x00ff0000) | ((modes[i++] << 8) & 0x0000ff00) | ((modes[i++]) & 0x000000ff);
+                                getEnvironment().getPtyModes().put(mode, val);
+                            }
+                        }
+                        if (log.isDebugEnabled()) {
+                            log.debug("pty for channel {}: term={}, size=({} - {}), pixels=({}, {}), modes=[{}]",
+                                    new Object[] {id, term, tColumns, tRows, tWidth, tHeight, getEnvironment().getPtyModes()});
+                        }
+                        addEnvVariable(Environment.ENV_TERM, term);
+                        addEnvVariable(Environment.ENV_COLUMNS, Integer.toString(tColumns));
+                        addEnvVariable(Environment.ENV_LINES, Integer.toString(tRows));
+                        return true;
+                    }
+
+                };
+            }
+        }, new TcpipServerChannel.DirectTcpipFactory()));
+
         sshServer.setFileSystemFactory(new RootedFileSystemFactory(appHomeFile, "vestige"));
         sshServer.setIoServiceFactoryFactory(new MinaServiceFactoryFactory());
         final String host = bind.getHost();
@@ -93,19 +256,8 @@ public class SSHServerFactory implements Callable<VestigeServer> {
 
         sshServer.setSubsystemFactories(Collections.<NamedFactory<Command>> singletonList(new SftpSubsystem.Factory()));
 
-        if (!sshData.isDirectory()) {
-            sshData.mkdirs();
-        }
-
-        sshServer.setShellFactory(new SSHShellCommandFactory(vestigeCommandExecutor, new File(sshData, "history.txt")));
+        sshServer.setShellFactory(new SSHShellCommandFactory(vestigeCommandExecutor, commandHistory));
         sshServer.setKeyPairProvider(keyPairProvider);
-        File authorizedKeysFile = new File(sshBase, "authorized_keys");
-        if (!authorizedKeysFile.exists()) {
-            sshBase.mkdirs();
-            authorizedKeysFile = new File(sshBase, "authorized_keys");
-            authorizedKeysFile.createNewFile();
-        }
-        LOGGER.info("Use {} for authorized public SSH keys file", authorizedKeysFile);
         sshServer.setPublickeyAuthenticator(new DefaultPublickeyAuthenticator(keyPairProvider, authorizedKeysFile));
         // 1 hour time out
         sshServer.getProperties().put(ServerFactoryManager.IDLE_TIMEOUT, "3600000");
@@ -114,20 +266,40 @@ public class SSHServerFactory implements Callable<VestigeServer> {
             @Override
             public void stop() throws Exception {
                 sshServer.stop();
+                File portFile = new File(sshData, "port.txt");
+                portFile.delete();
                 LOGGER.info("SSH interface stopped");
             }
 
             @Override
             public void start() throws Exception {
                 sshServer.start();
+                File portFile = new File(sshData, "port.txt");
+                FileWriter fileWriter = new FileWriter(portFile);
+                int port = sshServer.getPort();
+                try {
+                    fileWriter.write(String.valueOf(port));
+                } finally {
+                    fileWriter.close();
+                }
                 if (LOGGER.isInfoEnabled()) {
                     if (host == null) {
-                        LOGGER.info("Listen on *:{} for SSH interface", bind.getPort());
+                        LOGGER.info("Listen on *:{} for SSH interface", port);
                     } else {
-                        LOGGER.info("Listen on {}:{} for SSH interface", host, bind.getPort());
+                        LOGGER.info("Listen on {}:{} for SSH interface", host, port);
                     }
                     LOGGER.info("SSH interface started");
                 }
+            }
+
+            @Override
+            public String getLocalHost() {
+                return null;
+            }
+
+            @Override
+            public int getLocalPort() {
+                return 0;
             }
         };
     }

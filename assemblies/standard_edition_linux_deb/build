@@ -5,20 +5,23 @@ VESTIGE_VERSION=`cat ../standard_edition_standalone/pom.xml | grep -m 1 version 
 rm -r target
 mkdir -p target/vestige_deb/DEBIAN
 mkdir -p target/vestige_deb/etc/vestige
-mkdir -p target/vestige_deb/usr/bin
-mkdir -p target/vestige_deb/usr/share/icons
-mkdir -p target/vestige_deb/usr/share/applications
 mkdir -p target/vestige_deb/usr/share/lintian/overrides
 mkdir -p target/vestige_deb/usr/share/doc/vestige
 unzip -d target/vestige ../standard_edition_standalone/target/vestige.assemblies.standard_edition_standalone-$VESTIGE_VERSION-unix.zip
-sed -i~ -e 's/VESTIGE_BASE=.*/VESTIGE_BASE="$HOME\/vestige"/' -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="$HOME\/.vestige"/' -e 's/DATADIR=.*/DATADIR=\/usr\/share\/vestige/' -e 's/CONFDIR=.*/CONFDIR=\/etc\/vestige\//' target/vestige/vestige
+sed -i~ -e 's/VESTIGE_CONFIG=.*/VESTIGE_CONFIG="${XDG_CONFIG_HOME:-$HOME\/.config}\/vestige"/' -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="${XDG_DATA_HOME:-$HOME\/.local\/share}\/vestige"/' -e 's/VESTIGE_CACHE=.*/VESTIGE_CACHE="${XDG_CACHE_HOME:-$HOME\/.cache}\/vestige"/' -e 's/DATADIR=.*/DATADIR=\/usr\/share\/vestige/' -e 's/CONFDIR=.*/CONFDIR=\/etc\/vestige\//' target/vestige/vestige
 rm target/vestige/vestige~
+sed -i~ -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="${XDG_DATA_HOME:-$HOME\/.local\/share}\/vestige"/' target/vestige/vestigessh
+rm target/vestige/vestigessh~
+sed -i~ -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="${XDG_DATA_HOME:-$HOME\/.local\/share}\/vestige"/' target/vestige/vestigeweb
+rm target/vestige/vestigeweb~
 mkdir -p target/vestige_deb/usr/share/vestige
 mv target/vestige/repository target/vestige_deb/usr/share/vestige/repository
 mv target/vestige/lib target/vestige_deb/usr/share/vestige/lib
 mv target/vestige/m2 target/vestige_deb/usr/share/vestige/m2
 mv target/vestige/unix-classpath.txt target/vestige_deb/usr/share/vestige/
 mv target/vestige/vestige target/vestige_deb/usr/share/vestige/vestige
+mv target/vestige/vestigessh target/vestige_deb/usr/share/vestige/vestigessh
+mv target/vestige/vestigeweb target/vestige_deb/usr/share/vestige/vestigeweb
 chmod +x target/vestige_deb/usr/share/vestige/vestige
 mv target/vestige/jvm_enhancer.properties target/vestige_deb/usr/share/vestige/
 rm target/vestige/README
@@ -27,14 +30,9 @@ sed -e 's/Version: .*/Version: '$VESTIGE_VERSION'/' src/control > target/vestige
 cp src/copyright target/vestige_deb/usr/share/doc/vestige/copyright
 cp src/lintian_vestige target/vestige_deb/usr/share/lintian/overrides/vestige
 cp src/conffiles target/vestige_deb/DEBIAN/
-cp src/postinst target/vestige_deb/DEBIAN/
-chmod +x target/vestige_deb/DEBIAN/postinst
-cp ../standard_edition_linux_desktop/src/vestige.desktop target/vestige_deb/usr/share/applications/
-cp ../standard_edition_linux_desktop/src/vestige_gtk_launcher.py target/vestige_deb/usr/bin/vestige
-cp -r ../standard_edition_linux_desktop/src/hicolor target/vestige_deb/usr/share/icons/
-chmod +x target/vestige_deb/usr/bin/*
 find target \( -name .svn -o -name .DS_Store \) -exec rm -rf {} \;
 ssh debbuilder rm -rf '~/target'
 scp -r target debbuilder:.
-ssh debbuilder dpkg -b target/vestige_deb/ target/vestige_${VESTIGE_VERSION}_all.deb
+ssh debbuilder dpkg-deb --no-uniform-compression -b target/vestige_deb/ target/vestige_${VESTIGE_VERSION}_all.deb
+ssh debbuilder debsigs --sign=origin target/vestige_${VESTIGE_VERSION}_all.deb
 scp debbuilder:target/vestige_${VESTIGE_VERSION}_all.deb target/vestige_${VESTIGE_VERSION}_all.deb 

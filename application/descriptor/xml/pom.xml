@@ -35,8 +35,8 @@
               <episodeFile>${project.build.directory}/generated-sources/xjc/META-INF/sun-jaxb-application.episode</episodeFile>
               <bindingDirectory>${basedir}/src/main/config</bindingDirectory>
               <schemaIncludes>
-                <include>fr/gaellalire/vestige/application/descriptor/xml/application-2.0.0.xsd</include>
-                <include>fr/gaellalire/vestige/application/descriptor/xml/repository-1.0.0.xsd</include>
+                <include>fr/gaellalire/vestige/application/descriptor/xml/application.xsd</include>
+                <include>fr/gaellalire/vestige/application/descriptor/xml/repository.xsd</include>
               </schemaIncludes>
             </configuration>
           </execution>

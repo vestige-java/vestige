@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <signal.h>
+#include <arpa/inet.h>
 
 @implementation Vestige
 
@@ -25,6 +26,9 @@ static void handleConnect(CFSocketRef socket,
             [istream setDelegate:(id) vapp];
             [istream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:(id) kCFRunLoopCommonModes];
             [istream open];
+            
+            CFSocketInvalidate(socket);
+            CFRelease(socket);
         } else {
             close(nativeSocketHandle);
         }
@@ -34,6 +38,67 @@ static void handleConnect(CFSocketRef socket,
         
     }
 }
+
+- (void)addCA:(NSString *)path {
+    NSURL *certUrl = [NSURL fileURLWithPath:path];
+    NSData *data = [[NSData alloc] initWithContentsOfURL:certUrl];
+    if (data == nil) {
+        return;
+    }
+    
+    OSStatus status;
+    SecCertificateRef cert = SecCertificateCreateWithData(NULL, (__bridge CFDataRef) data);
+    if (cert == nil) {
+        status = errSecUnknownFormat;
+    } else {
+        status = SecCertificateAddToKeychain(cert, NULL);
+    }
+    
+    if (status == errSecUnknownFormat) {
+        // try PEM
+        NSString * pemString = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+        if (pemString != nil) {
+            pemString = [pemString stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+            pemString = [pemString stringByReplacingOccurrencesOfString:@"-----BEGIN CERTIFICATE-----" withString:@""];
+            pemString = [pemString stringByReplacingOccurrencesOfString:@"-----END CERTIFICATE-----" withString:@""];
+            NSData *rawCertificate;
+            if ([data respondsToSelector:@selector(base64EncodedStringWithOptions:)]) {
+                rawCertificate = [[NSData alloc] initWithBase64EncodedString:pemString options:NSDataBase64DecodingIgnoreUnknownCharacters];
+            } else {
+                rawCertificate = [[NSData alloc] initWithBase64Encoding:pemString];
+            }
+            if (rawCertificate != nil) {
+                cert = SecCertificateCreateWithData(NULL, (__bridge CFDataRef)rawCertificate);
+                
+                if (cert != nil) {
+                    status = SecCertificateAddToKeychain(cert, NULL);
+                }
+            }
+        }
+    }
+    
+    if (status != errSecSuccess) {
+        return;
+    }
+    SecTrustSettingsSetTrustSettings(cert, kSecTrustSettingsDomainUser, NULL);
+}
+
+- (void)addP12:(NSString *)path {
+    NSURL *p12Url = [NSURL fileURLWithPath:path];
+    NSData *data = [[NSData alloc] initWithContentsOfURL:p12Url];
+    if (data == nil) {
+        return;
+    }
+    
+    NSString* password = @"changeit";
+    NSDictionary* options = @{ (id)kSecImportExportPassphrase : password };
+    
+    CFArrayRef rawItems = NULL;
+    SecPKCS12Import((__bridge CFDataRef)data,
+                    (__bridge CFDictionaryRef)options,
+                    &rawItems);
+}
+
 
 - (void)stream:(NSStream *)stream handleEvent:(NSStreamEvent)streamEvent {
     
@@ -60,12 +125,14 @@ static void handleConnect(CFSocketRef socket,
             NSString * command = [[NSString alloc] initWithBytesNoCopy:buffer length:bufferSize encoding:NSUTF8StringEncoding freeWhenDone:false];
 
             int webLen = strlen("Web ");
-            int baseLen = strlen("Base ");
+            int baseLen = strlen("Config ");
+            int caLen = strlen("CA ");
+            int clientP12Len = strlen("ClientP12 ");
             if ([command hasPrefix:@"Web "]) {
                 url = [[NSString alloc] initWithString:[command substringFromIndex:webLen]];
                 [openWebAdminItem setEnabled:TRUE];
                 [statusMenu update];
-            } else if ([command hasPrefix:@"Base "]) {
+            } else if ([command hasPrefix:@"Config "]) {
                 base = [[NSString alloc] initWithString:[command substringFromIndex:baseLen]];
                 [openBaseFolderItem setEnabled:TRUE];
                 [statusMenu update];
@@ -77,6 +144,12 @@ static void handleConnect(CFSocketRef socket,
                 procState = 3;
             } else if ([command compare:@"Stopped"] == 0) {
                 procState = 4;
+            } else if ([command hasPrefix:@"CA "]) {
+                NSString * path = [[NSString alloc] initWithString:[command substringFromIndex:caLen]];
+                [self addCA:path];
+            } else if ([command hasPrefix:@"ClientP12 "]) {
+                NSString * path = [[NSString alloc] initWithString:[command substringFromIndex:clientP12Len]];
+                [self addP12:path];
             }
             
             break;
@@ -256,7 +329,7 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
     openWebAdminItem = [statusMenu addItemWithTitle:@"Open web administration" action:@selector(openWebAdmin) keyEquivalent:@""];
     [openWebAdminItem setEnabled:FALSE];
 
-    openBaseFolderItem = [statusMenu addItemWithTitle:@"Open base folder" action:@selector(openBaseFolder) keyEquivalent:@""];
+    openBaseFolderItem = [statusMenu addItemWithTitle:@"Open config folder" action:@selector(openBaseFolder) keyEquivalent:@""];
     [openBaseFolderItem setEnabled:FALSE];
 
     [statusMenu addItemWithTitle:@"Show command line output" action:@selector(showCommandLineOutput) keyEquivalent:@""];
@@ -342,7 +415,7 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
     sin.sin_len = sizeof(sin);
     sin.sin_family = AF_INET;
     sin.sin_port = htons(0);
-    sin.sin_addr.s_addr= INADDR_ANY;
+    sin.sin_addr.s_addr= inet_addr("127.0.0.1");
     
     CFDataRef sincfd = CFDataCreate(kCFAllocatorDefault, (UInt8 *)&sin, sizeof(sin));
     

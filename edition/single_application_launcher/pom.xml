@@ -105,5 +105,13 @@
       <groupId>fr.gaellalire.jaxb</groupId>
       <artifactId>jaxb-runtime</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bctls-jdk15on</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcpkix-jdk15on</artifactId>
+    </dependency>
   </dependencies>
 </project>

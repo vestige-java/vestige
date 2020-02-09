@@ -2,8 +2,10 @@ Source: vestige
 Package: vestige
 Version: 1.0.0
 Architecture: all
+Section: java
+Priority: optional
 Maintainer: Gael Lalire <vestige@gaellalire.fr>
 Description: Java Application Manager
 Homepage: http://gaellalire.fr/vestige
 Installed-Size: 15360
-Depends: bash, default-jre-headless, java6-runtime-headless, python-gtk2 (>= 2.6), python-appindicator, python-dbus
+Depends: bash, default-jre-headless, java6-runtime-headless

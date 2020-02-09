@@ -30,7 +30,7 @@ public interface ApplicationManagerState {
 
     Set<String> getRepositoriesName() throws ApplicationException;
 
-    URL getRepositoryURL(String repoName) throws ApplicationException;
+    URL getRepositoryURL(String repoName);
 
     Set<String> getApplicationsName() throws ApplicationException;
 
@@ -38,13 +38,13 @@ public interface ApplicationManagerState {
 
     ResolvedClassLoaderConfiguration getClassLoaders(String installName) throws ApplicationException;
 
-    String getRepositoryName(String installName) throws ApplicationException;
-
     List<Integer> getMigrationRepositoryApplicationVersion(String installName) throws ApplicationException;
 
     int getAutoMigrateLevel(String installName) throws ApplicationException;
 
     boolean isAutoStarted(String installName) throws ApplicationException;
+
+    URL getApplicationRepositoryURL(String installName) throws ApplicationException;
 
     String getRepositoryApplicationName(String installName) throws ApplicationException;
 

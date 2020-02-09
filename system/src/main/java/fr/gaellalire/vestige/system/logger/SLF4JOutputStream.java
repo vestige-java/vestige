@@ -25,30 +25,87 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
+import fr.gaellalire.vestige.system.interceptor.VestigePrintStream;
 
 /**
  * @author Gael Lalire
  */
 public class SLF4JOutputStream extends OutputStream {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(SLF4JOutputStream.class);
-
     private VestigeSystem privilegedVestigeSystem;
 
-    private ByteArrayOutputStream outputStream;
-
-    private boolean crRead = false;
-
     private boolean info;
+
+    private ThreadLocal<OutputStreamState> threadLocal = new ThreadLocal<OutputStreamState>();
 
     public SLF4JOutputStream(final VestigeSystem privilegedVestigeSystem, final boolean info) {
         this.privilegedVestigeSystem = privilegedVestigeSystem;
         this.info = info;
-        outputStream = new ByteArrayOutputStream();
+    }
+
+    public String getCallingClassName() {
+        boolean found = false;
+        StackTraceElement[] stackTrace = new Throwable().getStackTrace();
+        for (StackTraceElement stackTraceElement : stackTrace) {
+            String className = stackTraceElement.getClassName();
+            if (className.equals(VestigePrintStream.class.getName())) {
+                found = true;
+                continue;
+            }
+            if (found) {
+                return className;
+            }
+        }
+        if (info) {
+            return "sysout";
+        } else {
+            return "syserr";
+        }
+    }
+
+    public void log(final Logger logger, final ByteArrayOutputStream outputStream) {
+        if (info) {
+            VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+            try {
+                if (logger.isInfoEnabled()) {
+                    logger.info("{}", outputStream.toString());
+                }
+            } finally {
+                pushedVestigeSystem.setCurrentSystem();
+            }
+        } else {
+            VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
+            try {
+                if (logger.isErrorEnabled()) {
+                    logger.error("{}", outputStream.toString());
+                }
+            } finally {
+                pushedVestigeSystem.setCurrentSystem();
+            }
+        }
+        outputStream.reset();
     }
 
     @Override
     public void write(final int b) throws IOException {
+        OutputStreamState outputStreamState = threadLocal.get();
+        String callingClassName = getCallingClassName();
+        if (outputStreamState == null) {
+            outputStreamState = new OutputStreamState(new ByteArrayOutputStream(), LoggerFactory.getLogger(callingClassName));
+            threadLocal.set(outputStreamState);
+        }
+
+        boolean crRead = outputStreamState.isCrRead();
+        ByteArrayOutputStream outputStream = outputStreamState.getOutputStream();
+        Logger logger = outputStreamState.getLogger();
+
+        if (!callingClassName.equals(logger.getName())) {
+            log(logger, outputStream);
+            logger = LoggerFactory.getLogger(callingClassName);
+            crRead = false;
+            outputStreamState.setLogger(logger);
+        }
+
         boolean lineReaded = false;
         if (crRead) {
             if (b == '\r') {
@@ -70,27 +127,10 @@ public class SLF4JOutputStream extends OutputStream {
                 outputStream.write(b);
             }
         }
+        outputStreamState.setCrRead(crRead);
         if (lineReaded) {
-            if (info) {
-                VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
-                try {
-                    if (LOGGER.isInfoEnabled()) {
-                        LOGGER.info("{}", outputStream.toString());
-                    }
-                } finally {
-                    pushedVestigeSystem.setCurrentSystem();
-                }
-            } else {
-                VestigeSystem pushedVestigeSystem = privilegedVestigeSystem.setCurrentSystem();
-                try {
-                    if (LOGGER.isErrorEnabled()) {
-                        LOGGER.error("{}", outputStream.toString());
-                    }
-                } finally {
-                    pushedVestigeSystem.setCurrentSystem();
-                }
-            }
-            outputStream.reset();
+            log(logger, outputStream);
+            threadLocal.remove();
         }
     }
 }

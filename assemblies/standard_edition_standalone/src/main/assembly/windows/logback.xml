@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="false">
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <fileNamePattern>${logback.logsDirectory}/%d{yyyy-MM-dd}.log</fileNamePattern>
+      <!-- one month of logs -->
+      <maxHistory>30</maxHistory>
+    </rollingPolicy>
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} %level [%X{vestige.appName:-vestige} %t] %logger -> %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+      <evaluator>
+        <matcher>
+          <Name>bootMatcher</Name>
+          <regex>fr\.gaellalire\.vestige\.edition\..*</regex>
+        </matcher>
+        
+        <expression>bootMatcher.matches(logger)</expression>
+      </evaluator>
+      <OnMismatch>DENY</OnMismatch>
+    </filter>
+    <encoder>
+      <charset>${console.encoding:-${file.encoding}}</charset>
+      <pattern>%d{HH:mm:ss.SSS} %level -> %msg%n</pattern>
+    </encoder>
+  </appender>
+  
+  <logger name="org.apache.sshd" level="OFF" />
+  <logger name="com.btr.proxy" level="ERROR" />
+  <logger name="fr.gaellalire.vestige.platform" level="WARN" />
+  <logger name="fr.gaellalire.vestige.system" level="WARN" />
+  <logger name="fr.gaellalire.vestige.jvm_enhancer" level="INFO" />
+  <logger name="fr.gaellalire.vestige.edition.maven_main_launcher" level="INFO" />
+  <logger name="fr.gaellalire.vestige.edition.standard" level="INFO" />
+  <logger name="fr.gaellalire.vestige.resolver.maven" level="INFO" />
+  <logger name="fr.gaellalire.vestige.application.manager" level="INFO" />
+  <logger name="fr.gaellalire.vestige.system.logger.SLF4JOutputStream" level="INFO" />
+
+  <root level="INFO">
+    <appender-ref ref="STDOUT" />
+    <appender-ref ref="FILE" />
+  </root>
+</configuration>

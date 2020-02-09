@@ -8,7 +8,7 @@ arch=('any')
 url="http://gaellalire.fr/vestige"
 license=('GPL3')
 groups=()
-depends=(bash java-runtime-headless 'pygtk>=2.6' python2-dbus python2-libappindicator)
+depends=(bash java-runtime-headless)
 makedepends=()
 checkdepends=()
 optdepends=()
@@ -17,7 +17,6 @@ conflicts=()
 replaces=()
 backup=()
 options=()
-install=vestige.install
 changelog=
 source=()
 noextract=()

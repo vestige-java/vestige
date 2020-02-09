@@ -69,15 +69,18 @@ public class ListCommand implements Command {
             for (String applicationName : applicationsName) {
                 out.print("  ");
                 out.print(applicationName);
-                out.print(" ");
-                out.print(applicationManagerState.getRepositoryName(applicationName));
-                out.print("-");
-                out.print(applicationManagerState.getRepositoryApplicationName(applicationName));
+                out.print(" (");
+                out.print(applicationManagerState.getApplicationRepositoryURL(applicationName));
+                String repositoryApplicationName = applicationManagerState.getRepositoryApplicationName(applicationName);
+                out.print(repositoryApplicationName);
+                out.print("/");
+                out.print(repositoryApplicationName);
                 out.print("-");
                 out.print(VersionUtils.toString(applicationManagerState.getRepositoryApplicationVersion(applicationName)));
+                out.print(".xml)");
                 List<Integer> migrationRepositoryApplicationVersion = applicationManagerState.getMigrationRepositoryApplicationVersion(applicationName);
                 if (migrationRepositoryApplicationVersion != null && migrationRepositoryApplicationVersion.size() != 0) {
-                    out.print("-");
+                    out.print(" migrating to ");
                     out.print(VersionUtils.toString(migrationRepositoryApplicationVersion));
                 }
                 out.print(" -> state:");

@@ -16,6 +16,12 @@ module fr.gaellalire.vestige.edition.maven_main_launcher {
 
     requires java.xml.bind;
 
+    requires org.bouncycastle.provider;
+    
+    requires org.bouncycastle.tls;
+    
+    requires org.bouncycastle.pkix;
+
     exports fr.gaellalire.vestige.edition.maven_main_launcher;
     
     opens fr.gaellalire.vestige.edition.maven_main_launcher.schema to java.xml.bind;

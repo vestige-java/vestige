@@ -17,13 +17,14 @@
 
 package fr.gaellalire.vestige.job.secure;
 
+import fr.gaellalire.vestige.spi.job.AbstractTaskHelper;
 import fr.gaellalire.vestige.spi.job.TaskHelper;
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
 
 /**
  * @author Gael Lalire
  */
-public class SecureTaskHelper implements TaskHelper {
+public class SecureTaskHelper extends AbstractTaskHelper {
 
     private VestigeSystem secureVestigeSystem;
 

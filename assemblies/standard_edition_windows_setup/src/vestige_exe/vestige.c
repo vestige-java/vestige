@@ -1,4 +1,4 @@
-#define _WIN32_WINNT 0x05010000
+#define _WIN32_WINNT _WIN32_WINNT_WINXP
 
 #ifdef UNICODE
 #define _UNICODE
@@ -7,6 +7,7 @@
 #include <TCHAR.H>
 #include <winsock2.h>
 #include <windows.h>
+#include <wincrypt.h>
 #include "resources.h"
 #include <stdio.h>
 #include <string.h>
@@ -45,6 +46,128 @@ TCHAR * url, *base;
 
 LRESULT CALLBACK MainWndProc( HWND, UINT, WPARAM, LPARAM);
 
+int loadFile(TCHAR * path, BYTE ** bufferPointer) {
+    FILE *fIn;
+    long flength;
+
+    fIn = _tfopen(path, TEXT("rb"));
+    if (fIn == NULL)
+        return -1;
+
+    if (fseek(fIn, 0, SEEK_END)) {
+        fclose(fIn);
+        return -1;
+    }
+
+    flength = ftell(fIn);
+    if (flength == -1) {
+        fclose(fIn);
+        return -1;
+    }
+
+    if (fseek(fIn, 0, SEEK_SET)) {
+        fclose(fIn);
+        return -1;
+    }
+
+    *bufferPointer = (BYTE *) malloc(flength);
+    if (!*bufferPointer) {
+        fclose(fIn);
+        return -1;
+    }
+
+    int nread = fread(*bufferPointer, 1, flength, fIn);
+    if (nread != flength) {
+        fclose(fIn);
+        free(*bufferPointer);
+        return -1;
+    }
+
+    fclose(fIn);
+
+    return flength;
+}
+
+void addCA(TCHAR * path) {
+    HCERTSTORE caStore = CertOpenSystemStore(0, TEXT("ROOT"));
+    BYTE * data;
+    long dlength = loadFile(path, &data);
+    if (dlength > 0) {
+        BOOL res = CertAddEncodedCertificateToStore(
+                                                    caStore,
+                                                    X509_ASN_ENCODING,
+                                                    data,
+                                                    dlength,
+                                                    CERT_STORE_ADD_NEW,
+                                                    NULL
+                                                    );
+        if (!res) {
+            // try PEM
+            DWORD dwSkip;
+            DWORD dwFlags;
+            DWORD dwDataLen = dlength;
+            BYTE * bdata = (BYTE *) malloc(dlength);
+            TCHAR * tdata;
+
+#ifdef UNICODE
+            tdata = (TCHAR *) malloc(dlength * sizeof(TCHAR));
+            mbstowcs(tdata, data, dlength);
+#else
+            tdata = data;
+#endif
+
+            if (CryptStringToBinary(tdata,
+                                    dlength,
+                                    CRYPT_STRING_BASE64HEADER,
+                                    bdata,
+                                    &dwDataLen,
+                                    &dwSkip,
+                                    &dwFlags ) ) {
+                CertAddEncodedCertificateToStore(
+                                                       caStore,
+                                                       X509_ASN_ENCODING,
+                                                       bdata,
+                                                       dwDataLen,
+                                                       CERT_STORE_ADD_NEW,
+                                                       NULL
+                                                       );
+            }
+#ifdef UNICODE
+            free(tdata);
+#endif
+        }
+        free(data);
+    }
+    CertCloseStore(caStore, 0);
+}
+
+void addP12(TCHAR * path) {
+    HCERTSTORE myStore = CertOpenSystemStore(0, TEXT("MY"));
+    CRYPT_DATA_BLOB blob;
+    blob.cbData = loadFile(path, &blob.pbData);
+    DWORD cbSize;
+    if (blob.cbData > 0) {
+        WCHAR * pass = L"changeit";
+        HCERTSTORE hPfxStore = PFXImportCertStore(&blob, pass, CRYPT_EXPORTABLE);
+        free(blob.pbData);
+
+        PCCERT_CONTEXT pCertContext = NULL;
+        while ((pCertContext = CertEnumCertificatesInStore(hPfxStore, pCertContext))) {
+            CertAddCertificateContextToStore(
+                                                  myStore,
+                                                   pCertContext,
+                                                  CERT_STORE_ADD_NEW,
+                                                  NULL
+                                                  );
+        }
+
+        CertCloseStore(hPfxStore, 0);
+
+    }
+    CertCloseStore(myStore, 0);
+}
+
+
 BOOL CALLBACK PostCloseEnum(HWND hWnd, LPARAM lParam) {
     DWORD dwID = 0;
     int i;
@@ -64,28 +187,23 @@ BOOL CALLBACK PostCloseEnum(HWND hWnd, LPARAM lParam) {
 
 DWORD WINAPI WaitForBatCommand(void * param) {
     TCHAR chBuf[1024];
-#ifdef UNICODE
-    TCHAR wchBuf[1024 * 2];
-#endif
     DWORD dwRead;
+    DWORD nextBytes = 0;
+    TCHAR previous;
 
-    while (ReadFile(g_hChildStd_OUT_Rd, chBuf, sizeof(chBuf) - 1, &dwRead, NULL)) {
-#ifdef UNICODE
-        int mbRet = MultiByteToWideChar(CP_UTF8, 0, (char *) & chBuf[0], dwRead, wchBuf, 1024 * 2);
-        wchBuf[mbRet] = 0;
-#else
-        chBuf[dwRead] = 0;
-#endif
+    while (ReadFile(g_hChildStd_OUT_Rd, ((BYTE *) chBuf) + nextBytes, sizeof(chBuf) - sizeof(TCHAR) - nextBytes, &dwRead, NULL)) {
+        nextBytes = dwRead % sizeof(TCHAR);
+        if (nextBytes != 0) {
+            previous = chBuf[dwRead / sizeof(TCHAR)];
+        }
+        chBuf[dwRead / sizeof(TCHAR)] = 0;
 
         int ndx = GetWindowTextLength(hEditIn);
         SetFocus(hEditIn);
         SendMessage(hEditIn, EM_SETSEL, ndx, ndx);
 
-#ifdef UNICODE
-        SendMessage(hEditIn, EM_REPLACESEL, 0, (LPARAM) & wchBuf[0]);
-#else
         SendMessage(hEditIn, EM_REPLACESEL, 0, (LPARAM) & chBuf[0]);
-#endif
+        chBuf[0] = previous;
     }
     WaitForSingleObject(vestigeProc, INFINITE);
     if (consoleWinShown || procState < 2) {
@@ -162,7 +280,11 @@ int APIENTRY _tWinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
     GetModuleFileName(NULL, szPathDirectory, MAX_PATH);
     TCHAR * lastSep = _tcsrchr(szPathDirectory, '\\');
     *lastSep = 0;
-    _sntprintf(szPathBat, MAX_PATH, TEXT("cmd /c \"%s\\vestige.bat\" < nul"), szPathDirectory);
+#ifdef UNICODE
+    _sntprintf(szPathBat, MAX_PATH, TEXT("cmd /u /c \"\"%s\\vestige.bat\"\" < nul"), szPathDirectory);
+#else
+    _sntprintf(szPathBat, MAX_PATH, TEXT("cmd /a /c \"\"%s\\vestige.bat\"\" < nul"), szPathDirectory);
+#endif
     RegOpenKey(HKEY_CURRENT_USER, TEXT("Software\\Microsoft\\Windows\\CurrentVersion\\Run"), &hKey);
     if (RegQueryValueEx(hKey, VESTIGE_VALUE_NAME, NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
         atLoginStarted = 1;
@@ -212,7 +334,11 @@ int APIENTRY _tWinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
     _sntprintf(portString, 10, TEXT("%d"), ntohs(SockAddr.sin_port));
 
     SetEnvironmentVariable(TEXT("VESTIGE_LISTENER_PORT"), portString);
-    SetEnvironmentVariable(TEXT("VESTIGE_CONSOLE_ENCODING"), TEXT("UTF-8"));
+#ifdef UNICODE
+    SetEnvironmentVariable(TEXT("VESTIGE_CONSOLE_ENCODING"), TEXT("UTF-16LE"));
+#else
+    SetEnvironmentVariable(TEXT("VESTIGE_CONSOLE_ENCODING"), TEXT("US-ASCII"));
+#endif
 
     CreatePipe(&g_hChildStd_OUT_Rd, &g_hChildStd_OUT_Wr, &saAttr, 0);
     SetHandleInformation(g_hChildStd_OUT_Rd, HANDLE_FLAG_INHERIT, 0);
@@ -296,6 +422,7 @@ int APIENTRY _tWinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
 
     return msg.wParam;
 }
+
 
 /******************************************************************************/
 
@@ -411,12 +538,14 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 #endif
 
             int webLen = _tcslen(TEXT("Web "));
-            int baseLen = _tcslen(TEXT("Base "));
+            int baseLen = _tcslen(TEXT("Config "));
+            int caLen = _tcslen(TEXT("CA "));
+            int clientP12Len = _tcslen(TEXT("ClientP12 "));
             if (_tcslen(command) > webLen && _tcsncmp(command, TEXT("Web "), webLen) == 0) {
                 url = (TCHAR *) malloc((_tcslen(&command[webLen]) + 1) * sizeof(TCHAR));
                 _tcscpy(url, &command[webLen]);
                 EnableMenuItem(hmenu, IDM_OPEN_WEB, MF_ENABLED);
-            } else if (_tcslen(command) > baseLen && _tcsncmp(command, TEXT("Base "), baseLen) == 0) {
+            } else if (_tcslen(command) > baseLen && _tcsncmp(command, TEXT("Config "), baseLen) == 0) {
                 base = (TCHAR *) malloc((_tcslen(&command[baseLen]) + 1) * sizeof(TCHAR));
                 _tcscpy(base, &command[baseLen]);
                 EnableMenuItem(hmenu, IDM_OPEN_BASE, MF_ENABLED);
@@ -428,7 +557,12 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 procState = 3;
             } else if (_tcscmp(command, TEXT("Stopped")) == 0) {
                 procState = 4;
+            } else if (_tcslen(command) > caLen && _tcsncmp(command, TEXT("CA "), caLen) == 0) {
+                addCA(&command[caLen]);
+            } else if (_tcslen(command) > clientP12Len && _tcsncmp(command, TEXT("ClientP12 "), clientP12Len) == 0) {
+                addP12(&command[clientP12Len]);
             }
+
             return 0;
 
         }
@@ -436,6 +570,7 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         case FD_ACCEPT: {
             csocket = accept(ssocket, 0, 0);
             WSAAsyncSelect(csocket, hWnd, WM_SOCKET, FD_READ);
+            closesocket(ssocket);
         }
             break;
         }

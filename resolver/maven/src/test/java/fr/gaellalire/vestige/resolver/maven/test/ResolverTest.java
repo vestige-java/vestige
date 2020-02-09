@@ -20,6 +20,7 @@ package fr.gaellalire.vestige.resolver.maven.test;
 import java.io.File;
 import java.net.URL;
 import java.util.Collections;
+import java.util.Enumeration;
 
 import org.eclipse.aether.artifact.DefaultArtifact;
 import org.eclipse.aether.graph.Dependency;
@@ -33,10 +34,14 @@ import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
 import fr.gaellalire.vestige.platform.VestigeURLStreamHandlerFactory;
 import fr.gaellalire.vestige.resolver.maven.CreateClassLoaderConfigurationParameters;
 import fr.gaellalire.vestige.resolver.maven.DefaultDependencyModifier;
+import fr.gaellalire.vestige.resolver.maven.DefaultResolvedMavenArtifact;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
 import fr.gaellalire.vestige.resolver.maven.ResolveParameters;
 import fr.gaellalire.vestige.spi.job.DummyJobHelper;
+import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.Scope;
+import fr.gaellalire.vestige.spi.resolver.maven.ResolveMode;
+import fr.gaellalire.vestige.spi.resolver.maven.ResolvedMavenArtifact;
 
 /**
  * @author Gael Lalire
@@ -57,7 +62,7 @@ public class ResolverTest {
     public void test() throws Exception {
 
         File settingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
-        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(new DefaultVestigePlatform(new VestigeExecutor(), null), settingsFile);
+        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(new DefaultVestigePlatform(new VestigeExecutor(), null), settingsFile, null);
 
         ResolveParameters resolveRequest = new ResolveParameters();
         resolveRequest.setGroupId("fr.gaellalire.vestige_app.mywar");
@@ -93,7 +98,7 @@ public class ResolverTest {
     public void testEAR() throws Exception {
 
         File settingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
-        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(new DefaultVestigePlatform(new VestigeExecutor(), null), settingsFile);
+        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(new DefaultVestigePlatform(new VestigeExecutor(), null), settingsFile, null);
 
         ResolveParameters resolveRequest = new ResolveParameters();
         resolveRequest.setGroupId("fr.gaellalire.vestige_app.myeeapps");
@@ -115,14 +120,78 @@ public class ResolverTest {
 
         CreateClassLoaderConfigurationParameters createClassLoaderConfigurationParameters = new CreateClassLoaderConfigurationParameters();
         createClassLoaderConfigurationParameters.setManyLoaders(true);
-        createClassLoaderConfigurationParameters.setAppName("mywar");
+        createClassLoaderConfigurationParameters.setAppName("myear1");
         createClassLoaderConfigurationParameters.setScope(Scope.PLATFORM);
-        createClassLoaderConfigurationParameters.setSelfExcluded(true);
         createClassLoaderConfigurationParameters.setSelfExcluded(true);
 
         ClassLoaderConfiguration resolve = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
                 .createClassLoaderConfiguration(createClassLoaderConfigurationParameters);
         System.out.println(resolve);
+
+    }
+
+    @Test
+    public void testClasspath() throws Exception {
+
+        File settingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
+        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(new DefaultVestigePlatform(new VestigeExecutor(), null), settingsFile, null);
+
+        ResolveParameters resolveRequest = new ResolveParameters();
+        resolveRequest.setGroupId("fr.gaellalire.vestige_app.myeeapps");
+        resolveRequest.setArtifactId("myeeapps-ear1");
+        resolveRequest.setVersion("0.0.1");
+        resolveRequest.setExtension("ear");
+        // resolveRequest.setAdditionalRepositories(additionalRepositories);
+        DefaultDependencyModifier defaultDependencyModifier = new DefaultDependencyModifier();
+        // defaultDependencyModifier.add("commons-io", "commons-io",
+        // Collections.singletonList(new Dependency(new DefaultArtifact("fr.gaellalire.vestige_app.mywar", "mywar", "war", "0.0.1"), "runtime")));
+        // defaultDependencyModifier.add("javax.servlet", "javax.servlet-api",
+        // Collections.singletonList(new Dependency(new DefaultArtifact("fr.gaellalire.vestige_app.mywar", "mywar", "war", "0.0.1"), "runtime")));
+        resolveRequest.setDependencyModifier(defaultDependencyModifier);
+        // resolveRequest.setJpmsConfiguration(defaultJPMSConfiguration);
+        // resolveRequest.setJpmsNamedModulesConfiguration(namedModulesConfiguration);
+        resolveRequest.setSuperPomRepositoriesIgnored(true);
+        resolveRequest.setPomRepositoriesIgnored(true);
+        resolveRequest.setChecksumVerified(false);
+
+        // CreateClassLoaderConfigurationParameters createClassLoaderConfigurationParameters = new CreateClassLoaderConfigurationParameters();
+        // createClassLoaderConfigurationParameters.setManyLoaders(false);
+        // createClassLoaderConfigurationParameters.setAppName("myear1");
+        // createClassLoaderConfigurationParameters.setScope(Scope.PLATFORM);
+        // createClassLoaderConfigurationParameters.setSelfExcluded(true);
+
+        DefaultResolvedMavenArtifact artif = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE);
+        System.out.println(artif.createClassLoaderConfiguration("ear1", ResolveMode.CLASSPATH, Scope.PLATFORM).execute());
+        System.out.println();
+
+        Enumeration<? extends ResolvedMavenArtifact> dependencies = artif.getDependencies();
+        ResolvedMavenArtifact war1 = dependencies.nextElement();
+
+        System.out.println(war1.createClassLoaderConfiguration("war1", ResolveMode.CLASSPATH, Scope.PLATFORM).execute());
+
+        resolveRequest.setGroupId(war1.getGroupId());
+        resolveRequest.setArtifactId(war1.getArtifactId());
+        resolveRequest.setVersion(war1.getVersion());
+        resolveRequest.setExtension(war1.getExtension());
+
+        DefaultResolvedMavenArtifact war1Direct = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE);
+        ResolvedClassLoaderConfiguration resolveDirect = war1Direct.createClassLoaderConfiguration("mywar1-direct", ResolveMode.CLASSPATH, Scope.PLATFORM).execute();
+        System.out.println(resolveDirect);
+        System.out.println();
+
+        ResolvedMavenArtifact ejb1 = dependencies.nextElement();
+        ResolvedMavenArtifact ejb2 = dependencies.nextElement();
+        ResolvedClassLoaderConfiguration resolve = ejb2.createClassLoaderConfiguration("myejb2", ResolveMode.CLASSPATH, Scope.PLATFORM).execute();
+        System.out.println(resolve);
+
+        resolveRequest.setGroupId(ejb2.getGroupId());
+        resolveRequest.setArtifactId(ejb2.getArtifactId());
+        resolveRequest.setVersion(ejb2.getVersion());
+        resolveRequest.setExtension(ejb2.getExtension());
+
+        DefaultResolvedMavenArtifact ejb2Direct = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE);
+        resolveDirect = ejb2Direct.createClassLoaderConfiguration("myejb2-direct", ResolveMode.CLASSPATH, Scope.PLATFORM).execute();
+        System.out.println(resolveDirect);
 
     }
 

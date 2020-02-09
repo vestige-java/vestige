@@ -38,6 +38,8 @@ public class DefaultDependencyModifier implements BeforeParentController, Depend
 
     private Map<String, Map<String, List<Dependency>>> addRules = new HashMap<String, Map<String, List<Dependency>>>();
 
+    private Map<String, Map<String, List<MavenArtifactKey>>> removeRules = new HashMap<String, Map<String, List<MavenArtifactKey>>>();
+
     private Map<String, Set<String>> beforeParents = new HashMap<String, Set<String>>();
 
     public void replace(final String groupId, final String artifactId, final List<Dependency> dependency, final Map<String, Set<String>> excepts) {
@@ -64,6 +66,15 @@ public class DefaultDependencyModifier implements BeforeParentController, Depend
             return false;
         }
         return set.contains(artifactId);
+    }
+
+    public void remove(final String groupId, final String artifactId, final List<MavenArtifactKey> dependency) {
+        Map<String, List<MavenArtifactKey>> map = removeRules.get(groupId);
+        if (map == null) {
+            map = new HashMap<String, List<MavenArtifactKey>>();
+            removeRules.put(groupId, map);
+        }
+        map.put(artifactId, dependency);
     }
 
     public void add(final String groupId, final String artifactId, final List<Dependency> dependency) {
@@ -101,6 +112,19 @@ public class DefaultDependencyModifier implements BeforeParentController, Depend
         Artifact parentArtifact = null;
         if (dependency != null) {
             parentArtifact = dependency.getArtifact();
+            Map<String, List<MavenArtifactKey>> mapR = removeRules.get(parentArtifact.getGroupId());
+            if (mapR != null) {
+                List<MavenArtifactKey> rDependency = mapR.get(parentArtifact.getArtifactId());
+                if (rDependency != null) {
+                    Iterator<Dependency> iterator = children.iterator();
+                    while (iterator.hasNext()) {
+                        Artifact next = iterator.next().getArtifact();
+                        if (rDependency.contains(new MavenArtifactKey(next.getGroupId(), next.getArtifactId(), next.getExtension()))) {
+                            iterator.remove();
+                        }
+                    }
+                }
+            }
             Map<String, List<Dependency>> map = addRules.get(parentArtifact.getGroupId());
             if (map != null) {
                 List<Dependency> rDependency = map.get(parentArtifact.getArtifactId());

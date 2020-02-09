@@ -41,5 +41,8 @@
 
 - (void)toggleLoginStart;
 
+- (void)addCA:(NSString *)path;
+
+- (void)addP12:(NSString *)path;
 
 @end

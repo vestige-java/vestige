@@ -9,7 +9,7 @@ BEGIN
 POPUP "TrayMenu"
 BEGIN
 MENUITEM "Open web administration", IDM_OPEN_WEB, GRAYED
-MENUITEM "Open base folder", IDM_OPEN_BASE, GRAYED
+MENUITEM "Open config folder", IDM_OPEN_BASE, GRAYED
 MENUITEM "Show command line output", IDM_SHOW_CONSOLE
 MENUITEM "Start at login", IDM_START_LOGIN
 MENUITEM SEPARATOR

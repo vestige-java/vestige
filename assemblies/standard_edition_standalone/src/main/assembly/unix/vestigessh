@@ -1,0 +1,18 @@
+#!/bin/bash
+
+DIRNAME=`dirname "$0"`
+if [ "$DIRNAME" = "." ]; then
+  DIRNAME="$PWD"
+fi
+
+if [ "$VESTIGE_DATA" = "" ]; then
+  VESTIGE_DATA="$DIRNAME/data"
+fi
+
+if [ ! -f "$VESTIGE_DATA/ssh/port.txt" ]; then
+  echo "Cannot find Vestige SSH port" >&2
+  echo "Verify that Vestige is started and SSH admin is enabled in settings.xml" >&2
+  exit 1
+fi
+
+exec ssh -o UserKnownHostsFile="\"$VESTIGE_DATA/ssh/known_hosts\"" -o StrictHostKeyChecking=yes -i "$VESTIGE_DATA/ssh/client_rsa" -p $(cat "$VESTIGE_DATA/ssh/port.txt") admin@localhost

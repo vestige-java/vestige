@@ -18,21 +18,22 @@
 package fr.gaellalire.vestige.edition.standard;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.net.UnknownHostException;
 import java.nio.channels.SocketChannel;
 import java.security.AllPermission;
+import java.security.KeyStore;
 import java.security.PermissionCollection;
+import java.security.Security;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +44,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
@@ -56,6 +59,8 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.DefaultSchemePortResolver;
 import org.apache.http.impl.conn.SystemDefaultRoutePlanner;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider;
 import org.eclipse.aether.repository.NoLocalRepositoryManagerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,10 +81,11 @@ import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.DefaultApplicationManager;
 import fr.gaellalire.vestige.application.manager.URLOpener;
+import fr.gaellalire.vestige.core.VestigeCoreContext;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;
 import fr.gaellalire.vestige.core.function.Function;
+import fr.gaellalire.vestige.core.url.DelegateURLStreamHandlerFactory;
 import fr.gaellalire.vestige.edition.standard.schema.Admin;
-import fr.gaellalire.vestige.edition.standard.schema.Bind;
 import fr.gaellalire.vestige.edition.standard.schema.ObjectFactory;
 import fr.gaellalire.vestige.edition.standard.schema.SSH;
 import fr.gaellalire.vestige.edition.standard.schema.Settings;
@@ -94,6 +100,7 @@ import fr.gaellalire.vestige.jpms.JPMSModuleLayerRepository;
 import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
 import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
 import fr.gaellalire.vestige.platform.VestigePlatform;
+import fr.gaellalire.vestige.platform.VestigeURLStreamHandlerFactory;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
 import fr.gaellalire.vestige.resolver.maven.secure.SecureVestigeMavenResolver;
 import fr.gaellalire.vestige.resolver.url_list.DefaultVestigeURLListResolver;
@@ -130,9 +137,11 @@ public class StandardEditionVestige implements Runnable {
 
     // private ApplicationDescriptorFactory applicationDescriptorFactory;
 
-    private File baseFile;
+    private File configFile;
 
     private File dataFile;
+
+    private File cacheFile;
 
     private long startTimeMillis;
 
@@ -175,15 +184,15 @@ public class StandardEditionVestige implements Runnable {
     /**
      * This constructor should not have its parameter modified. You can add setter to give more information.
      */
-    public StandardEditionVestige(final File baseFile, final File dataFile) {
-        this.baseFile = baseFile;
+    public StandardEditionVestige(final File configFile, final File dataFile, final File cacheFile) {
+        this.configFile = configFile;
         this.dataFile = dataFile;
+        this.cacheFile = cacheFile;
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public void run() {
-
         // FIXME maybe vestigeExecutor is useless now that detach will not run anything
         if (vestigeExecutor == null) {
             vestigeExecutor = new VestigeExecutor();
@@ -222,7 +231,7 @@ public class StandardEditionVestige implements Runnable {
         } else {
             startTimeMillis = 0;
         }
-        File settingsFile = new File(baseFile, "settings.xml");
+        File settingsFile = new File(configFile, "settings.xml");
         if (!settingsFile.exists()) {
             try {
                 ConfFileUtils.copy(StandardEditionVestige.class.getResourceAsStream("settings.xml"), settingsFile, "UTF-8");
@@ -239,7 +248,7 @@ public class StandardEditionVestige implements Runnable {
             JAXBContext jc = JAXBContext.newInstance(ObjectFactory.class.getPackage().getName());
             unMarshaller = jc.createUnmarshaller();
 
-            URL xsdURL = StandardEditionVestige.class.getResource("settings-1.0.0.xsd");
+            URL xsdURL = StandardEditionVestige.class.getResource("settings.xsd");
             SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
             Schema schema = schemaFactory.newSchema(xsdURL);
             unMarshaller.setSchema(schema);
@@ -290,7 +299,7 @@ public class StandardEditionVestige implements Runnable {
 
         ExecutorService executorService = Executors.newCachedThreadPool();
 
-        File appBaseFile = new File(baseFile, "app");
+        File appBaseFile = new File(configFile, "app");
         if (!appBaseFile.exists()) {
             appBaseFile.mkdir();
         }
@@ -298,13 +307,17 @@ public class StandardEditionVestige implements Runnable {
         if (!appDataFile.exists()) {
             appDataFile.mkdir();
         }
+        File appCacheFile = new File(cacheFile, "app");
+        if (!appCacheFile.exists()) {
+            appCacheFile.mkdir();
+        }
 
         File resolverFile = new File(dataFile, "application-manager.ser");
         File nextResolverFile = new File(dataFile, "application-manager-tmp.ser");
 
         // $VESTIGE_BASE/m2/settings.xml overrides $home/.m2/settings.xml
         // if none exists then no config file is used
-        File mavenSettingsFile = new File(new File(baseFile, "m2"), "settings.xml");
+        File mavenSettingsFile = new File(new File(configFile, "m2"), "settings.xml");
         if (!mavenSettingsFile.exists()) {
             LOGGER.debug("No vestige Maven settings file found at {}", mavenSettingsFile);
             mavenSettingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
@@ -325,9 +338,25 @@ public class StandardEditionVestige implements Runnable {
         if (vestigeURLListResolver == null) {
             vestigeURLListResolver = new DefaultVestigeURLListResolver(vestigePlatform);
         }
+
+        final SSLContext sslContext;
+        try {
+            KeyStore trustStore = KeyStore.getInstance("PKCS12", BouncyCastleProvider.PROVIDER_NAME);
+
+            trustStore.load(new FileInputStream(new File(configFile, "cacerts.p12")), "changeit".toCharArray());
+
+            TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX", BouncyCastleJsseProvider.PROVIDER_NAME);
+            trustManagerFactory.init(trustStore);
+            sslContext = SSLContext.getInstance("TLS", BouncyCastleJsseProvider.PROVIDER_NAME);
+            sslContext.init(null, trustManagerFactory.getTrustManagers(), null);
+        } catch (Exception e) {
+            LOGGER.error("SSLContext creation failed", e);
+            return;
+        }
+
         if (vestigeMavenResolver == null) {
             try {
-                vestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile);
+                vestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile, sslContext);
                 // the mvn protocol of the launching code may not be the same as ours
                 // vestigeSystem.setURLStreamHandlerForProtocol(MavenArtifactResolver.MVN_PROTOCOL, MavenArtifactResolver.URL_STREAM_HANDLER);
             } catch (NoLocalRepositoryManagerException e) {
@@ -342,6 +371,7 @@ public class StandardEditionVestige implements Runnable {
             public InputStream openURL(final URL url) throws IOException {
                 // TODO how to share httpClient ?
                 HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+                httpClientBuilder.setSSLContext(sslContext);
                 // httpClientBuilder.setDefaultCredentialsProvider(new SystemDefaultCredentialsProvider());
                 httpClientBuilder.setRoutePlanner(new SystemDefaultRoutePlanner(DefaultSchemePortResolver.INSTANCE, ProxySelector.getDefault()));
                 // httpClientBuilder.useSystemProperties();
@@ -377,8 +407,8 @@ public class StandardEditionVestige implements Runnable {
         injectableByClassName.put(VestigeMavenResolver.class.getName(), new SecureVestigeMavenResolver(standardEditionVestigeSystem, vestigePolicy, vestigeMavenResolver));
         // injectableByClassName.put(VestigeURLListResolver.class.getName(), vestigeURLListResolver);
 
-        defaultApplicationManager = new DefaultApplicationManager(actionManager, appBaseFile, appDataFile, applicationsVestigeSystem, standardEditionVestigeSystem, vestigePolicy,
-                vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile, vestigeResolvers, injectableByClassName);
+        defaultApplicationManager = new DefaultApplicationManager(actionManager, appBaseFile, appDataFile, appCacheFile, applicationsVestigeSystem, standardEditionVestigeSystem,
+                vestigePolicy, vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile, vestigeResolvers, injectableByClassName);
         try {
             defaultApplicationManager.restoreState();
         } catch (ApplicationException e) {
@@ -396,35 +426,24 @@ public class StandardEditionVestige implements Runnable {
             vestigeCommandExecutor.addCommand(new Platform(vestigePlatform));
         }
 
+        Web web = admin.getWeb();
+
+        File commandHistory = new File(cacheFile, "history.txt");
+
         Future<VestigeServer> futureSshServer = null;
         if (ssh.isEnabled()) {
-            File sshBase = new File(baseFile, "ssh");
+            File sshConfig = new File(configFile, "ssh");
             File sshData = new File(dataFile, "ssh");
-            futureSshServer = executorService.submit(new SSHServerFactory(sshBase, sshData, ssh, baseFile, vestigeCommandExecutor));
+            futureSshServer = executorService.submit(new SSHServerFactory(sshConfig, sshData, commandHistory, ssh, configFile, vestigeCommandExecutor));
         }
 
         Future<VestigeServer> futureWebServer = null;
-        Web web = admin.getWeb();
         if (web.isEnabled()) {
-            futureWebServer = executorService.submit(new WebServerFactory(web, defaultApplicationManager, baseFile, vestigeCommandExecutor));
-            List<Bind> binds = web.getBind();
-            for (Bind bind : binds) {
-                String host = bind.getHost();
-                if (host == null) {
-                    host = "localhost";
-                } else {
-                    try {
-                        if (InetAddress.getByName(host).isAnyLocalAddress()) {
-                            host = "localhost";
-                        }
-                    } catch (UnknownHostException e) {
-                        LOGGER.debug("Invalid host", e);
-                        continue;
-                    }
-                }
-                webURL = "http://" + host + ":" + bind.getPort();
-                break;
-            }
+            File webConfig = new File(configFile, "web");
+            File webData = new File(dataFile, "web");
+            // TODO share commandHistory with ssh
+            futureWebServer = executorService
+                    .submit(new WebServerFactory(webConfig, webData, web, defaultApplicationManager, configFile, vestigeCommandExecutor, vestigeStateListener));
         }
 
         boolean interrupted = false;
@@ -496,8 +515,6 @@ public class StandardEditionVestige implements Runnable {
         }
     }
 
-    private String webURL;
-
     public void start(final JobManager jobManager) throws Exception {
         if (workerThread != null) {
             return;
@@ -520,7 +537,7 @@ public class StandardEditionVestige implements Runnable {
         if (webServer != null) {
             try {
                 webServer.start();
-                vestigeStateListener.webAdminAvailable(webURL);
+                vestigeStateListener.webAdminAvailable("https://" + webServer.getLocalHost() + ":" + webServer.getLocalPort());
             } catch (Exception e) {
                 LOGGER.error("Unable to start web access", e);
             }
@@ -588,9 +605,6 @@ public class StandardEditionVestige implements Runnable {
             final Function<Thread, Void, RuntimeException> removeShutdownHook, final List<? extends ClassLoader> privilegedClassloaders,
             final WeakReference<Object> bootstrapObject, final String[] args) {
         try {
-            if (args.length != 4) {
-                throw new IllegalArgumentException("expected 4 arguments (vestige base, vestige data, security, listener port) got " + args.length);
-            }
             final Thread currentThread = Thread.currentThread();
 
             // logback can use system stream directly
@@ -619,11 +633,56 @@ public class StandardEditionVestige implements Runnable {
                 addShutdownHook.apply(seShutdownThread);
             }
 
-            int argIndex = 0;
-            String base = args[argIndex++];
-            String data = args[argIndex++];
-            boolean securityEnabled = Boolean.parseBoolean(args[argIndex++]);
-            int listenerPort = Integer.parseInt(args[argIndex++]);
+            String property = Security.getProperty("securerandom.source");
+            if (property != null) {
+                try {
+                    new URL(property).openStream().close();
+                } catch (IOException ie) {
+                    try {
+                        Field propsField = Security.class.getDeclaredField("props");
+                        propsField.setAccessible(true);
+                        try {
+                            Properties props = (Properties) propsField.get(null);
+                            props.remove("securerandom.source");
+                        } finally {
+                            propsField.setAccessible(false);
+                        }
+                    } catch (Exception e) {
+                        LOGGER.debug("BC may failed {}", e);
+                    }
+                }
+            }
+
+            Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
+            int bcpos = Security.addProvider(new BouncyCastleProvider());
+            LOGGER.debug("BC position is {}", bcpos);
+            Security.removeProvider(BouncyCastleJsseProvider.PROVIDER_NAME);
+            int bcjssepos = Security.addProvider(new BouncyCastleJsseProvider(Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)));
+            LOGGER.debug("BCJSSE position is {}", bcjssepos);
+
+            String config = System.getenv("VESTIGE_CONFIG");
+            if (config == null) {
+                LOGGER.error("VESTIGE_CONFIG must be defined");
+                return;
+            }
+            String data = System.getenv("VESTIGE_DATA");
+            if (data == null) {
+                data = config;
+            }
+            String cache = System.getenv("VESTIGE_CACHE");
+            if (cache == null) {
+                cache = data;
+            }
+            String vestigeSecurity = System.getenv("VESTIGE_SECURITY");
+            boolean securityEnabled = true;
+            if (vestigeSecurity != null) {
+                securityEnabled = Boolean.parseBoolean(vestigeSecurity);
+            }
+            String vestigeListenerPort = System.getenv("VESTIGE_LISTENER_PORT");
+            int listenerPort = 0;
+            if (vestigeListenerPort != null) {
+                listenerPort = Integer.parseInt(vestigeListenerPort);
+            }
 
             final VestigeStateListener vestigeStateListener;
             SocketChannel socketChannel = null;
@@ -641,24 +700,30 @@ public class StandardEditionVestige implements Runnable {
                     vestigeStateListener = new NoopVestigeStateListener();
                 }
 
-                final File baseFile = new File(base).getCanonicalFile();
+                final File configFile = new File(config).getCanonicalFile();
                 final File dataFile = new File(data).getCanonicalFile();
-                if (!baseFile.isDirectory()) {
-                    if (!baseFile.mkdirs()) {
-                        LOGGER.error("Unable to create vestige base");
+                final File cacheFile = new File(cache).getCanonicalFile();
+                if (!configFile.isDirectory()) {
+                    if (!configFile.mkdirs()) {
+                        LOGGER.error("Unable to create vestige config");
                     }
                 }
-                vestigeStateListener.base(baseFile);
+                vestigeStateListener.config(configFile);
                 if (!dataFile.isDirectory()) {
                     if (!dataFile.mkdirs()) {
                         LOGGER.error("Unable to create vestige data");
+                    }
+                }
+                if (!cacheFile.isDirectory()) {
+                    if (!cacheFile.mkdirs()) {
+                        LOGGER.error("Unable to create vestige cache");
                     }
                 }
                 new JVMVestigeSystemActionExecutor(securityEnabled).execute(new VestigeSystemAction() {
 
                     @Override
                     public void vestigeSystemRun(final VestigeSystem vestigeSystem) {
-                        final StandardEditionVestige standardEditionVestige = new StandardEditionVestige(baseFile, dataFile);
+                        final StandardEditionVestige standardEditionVestige = new StandardEditionVestige(configFile, dataFile, cacheFile);
                         standardEditionVestige.setPrivilegedClassloaders(privilegedClassloaders);
                         standardEditionVestige.setBootstrapObject(bootstrapObject);
                         standardEditionVestige.setVestigeExecutor(vestigeExecutor);
@@ -685,8 +750,8 @@ public class StandardEditionVestige implements Runnable {
         }
     }
 
-    public static void vestigeEnhancedCoreMain(final VestigeExecutor vestigeExecutor, final Function<Thread, Void, RuntimeException> addShutdownHook,
-            final Function<Thread, Void, RuntimeException> removeShutdownHook, final String[] args) {
+    public static void vestigeEnhancedCoreMain(final VestigeCoreContext vestigeCoreContext, final Function<Thread, Void, RuntimeException> addShutdownHook,
+            final Function<Thread, Void, RuntimeException> removeShutdownHook, final List<? extends ClassLoader> privilegedClassloaders, final String[] args) throws Exception {
         JPMSAccessor jpmsAccessor = JPMSAccessorLoader.INSTANCE;
         JPMSModuleLayerRepository moduleLayerRepository = null;
         if (jpmsAccessor != null) {
@@ -704,17 +769,31 @@ public class StandardEditionVestige implements Runnable {
             }
             moduleLayerRepository = jpmsAccessor.createModuleLayerRepository();
         }
-        VestigePlatform vestigePlatform = new DefaultVestigePlatform(vestigeExecutor, moduleLayerRepository);
-        vestigeMain(vestigeExecutor, vestigePlatform, addShutdownHook, removeShutdownHook, null, null, args);
+        VestigePlatform vestigePlatform = new DefaultVestigePlatform(vestigeCoreContext.getVestigeExecutor(), moduleLayerRepository);
+
+        File mavenSettingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
+        if (!mavenSettingsFile.isFile()) {
+            mavenSettingsFile = new File(args[0]).getAbsoluteFile();
+        }
+        LOGGER.info("Use {} for Maven settings file", mavenSettingsFile);
+
+        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile, null);
+        VestigeURLStreamHandlerFactory vestigeURLStreamHandlerFactory = new VestigeURLStreamHandlerFactory();
+        MavenArtifactResolver.replaceMavenURLStreamHandler(mavenArtifactResolver.getBaseDir(), vestigeURLStreamHandlerFactory);
+        DelegateURLStreamHandlerFactory streamHandlerFactory = vestigeCoreContext.getStreamHandlerFactory();
+        streamHandlerFactory.setDelegate(vestigeURLStreamHandlerFactory);
+
+        vestigeMain(vestigeCoreContext.getVestigeExecutor(), vestigePlatform, addShutdownHook, removeShutdownHook, null, null, args);
     }
 
-    public static void vestigeCoreMain(final VestigeExecutor vestigeExecutor, final String[] args) {
-        vestigeEnhancedCoreMain(vestigeExecutor, null, null, args);
+    public static void vestigeCoreMain(final VestigeCoreContext vestigeCoreContext, final String[] args) throws Exception {
+        vestigeEnhancedCoreMain(vestigeCoreContext, null, null, null, args);
     }
 
     public static void main(final String[] args) throws Exception {
-        VestigeExecutor vestigeExecutor = new VestigeExecutor();
-        vestigeCoreMain(vestigeExecutor, args);
+        DelegateURLStreamHandlerFactory streamHandlerFactory = new DelegateURLStreamHandlerFactory();
+        URL.setURLStreamHandlerFactory(streamHandlerFactory);
+        vestigeCoreMain(new VestigeCoreContext(streamHandlerFactory, new VestigeExecutor()), args);
     }
 
 }

@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>fr.gaellalire.vestige</groupId>
   <artifactId>vestige</artifactId>
@@ -20,7 +21,7 @@
         </plugin>
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.7.0</version>
+          <version>3.8.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-dependency-plugin</artifactId>
@@ -90,7 +91,7 @@
         <plugin>
           <groupId>org.jvnet.jaxb2.maven2</groupId>
           <artifactId>maven-jaxb2-plugin</artifactId>
-          <version>0.13.2</version>
+          <version>0.14.0</version>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -153,20 +154,20 @@
     <at>@</at>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <slf4j.version>1.7.25</slf4j.version>
-    <vestige.core.version>6</vestige.core.version>
+    <vestige.core.version>7</vestige.core.version>
     <vestige.jpms.version>2.0</vestige.jpms.version>
-    <vestige.jvm_enhancer.version>3.0</vestige.jvm_enhancer.version>
+    <vestige.jvm_enhancer.version>3.1</vestige.jvm_enhancer.version>
     <vestige.spi.system.version>1.0</vestige.spi.system.version>
-    <vestige.spi.job.version>1.0</vestige.spi.job.version>
-    <vestige.spi.resolver.version>1.2-SNAPSHOT</vestige.spi.resolver.version>
-    <vestige.spi.resolver.url_list.version>1.0</vestige.spi.resolver.url_list.version>
-    <vestige.spi.resolver.maven.version>1.2-SNAPSHOT</vestige.spi.resolver.maven.version>
+    <vestige.spi.job.version>1.1</vestige.spi.job.version>
+    <vestige.spi.resolver.version>2.0</vestige.spi.resolver.version>
+    <vestige.spi.resolver.url_list.version>2.0</vestige.spi.resolver.url_list.version>
+    <vestige.spi.resolver.maven.version>2.0</vestige.spi.resolver.maven.version>
     <vestige.maven.version>java6-3</vestige.maven.version>
     <logback.version>1.2.3</logback.version>
     <jetty.version>8.1.11.v20130520</jetty.version>
     <milton.version>2.5.0.1</milton.version>
     <javax-servlet.version>3.0.0.v201112011016</javax-servlet.version>
-    <bouncycastle.version>1.58</bouncycastle.version>
+    <bouncycastle.version>1.64</bouncycastle.version>
     <httpcomponents.version>4.5.3</httpcomponents.version>
     <proxy_vole.version>java6-3</proxy_vole.version>
     <maven-resolver.version>java6-2</maven-resolver.version>
@@ -295,6 +296,7 @@
         <artifactId>json-smart</artifactId>
         <version>1.1.1</version>
       </dependency>
+      
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcpg-jdk15on</artifactId>
@@ -305,6 +307,35 @@
         <artifactId>bcpkix-jdk15on</artifactId>
         <version>${bouncycastle.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcprov-jdk15on</artifactId>
+        <version>${bouncycastle.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bctls-jdk15on</artifactId>
+        <version>${bouncycastle.version}</version>
+      </dependency>
+      
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcpg-jdk15to18</artifactId>
+        <version>${bouncycastle.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcpkix-jdk15to18</artifactId>
+        <version>${bouncycastle.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bctls-jdk15to18</artifactId>
+        <version>${bouncycastle.version}</version>
+      </dependency>
+      
+      
+      
       <dependency>
         <groupId>org.codehaus.janino</groupId>
         <artifactId>janino</artifactId>

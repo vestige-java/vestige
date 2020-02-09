@@ -8,14 +8,14 @@ this migration can be automatically performed with automigrate-level.
 PROXY
 
 Vestige try to use system proxy settings.
-If it does not work it tries to use %VESTIGE_BASE%\m2\settings.xml
+If it does not work it tries to use %VESTIGE_CONFIG%\m2\settings.xml
 If the file does not exist then it uses %HOME%\.m2\settings.xml
 
 ---
 STARTING
 
-Double-click on vestige.bat to start vestige.
-Once started you can access to vestige console.
+Double-click on vestige.exe to start vestige.
+Right click on status icon and click on open web administration.
 
 ---
 SSH
@@ -23,11 +23,21 @@ SSH
 Vestige console is any SSH client.
 On windows you can use PuTTY (http://www.chiark.greenend.org.uk/~sgtatham/putty/download.html)
 You have to generate an rsa key pair (public / private).
-Put the public key in ssh\authorized_keys and configure PuTTY to use the private key and port 8422 (instead of 22) and admin username.
+Put the public key in ssh\authorized_keys and configure PuTTY to use the private key and port defined in %VESTIGE_CONFIG%\settings.xml (default to 0 meaning dynamically allocated port whose value will be in %VESTIGE_DATA%\ssh\port.txt) and admin username.
 Do not distribute the private key and do not add unknown public key in ssh\authorized_keys because an access to vestige console allow to install any application on your computer (including virus).
 
 ---
 STOPPING
 
-CTRL-C inside bat window
-Avoid closing the window opened with bat which may prevents vestige to shutdown properly.
+Right click on status icon, click on quit
+
+---
+BATCH file
+
+You can open a cmd and run vestige.bat instead of vestige.exe
+To have correct encoding you can either use UTF-8
+  > chcp 65001
+  > set VESTIGE_CONSOLE_ENCODING=UTF-8
+or use your default encoding (example with Cp1252)
+  > chcp 1252
+  > set VESTIGE_CONSOLE_ENCODING=Cp1252

@@ -3,10 +3,10 @@
 xsi:schemaLocation="http://gaellalire.fr/vestige/SETTINGS http://gaellalire.fr/vestige/settings-1.0.0.xsd">
   <admin>
     <ssh enabled="false">
-      <bind port="8422" />
+      <bind port="0" />
     </ssh>
     <web enabled="true">
-      <bind host="127.0.0.1" port="8480" />
+      <bind host="127.0.0.1" port="0" />
     </web>
   </admin>
 </settings>

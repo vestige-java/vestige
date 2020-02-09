@@ -22,6 +22,7 @@ OutputBaseFilename=vestige-setup
 Compression=lzma
 SolidCompression=yes
 UninstallDisplayIcon={app}\{#MyAppExeName}
+ArchitecturesInstallIn64BitMode=x64
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -29,7 +30,11 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Files]
 Source: "C:\target\checkJava.bat"; Flags: dontcopy
 Source: "C:\target\CheckJava.class"; Flags: dontcopy
-Source: "C:\target\vestige\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\target\vestige\amd64\vestige.exe"; DestDir: "{app}"; Check: Is64BitInstallMode
+Source: "C:\target\vestige\vestige.exe"; DestDir: "{app}"; Check: not Is64BitInstallMode
+Source: "C:\target\vestige\amd64\mb2wc.exe"; DestDir: "{app}"; Check: Is64BitInstallMode
+Source: "C:\target\vestige\mb2wc.exe"; DestDir: "{app}"; Check: not Is64BitInstallMode
+Source: "C:\target\vestige\*"; Excludes: "vestige*.exe,mb2wc*.exe,amd64"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]

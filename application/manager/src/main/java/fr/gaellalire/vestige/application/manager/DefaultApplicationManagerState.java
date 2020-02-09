@@ -47,8 +47,6 @@ public class DefaultApplicationManagerState implements Serializable, Application
 
         private URL url;
 
-        private int applicationCount;
-
         private RepositoryContext(final URL url) {
             this.url = url;
         }
@@ -106,20 +104,15 @@ public class DefaultApplicationManagerState implements Serializable, Application
         if (remove == null) {
             throw new ApplicationException("Repository do not exists");
         }
-        if (remove.applicationCount != 0) {
-            throw new ApplicationException("Cannot remove repository while at least one application use it");
-        }
         urlByRepo.remove(name);
     }
 
     public void uninstall(final String installName) throws ApplicationException {
-        ApplicationContext applicationContext = applicationContextByInstallName.remove(installName);
-        urlByRepo.get(applicationContext.getRepoName()).applicationCount--;
+        applicationContextByInstallName.remove(installName);
     }
 
     public void install(final String installName, final ApplicationContext applicationContext) throws ApplicationException {
         applicationContextByInstallName.put(installName, applicationContext);
-        urlByRepo.get(applicationContext.getRepoName()).applicationCount++;
     }
 
     public void createRepository(final String name, final URL url) throws ApplicationException {
@@ -131,9 +124,9 @@ public class DefaultApplicationManagerState implements Serializable, Application
     }
 
     @Override
-    public String getRepositoryName(final String installName) throws ApplicationException {
+    public URL getApplicationRepositoryURL(final String installName) throws ApplicationException {
         final ApplicationContext applicationContext = getApplicationContext(installName);
-        return applicationContext.getRepoName();
+        return applicationContext.getRepoURL();
     }
 
     @Override

@@ -49,7 +49,15 @@ public class NoopVestigeStateListener implements VestigeStateListener {
     }
 
     @Override
-    public void base(final File file) {
+    public void config(final File file) {
+    }
+
+    @Override
+    public void certificateAuthorityGenerated(final File file) {
+    }
+
+    @Override
+    public void clientP12Generated(final File file) {
     }
 
 }

@@ -34,10 +34,6 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import net.minidev.json.JSONArray;
-import net.minidev.json.JSONObject;
-import net.minidev.json.JSONValue;
-
 import org.eclipse.jetty.websocket.WebSocket;
 import org.eclipse.jetty.websocket.WebSocketServlet;
 import org.slf4j.Logger;
@@ -54,6 +50,9 @@ import fr.gaellalire.vestige.application.manager.VersionUtils;
 import fr.gaellalire.vestige.job.JobController;
 import fr.gaellalire.vestige.job.JobListener;
 import fr.gaellalire.vestige.job.TaskListener;
+import net.minidev.json.JSONArray;
+import net.minidev.json.JSONObject;
+import net.minidev.json.JSONValue;
 
 /**
  * @author Gael Lalire
@@ -103,8 +102,8 @@ public class VestigeServlet extends WebSocketServlet {
 
             @Override
             public JobController execute(final JSONObject jsonObject, final JobListener jobListener) throws Exception {
-                return applicationManager.install((String) jsonObject.get("repo"), (String) jsonObject.get("name"), VersionUtils.fromString((String) jsonObject.get("version")),
-                        (String) jsonObject.get("local"), jobListener);
+                return applicationManager.install(applicationManager.getRepositoryURL((String) jsonObject.get("repo")), (String) jsonObject.get("name"),
+                        VersionUtils.fromString((String) jsonObject.get("version")), (String) jsonObject.get("local"), jobListener);
             }
         });
         commandHandlerByName.put("uninstall", new CommandHandler() {
@@ -446,13 +445,17 @@ public class VestigeServlet extends WebSocketServlet {
                                                 JSONObject jsonApp = new JSONObject();
                                                 jsonApp.put("name", appName);
 
-                                                String path = lastState.getRepositoryName(appName) + "-" + lastState.getRepositoryApplicationName(appName) + "-"
-                                                        + VersionUtils.toString(lastState.getRepositoryApplicationVersion(appName));
+                                                String repositoryApplicationName = lastState.getRepositoryApplicationName(appName);
+                                                String version = VersionUtils.toString(lastState.getRepositoryApplicationVersion(appName));
+                                                String tooltip = lastState.getApplicationRepositoryURL(appName) + repositoryApplicationName + "/" + repositoryApplicationName + "-"
+                                                        + version + ".xml";
+                                                String path = repositoryApplicationName + " " + version;
                                                 List<Integer> migrationRepositoryApplicationVersion = lastState.getMigrationRepositoryApplicationVersion(appName);
                                                 if (migrationRepositoryApplicationVersion != null && migrationRepositoryApplicationVersion.size() != 0) {
-                                                    path += "->" + VersionUtils.toString(migrationRepositoryApplicationVersion);
+                                                    path += " ->" + VersionUtils.toString(migrationRepositoryApplicationVersion);
                                                 }
 
+                                                jsonApp.put("tooltip", tooltip);
                                                 jsonApp.put("path", path);
                                                 jsonApp.put("autoStarted", lastState.isAutoStarted(appName));
                                                 jsonApp.put("started", lastState.isStarted(appName));
@@ -547,7 +550,8 @@ public class VestigeServlet extends WebSocketServlet {
                                 }
                                 completeResponse.put("args", jsonArray);
                             } else if ("get-repo-app-name".equals(complete)) {
-                                Set<String> repositoryApplicationsName = applicationManager.getRepositoryMetadata((String) completeArgs.get("repo")).listApplicationsName();
+                                Set<String> repositoryApplicationsName = applicationManager
+                                        .getRepositoryMetadata(applicationManager.getRepositoryURL((String) completeArgs.get("repo"))).listApplicationsName();
                                 JSONArray jsonArray = new JSONArray();
                                 String parameter = (String) completeArgs.get("req");
                                 for (String string : repositoryApplicationsName) {
@@ -561,15 +565,18 @@ public class VestigeServlet extends WebSocketServlet {
                                 String repo = (String) completeArgs.get("repo");
                                 String name = (String) completeArgs.get("name");
                                 String exclude = "";
+                                URL repoURL = null;
                                 JSONArray jsonArray = new JSONArray();
                                 if (name != null && name.length() != 0) {
                                     if (repo == null || repo.length() == 0) {
-                                        repo = applicationManagerState.getRepositoryName(name);
+                                        repoURL = applicationManagerState.getApplicationRepositoryURL(name);
                                         exclude = VersionUtils.toString(applicationManagerState.getRepositoryApplicationVersion(name));
                                         name = applicationManagerState.getRepositoryApplicationName(name);
+                                    } else {
+                                        repoURL = applicationManagerState.getRepositoryURL(repo);
                                     }
 
-                                    Set<List<Integer>> repositoryApplicationsVersions = applicationManager.getRepositoryMetadata(repo).listApplicationVersions(name);
+                                    Set<List<Integer>> repositoryApplicationsVersions = applicationManager.getRepositoryMetadata(repoURL).listApplicationVersions(name);
                                     String parameter = (String) completeArgs.get("req");
                                     for (List<Integer> version : repositoryApplicationsVersions) {
                                         String string = VersionUtils.toString(version);

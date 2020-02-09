@@ -1,13 +1,14 @@
 #!/bin/bash
 
 VESTIGE_VERSION=`cat ../standard_edition_standalone/pom.xml | grep -m 1 version | sed 's/.*>\(.*\)<\/version>/\1/g'`
+VESTIGE_ISS_VERSION=`echo $VESTIGE_VERSION | sed 's/-SNAPSHOT//g'`
 
 rm -r target
 mkdir -p target/vestige
 unzip -d target/vestige ../standard_edition_standalone/target/vestige.assemblies.standard_edition_standalone-$VESTIGE_VERSION-windows.zip
-sed -i~ -e 's/VESTIGE_BASE=[^\r]*/VESTIGE_BASE=%userprofile%\\Vestige/' -e 's/VESTIGE_DATA=[^\r]*/VESTIGE_DATA=%appdata%\\Vestige/' target/vestige/vestige.bat
+sed -i~ -e 's/VESTIGE_CONFIG=[^\r]*/VESTIGE_CONFIG=%userprofile%\\Vestige"/' -e 's/VESTIGE_DATA=[^\r]*/VESTIGE_DATA=%appdata%\\Vestige"/' -e 's/set "VESTIGE_CACHE=[^\r]*/(\r\n  if defined localappdata (\r\n    set "VESTIGE_CACHE=%localappdata%\\Vestige"\r\n  ) else (\r\n    set "VESTIGE_CACHE=%appdata%\\Vestige\\Cache"\r\n  )\r\n)/' target/vestige/vestige.bat
 rm target/vestige/vestige.bat~
-sed -e 's/MyAppVersion .*/MyAppVersion "'$VESTIGE_VERSION'"/' src/vestige.iss > target/vestige.iss
+sed -e 's/MyAppVersion .*/MyAppVersion "'$VESTIGE_ISS_VERSION'"/' src/vestige.iss > target/vestige.iss
 cp src/CheckJava.class target
 cp src/checkJava.bat target
 find target \( -name .svn -o -name .DS_Store \) -exec rm -rf {} \;

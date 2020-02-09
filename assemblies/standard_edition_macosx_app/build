@@ -8,8 +8,12 @@ bunzip2 -kc src/wc.dmg.bz2 > target/wc.dmg
 hdiutil attach target/wc.dmg -noautoopen -quiet -mountpoint target/wc
 cp -r src/Vestige.app target/wc/
 unzip -d target/wc/Vestige.app/Contents/Resources/vestige_home ../standard_edition_standalone/target/vestige.assemblies.standard_edition_standalone-$VESTIGE_VERSION-unix.zip
-sed -i~ -e 's/-Djava.util.logging.manager/-Dapple.awt.UIElement=true -Djava.util.logging.manager/' -e 's/VESTIGE_BASE=.*/VESTIGE_BASE="$HOME\/Vestige"/' -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="$HOME\/Library\/Application Support\/Vestige"/' -e 's/$VESTIGE_BASE\/logs/$HOME\/Library\/Logs\/Vestige/' target/wc/Vestige.app/Contents/Resources/vestige_home/vestige
+sed -i~ -e 's/-Djava.util.logging.manager/-Dapple.awt.UIElement=true -Djava.util.logging.manager/' -e 's/VESTIGE_CONFIG=.*/VESTIGE_CONFIG="$HOME\/Library\/Preferences\/Vestige"/' -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="$HOME\/Library\/Application Support\/Vestige"/' -e 's/VESTIGE_CACHE=.*/VESTIGE_CACHE="$HOME\/Library\/Caches\/Vestige"/' -e 's/$VESTIGE_CACHE\/logs/$HOME\/Library\/Logs\/Vestige/' target/wc/Vestige.app/Contents/Resources/vestige_home/vestige
 rm target/wc/Vestige.app/Contents/Resources/vestige_home/vestige~
+sed -i~ -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="$HOME\/Library\/Application Support\/Vestige"/' target/wc/Vestige.app/Contents/Resources/vestige_home/vestigessh
+rm target/wc/Vestige.app/Contents/Resources/vestige_home/vestigessh~
+sed -i~ -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="$HOME\/Library\/Application Support\/Vestige"/' target/wc/Vestige.app/Contents/Resources/vestige_home/vestigeweb
+rm target/wc/Vestige.app/Contents/Resources/vestige_home/vestigeweb~
 rm target/wc/Vestige.app/Contents/Resources/vestige_home/lib/*.so
 find target -name .svn -exec rm -rf {} \;
 hdiutil detach `hdiutil info | grep "target/wc"  | grep "Apple_HFS" | cut -d$'\t' -f 1` -quiet -force

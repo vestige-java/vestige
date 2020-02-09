@@ -11,6 +11,7 @@
 		300A7D43171EF89C00A079E3 /* vestige.png in Resources */ = {isa = PBXBuildFile; fileRef = 300A7D42171EF89C00A079E3 /* vestige.png */; };
 		300A7D56171F1A2F00A079E3 /* vestige.icns in Resources */ = {isa = PBXBuildFile; fileRef = 300A7D55171F1A2F00A079E3 /* vestige.icns */; };
 		304E2AAE171F216F00BC2163 /* vestige_home in Resources */ = {isa = PBXBuildFile; fileRef = 304E2A9C171F216F00BC2163 /* vestige_home */; };
+		30B3C0A923BF8887007FA9A0 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 30B3C0A823BF8887007FA9A0 /* Security.framework */; };
 		8D11072B0486CEB800E47090 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 089C165CFE840E0CC02AAC07 /* InfoPlist.strings */; };
 		8D11072D0486CEB800E47090 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 29B97316FDCFA39411CA2CEA /* main.m */; settings = {ATTRIBUTES = (); }; };
 		8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
@@ -28,6 +29,7 @@
 		300A7D42171EF89C00A079E3 /* vestige.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = vestige.png; sourceTree = "<group>"; };
 		300A7D55171F1A2F00A079E3 /* vestige.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = vestige.icns; sourceTree = "<group>"; };
 		304E2A9C171F216F00BC2163 /* vestige_home */ = {isa = PBXFileReference; lastKnownFileType = folder; path = vestige_home; sourceTree = "<group>"; };
+		30B3C0A823BF8887007FA9A0 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		8D1107310486CEB800E47090 /* Vestige-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "Vestige-Info.plist"; sourceTree = "<group>"; };
 		8D1107320486CEB800E47090 /* Vestige.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Vestige.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -37,6 +39,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				30B3C0A923BF8887007FA9A0 /* Security.framework in Frameworks */,
 				8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -114,6 +117,7 @@
 		29B97323FDCFA39411CA2CEA /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				30B3C0A823BF8887007FA9A0 /* Security.framework */,
 				1058C7A0FEA54F0111CA2CBB /* Linked Frameworks */,
 				1058C7A2FEA54F0111CA2CBB /* Other Frameworks */,
 			);

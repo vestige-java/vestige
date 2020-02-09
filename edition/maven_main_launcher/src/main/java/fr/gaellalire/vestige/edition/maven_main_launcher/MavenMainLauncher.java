@@ -34,6 +34,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLStreamHandlerFactory;
+import java.security.KeyStore;
+import java.security.Security;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -44,12 +46,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider;
 import org.eclipse.aether.artifact.DefaultArtifact;
 import org.eclipse.aether.graph.Dependency;
 import org.slf4j.Logger;
@@ -199,8 +205,8 @@ public final class MavenMainLauncher {
     }
 
     @SuppressWarnings("unchecked")
-    public static void runVestigeMain(final VestigeCoreContext vestigeCoreContext, final File mavenLauncherFile, final File mavenSettingsFile, final File mavenResolverCacheFile,
-            final Function<Thread, Void, RuntimeException> addShutdownHook, final Function<Thread, Void, RuntimeException> removeShutdownHook,
+    public static void runVestigeMain(final VestigeCoreContext vestigeCoreContext, final File mavenLauncherFile, final File mavenSettingsFile, final File mavenCacertsFile,
+            final File mavenResolverCacheFile, final Function<Thread, Void, RuntimeException> addShutdownHook, final Function<Thread, Void, RuntimeException> removeShutdownHook,
             final List<? extends ClassLoader> privilegedClassloaders, final JPMSModuleLayerRepository repository, final String[] dargs) throws Exception {
         VestigeExecutor vestigeExecutor = vestigeCoreContext.getVestigeExecutor();
         Thread thread = vestigeExecutor.createWorker("resolver-maven-worker", true, 0);
@@ -209,7 +215,7 @@ public final class MavenMainLauncher {
         // JPMSAccessorLoader.INSTANCE.getModule(VestigePlatform.class).addOpens("fr.gaellalire.vestige.platform", MavenMainLauncher.class);
         // }
 
-        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile);
+        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile, null);
         VestigeURLStreamHandlerFactory vestigeURLStreamHandlerFactory = new VestigeURLStreamHandlerFactory();
         MavenArtifactResolver.replaceMavenURLStreamHandler(mavenArtifactResolver.getBaseDir(), vestigeURLStreamHandlerFactory);
         DelegateURLStreamHandlerFactory streamHandlerFactory = vestigeCoreContext.getStreamHandlerFactory();
@@ -234,7 +240,7 @@ public final class MavenMainLauncher {
             JAXBContext jc = JAXBContext.newInstance(ObjectFactory.class.getPackage().getName());
             Unmarshaller unMarshaller = jc.createUnmarshaller();
 
-            URL xsdURL = MavenMainLauncher.class.getResource("mavenLauncher-1.0.0.xsd");
+            URL xsdURL = MavenMainLauncher.class.getResource("mavenLauncher.xsd");
             SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
             Schema schema = schemaFactory.newSchema(xsdURL);
             unMarshaller.setSchema(schema);
@@ -295,6 +301,31 @@ public final class MavenMainLauncher {
                 pomRepositoriesIgnored = mavenConfig.isPomRepositoriesIgnored();
                 superPomRepositoriesIgnored = mavenConfig.isSuperPomRepositoriesIgnored();
             }
+
+            Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
+            int bcpos = Security.addProvider(new BouncyCastleProvider());
+            LOGGER.debug("BC position is {}", bcpos);
+            Security.removeProvider(BouncyCastleJsseProvider.PROVIDER_NAME);
+            int bcjssepos = Security.addProvider(new BouncyCastleJsseProvider(Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)));
+            LOGGER.debug("BCJSSE position is {}", bcjssepos);
+
+            final SSLContext sslContext;
+            try {
+                KeyStore trustStore = KeyStore.getInstance("PKCS12", BouncyCastleProvider.PROVIDER_NAME);
+
+                trustStore.load(new FileInputStream(mavenCacertsFile), "changeit".toCharArray());
+
+                TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX", BouncyCastleJsseProvider.PROVIDER_NAME);
+                trustManagerFactory.init(trustStore);
+                sslContext = SSLContext.getInstance("TLS", BouncyCastleJsseProvider.PROVIDER_NAME);
+                sslContext.init(null, trustManagerFactory.getTrustManagers(), null);
+            } catch (Exception e) {
+                LOGGER.error("SSLContext creation failed", e);
+                return;
+            }
+
+            mavenArtifactResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile, sslContext);
+
             List<ClassLoaderConfiguration> launchCaches = new ArrayList<ClassLoaderConfiguration>();
             int attachCount = 0;
             for (MavenAttachType mavenClassType : mavenLauncher.getAttach()) {
@@ -351,6 +382,9 @@ public final class MavenMainLauncher {
 
             ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
                     .createClassLoaderConfiguration(createClassLoaderConfigurationParameters);
+
+            Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
+            Security.removeProvider(BouncyCastleJsseProvider.PROVIDER_NAME);
 
             mavenResolverCache = new MavenResolverCache(launchCaches, mavenClassType.getClazz(), classLoaderConfiguration, lastModified);
             try {
@@ -609,9 +643,6 @@ public final class MavenMainLauncher {
     public static void vestigeEnhancedCoreMain(final VestigeCoreContext vestigeCoreContext, final Function<Thread, Void, RuntimeException> addShutdownHook,
             final Function<Thread, Void, RuntimeException> removeShutdownHook, final List<? extends ClassLoader> privilegedClassloaders, final String[] args) {
         try {
-            if (args.length < 3) {
-                throw new IllegalArgumentException("expected at least 3 arguments (Maven launcher, Maven settings, Maven resolver cache)");
-            }
             long currentTimeMillis = 0;
             if (LOGGER.isInfoEnabled()) {
                 currentTimeMillis = System.currentTimeMillis();
@@ -625,23 +656,45 @@ public final class MavenMainLauncher {
                 findModule.addOpens("java.lang", Class.forName("com.sun.xml.bind.v2.runtime.reflect.opt.Injector", false, Thread.currentThread().getContextClassLoader()));
             }
 
-            File mavenLauncherFile = new File(args[0]).getCanonicalFile();
+            String launcher = System.getenv("MAVEN_LAUNCHER_FILE");
+            if (launcher == null) {
+                LOGGER.error("MAVEN_LAUNCHER_FILE must be defined");
+                return;
+            }
+            String settings = System.getenv("MAVEN_SETTINGS_FILE");
+            if (settings == null) {
+                LOGGER.error("MAVEN_SETTINGS_FILE must be defined");
+                return;
+            }
+            String mavenCacerts = System.getenv("MAVEN_CACERTS");
+            if (mavenCacerts == null) {
+                LOGGER.error("MAVEN_CACERTS must be defined");
+                return;
+            }
+
+            String cache = System.getenv("MAVEN_RESOLVER_CACHE_FILE");
+            if (cache == null) {
+                LOGGER.error("MAVEN_RESOLVER_CACHE_FILE must be defined");
+                return;
+            }
+
+            File mavenLauncherFile = new File(launcher).getCanonicalFile();
             LOGGER.info("Starting a Maven application with {}", mavenLauncherFile);
 
             File mavenSettingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
             if (!mavenSettingsFile.isFile()) {
-                mavenSettingsFile = new File(args[1]).getCanonicalFile();
+                mavenSettingsFile = new File(settings).getCanonicalFile();
             }
             LOGGER.info("Use {} for Maven settings file", mavenSettingsFile);
 
-            File mavenResolverCacheFile = new File(args[2]).getCanonicalFile();
+            File mavenCacertsFile = new File(mavenCacerts).getCanonicalFile();
+            LOGGER.debug("Use {} for Maven CA Certs store", mavenCacertsFile);
+
+            File mavenResolverCacheFile = new File(cache).getCanonicalFile();
             LOGGER.debug("Use {} for Maven resolver cache file", mavenResolverCacheFile);
 
-            final String[] dargs = new String[args.length - 3];
-            System.arraycopy(args, 3, dargs, 0, dargs.length);
-
-            runVestigeMain(vestigeCoreContext, mavenLauncherFile, mavenSettingsFile, mavenResolverCacheFile, addShutdownHook, removeShutdownHook, privilegedClassloaders,
-                    repository, dargs);
+            runVestigeMain(vestigeCoreContext, mavenLauncherFile, mavenSettingsFile, mavenCacertsFile, mavenResolverCacheFile, addShutdownHook, removeShutdownHook,
+                    privilegedClassloaders, repository, args);
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info("Maven application started in {} ms", System.currentTimeMillis() - currentTimeMillis);
             }

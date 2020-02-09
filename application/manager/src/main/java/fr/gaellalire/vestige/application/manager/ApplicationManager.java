@@ -35,7 +35,7 @@ public interface ApplicationManager extends ApplicationManagerState {
 
     void removeRepository(String name) throws ApplicationException;
 
-    JobController install(String repoName, String appName, List<Integer> version, String installName, JobListener jobListener) throws ApplicationException;
+    JobController install(URL repoURL, String appName, List<Integer> version, String installName, JobListener jobListener) throws ApplicationException;
 
     JobController reloadDescriptor(String application, JobListener jobListener) throws ApplicationException;
 
@@ -55,7 +55,7 @@ public interface ApplicationManager extends ApplicationManagerState {
 
     JobController autoMigrate(String installName, JobListener jobListener) throws ApplicationException;
 
-    ApplicationRepositoryMetadata getRepositoryMetadata(String repoName);
+    ApplicationRepositoryMetadata getRepositoryMetadata(URL repoURL);
 
     void addStateListener(ApplicationManagerStateListener listener);
 

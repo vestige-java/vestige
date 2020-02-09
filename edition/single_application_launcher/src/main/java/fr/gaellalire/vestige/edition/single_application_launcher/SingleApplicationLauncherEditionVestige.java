@@ -27,13 +27,20 @@ import java.lang.reflect.Field;
 import java.net.ProxySelector;
 import java.net.URL;
 import java.security.AllPermission;
+import java.security.KeyStore;
 import java.security.PermissionCollection;
+import java.security.Security;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
+
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider;
 import org.eclipse.aether.repository.NoLocalRepositoryManagerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,9 +102,11 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
 
     // private ApplicationDescriptorFactory applicationDescriptorFactory;
 
-    private File baseFile;
+    private File configFile;
 
     private File dataFile;
+
+    private File cacheFile;
 
     private long startTimeMillis;
 
@@ -134,9 +143,10 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
     /**
      * This constructor should not have its parameter modified. You can add setter to give more information.
      */
-    public SingleApplicationLauncherEditionVestige(final File baseFile, final File dataFile) {
-        this.baseFile = baseFile;
+    public SingleApplicationLauncherEditionVestige(final File configFile, final File dataFile, final File cacheFile) {
+        this.configFile = configFile;
         this.dataFile = dataFile;
+        this.cacheFile = cacheFile;
     }
 
     @Override
@@ -212,13 +222,17 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
             applicationsVestigeSystem.setSecurityManager(vestigeSecurityManager);
         }
 
-        File appBaseFile = new File(baseFile, "app");
-        if (!appBaseFile.exists()) {
-            appBaseFile.mkdir();
+        File appConfigFile = new File(configFile, "app");
+        if (!appConfigFile.exists()) {
+            appConfigFile.mkdir();
         }
         File appDataFile = new File(dataFile, "app");
         if (!appDataFile.exists()) {
             appDataFile.mkdir();
+        }
+        File cacheDataFile = new File(cacheFile, "app");
+        if (!cacheDataFile.exists()) {
+            cacheDataFile.mkdir();
         }
 
         File resolverFile = new File(dataFile, "application-manager.ser");
@@ -226,7 +240,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
 
         // $VESTIGE_BASE/m2/settings.xml overrides $home/.m2/settings.xml
         // if none exists then no config file is used
-        File mavenSettingsFile = new File(new File(baseFile, "m2"), "settings.xml");
+        File mavenSettingsFile = new File(new File(configFile, "m2"), "settings.xml");
         if (!mavenSettingsFile.exists()) {
             LOGGER.debug("No vestige Maven settings file found at {}", mavenSettingsFile);
             mavenSettingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
@@ -247,9 +261,25 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
         if (vestigeURLListResolver == null) {
             vestigeURLListResolver = new DefaultVestigeURLListResolver(vestigePlatform);
         }
+
+        final SSLContext sslContext;
+        try {
+            KeyStore trustStore = KeyStore.getInstance("PKCS12", BouncyCastleProvider.PROVIDER_NAME);
+
+            trustStore.load(new FileInputStream(new File(configFile, "cacerts.p12")), "changeit".toCharArray());
+
+            TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX", BouncyCastleJsseProvider.PROVIDER_NAME);
+            trustManagerFactory.init(trustStore);
+            sslContext = SSLContext.getInstance("TLS", BouncyCastleJsseProvider.PROVIDER_NAME);
+            sslContext.init(null, trustManagerFactory.getTrustManagers(), null);
+        } catch (Exception e) {
+            LOGGER.error("SSLContext creation failed", e);
+            return;
+        }
+
         if (vestigeMavenResolver == null) {
             try {
-                vestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile);
+                vestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile, sslContext);
             } catch (NoLocalRepositoryManagerException e) {
                 LOGGER.error("NoLocalRepositoryManagerException", e);
                 return;
@@ -281,8 +311,9 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
                 new SecureVestigeMavenResolver(singleApplicationLauncherEditionVestigeSystem, vestigePolicy, vestigeMavenResolver));
         // injectableByClassName.put(VestigeURLListResolver.class.getName(), vestigeURLListResolver);
 
-        defaultApplicationManager = new DefaultApplicationManager(actionManager, appBaseFile, appDataFile, applicationsVestigeSystem, singleApplicationLauncherEditionVestigeSystem,
-                vestigePolicy, vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile, vestigeResolvers, injectableByClassName);
+        defaultApplicationManager = new DefaultApplicationManager(actionManager, appConfigFile, appDataFile, cacheDataFile, applicationsVestigeSystem,
+                singleApplicationLauncherEditionVestigeSystem, vestigePolicy, vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile,
+                vestigeResolvers, injectableByClassName);
         try {
             defaultApplicationManager.restoreState();
         } catch (ApplicationException e) {
@@ -290,9 +321,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
         }
 
         try {
-            defaultApplicationManager.createRepository("local", null);
-
-            defaultApplicationManager.install("local", "local", Arrays.<Integer> asList(0, 0, 0), "app", null);
+            defaultApplicationManager.install(null, "local", Arrays.<Integer> asList(0, 0, 0), "app", null);
 
             defaultApplicationManager.start("app");
         } catch (ApplicationException e1) {
@@ -430,17 +459,61 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
                 addShutdownHook.apply(seShutdownThread);
             }
 
+            String property = Security.getProperty("securerandom.source");
+            if (property != null) {
+                try {
+                    new URL(property).openStream().close();
+                } catch (IOException ie) {
+                    try {
+                        Field propsField = Security.class.getDeclaredField("props");
+                        propsField.setAccessible(true);
+                        try {
+                            Properties props = (Properties) propsField.get(null);
+                            props.remove("securerandom.source");
+                        } finally {
+                            propsField.setAccessible(false);
+                        }
+                    } catch (Exception e) {
+                        LOGGER.debug("BC may failed {}", e);
+                    }
+                }
+            }
+
+            Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
+            int bcpos = Security.addProvider(new BouncyCastleProvider());
+            LOGGER.debug("BC position is {}", bcpos);
+            Security.removeProvider(BouncyCastleJsseProvider.PROVIDER_NAME);
+            int bcjssepos = Security.addProvider(new BouncyCastleJsseProvider(Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)));
+            LOGGER.debug("BCJSSE position is {}", bcjssepos);
+
+            String config = System.getenv("VESTIGE_CONFIG");
+            if (config == null) {
+                LOGGER.error("VESTIGE_CONFIG must be defined");
+                return;
+            }
+            String data = System.getenv("VESTIGE_DATA");
+            if (data == null) {
+                data = config;
+            }
+            String cache = System.getenv("VESTIGE_CACHE");
+            if (cache == null) {
+                cache = data;
+            }
+            String vestigeSecurity = System.getenv("VESTIGE_SECURITY");
+            boolean securityEnabled = true;
+            if (vestigeSecurity != null) {
+                securityEnabled = Boolean.parseBoolean(vestigeSecurity);
+            }
+
             int argIndex = 0;
-            String base = args[argIndex++];
-            String data = args[argIndex++];
-            boolean securityEnabled = Boolean.parseBoolean(args[argIndex++]);
             String app = args[argIndex++];
 
-            final File baseFile = new File(base).getCanonicalFile();
+            final File configFile = new File(config).getCanonicalFile();
             final File dataFile = new File(data).getCanonicalFile();
+            final File cacheFile = new File(cache).getCanonicalFile();
             final File appFile = new File(app).getCanonicalFile();
-            if (!baseFile.isDirectory()) {
-                if (!baseFile.mkdirs()) {
+            if (!configFile.isDirectory()) {
+                if (!configFile.mkdirs()) {
                     LOGGER.error("Unable to create vestige base");
                 }
             }
@@ -453,7 +526,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
 
                 @Override
                 public void vestigeSystemRun(final VestigeSystem vestigeSystem) {
-                    final SingleApplicationLauncherEditionVestige singleApplicationLauncherVestige = new SingleApplicationLauncherEditionVestige(baseFile, dataFile);
+                    final SingleApplicationLauncherEditionVestige singleApplicationLauncherVestige = new SingleApplicationLauncherEditionVestige(configFile, dataFile, cacheFile);
                     singleApplicationLauncherVestige.setPrivilegedClassloaders(privilegedClassloaders);
                     singleApplicationLauncherVestige.setVestigeExecutor(vestigeExecutor);
                     singleApplicationLauncherVestige.setVestigePlatform(vestigePlatform);

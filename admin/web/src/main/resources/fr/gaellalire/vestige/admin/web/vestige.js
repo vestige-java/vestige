@@ -20,7 +20,7 @@ $(function() {
   var dialogJob = $("#dialog-job");
   
   var comm = new function() {
-    var location = document.location.toString().replace('http://', 'ws://')
+    var location = document.location.toString().replace('http://', 'ws://').replace('https://', 'wss://')
 
     var ws = new WebSocket(location);
     var opened = false;

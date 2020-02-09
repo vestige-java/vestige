@@ -17,10 +17,7 @@
 
 package fr.gaellalire.vestige.resolver.maven;
 
-import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -102,7 +99,7 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
     }
 
     public String getArtifactId() {
-        return artifact.getGroupId();
+        return artifact.getArtifactId();
     }
 
     public String getVersion() {
@@ -156,7 +153,7 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
 
         if (createClassLoaderConfigurationParameters.isManyLoaders()) {
             Map<String, Map<String, MavenArtifact>> runtimeDependencies = new HashMap<String, Map<String, MavenArtifact>>();
-            Map<MavenArtifact, File> urlByKey = new HashMap<MavenArtifact, File>();
+            Map<MavenArtifact, SecureFile> urlByKey = new HashMap<MavenArtifact, SecureFile>();
             for (MavenArtifactAndMetadata artifact : artifacts) {
                 MavenArtifact mavenArtifact = artifact.getMavenArtifact();
                 Map<String, MavenArtifact> map = runtimeDependencies.get(mavenArtifact.getGroupId());
@@ -165,7 +162,7 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
                     runtimeDependencies.put(mavenArtifact.getGroupId(), map);
                 }
                 map.put(mavenArtifact.getArtifactId(), mavenArtifact);
-                urlByKey.put(mavenArtifact, artifact.getSecureFile().getFile());
+                urlByKey.put(mavenArtifact, artifact.getSecureFile());
             }
 
             if (createClassLoaderConfigurationParameters.isSelfExcluded()) {
@@ -215,18 +212,13 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
                 } else {
                     urls = afterUrls;
                 }
-                File file = artifact.getSecureFile().getFile();
-                try {
-                    urls.add(new SecureFile(file, new URL(mavenArtifact.toString()), mavenArtifact.getSha1sum()));
-                } catch (MalformedURLException e) {
-                    throw new ResolverException("Unable to create Maven URL", e);
-                }
+                urls.add(artifact.getSecureFile());
 
                 JPMSClassLoaderConfiguration unnamedClassLoaderConfiguration = jpmsConfiguration.getModuleConfiguration(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId());
                 if (jpmsNamedModulesConfiguration != null) {
                     String moduleName;
                     try {
-                        moduleName = NamedModuleUtils.getModuleName(file);
+                        moduleName = NamedModuleUtils.getModuleName(artifact.getSecureFile().getFile());
                     } catch (IOException e) {
                         throw new ResolverException("Unable to calculate module name", e);
                     }

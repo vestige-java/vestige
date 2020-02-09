@@ -63,8 +63,8 @@ public class RepositoryApplicationVersionArgument implements Argument {
     }
 
     public void propose(final ProposeContext proposeContext) {
-        for (List<Integer> version : applicationManager.getRepositoryMetadata(repositoryArgument.getRepository()).listApplicationVersions(
-                repositoryApplicationArgument.getApplication())) {
+        for (List<Integer> version : applicationManager.getRepositoryMetadata(applicationManager.getRepositoryURL(repositoryArgument.getRepository()))
+                .listApplicationVersions(repositoryApplicationArgument.getApplication())) {
             String proposition = VersionUtils.toString(version);
             proposeContext.addProposition(proposition);
         }

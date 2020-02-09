@@ -41,4 +41,9 @@ public class MavenArtifactAndMetadata {
         return secureFile;
     }
 
+    @Override
+    public String toString() {
+        return mavenArtifact.toString();
+    }
+
 }

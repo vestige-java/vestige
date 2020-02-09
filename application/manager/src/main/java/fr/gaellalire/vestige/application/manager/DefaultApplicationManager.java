@@ -53,6 +53,7 @@ import fr.gaellalire.vestige.job.Job;
 import fr.gaellalire.vestige.job.JobController;
 import fr.gaellalire.vestige.job.JobListener;
 import fr.gaellalire.vestige.job.JobManager;
+import fr.gaellalire.vestige.spi.job.AbstractJobHelper;
 import fr.gaellalire.vestige.spi.job.JobHelper;
 import fr.gaellalire.vestige.spi.job.TaskHelper;
 import fr.gaellalire.vestige.spi.resolver.AttachableClassLoader;
@@ -83,9 +84,11 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
     private ApplicationRepositoryManager applicationDescriptorFactory;
 
-    private File appBaseFile;
+    private File appConfigFile;
 
     private File appDataFile;
+
+    private File appCacheFile;
 
     private DefaultApplicationManagerState state;
 
@@ -109,13 +112,14 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
     private Map<String, Object> injectableByClassName;
 
-    public DefaultApplicationManager(final JobManager actionManager, final File appBaseFile, final File appDataFile, final VestigeSystem vestigeSystem,
+    public DefaultApplicationManager(final JobManager actionManager, final File appConfigFile, final File appDataFile, final File appCacheFile, final VestigeSystem vestigeSystem,
             final VestigeSystem managerVestigeSystem, final PrivateVestigePolicy vestigePolicy, final PrivateVestigeSecurityManager vestigeSecurityManager,
             final ApplicationRepositoryManager applicationDescriptorFactory, final File resolverFile, final File nextResolverFile, final List<VestigeResolver> vestigeResolvers,
             final Map<String, Object> injectableByClassName) {
         this.jobManager = actionManager;
-        this.appBaseFile = appBaseFile;
+        this.appConfigFile = appConfigFile;
         this.appDataFile = appDataFile;
+        this.appCacheFile = appCacheFile;
         this.vestigeResolvers = vestigeResolvers;
         this.injectableByClassName = injectableByClassName;
 
@@ -227,22 +231,18 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         }
     }
 
-    public ApplicationContext createApplicationContext(final String repoName, final String appName, final List<Integer> version, final String installName,
-            final JobHelper jobHelper) throws ApplicationException {
-        URL context = state.getRepositoryURL(repoName);
-        if (context == null) {
-            throw new ApplicationException("Repository not found");
-        }
-
-        ApplicationDescriptor applicationDescriptor = applicationDescriptorFactory.createApplicationDescriptor(context, repoName, appName, version, jobHelper);
+    public ApplicationContext createApplicationContext(final URL repoURL, final String appName, final List<Integer> version, final String installName, final JobHelper jobHelper)
+            throws ApplicationException {
+        ApplicationDescriptor applicationDescriptor = applicationDescriptorFactory.createApplicationDescriptor(repoURL, appName, version, jobHelper);
 
         String javaSpecificationVersion = applicationDescriptor.getJavaSpecificationVersion();
         if (!isJavaSpecificationVersionCompatible(javaSpecificationVersion)) {
             throw new ApplicationException("This JVM does not support java " + javaSpecificationVersion);
         }
 
-        File basefile = new File(appBaseFile, installName);
+        File configFile = new File(appConfigFile, installName);
         File dataFile = new File(appDataFile, installName);
+        File cacheFile = new File(appCacheFile, installName);
 
         Set<List<Integer>> supportedMigrationVersion = applicationDescriptor.getSupportedMigrationVersions();
         Set<List<Integer>> uninterruptedMigrationVersion = applicationDescriptor.getUninterruptedMigrationVersions();
@@ -251,7 +251,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         }
 
         ApplicationContext applicationContext = new ApplicationContext();
-        applicationContext.setRepoName(repoName);
+        applicationContext.setRepoURL(repoURL);
         applicationContext.setRepoApplicationName(appName);
         applicationContext.setRepoApplicationVersion(version);
         applicationContext.setInstallerClassName(applicationDescriptor.getInstallerClassName());
@@ -263,8 +263,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         applicationContext.setPermissions(applicationDescriptor.getPermissions());
         applicationContext.setInstallerPermissions(applicationDescriptor.getInstallerPermissions());
 
-        applicationContext.setBase(basefile);
+        applicationContext.setConfig(configFile);
         applicationContext.setData(dataFile);
+        applicationContext.setCache(cacheFile);
         applicationContext.setSupportedMigrationVersion(supportedMigrationVersion);
         applicationContext.setUninterruptedMigrationVersion(uninterruptedMigrationVersion);
         applicationContext.setName(installName);
@@ -279,7 +280,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
     private JobManager jobManager;
 
-    public JobController install(final String repoName, final String appName, final List<Integer> version, final String pinstallName, final JobListener jobListener)
+    public JobController install(final URL repoURL, final String appName, final List<Integer> version, final String pinstallName, final JobListener jobListener)
             throws ApplicationException {
         String installName = pinstallName;
         if (installName == null || installName.length() == 0) {
@@ -293,7 +294,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 throw new ApplicationException("application already installing");
             }
         }
-        return jobManager.submitJob("install", "Installing " + installName, new InstallAction(repoName, appName, version, installName), jobListener);
+        return jobManager.submitJob("install", "Installing " + installName, new InstallAction(repoURL, appName, version, installName), jobListener);
     }
 
     /**
@@ -301,7 +302,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
      */
     private class InstallAction implements Job {
 
-        private String repoName;
+        private URL repoURL;
 
         private String appName;
 
@@ -309,8 +310,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
         private String installName;
 
-        InstallAction(final String repoName, final String appName, final List<Integer> version, final String installName) {
-            this.repoName = repoName;
+        InstallAction(final URL repoURL, final String appName, final List<Integer> version, final String installName) {
+            this.repoURL = repoURL;
             this.appName = appName;
             this.version = version;
             this.installName = installName;
@@ -322,16 +323,16 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
             boolean successful = false;
             try {
-                applicationContext = createApplicationContext(repoName, appName, version, installName, jobHelper);
-                final File base = applicationContext.getBase();
-                if (base.exists()) {
+                applicationContext = createApplicationContext(repoURL, appName, version, installName, jobHelper);
+                final File config = applicationContext.getConfig();
+                if (config.exists()) {
                     try {
-                        FileUtils.forceDelete(base);
+                        FileUtils.forceDelete(config);
                     } catch (IOException e) {
-                        throw new ApplicationException("Base directory already exists and cannot be deleted", e);
+                        throw new ApplicationException("Config directory already exists and cannot be deleted", e);
                     }
                 }
-                base.mkdirs();
+                config.mkdirs();
                 final File data = applicationContext.getData();
                 if (data.exists()) {
                     try {
@@ -341,6 +342,15 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                     }
                 }
                 data.mkdirs();
+                final File cache = applicationContext.getCache();
+                if (cache.exists()) {
+                    try {
+                        FileUtils.forceDelete(cache);
+                    } catch (IOException e) {
+                        throw new ApplicationException("Data directory already exists and cannot be deleted", e);
+                    }
+                }
+                cache.mkdirs();
 
                 final RuntimeApplicationInstallerContext finalRuntimeApplicationInstallerContext;
                 TaskHelper task = jobHelper.addTask("Attaching installer classLoader");
@@ -378,7 +388,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                     @Override
                                     public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
                                         ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(callConstructorAndInject(installerClassLoader,
-                                                installerClassLoader.loadClass(installerClassName), base, data, addInjects, vestigeSystem, privilegedExecutor));
+                                                installerClassLoader.loadClass(installerClassName), config, data, cache, addInjects, vestigeSystem, privilegedExecutor));
                                         applicationInstaller.install();
                                         return null;
                                     }
@@ -409,7 +419,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             }
 
             if (LOGGER.isInfoEnabled()) {
-                LOGGER.info("Application {} version {} on repository {} installed", new Object[] {appName, VersionUtils.toString(version), repoName});
+                LOGGER.info("Application {} version {} on repository {} installed", new Object[] {appName, VersionUtils.toString(version), repoURL});
             }
         }
     }
@@ -447,7 +457,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         public void run(final JobHelper jobHelper) throws ApplicationException {
             ApplicationContext reloadedApplicationContext = null;
             try {
-                reloadedApplicationContext = createApplicationContext(applicationContext.getRepoName(), applicationContext.getRepoApplicationName(),
+                reloadedApplicationContext = createApplicationContext(applicationContext.getRepoURL(), applicationContext.getRepoApplicationName(),
                         applicationContext.getRepoApplicationVersion(), installName, jobHelper);
             } finally {
                 if (reloadedApplicationContext != null) {
@@ -491,8 +501,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         @Override
         public void run(final JobHelper jobHelper) throws ApplicationException {
             try {
-                final File base = applicationContext.getBase();
+                final File config = applicationContext.getConfig();
                 final File data = applicationContext.getData();
+                final File cache = applicationContext.getCache();
                 try {
                     RuntimeApplicationInstallerContext runtimeApplicationInstallerContext;
                     boolean noInstaller = false;
@@ -531,8 +542,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                         @Override
                                         public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
                                             ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(
-                                                    callConstructorAndInject(installerClassLoader, installerClassLoader.loadClass(applicationContext.getInstallerClassName()), base,
-                                                            data, addInjects, vestigeSystem, privilegedExecutor));
+                                                    callConstructorAndInject(installerClassLoader, installerClassLoader.loadClass(applicationContext.getInstallerClassName()),
+                                                            config, data, cache, addInjects, vestigeSystem, privilegedExecutor));
                                             applicationInstaller.uninstall();
                                             return null;
                                         }
@@ -550,9 +561,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                         }
                     }
                 } finally {
-                    if (base.exists()) {
+                    if (config.exists()) {
                         try {
-                            FileUtils.forceDelete(base);
+                            FileUtils.forceDelete(config);
                         } catch (IOException e) {
                             LOGGER.error("Unable to remove base application directory", e);
                         }
@@ -647,12 +658,15 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             final Collection<Permission> installerResolvePermission, final AttachableClassLoader installerClassLoader, final String installName) {
         Set<Permission> additionnalPermissions = new HashSet<Permission>();
         additionnalPermissions.addAll(installerResolvePermission);
-        final File base = applicationContext.getBase();
+        final File config = applicationContext.getConfig();
         final File data = applicationContext.getData();
-        additionnalPermissions.add(new FilePermission(base.getPath(), "read,write"));
-        additionnalPermissions.add(new FilePermission(base.getPath() + File.separator + "-", "read,write,delete"));
+        final File cache = applicationContext.getCache();
+        additionnalPermissions.add(new FilePermission(config.getPath(), "read,write"));
+        additionnalPermissions.add(new FilePermission(config.getPath() + File.separator + "-", "read,write,delete"));
         additionnalPermissions.add(new FilePermission(data.getPath(), "read,write"));
         additionnalPermissions.add(new FilePermission(data.getPath() + File.separator + "-", "read,write,delete"));
+        additionnalPermissions.add(new FilePermission(cache.getPath(), "read,write"));
+        additionnalPermissions.add(new FilePermission(cache.getPath() + File.separator + "-", "read,write,delete"));
         additionnalPermissions.addAll(applicationContext.getResolve().getPermissions());
         additionnalPermissions.addAll(applicationContext.getInstallerPermissions());
         final VestigeSystem vestigeSystem;
@@ -738,9 +752,10 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                 public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
                                     ApplicationInstaller applicationInstaller = finalRuntimeApplicationInstallerContext.getApplicationInstaller();
                                     if (applicationInstaller == null) {
-                                        applicationInstaller = new ApplicationInstallerInvoker(callConstructorAndInject(installerClassLoader,
-                                                installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()), migratorApplicationContext.getBase(),
-                                                migratorApplicationContext.getData(), migratorApplicationContext.getInstallerAddInjects(), vestigeSystem, privilegedExecutor));
+                                        applicationInstaller = new ApplicationInstallerInvoker(
+                                                callConstructorAndInject(installerClassLoader, installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()),
+                                                        migratorApplicationContext.getConfig(), migratorApplicationContext.getData(), migratorApplicationContext.getCache(),
+                                                        migratorApplicationContext.getInstallerAddInjects(), vestigeSystem, privilegedExecutor));
                                         finalRuntimeApplicationInstallerContext.setApplicationInstaller(applicationInstaller);
                                     }
                                     try {
@@ -833,7 +848,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 LOGGER.info("Migrating {} to version {} ", installName, VersionUtils.toString(toVersion));
             }
             try {
-                final ApplicationContext toApplicationContext = createApplicationContext(fromApplicationContext.getRepoName(), fromApplicationContext.getRepoApplicationName(),
+                final ApplicationContext toApplicationContext = createApplicationContext(fromApplicationContext.getRepoURL(), fromApplicationContext.getRepoApplicationName(),
                         toVersion, installName, jobHelper);
 
                 int level = fromApplicationContext.getAutoMigrateLevel();
@@ -950,8 +965,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                                 if (applicationInstaller == null) {
                                                     applicationInstaller = new ApplicationInstallerInvoker(callConstructorAndInject(installerClassLoader,
                                                             installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()),
-                                                            migratorApplicationContext.getBase(), migratorApplicationContext.getData(), migratorApplicationContext.getAddInjects(),
-                                                            vestigeSystem, privilegedExecutor));
+                                                            migratorApplicationContext.getConfig(), migratorApplicationContext.getData(), migratorApplicationContext.getCache(),
+                                                            migratorApplicationContext.getAddInjects(), vestigeSystem, privilegedExecutor));
                                                     finalRuntimeApplicationInstallerContext.setApplicationInstaller(applicationInstaller);
                                                 }
                                                 Exception migrateException = null;
@@ -1085,9 +1100,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                             ApplicationInstaller applicationInstaller = finalRuntimeApplicationInstallerContext.getApplicationInstaller();
                                             if (applicationInstaller == null) {
                                                 applicationInstaller = new ApplicationInstallerInvoker(callConstructorAndInject(installerClassLoader,
-                                                        installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()), migratorApplicationContext.getBase(),
-                                                        migratorApplicationContext.getData(), migratorApplicationContext.getInstallerAddInjects(), vestigeSystem,
-                                                        privilegedExecutor));
+                                                        installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()), migratorApplicationContext.getConfig(),
+                                                        migratorApplicationContext.getData(), migratorApplicationContext.getCache(),
+                                                        migratorApplicationContext.getInstallerAddInjects(), vestigeSystem, privilegedExecutor));
                                                 finalRuntimeApplicationInstallerContext.setApplicationInstaller(applicationInstaller);
                                             }
                                             Exception migrateException = null;
@@ -1246,31 +1261,36 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         return null;
     }
 
-    public Object callConstructorAndInject(final ClassLoader classLoader, final Class<?> loadClass, final File home, final File data, final List<AddInject> addInjects,
-            final VestigeSystem vestigeSystem, final PrivilegedExceptionActionExecutor privilegedExecutor)
+    public Object callConstructorAndInject(final ClassLoader classLoader, final Class<?> loadClass, final File config, final File data, final File cache,
+            final List<AddInject> addInjects, final VestigeSystem vestigeSystem, final PrivilegedExceptionActionExecutor privilegedExecutor)
             throws IllegalArgumentException, InstantiationException, IllegalAccessException, InvocationTargetException, ApplicationException {
         // level : constructor
         // 0 : ()
         // 1 : (File)
         // 2 : (File, File)
-        // The first file is base directory, the optional second file is data
-        // directory
+        // 3 : (File, File, File)
+        // The first file is base directory, the optional second file is data directory, the optional third file is cache directory
 
         Object applicationObject;
         Constructor<?> constructor = null;
         try {
-            constructor = loadClass.getConstructor(File.class, File.class);
-            applicationObject = constructor.newInstance(home, data);
+            constructor = loadClass.getConstructor(File.class, File.class, File.class);
+            applicationObject = constructor.newInstance(config, data, cache);
         } catch (NoSuchMethodException e1) {
             try {
-                constructor = loadClass.getConstructor(File.class);
-                applicationObject = constructor.newInstance(home);
+                constructor = loadClass.getConstructor(File.class, File.class);
+                applicationObject = constructor.newInstance(config, data);
             } catch (NoSuchMethodException e2) {
                 try {
-                    constructor = loadClass.getConstructor();
-                    applicationObject = constructor.newInstance();
-                } catch (NoSuchMethodException e) {
-                    throw new ApplicationException("No constructor found");
+                    constructor = loadClass.getConstructor(File.class);
+                    applicationObject = constructor.newInstance(config);
+                } catch (NoSuchMethodException e3) {
+                    try {
+                        constructor = loadClass.getConstructor();
+                        applicationObject = constructor.newInstance();
+                    } catch (NoSuchMethodException e4) {
+                        throw new ApplicationException("No constructor found");
+                    }
                 }
             }
         }
@@ -1369,11 +1389,13 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
             Set<Permission> additionnalPermissions = new HashSet<Permission>();
             additionnalPermissions.addAll(resolve.getPermissions());
-            additionnalPermissions.add(new FilePermission(applicationContext.getBase().getPath(), "read,write"));
-            additionnalPermissions.add(new FilePermission(applicationContext.getBase().getPath() + File.separator + "-", "read,write,delete"));
+            additionnalPermissions.add(new FilePermission(applicationContext.getConfig().getPath(), "read,write"));
+            additionnalPermissions.add(new FilePermission(applicationContext.getConfig().getPath() + File.separator + "-", "read,write,delete"));
             additionnalPermissions.addAll(applicationContext.getPermissions());
             additionnalPermissions.add(new FilePermission(applicationContext.getData().getPath(), "read,write"));
             additionnalPermissions.add(new FilePermission(applicationContext.getData().getPath() + File.separator + "-", "read,write,delete"));
+            additionnalPermissions.add(new FilePermission(applicationContext.getCache().getPath(), "read,write"));
+            additionnalPermissions.add(new FilePermission(applicationContext.getCache().getPath() + File.separator + "-", "read,write,delete"));
             VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(classLoader, additionnalPermissions, null, applicationContext.getName(),
                     vestigeSystem, new VestigeSecureCallable<Void>() {
                         @Override
@@ -1382,8 +1404,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                             RuntimeApplicationContext runtimeApplicationContext;
                             if (finalPreviousRuntimeApplicationContext == null) {
                                 Class<?> cl = classLoader.loadClass(applicationContext.getClassName());
-                                Object applicationObject = callConstructorAndInject(classLoader, cl, applicationContext.getBase(), applicationContext.getData(),
-                                        applicationContext.getAddInjects(), vestigeSystem, privilegedExecutor);
+                                Object applicationObject = callConstructorAndInject(classLoader, cl, applicationContext.getConfig(), applicationContext.getData(),
+                                        applicationContext.getCache(), applicationContext.getAddInjects(), vestigeSystem, privilegedExecutor);
                                 if (applicationObject instanceof Callable<?>) {
                                     applicationCallable = (Callable<?>) applicationObject;
                                 } else {
@@ -1537,7 +1559,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 Thread thread = new Thread("automigrate-" + applicationName) {
                     public void run() {
                         try {
-                            autoMigrate(new JobHelper() {
+                            autoMigrate(new AbstractJobHelper() {
 
                                 @Override
                                 public TaskHelper addTask(final String taskDescription) {
@@ -1595,11 +1617,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
     public void autoMigrate(final JobHelper jobHelper, final String installName) throws ApplicationException {
         ApplicationContext applicationContext;
         URL context;
-        String repoName;
         synchronized (state) {
             applicationContext = state.getUnlockedApplicationContext(installName);
-            repoName = applicationContext.getRepoName();
-            context = state.getRepositoryURL(repoName);
+            context = applicationContext.getRepoURL();
             applicationContext.setLocked(true);
         }
         boolean migrating = false;
@@ -1616,13 +1636,13 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 newerVersion.set(0, majorVersion + 1);
                 newerVersion.set(1, 0);
                 newerVersion.set(2, 0);
-                if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion, this)) {
+                if (applicationDescriptorFactory.hasApplicationDescriptor(context, appName, newerVersion, this)) {
                     minorVersion = 0;
                     bugfixVersion = 0;
                     do {
                         majorVersion++;
                         newerVersion.set(0, majorVersion + 1);
-                    } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion, this));
+                    } while (applicationDescriptorFactory.hasApplicationDescriptor(context, appName, newerVersion, this));
                 } else {
                     newerVersion.set(2, bugfixVersion);
                 }
@@ -1630,21 +1650,21 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             case 2:
                 newerVersion.set(1, minorVersion + 1);
                 newerVersion.set(2, 0);
-                if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion, this)) {
+                if (applicationDescriptorFactory.hasApplicationDescriptor(context, appName, newerVersion, this)) {
                     bugfixVersion = 0;
                     do {
                         minorVersion++;
                         newerVersion.set(1, minorVersion + 1);
-                    } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion, this));
+                    } while (applicationDescriptorFactory.hasApplicationDescriptor(context, appName, newerVersion, this));
                 }
                 newerVersion.set(1, minorVersion);
             case 1:
                 newerVersion.set(2, bugfixVersion + 1);
-                if (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion, this)) {
+                if (applicationDescriptorFactory.hasApplicationDescriptor(context, appName, newerVersion, this)) {
                     do {
                         bugfixVersion++;
                         newerVersion.set(2, bugfixVersion + 1);
-                    } while (applicationDescriptorFactory.hasApplicationDescriptor(context, repoName, appName, newerVersion, this));
+                    } while (applicationDescriptorFactory.hasApplicationDescriptor(context, appName, newerVersion, this));
                 }
                 newerVersion.set(2, bugfixVersion);
             case 0:
@@ -1743,13 +1763,6 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
     }
 
     @Override
-    public String getRepositoryName(final String installName) throws ApplicationException {
-        synchronized (state) {
-            return state.getRepositoryName(installName);
-        }
-    }
-
-    @Override
     public int getAutoMigrateLevel(final String installName) throws ApplicationException {
         synchronized (state) {
             return state.getAutoMigrateLevel(installName);
@@ -1760,6 +1773,13 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
     public boolean isAutoStarted(final String installName) throws ApplicationException {
         synchronized (state) {
             return state.isAutoStarted(installName);
+        }
+    }
+
+    @Override
+    public URL getApplicationRepositoryURL(final String installName) throws ApplicationException {
+        synchronized (state) {
+            return state.getApplicationRepositoryURL(installName);
         }
     }
 
@@ -1797,8 +1817,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
     }
 
     @Override
-    public ApplicationRepositoryMetadata getRepositoryMetadata(final String repoName) {
-        return applicationDescriptorFactory.getMetadata(getRepositoryURL(repoName));
+    public ApplicationRepositoryMetadata getRepositoryMetadata(final URL repoURL) {
+        return applicationDescriptorFactory.getMetadata(repoURL);
     }
 
     public void startStateListenerThread() {

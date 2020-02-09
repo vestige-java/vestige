@@ -81,6 +81,16 @@
       <artifactId>vestige.core</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bctls-jdk15on</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcpkix-jdk15on</artifactId>
+    </dependency>
+    
+    
 <!--   <dependency> -->
 <!--     <artifactId>jWebSocketServer</artifactId> -->
 <!--     <groupId>org.jwebsocket</groupId> -->

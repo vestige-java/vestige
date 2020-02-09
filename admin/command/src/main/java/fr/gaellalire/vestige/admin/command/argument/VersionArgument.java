@@ -63,8 +63,8 @@ public class VersionArgument implements Argument {
     public void propose(final ProposeContext proposeContext) throws ParseException {
         try {
             String installName = applicationArgument.getApplication();
-            for (List<Integer> version : applicationManager.getRepositoryMetadata(applicationManager.getRepositoryName(installName)).listApplicationVersions(
-                    applicationManager.getRepositoryApplicationName(installName))) {
+            for (List<Integer> version : applicationManager.getRepositoryMetadata(applicationManager.getRepositoryURL(installName))
+                    .listApplicationVersions(applicationManager.getRepositoryApplicationName(installName))) {
                 String proposition = VersionUtils.toString(version);
                 proposeContext.addProposition(proposition);
             }

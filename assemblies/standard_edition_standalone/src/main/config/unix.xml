@@ -33,7 +33,18 @@
       </includes>
       <excludes>
         <exclude>.gitattributes</exclude>
+        <exclude>vestigessh</exclude>
+        <exclude>vestigeweb</exclude>
       </excludes>
+    </fileSet>
+    <fileSet>
+      <directory>${basedir}/src/main/assembly/unix</directory>
+      <outputDirectory>/</outputDirectory>
+      <fileMode>0755</fileMode>
+      <includes>
+        <include>vestigessh</include>
+        <include>vestigeweb</include>
+      </includes>
     </fileSet>
     <!-- vestige is unix executable -->
     <fileSet>

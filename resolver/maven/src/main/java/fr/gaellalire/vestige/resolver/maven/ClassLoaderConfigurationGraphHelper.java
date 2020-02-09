@@ -17,10 +17,7 @@
 
 package fr.gaellalire.vestige.resolver.maven;
 
-import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -45,7 +42,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
     private Map<List<MavenArtifact>, ClassLoaderConfigurationFactory> cachedClassLoaderConfigurationFactory;
 
-    private Map<MavenArtifact, File> urlByKey;
+    private Map<MavenArtifact, SecureFile> urlByKey;
 
     private Map<String, Map<String, MavenArtifact>> runtimeDependencies;
 
@@ -61,9 +58,10 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
     private DependencyReader dependencyReader;
 
-    public ClassLoaderConfigurationGraphHelper(final String appName, final Map<MavenArtifact, File> urlByKey, final DependencyReader dependencyReader,
-            final BeforeParentController beforeParentController, final DefaultJPMSConfiguration jpmsConfiguration, final Map<String, Map<String, MavenArtifact>> runtimeDependencies,
-            final Scope scope, final ScopeModifier scopeModifier, final JPMSNamedModulesConfiguration namedModulesConfiguration) {
+    public ClassLoaderConfigurationGraphHelper(final String appName, final Map<MavenArtifact, SecureFile> urlByKey, final DependencyReader dependencyReader,
+            final BeforeParentController beforeParentController, final DefaultJPMSConfiguration jpmsConfiguration,
+            final Map<String, Map<String, MavenArtifact>> runtimeDependencies, final Scope scope, final ScopeModifier scopeModifier,
+            final JPMSNamedModulesConfiguration namedModulesConfiguration) {
         cachedClassLoaderConfigurationFactory = new HashMap<List<MavenArtifact>, ClassLoaderConfigurationFactory>();
         this.appName = appName;
         this.urlByKey = urlByKey;
@@ -102,7 +100,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
                 String moduleName;
                 try {
-                    moduleName = NamedModuleUtils.getModuleName(urlByKey.get(mavenArtifact));
+                    moduleName = NamedModuleUtils.getModuleName(urlByKey.get(mavenArtifact).getFile());
                 } catch (IOException e) {
                     throw new ResolverException("Unable to calculate module name", e);
                 }
@@ -146,11 +144,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
                 } else {
                     urls = afterUrls;
                 }
-                try {
-                    urls.add(new SecureFile(urlByKey.get(artifact), new URL(artifact.toString()), artifact.getSha1sum()));
-                } catch (MalformedURLException e) {
-                    throw new ResolverException("Unable to create Maven URL", e);
-                }
+                urls.add(urlByKey.get(artifact));
                 i++;
             }
             classLoaderConfigurationFactory = new ClassLoaderConfigurationFactory(appName, key, scope, beforeUrls, afterUrls, nexts, namedModulesConfiguration != null);

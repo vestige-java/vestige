@@ -93,15 +93,28 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
 
             private List<Dependency> dependencies = new ArrayList<Dependency>();
 
+            private List<MavenArtifactKey> removedDependencies = new ArrayList<MavenArtifactKey>();
+
             @Override
             public void addDependency(final String groupId, final String artifactId, final String version) {
-                dependencies.add(new Dependency(new DefaultArtifact(groupId, artifactId, "jar", version), "runtime"));
+                addDependency(groupId, artifactId, version, "jar");
             }
 
             @Override
             public void execute() {
                 checkBuild();
                 defaultDependencyModifier.add(groupId, artifactId, dependencies);
+                defaultDependencyModifier.remove(groupId, artifactId, removedDependencies);
+            }
+
+            @Override
+            public void removeDependency(final String groupId, final String artifactId, final String extension) {
+                removedDependencies.add(new MavenArtifactKey(groupId, artifactId, extension));
+            }
+
+            @Override
+            public void addDependency(final String groupId, final String artifactId, final String version, final String extension) {
+                dependencies.add(new Dependency(new DefaultArtifact(groupId, artifactId, extension, version), "runtime"));
             }
 
         };

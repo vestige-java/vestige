@@ -114,4 +114,13 @@ public class DefaultVestigeJar implements VestigeJar {
         return file;
     }
 
+    @Override
+    public VestigeJarEntry getEntry(final String name) throws IOException {
+        JarEntry jarEntry = getJarFile().getJarEntry(name);
+        if (jarEntry == null) {
+            return null;
+        }
+        return new DefaultVestigeJarEntry(jarFile, jarEntry);
+    }
+
 }

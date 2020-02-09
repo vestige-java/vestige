@@ -28,6 +28,12 @@ module fr.gaellalire.vestige.edition.single_application_launcher {
 
     requires java.management;
 
+    requires org.bouncycastle.provider;
+    
+    requires org.bouncycastle.tls;
+    
+    requires org.bouncycastle.pkix;
+
     // Shame part : filename-based automodules
 
     requires logback.classic;

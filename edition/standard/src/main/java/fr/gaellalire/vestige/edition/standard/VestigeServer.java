@@ -26,4 +26,8 @@ public interface VestigeServer {
 
     void stop() throws Exception;
 
+    String getLocalHost();
+
+    int getLocalPort();
+
 }

@@ -33,12 +33,20 @@ module fr.gaellalire.vestige.edition.standard {
     requires java.xml;
 
     requires java.management;
+    
+    requires org.bouncycastle.provider;
+    
+    requires org.bouncycastle.tls;
+    
+    requires org.bouncycastle.pkix;
 
     // Shame part : filename-based automodules
 
     requires logback.classic;
 
     requires logback.core;
+
+    requires jetty.util;
 
     requires jetty.server;
 

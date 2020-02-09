@@ -26,7 +26,7 @@ public interface VestigeStateListener {
 
     void starting();
 
-    void base(File file);
+    void config(File file);
 
     void webAdminAvailable(String url);
 
@@ -37,5 +37,9 @@ public interface VestigeStateListener {
     void stopping();
 
     void stopped();
+
+    void certificateAuthorityGenerated(File file);
+
+    void clientP12Generated(File file);
 
 }

@@ -17,6 +17,7 @@
 
 package fr.gaellalire.vestige.job.secure;
 
+import fr.gaellalire.vestige.spi.job.AbstractJobHelper;
 import fr.gaellalire.vestige.spi.job.JobHelper;
 import fr.gaellalire.vestige.spi.job.TaskHelper;
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
@@ -24,7 +25,7 @@ import fr.gaellalire.vestige.spi.system.VestigeSystem;
 /**
  * @author Gael Lalire
  */
-public class SecureJobHelper implements JobHelper {
+public class SecureJobHelper extends AbstractJobHelper {
 
     private VestigeSystem secureVestigeSystem;
 

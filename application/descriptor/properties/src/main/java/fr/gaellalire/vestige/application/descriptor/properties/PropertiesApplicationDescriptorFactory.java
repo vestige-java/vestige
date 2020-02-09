@@ -32,7 +32,6 @@ import fr.gaellalire.vestige.spi.job.JobHelper;
  */
 public class PropertiesApplicationDescriptorFactory implements ApplicationRepositoryManager {
 
-
     @Override
     public ApplicationRepositoryMetadata getMetadata(final URL context) {
         // TODO Auto-generated method stub
@@ -40,14 +39,14 @@ public class PropertiesApplicationDescriptorFactory implements ApplicationReposi
     }
 
     @Override
-    public ApplicationDescriptor createApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version, final JobHelper actionHelper)
+    public ApplicationDescriptor createApplicationDescriptor(final URL context, final String appName, final List<Integer> version, final JobHelper actionHelper)
             throws ApplicationException {
         // TODO Auto-generated method stub
         return null;
     }
 
     @Override
-    public boolean hasApplicationDescriptor(final URL context, final String repoName, final String appName, final List<Integer> version, final CompatibilityChecker compatibilityChecker)
+    public boolean hasApplicationDescriptor(final URL context, final String appName, final List<Integer> version, final CompatibilityChecker compatibilityChecker)
             throws ApplicationException {
         // TODO Auto-generated method stub
         return false;

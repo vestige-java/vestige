@@ -1,0 +1,23 @@
+#!/bin/bash
+
+DIRNAME=`dirname "$0"`
+if [ "$DIRNAME" = "." ]; then
+  DIRNAME="$PWD"
+fi
+
+if [ "$VESTIGE_DATA" = "" ]; then
+  VESTIGE_DATA="$DIRNAME/data"
+fi
+
+if [ ! -f "$VESTIGE_DATA/web/port.txt" ]; then
+  echo "Cannot find Vestige Web port" >&2
+  echo "Verify that Vestige is started and Web admin is enabled in settings.xml" >&2
+  exit 1
+fi
+
+OPEN_COMMAND=`which xdg-open`
+if [ "$OPEN_COMMAND" = "" ]; then
+  OPEN_COMMAND=`which open`
+fi
+
+exec "$OPEN_COMMAND" https://localhost:$(cat "$VESTIGE_DATA/web/port.txt")

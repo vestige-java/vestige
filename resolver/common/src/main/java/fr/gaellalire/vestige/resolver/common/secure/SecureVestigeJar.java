@@ -127,4 +127,14 @@ public class SecureVestigeJar implements VestigeJar {
         }
     }
 
+    @Override
+    public VestigeJarEntry getEntry(final String name) throws IOException {
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return new SecureVestigeJarEntry(secureVestigeSystem, delegate.getEntry(name));
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
+    }
+
 }

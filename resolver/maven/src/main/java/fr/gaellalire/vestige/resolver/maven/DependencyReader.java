@@ -17,11 +17,14 @@
 
 package fr.gaellalire.vestige.resolver.maven;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -101,22 +104,29 @@ public class DependencyReader {
             }
             map.put(mavenArtifact.getArtifactId(), artifact);
         }
-        List<NodeAndState> nextDependencies = Collections.singletonList(nodeAndState);
-        while (nextDependencies.size() != 0) {
-            List<NodeAndState> dependencies = nextDependencies;
-            nextDependencies = new ArrayList<NodeAndState>();
-
-            for (NodeAndState nodeAndState2 : dependencies) {
+        Deque<Iterator<NodeAndState>> stack = new ArrayDeque<Iterator<NodeAndState>>();
+        Iterator<NodeAndState> current = Collections.singletonList(nodeAndState).iterator();
+        stack.push(current);
+        while (stack.size() != 0) {
+            if (current.hasNext()) {
+                NodeAndState nodeAndState2 = current.next();
                 Artifact artifact = nodeAndState2.getDependencyNode().getArtifact();
-                MavenArtifactAndMetadata mavenArtifact = runtimeDependencies.get(artifact.getGroupId()).remove(artifact.getArtifactId());
-                if (mavenArtifact != null) {
-                    result.add(mavenArtifact);
-                    nextDependencies.addAll(getDependencies(nodeAndState2));
+                Map<String, MavenArtifactAndMetadata> map = runtimeDependencies.get(artifact.getGroupId());
+                if (map != null) {
+                    // map can be null because provided dependencies are not included
+                    MavenArtifactAndMetadata mavenArtifact = map.remove(artifact.getArtifactId());
+                    if (mavenArtifact != null) {
+                        result.add(mavenArtifact);
+                        stack.push(current);
+                        current = getDependencies(nodeAndState2).iterator();
+                    }
                 }
+            } else {
+                current = stack.pop();
             }
         }
 
-        return artifactAndMetadatas;
+        return result;
     }
 
     public List<NodeAndState> getDependencies(final NodeAndState nodeAndState) throws ResolverException {
