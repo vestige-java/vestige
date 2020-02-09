@@ -8,7 +8,7 @@ mkdir -p target/vestige_deb/etc/vestige
 mkdir -p target/vestige_deb/usr/share/lintian/overrides
 mkdir -p target/vestige_deb/usr/share/doc/vestige
 unzip -d target/vestige ../standard_edition_standalone/target/vestige.assemblies.standard_edition_standalone-$VESTIGE_VERSION-unix.zip
-sed -i~ -e 's/VESTIGE_CONFIG=.*/VESTIGE_CONFIG="${XDG_CONFIG_HOME:-$HOME\/.config}\/vestige"/' -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="${XDG_DATA_HOME:-$HOME\/.local\/share}\/vestige"/' -e 's/VESTIGE_CACHE=.*/VESTIGE_CACHE="${XDG_CACHE_HOME:-$HOME\/.cache}\/vestige"/' -e 's/DATADIR=.*/DATADIR=\/usr\/share\/vestige/' -e 's/CONFDIR=.*/CONFDIR=\/etc\/vestige\//' target/vestige/vestige
+sed -i~ -e 's/VESTIGE_CONFIG=.*/VESTIGE_CONFIG="${XDG_CONFIG_HOME:-$HOME\/.config}\/vestige"/' -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="${XDG_DATA_HOME:-$HOME\/.local\/share}\/vestige"/' -e 's/VESTIGE_CACHE=.*/VESTIGE_CACHE="${XDG_CACHE_HOME:-$HOME\/.cache}\/vestige"/' -e 's/VESTIGE_SYSTEM_DATA=.*/VESTIGE_SYSTEM_DATA=\/usr\/share\/vestige/' -e 's/VESTIGE_SYSTEM_CONFIG=.*/VESTIGE_SYSTEM_CONFIG=\/etc\/vestige\//' target/vestige/vestige
 rm target/vestige/vestige~
 sed -i~ -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="${XDG_DATA_HOME:-$HOME\/.local\/share}\/vestige"/' target/vestige/vestigessh
 rm target/vestige/vestigessh~
@@ -18,7 +18,7 @@ mkdir -p target/vestige_deb/usr/share/vestige
 mv target/vestige/repository target/vestige_deb/usr/share/vestige/repository
 mv target/vestige/lib target/vestige_deb/usr/share/vestige/lib
 mv target/vestige/m2 target/vestige_deb/usr/share/vestige/m2
-mv target/vestige/unix-classpath.txt target/vestige_deb/usr/share/vestige/
+mv target/vestige/unix-classpath*.txt target/vestige_deb/usr/share/vestige/
 mv target/vestige/vestige target/vestige_deb/usr/share/vestige/vestige
 mv target/vestige/vestigessh target/vestige_deb/usr/share/vestige/vestigessh
 mv target/vestige/vestigeweb target/vestige_deb/usr/share/vestige/vestigeweb

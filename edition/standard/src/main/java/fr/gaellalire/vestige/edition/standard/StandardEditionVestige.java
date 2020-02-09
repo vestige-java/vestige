@@ -137,6 +137,8 @@ public class StandardEditionVestige implements Runnable {
 
     // private ApplicationDescriptorFactory applicationDescriptorFactory;
 
+    private File systemConfigFile;
+
     private File configFile;
 
     private File dataFile;
@@ -156,6 +158,10 @@ public class StandardEditionVestige implements Runnable {
     private VestigeMavenResolver vestigeMavenResolver;
 
     private VestigeURLListResolver vestigeURLListResolver;
+
+    public void setSystemConfigFile(final File systemConfigFile) {
+        this.systemConfigFile = systemConfigFile;
+    }
 
     public void setVestigeExecutor(final VestigeExecutor vestigeExecutor) {
         this.vestigeExecutor = vestigeExecutor;
@@ -205,6 +211,13 @@ public class StandardEditionVestige implements Runnable {
                     moduleLayerRepository = jpmsAccessor.createModuleLayerRepository();
                 }
                 vestigePlatform = new DefaultVestigePlatform(vestigeExecutor, moduleLayerRepository);
+            }
+        }
+
+        if (systemConfigFile == null) {
+            String systemConfig = System.getenv("VESTIGE_SYSTEM_CONFIG");
+            if (systemConfig != null) {
+                systemConfigFile = new File(systemConfig).getAbsoluteFile();
             }
         }
 
@@ -343,7 +356,15 @@ public class StandardEditionVestige implements Runnable {
         try {
             KeyStore trustStore = KeyStore.getInstance("PKCS12", BouncyCastleProvider.PROVIDER_NAME);
 
-            trustStore.load(new FileInputStream(new File(configFile, "cacerts.p12")), "changeit".toCharArray());
+            File caCerts = new File(configFile, "cacerts.p12");
+            if (!caCerts.isFile()) {
+                if (systemConfigFile != null) {
+                    caCerts = new File(systemConfigFile, "cacerts.p12");
+                }
+            }
+            if (caCerts.isFile()) {
+                trustStore.load(new FileInputStream(caCerts), "changeit".toCharArray());
+            }
 
             TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX", BouncyCastleJsseProvider.PROVIDER_NAME);
             trustManagerFactory.init(trustStore);

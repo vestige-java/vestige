@@ -31,7 +31,9 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %{_datadir}/vestige
-%{_sysconfdir}/vestige
+
+%config(noreplace) %{_sysconfdir}/vestige/logback.xml
+%config(noreplace) %{_sysconfdir}/vestige/cacerts.p12
 
 %doc
 

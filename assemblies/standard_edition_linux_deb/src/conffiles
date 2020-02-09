@@ -1,1 +1,2 @@
-/etc/vestige/template/logback.xml
+/etc/vestige/logback.xml
+/etc/vestige/cacerts.p12

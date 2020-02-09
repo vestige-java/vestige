@@ -15,11 +15,11 @@ install:
 	cp vestigeweb $(DESTDIR)/$(datadir)/vestige/
 	cp jvm_enhancer.properties $(DESTDIR)/$(datadir)/vestige/
 	cp -r m2 $(DESTDIR)/$(datadir)/vestige/
-	cp unix-classpath.txt $(DESTDIR)/$(datadir)/vestige/
+	cp unix-classpath*.txt $(DESTDIR)/$(datadir)/vestige/
 	cp -r lib $(DESTDIR)/$(datadir)/vestige
 	cp -r repository $(DESTDIR)/$(datadir)/vestige
 	cp -r . $(DESTDIR)/etc/vestige/
-	$(RM) -r $(DESTDIR)/etc/vestige/jvm_enhancer.properties $(DESTDIR)/etc/vestige/README $(DESTDIR)/etc/vestige/m2 $(DESTDIR)/etc/vestige/unix-classpath.txt $(DESTDIR)/etc/vestige/Makefile $(DESTDIR)/etc/vestige/vestige $(DESTDIR)/etc/vestige/vestigessh $(DESTDIR)/etc/vestige/vestigeweb $(DESTDIR)/etc/vestige/lib $(DESTDIR)/etc/vestige/repository
+	$(RM) -r $(DESTDIR)/etc/vestige/jvm_enhancer.properties $(DESTDIR)/etc/vestige/README $(DESTDIR)/etc/vestige/m2 $(DESTDIR)/etc/vestige/unix-classpath*.txt $(DESTDIR)/etc/vestige/Makefile $(DESTDIR)/etc/vestige/vestige $(DESTDIR)/etc/vestige/vestigessh $(DESTDIR)/etc/vestige/vestigeweb $(DESTDIR)/etc/vestige/lib $(DESTDIR)/etc/vestige/repository
 
 uninstall:
 	$(RM) $(DESTDIR)/$(bindir)/vestige
