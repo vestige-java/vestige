@@ -29,7 +29,7 @@ if not defined VESTIGE_CONFIG set "VESTIGE_CONFIG=%DIRNAME%\config"
 
 if not exist "%VESTIGE_CONFIG%" (
   md "%VESTIGE_CONFIG%"
-  call "%DIRNAME%\deepCopy.bat" "%VESTIGE_SYSTEM_CONFIG%\template" "%VESTIGE_CONFIG%"
+  call "%DIRNAME%\deepCopy.bat" "%VESTIGE_SYSTEM_CONFIG%\template" "%VESTIGE_CONFIG%" 2> nul > nul
 )
 
 if not defined VESTIGE_DATA set "VESTIGE_DATA=%DIRNAME%\data"
