@@ -29,6 +29,7 @@ import java.net.URL;
 import java.security.AllPermission;
 import java.security.KeyStore;
 import java.security.PermissionCollection;
+import java.security.SecureRandom;
 import java.security.Security;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -71,6 +72,7 @@ import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
 import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
+import fr.gaellalire.vestige.resolver.maven.SSLContextAccessor;
 import fr.gaellalire.vestige.resolver.maven.secure.SecureVestigeMavenResolver;
 import fr.gaellalire.vestige.resolver.url_list.DefaultVestigeURLListResolver;
 import fr.gaellalire.vestige.spi.resolver.VestigeResolver;
@@ -262,24 +264,69 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
             vestigeURLListResolver = new DefaultVestigeURLListResolver(vestigePlatform);
         }
 
-        final SSLContext sslContext;
-        try {
-            KeyStore trustStore = KeyStore.getInstance("PKCS12", BouncyCastleProvider.PROVIDER_NAME);
+        SSLContextAccessor lazySSLContextAccessor = new SSLContextAccessor() {
 
-            trustStore.load(new FileInputStream(new File(configFile, "cacerts.p12")), "changeit".toCharArray());
+            private SSLContext sslContext;
 
-            TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX", BouncyCastleJsseProvider.PROVIDER_NAME);
-            trustManagerFactory.init(trustStore);
-            sslContext = SSLContext.getInstance("TLS", BouncyCastleJsseProvider.PROVIDER_NAME);
-            sslContext.init(null, trustManagerFactory.getTrustManagers(), null);
-        } catch (Exception e) {
-            LOGGER.error("SSLContext creation failed", e);
-            return;
-        }
+            private Object mutex = new Object();
+
+            @Override
+            public SSLContext getSSLContext() {
+                synchronized (mutex) {
+                    if (sslContext == null) {
+                        String property = Security.getProperty("securerandom.source");
+                        if (property != null) {
+                            try {
+                                new URL(property).openStream().close();
+                            } catch (IOException ie) {
+                                try {
+                                    Field propsField = Security.class.getDeclaredField("props");
+                                    propsField.setAccessible(true);
+                                    try {
+                                        Properties props = (Properties) propsField.get(null);
+                                        props.remove("securerandom.source");
+                                    } finally {
+                                        propsField.setAccessible(false);
+                                    }
+                                } catch (Exception e) {
+                                    LOGGER.debug("BC may failed {}", e);
+                                }
+                            }
+                        }
+
+                        String mavenCacerts = System.getenv("MAVEN_CACERTS");
+                        if (mavenCacerts == null) {
+                            LOGGER.error("MAVEN_CACERTS must be defined");
+                        }
+
+                        Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
+                        int bcpos = Security.addProvider(new BouncyCastleProvider());
+                        LOGGER.debug("BC position is {}", bcpos);
+                        Security.removeProvider(BouncyCastleJsseProvider.PROVIDER_NAME);
+                        int bcjssepos = Security.addProvider(new BouncyCastleJsseProvider(Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)));
+                        LOGGER.debug("BCJSSE position is {}", bcjssepos);
+
+                        try {
+                            KeyStore trustStore = KeyStore.getInstance("PKCS12", BouncyCastleProvider.PROVIDER_NAME);
+
+                            trustStore.load(new FileInputStream(new File(mavenCacerts)), "changeit".toCharArray());
+
+                            TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX", BouncyCastleJsseProvider.PROVIDER_NAME);
+                            trustManagerFactory.init(trustStore);
+                            sslContext = SSLContext.getInstance("TLS", BouncyCastleJsseProvider.PROVIDER_NAME);
+                            sslContext.init(null, trustManagerFactory.getTrustManagers(), SecureRandom.getInstance("DEFAULT", BouncyCastleProvider.PROVIDER_NAME));
+                        } catch (Exception e) {
+                            throw new Error("SSLContext creation failed", e);
+                        }
+                    }
+                    return sslContext;
+                }
+            }
+        };
 
         if (vestigeMavenResolver == null) {
             try {
-                vestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile, sslContext);
+                vestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile, lazySSLContextAccessor);
             } catch (NoLocalRepositoryManagerException e) {
                 LOGGER.error("NoLocalRepositoryManagerException", e);
                 return;
@@ -428,9 +475,6 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
             final Function<Thread, Void, RuntimeException> removeShutdownHook, final List<? extends ClassLoader> privilegedClassloaders,
             final WeakReference<Object> bootstrapObject, final String[] args) {
         try {
-            if (args.length != 4) {
-                throw new IllegalArgumentException("expected 4 arguments (vestige base, vestige data, security, app file) got " + args.length);
-            }
             final Thread currentThread = Thread.currentThread();
 
             // logback can use system stream directly

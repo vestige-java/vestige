@@ -33,6 +33,7 @@ import java.nio.channels.SocketChannel;
 import java.security.AllPermission;
 import java.security.KeyStore;
 import java.security.PermissionCollection;
+import java.security.SecureRandom;
 import java.security.Security;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -102,6 +103,7 @@ import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.platform.VestigeURLStreamHandlerFactory;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
+import fr.gaellalire.vestige.resolver.maven.SSLContextAccessor;
 import fr.gaellalire.vestige.resolver.maven.secure.SecureVestigeMavenResolver;
 import fr.gaellalire.vestige.resolver.url_list.DefaultVestigeURLListResolver;
 import fr.gaellalire.vestige.spi.resolver.VestigeResolver;
@@ -369,7 +371,7 @@ public class StandardEditionVestige implements Runnable {
             TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX", BouncyCastleJsseProvider.PROVIDER_NAME);
             trustManagerFactory.init(trustStore);
             sslContext = SSLContext.getInstance("TLS", BouncyCastleJsseProvider.PROVIDER_NAME);
-            sslContext.init(null, trustManagerFactory.getTrustManagers(), null);
+            sslContext.init(null, trustManagerFactory.getTrustManagers(), SecureRandom.getInstance("DEFAULT", BouncyCastleProvider.PROVIDER_NAME));
         } catch (Exception e) {
             LOGGER.error("SSLContext creation failed", e);
             return;
@@ -377,7 +379,13 @@ public class StandardEditionVestige implements Runnable {
 
         if (vestigeMavenResolver == null) {
             try {
-                vestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile, sslContext);
+                vestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile, new SSLContextAccessor() {
+
+                    @Override
+                    public SSLContext getSSLContext() {
+                        return sslContext;
+                    }
+                });
                 // the mvn protocol of the launching code may not be the same as ours
                 // vestigeSystem.setURLStreamHandlerForProtocol(MavenArtifactResolver.MVN_PROTOCOL, MavenArtifactResolver.URL_STREAM_HANDLER);
             } catch (NoLocalRepositoryManagerException e) {

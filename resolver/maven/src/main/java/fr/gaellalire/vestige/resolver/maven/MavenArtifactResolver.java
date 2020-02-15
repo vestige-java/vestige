@@ -37,8 +37,6 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.net.ssl.SSLContext;
-
 import org.apache.http.impl.client.SystemDefaultCredentialsProvider;
 import org.apache.http.impl.conn.DefaultSchemePortResolver;
 import org.apache.http.impl.conn.SystemDefaultRoutePlanner;
@@ -188,7 +186,8 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
 
     private VestigePlatform vestigePlatform;
 
-    public MavenArtifactResolver(final VestigePlatform vestigePlatform, final File settingsFile, final SSLContext sslContext) throws NoLocalRepositoryManagerException {
+    public MavenArtifactResolver(final VestigePlatform vestigePlatform, final File settingsFile, final SSLContextAccessor sslContextAccessor)
+            throws NoLocalRepositoryManagerException {
         this.vestigePlatform = vestigePlatform;
         File localRepositoryFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "repository");
         try {
@@ -233,7 +232,9 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
 
                     @Override
                     public void fill(final AuthenticationContext context, final String key, final Map<String, String> data) {
-                        context.put(AuthenticationContext.SSL_CONTEXT, sslContext);
+                        if (!repository.getUrl().startsWith("file:")) {
+                            context.put(AuthenticationContext.SSL_CONTEXT, sslContextAccessor.getSSLContext());
+                        }
                     }
 
                     @Override
