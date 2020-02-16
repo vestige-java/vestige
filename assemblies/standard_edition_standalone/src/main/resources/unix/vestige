@@ -29,7 +29,9 @@ fi
 
 if [ ! -d "$VESTIGE_CONFIG" ]; then
   mkdir -p "$VESTIGE_CONFIG"
-  cp -R "$VESTIGE_SYSTEM_CONFIG/template/." "$VESTIGE_CONFIG"
+  if [ -d "$VESTIGE_SYSTEM_CONFIG/template" ]; then
+    cp -R "$VESTIGE_SYSTEM_CONFIG/template/." "$VESTIGE_CONFIG"
+  fi
 fi
 
 if [ "$VESTIGE_DATA" = "" ]; then
