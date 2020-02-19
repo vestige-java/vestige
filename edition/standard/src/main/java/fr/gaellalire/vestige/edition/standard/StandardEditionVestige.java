@@ -44,6 +44,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
@@ -73,6 +75,7 @@ import ch.qos.logback.classic.util.ContextInitializer;
 import ch.qos.logback.classic.util.LogbackMDCAdapter;
 import ch.qos.logback.core.joran.spi.ConsoleTarget;
 import ch.qos.logback.core.joran.spi.JoranException;
+import ch.qos.logback.core.util.ExecutorServiceUtil;
 import ch.qos.logback.core.util.StatusPrinter;
 import fr.gaellalire.vestige.admin.command.CheckBootstrap;
 import fr.gaellalire.vestige.admin.command.Platform;
@@ -598,7 +601,7 @@ public class StandardEditionVestige implements Runnable {
         workerThread = null;
     }
 
-    public static void giveDirectStreamAccessToLogback() {
+    public static void configureLogback() {
         try {
             Field streamField = ConsoleTarget.class.getDeclaredField("stream");
             streamField.setAccessible(true);
@@ -622,7 +625,36 @@ public class StandardEditionVestige implements Runnable {
             // Bug of logback
             Field copyOnThreadLocalField = LogbackMDCAdapter.class.getDeclaredField("copyOnThreadLocal");
             copyOnThreadLocalField.setAccessible(true);
-            copyOnThreadLocalField.set(MDC.getMDCAdapter(), new InheritableThreadLocal<Map<String, String>>());
+            try {
+                copyOnThreadLocalField.set(MDC.getMDCAdapter(), new InheritableThreadLocal<Map<String, String>>());
+            } finally {
+                copyOnThreadLocalField.setAccessible(false);
+            }
+
+            final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+            final Field threadFactoryField = ExecutorServiceUtil.class.getDeclaredField("THREAD_FACTORY");
+            try {
+                JVMVestigeSystemActionExecutor.setStaticFieldValue(threadFactoryField, new ThreadFactory() {
+
+                    private final ThreadFactory defaultFactory = Executors.defaultThreadFactory();
+
+                    private final AtomicInteger threadNumber = new AtomicInteger(1);
+
+                    public Thread newThread(final Runnable r) {
+                        Thread thread = defaultFactory.newThread(r);
+                        if (!thread.isDaemon()) {
+                            thread.setDaemon(true);
+                        }
+                        // set contextClassLoader to avoid memory leak
+                        thread.setContextClassLoader(contextClassLoader);
+                        thread.setName("logback-" + threadNumber.getAndIncrement());
+                        return thread;
+                    }
+                });
+            } catch (Exception e) {
+                LOGGER.warn("Cannot replace ExecutorServiceUtil.THREAD_FACTORY memory leak may happen", e);
+            }
+
         } catch (NoSuchFieldException e) {
             LOGGER.error("Logback appender changes", e);
         } catch (IllegalAccessException e) {
@@ -638,7 +670,7 @@ public class StandardEditionVestige implements Runnable {
 
             // logback can use system stream directly
             try {
-                giveDirectStreamAccessToLogback();
+                configureLogback();
             } catch (Exception e) {
                 // logback may not be initialized so use stderr
                 e.printStackTrace();
