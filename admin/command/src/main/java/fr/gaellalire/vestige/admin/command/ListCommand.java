@@ -18,6 +18,7 @@
 package fr.gaellalire.vestige.admin.command;
 
 import java.io.PrintWriter;
+import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -69,19 +70,22 @@ public class ListCommand implements Command {
             for (String applicationName : applicationsName) {
                 out.print("  ");
                 out.print(applicationName);
-                out.print(" (");
-                out.print(applicationManagerState.getApplicationRepositoryURL(applicationName));
-                String repositoryApplicationName = applicationManagerState.getRepositoryApplicationName(applicationName);
-                out.print(repositoryApplicationName);
-                out.print("/");
-                out.print(repositoryApplicationName);
-                out.print("-");
-                out.print(VersionUtils.toString(applicationManagerState.getRepositoryApplicationVersion(applicationName)));
-                out.print(".xml)");
-                List<Integer> migrationRepositoryApplicationVersion = applicationManagerState.getMigrationRepositoryApplicationVersion(applicationName);
-                if (migrationRepositoryApplicationVersion != null && migrationRepositoryApplicationVersion.size() != 0) {
-                    out.print(" migrating to ");
-                    out.print(VersionUtils.toString(migrationRepositoryApplicationVersion));
+                URL applicationRepositoryURL = applicationManagerState.getApplicationRepositoryURL(applicationName);
+                if (applicationRepositoryURL != null) {
+                    out.print(" (");
+                    out.print(applicationRepositoryURL);
+                    String repositoryApplicationName = applicationManagerState.getRepositoryApplicationName(applicationName);
+                    out.print(repositoryApplicationName);
+                    out.print("/");
+                    out.print(repositoryApplicationName);
+                    out.print("-");
+                    out.print(VersionUtils.toString(applicationManagerState.getRepositoryApplicationVersion(applicationName)));
+                    out.print(".xml)");
+                    List<Integer> migrationRepositoryApplicationVersion = applicationManagerState.getMigrationRepositoryApplicationVersion(applicationName);
+                    if (migrationRepositoryApplicationVersion != null && migrationRepositoryApplicationVersion.size() != 0) {
+                        out.print(" migrating to ");
+                        out.print(VersionUtils.toString(migrationRepositoryApplicationVersion));
+                    }
                 }
                 out.print(" -> state:");
                 if (applicationManagerState.isStarted(applicationName)) {
