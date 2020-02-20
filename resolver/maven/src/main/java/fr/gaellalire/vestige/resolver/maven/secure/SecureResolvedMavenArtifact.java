@@ -21,6 +21,7 @@ import java.util.Enumeration;
 
 import fr.gaellalire.vestige.resolver.common.secure.ElementSecureMaker;
 import fr.gaellalire.vestige.resolver.common.secure.SecureEnumeration;
+import fr.gaellalire.vestige.resolver.common.secure.SecureVestigeJar;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.Scope;
 import fr.gaellalire.vestige.spi.resolver.VestigeJar;
@@ -85,7 +86,7 @@ public class SecureResolvedMavenArtifact implements ResolvedMavenArtifact {
 
     @Override
     public VestigeJar getVestigeJar() {
-        return delegate.getVestigeJar();
+        return new SecureVestigeJar(secureVestigeSystem, delegate.getVestigeJar());
     }
 
     @Override

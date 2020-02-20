@@ -47,42 +47,24 @@ public class SecureVestigeJar implements VestigeJar {
         return delegate.getCodeBase();
     }
 
-    // @Override
-    // public VestigeJar getNext() {
-    // VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
-    // try {
-    // VestigeJar next = delegate.getNext();
-    // if (next == null) {
-    // return null;
-    // }
-    // return new SecureVestigeJar(secureVestigeSystem, next);
-    // } finally {
-    // vestigeSystem.setCurrentSystem();
-    // }
-    // }
-    //
-    // @Override
-    // public VestigeJarEntry getFirstEntry() throws IOException {
-    // VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
-    // try {
-    // VestigeJarEntry firstEntry = delegate.getFirstEntry();
-    // if (firstEntry == null) {
-    // return null;
-    // }
-    // return new SecureVestigeJarEntry(secureVestigeSystem, firstEntry);
-    // } finally {
-    // vestigeSystem.setCurrentSystem();
-    // }
-    // }
-
     @Override
     public long getLastModified() {
-        return delegate.getLastModified();
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return delegate.getLastModified();
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
     public Manifest getManifest() throws IOException {
-        return delegate.getManifest();
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return delegate.getManifest();
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
@@ -92,7 +74,12 @@ public class SecureVestigeJar implements VestigeJar {
 
     @Override
     public long getSize() {
-        return delegate.getSize();
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return delegate.getSize();
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override
@@ -131,7 +118,11 @@ public class SecureVestigeJar implements VestigeJar {
     public VestigeJarEntry getEntry(final String name) throws IOException {
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {
-            return new SecureVestigeJarEntry(secureVestigeSystem, delegate.getEntry(name));
+            VestigeJarEntry entry = delegate.getEntry(name);
+            if (entry == null) {
+                return null;
+            }
+            return new SecureVestigeJarEntry(secureVestigeSystem, entry);
         } finally {
             vestigeSystem.setCurrentSystem();
         }
