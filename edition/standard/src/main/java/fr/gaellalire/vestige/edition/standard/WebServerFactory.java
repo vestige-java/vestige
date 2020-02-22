@@ -336,33 +336,32 @@ public class WebServerFactory implements Callable<VestigeServer> {
     }
 
     public void loadCA() throws Exception {
-        KeyStore caStore = new KeyStoreLoader() {
+        do {
+            KeyStore caStore = new KeyStoreLoader() {
 
-            @Override
-            public void init(final KeyStore keyStore) throws Exception {
-                KeyPair kp = generateKeyPair();
-                X509Certificate rootCertificate = generateRootCertificate(kp);
-                keyStore.setKeyEntry("vestige_ca", kp.getPrivate(), DEFAULT_PASSWORD_CHARARRAY, new Certificate[] {rootCertificate});
-                browser.mkdirs();
-                File rootCertFile = new File(browser, "vestige_ca.crt");
-                // FileOutputStream fos = new FileOutputStream(rootCertFile);
-                // try {
-                // fos.write(rootCertificate.getEncoded());
-                // } finally {
-                // fos.close();
-                // }
-                PemWriter pw = new PemWriter(new OutputStreamWriter(new FileOutputStream(rootCertFile), "UTF-8"));
-                try {
-                    pw.writeObject(new JcaMiscPEMGenerator(rootCertificate));
-                } finally {
-                    pw.close();
+                @Override
+                public void init(final KeyStore keyStore) throws Exception {
+                    KeyPair kp = generateKeyPair();
+                    X509Certificate rootCertificate = generateRootCertificate(kp);
+                    keyStore.setKeyEntry("vestige_ca", kp.getPrivate(), DEFAULT_PASSWORD_CHARARRAY, new Certificate[] {rootCertificate});
+                    browser.mkdirs();
+                    File rootCertFile = new File(browser, "vestige_ca.crt");
+                    PemWriter pw = new PemWriter(new OutputStreamWriter(new FileOutputStream(rootCertFile), "UTF-8"));
+                    try {
+                        pw.writeObject(new JcaMiscPEMGenerator(rootCertificate));
+                    } finally {
+                        pw.close();
+                    }
+                    vestigeStateListener.certificateAuthorityGenerated(rootCertFile);
                 }
-                vestigeStateListener.certificateAuthorityGenerated(rootCertFile);
-            }
 
-        }.load(caFile);
-        rootKey = (PrivateKey) caStore.getKey("vestige_ca", DEFAULT_PASSWORD_CHARARRAY);
-        rootCert = (X509Certificate) caStore.getCertificate("vestige_ca");
+            }.load(caFile);
+            rootKey = (PrivateKey) caStore.getKey("vestige_ca", DEFAULT_PASSWORD_CHARARRAY);
+            rootCert = (X509Certificate) caStore.getCertificate("vestige_ca");
+            if (rootCert == null) {
+                caFile.delete();
+            }
+        } while (!caFile.exists());
     }
 
     /**
@@ -457,6 +456,10 @@ public class WebServerFactory implements Callable<VestigeServer> {
             }.load(serverFile);
 
             X509Certificate x509Certificate = (X509Certificate) serverStore.getCertificate("vestige_server");
+            if (x509Certificate == null) {
+                serverFile.delete();
+                continue;
+            }
             Date notAfter = x509Certificate.getNotAfter();
             Calendar tempCal = Calendar.getInstance();
             tempCal.add(Calendar.DATE, 60);
