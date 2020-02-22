@@ -13,6 +13,7 @@
       <fileMode>0644</fileMode>
       <directoryMode>0755</directoryMode>
       <excludes>
+        <exclude>fr.gaellalire.vestige:vestige.assemblies.standard_edition_6to8_bootstrap:pom</exclude>
         <exclude>fr.gaellalire.vestige:vestige.assemblies.standard_edition_bootstrap:pom</exclude>
         <exclude>fr.gaellalire.vestige:vestige.core:jar</exclude>
         <exclude>fr.gaellalire.vestige:vestige.jvm_enhancer.runtime:zip:unix</exclude>
