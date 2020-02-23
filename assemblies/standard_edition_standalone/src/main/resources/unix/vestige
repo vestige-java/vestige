@@ -8,14 +8,18 @@ fi
 VESTIGE_SYSTEM_DATA="$DIRNAME"
 VESTIGE_SYSTEM_CONFIG="$DIRNAME"
 
-if [ "$JAVA" = "" ]; then
-  JAVA=`which java`
+if [ "$VESTIGE_JAVA" = "" ]; then
   if [ "$JAVA" = "" ]; then
-    if [ "$JAVA_HOME" = "" ]; then
-      echo 'Unable to start a JVM : $JAVA is not set and java is not in PATH and $JAVA_HOME is not set'
-      exit
+    VESTIGE_JAVA=`which java`
+    if [ "$VESTIGE_JAVA" = "" ]; then
+      if [ "$JAVA_HOME" = "" ]; then
+        echo 'Unable to start a JVM : $VESTIGE_JAVA and $JAVA are not set and java is not in PATH and $JAVA_HOME is not set'
+        exit
+      fi
+      VESTIGE_JAVA="$JAVA_HOME/bin/java"
     fi
-    JAVA="$JAVA_HOME/bin/java"
+  else
+    VESTIGE_JAVA="$JAVA"
   fi
 fi
 
@@ -97,7 +101,7 @@ VESTIGE_CORE_FILE_ENCODING=UTF-8
 
 VESTIGE_CORE_RELATIVE_DIRECTORY="$VESTIGE_SYSTEM_DATA"
 
-if "$JAVA" --add-modules java.base -version >/dev/null 2>&1; then
+if "VESTIGE_JAVA" --add-modules java.base -version >/dev/null 2>&1; then
   export VESTIGE_CORE_MODULEPATH_FILE="$VESTIGE_SYSTEM_DATA/unix-classpath.txt"
   VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" --add-modules ALL-DEFAULT --patch-module "java.base=$VESTIGE_SYSTEM_DATA/lib/moduleEncapsulationBreaker.jar")
   VESTIGE_ARGS=(-p "$VESTIGE_SYSTEM_DATA/lib/vestige.core-${vestige.core.version}.jar" -m fr.gaellalire.vestige.core --env-to-prop LOGBACK_LOGS_DIRECTORY logback.logsDirectory --env-to-prop LOGBACK_CONFIGURATION_FILE logback.configurationFile --add-modules fr.gaellalire.vestige.edition.maven_main_launcher emp fr.gaellalire.vestige.jvm_enhancer.boot)
@@ -117,4 +121,4 @@ if [ "$HOSTNAME" != "" ]; then
 fi
 export VESTIGE_CORE_FILE_ENCODING VESTIGE_CORE_RELATIVE_DIRECTORY LOGBACK_LOGS_DIRECTORY LOGBACK_CONFIGURATION_FILE MAVEN_LAUNCHER_FILE MAVEN_SETTINGS_FILE MAVEN_CACERTS MAVEN_RESOLVER_CACHE_FILE VESTIGE_SYSTEM_CONFIG VESTIGE_CONFIG VESTIGE_DATA VESTIGE_CACHE VESTIGE_SECURITY VESTIGE_LISTENER_PORT
 
-exec "$JAVA" "${VESTIGE_OPTS[@]}" "${VESTIGE_ARGS[@]}"
+exec "$VESTIGE_JAVA" "${VESTIGE_OPTS[@]}" "${VESTIGE_ARGS[@]}"

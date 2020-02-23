@@ -8,20 +8,26 @@ if [%DIRNAME:~-1%] == [\] set "DIRNAME=%DIRNAME:~0,-1%"
 set "VESTIGE_SYSTEM_DATA=%DIRNAME%"
 set "VESTIGE_SYSTEM_CONFIG=%DIRNAME%"
 
+if defined VESTIGE_JAVA goto :vestige_java_set
+
 if defined JAVA goto :java_found
 
-for %%I in (java.exe) do set "JAVA=%%~$PATH:I"
-if defined JAVA goto :java_found
+for %%I in (java.exe) do set "VESTIGE_JAVA=%%~$PATH:I"
+if defined VESTIGE_JAVA goto :vestige_java_set
 
 if defined JAVA_HOME goto :java_home_found
 
-echo Unable to start a JVM : %%JAVA%% is not set and java.exe is not in PATH and %%JAVA_HOME%% is not set
+echo Unable to start a JVM : %%VESTIGE_JAVA%% and %%JAVA%% are not set and java.exe is not in PATH and %%JAVA_HOME%% is not set
 exit /B 1
 
 :java_home_found
-set "JAVA=%JAVA_HOME%\bin\java.exe"
+set "VESTIGE_JAVA=%JAVA_HOME%\bin\java.exe"
+goto :vestige_java_set
 
 :java_found
+set "VESTIGE_JAVA=%JAVA%"
+
+:vestige_java_set
 
 if not defined JAVA_OPTS set JAVA_OPTS=-Djava.net.useSystemProxies=true
 
@@ -88,7 +94,7 @@ set VESTIGE_CORE_FILE_ENCODING=UTF-8
 
 set "VESTIGE_CORE_RELATIVE_DIRECTORY=%VESTIGE_SYSTEM_DATA%"
 
-"%JAVA%" --add-modules java.base -version 2> nul > nul
+"%VESTIGE_JAVA%" --add-modules java.base -version 2> nul > nul
 if %ERRORLEVEL% equ 0 (
   set "VESTIGE_CORE_MODULEPATH_FILE=%VESTIGE_SYSTEM_DATA%\windows-classpath.txt"
   set VESTIGE_OPTS=%VESTIGE_OPTS% --add-modules ALL-DEFAULT --patch-module "java.base=%VESTIGE_SYSTEM_DATA%\lib\moduleEncapsulationBreaker.jar"
@@ -105,12 +111,12 @@ if %ERRORLEVEL% equ 0 (
 )
 
 if defined DISABLE_JVM_ENCODING_WORKAROUND (
-  "%JAVA%" %VESTIGE_OPTS% %VESTIGE_ARGS%
+  "%VESTIGE_JAVA%" %VESTIGE_OPTS% %VESTIGE_ARGS%
 ) else (
   if defined MB2WC_ARGS (
-    "%JAVA%" %VESTIGE_OPTS% %VESTIGE_ARGS% 2>&1 | "%VESTIGE_SYSTEM_DATA%\mb2wc.exe" %MB2WC_ARGS%
+    "%VESTIGE_JAVA%" %VESTIGE_OPTS% %VESTIGE_ARGS% 2>&1 | "%VESTIGE_SYSTEM_DATA%\mb2wc.exe" %MB2WC_ARGS%
   ) else (
-    "%JAVA%" %VESTIGE_OPTS% %VESTIGE_ARGS% 2>&1 | "%VESTIGE_SYSTEM_DATA%\mb2wc.exe"
+    "%VESTIGE_JAVA%" %VESTIGE_OPTS% %VESTIGE_ARGS% 2>&1 | "%VESTIGE_SYSTEM_DATA%\mb2wc.exe"
   )
 )
 
