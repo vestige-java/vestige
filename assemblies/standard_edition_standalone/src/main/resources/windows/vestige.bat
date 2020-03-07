@@ -113,6 +113,11 @@ if %ERRORLEVEL% equ 0 (
 if defined DISABLE_JVM_ENCODING_WORKAROUND (
   "%VESTIGE_JAVA%" %VESTIGE_OPTS% %VESTIGE_ARGS%
 ) else (
+  "%VESTIGE_JAVA%" -version 2> nul > nul
+  if %ERRORLEVEL% NEQ 0 (
+    echo Unable to start a JVM : `%VESTIGE_JAVA% -version` failed
+    exit /B 1
+  )
   if defined MB2WC_ARGS (
     "%VESTIGE_JAVA%" %VESTIGE_OPTS% %VESTIGE_ARGS% 2>&1 | "%VESTIGE_SYSTEM_DATA%\mb2wc.exe" %MB2WC_ARGS%
   ) else (

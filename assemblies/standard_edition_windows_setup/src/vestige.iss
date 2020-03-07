@@ -51,7 +51,8 @@ var
  ErrorCode: Integer;
  JavaInstalled : Boolean;
  DowloadNow : Boolean;
- TmpFileName, TmpFileNameContent: string;
+ TmpFileName: String;
+ TmpFileNameContent: AnsiString;
 begin
   ExtractTemporaryFile('checkJava.bat');
   ExtractTemporaryFile('CheckJava.class');
@@ -62,7 +63,7 @@ begin
   JavaInstalled := ShellExec('open', ExpandConstant('{tmp}\checkJava.bat'),'','',SW_HIDE,ewWaitUntilTerminated,ErrorCode);
   if JavaInstalled then begin
     if not LoadStringFromFile(TmpFileName, TmpFileNameContent) then JavaInstalled := false;
-  end
+  end;
 
   if JavaInstalled then begin
     Result := true;
@@ -70,5 +71,5 @@ begin
     Result:=false;
     DowloadNow := MsgBox('This tool requires Java Runtime Environment version 1.6 or newer to run. Please download and install the JRE and run this setup again. Do you want to download it now?', mbConfirmation, MB_YESNO) = idYes;
     if DowloadNow then ShellExec('open', 'http://www.java.com/getjava/','','',SW_SHOWNORMAL,ewNoWait,ErrorCode);
-  end
+  end;
 end;
