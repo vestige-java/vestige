@@ -114,7 +114,7 @@ if defined DISABLE_JVM_ENCODING_WORKAROUND (
   "%VESTIGE_JAVA%" %VESTIGE_OPTS% %VESTIGE_ARGS%
 ) else (
   "%VESTIGE_JAVA%" -version 2> nul > nul
-  if %ERRORLEVEL% NEQ 0 (
+  if !ERRORLEVEL! NEQ 0 (
     echo Unable to start a JVM : `%VESTIGE_JAVA% -version` failed
     exit /B 1
   )
