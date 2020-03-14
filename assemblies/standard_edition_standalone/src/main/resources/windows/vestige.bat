@@ -115,7 +115,7 @@ if defined DISABLE_JVM_ENCODING_WORKAROUND (
 ) else (
   "%VESTIGE_JAVA%" -version 2> nul > nul
   if !ERRORLEVEL! NEQ 0 (
-    echo Unable to start a JVM : `%VESTIGE_JAVA% -version` failed
+    echo Unable to start a JVM : `"%VESTIGE_JAVA%" -version` failed
     exit /B 1
   )
   if defined MB2WC_ARGS (
