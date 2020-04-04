@@ -44,7 +44,6 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -315,26 +314,6 @@ public final class MavenMainLauncher {
                 public SSLContext getSSLContext() {
                     synchronized (mutex) {
                         if (sslContext == null) {
-                            String property = Security.getProperty("securerandom.source");
-                            if (property != null) {
-                                try {
-                                    new URL(property).openStream().close();
-                                } catch (IOException ie) {
-                                    try {
-                                        Field propsField = Security.class.getDeclaredField("props");
-                                        propsField.setAccessible(true);
-                                        try {
-                                            Properties props = (Properties) propsField.get(null);
-                                            props.remove("securerandom.source");
-                                        } finally {
-                                            propsField.setAccessible(false);
-                                        }
-                                    } catch (Exception e) {
-                                        LOGGER.debug("BC may failed {}", e);
-                                    }
-                                }
-                            }
-
                             Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
                             int bcpos = Security.addProvider(new BouncyCastleProvider());
                             LOGGER.debug("BC position is {}", bcpos);
