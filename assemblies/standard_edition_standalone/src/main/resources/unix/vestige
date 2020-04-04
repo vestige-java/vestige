@@ -101,7 +101,7 @@ VESTIGE_CORE_FILE_ENCODING=UTF-8
 
 VESTIGE_CORE_RELATIVE_DIRECTORY="$VESTIGE_SYSTEM_DATA"
 
-if "VESTIGE_JAVA" --add-modules java.base -version >/dev/null 2>&1; then
+if "$VESTIGE_JAVA" --add-modules java.base -version >/dev/null 2>&1; then
   export VESTIGE_CORE_MODULEPATH_FILE="$VESTIGE_SYSTEM_DATA/unix-classpath.txt"
   VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" --add-modules ALL-DEFAULT --patch-module "java.base=$VESTIGE_SYSTEM_DATA/lib/moduleEncapsulationBreaker.jar")
   VESTIGE_ARGS=(-p "$VESTIGE_SYSTEM_DATA/lib/vestige.core-${vestige.core.version}.jar" -m fr.gaellalire.vestige.core --env-to-prop LOGBACK_LOGS_DIRECTORY logback.logsDirectory --env-to-prop LOGBACK_CONFIGURATION_FILE logback.configurationFile --add-modules fr.gaellalire.vestige.edition.maven_main_launcher emp fr.gaellalire.vestige.jvm_enhancer.boot)
