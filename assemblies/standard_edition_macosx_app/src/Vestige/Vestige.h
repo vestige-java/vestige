@@ -8,7 +8,7 @@
     NSMenuItem *startAtLoginItem;
     NSMenuItem *quitItem;
     NSStatusItem * statusItem;
-	NSTask *task;
+    NSTask *task;
     NSFileHandle * fileHandle;
     int procState;
     NSString * url;

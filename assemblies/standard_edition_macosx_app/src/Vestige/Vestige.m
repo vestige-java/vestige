@@ -7,12 +7,13 @@
 
 @implementation Vestige
 
+
 static void handleConnect(CFSocketRef socket,
                                     CFSocketCallBackType type,
                                     CFDataRef address,
                                     const void *data,
                                     void *info) {
-    Vestige * vapp = (Vestige *) info;
+    Vestige * vapp = (__bridge Vestige *) info;
     if (kCFSocketAcceptCallBack == type) {
         CFSocketNativeHandle nativeSocketHandle = *(CFSocketNativeHandle *)data;
         
@@ -21,7 +22,7 @@ static void handleConnect(CFSocketRef socket,
         
         if (readStream) {
             CFReadStreamSetProperty(readStream, kCFStreamPropertyShouldCloseNativeSocket, kCFBooleanTrue);
-            NSInputStream * istream = (NSInputStream *)readStream;
+            NSInputStream * istream = (__bridge NSInputStream *)readStream;
             
             [istream setDelegate:(id) vapp];
             [istream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:(id) kCFRunLoopCommonModes];
@@ -104,8 +105,9 @@ static void handleConnect(CFSocketRef socket,
     
     NSInputStream * istream = (NSInputStream *) stream;
     switch(streamEvent) {
-        case NSStreamEventEndEncountered:;
-        case NSStreamEventHasBytesAvailable:;
+        case NSStreamEventEndEncountered:
+        case NSStreamEventHasBytesAvailable:
+        {
             if (bufferSizeBytes != 4) {
                 bufferSizeBytes += [istream read:((uint8_t *)&bufferSize)+bufferSizeBytes maxLength:4 - bufferSizeBytes];
                 if (bufferSizeBytes != 4) {
@@ -153,6 +155,7 @@ static void handleConnect(CFSocketRef socket,
             }
             
             break;
+        }
         default:
             break;
     }
@@ -194,16 +197,15 @@ static void handleConnect(CFSocketRef socket,
 
 - (void)toggleLoginStart {
     NSURL *bundleURL = [NSURL fileURLWithPath:[[NSBundle mainBundle] bundlePath]];
-    
     if (atLoginStarted) {
         CFArrayRef loginItemsRef = LSSharedFileListCopySnapshot(loginItemsListRef, NULL);
         NSArray *loginItems = CFBridgingRelease(loginItemsRef);
         for (id item in loginItems) {
-            LSSharedFileListItemRef itemRef = (LSSharedFileListItemRef)item;
+            LSSharedFileListItemRef itemRef = (__bridge LSSharedFileListItemRef)item;
             CFURLRef itemURLRef;
             
             if (LSSharedFileListItemResolve(itemRef, 0, &itemURLRef, NULL) == noErr) {
-                NSURL *itemURL = (NSURL *)[NSMakeCollectable(itemURLRef) autorelease];
+                NSURL *itemURL = (__bridge NSURL *)(itemURLRef);
                 if ([itemURL isEqual:bundleURL]) {
                     LSSharedFileListItemRemove(loginItemsListRef, itemRef);
                     break;
@@ -215,7 +217,7 @@ static void handleConnect(CFSocketRef socket,
                                                 kLSSharedFileListItemLast,
                                                 NULL,
                                                 NULL,
-                                                (CFURLRef)bundleURL,
+                                                                        (__bridge CFURLRef)bundleURL,
                                                 NULL,
                                                 NULL);
         if (itemRef) {
@@ -226,18 +228,18 @@ static void handleConnect(CFSocketRef socket,
 
 static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
 {
-    Vestige * vapp = (Vestige *) context;
+    Vestige * vapp = (__bridge Vestige *) context;
     bool atLoginStarted = NO;
     CFArrayRef loginItemsRef = LSSharedFileListCopySnapshot(listRef, NULL);
     NSArray *loginItems = CFBridgingRelease(loginItemsRef);
     
     NSURL *bundleURL = [NSURL fileURLWithPath:[[NSBundle mainBundle] bundlePath]];
     for (id item in loginItems) {
-        LSSharedFileListItemRef itemRef = (LSSharedFileListItemRef)item;
+        LSSharedFileListItemRef itemRef = (__bridge LSSharedFileListItemRef)item;
         CFURLRef itemURLRef;
         
         if (LSSharedFileListItemResolve(itemRef, 0, &itemURLRef, NULL) == noErr) {
-            NSURL *itemURL = (NSURL *)[NSMakeCollectable(itemURLRef) autorelease];
+            NSURL *itemURL = (__bridge_transfer NSURL *) itemURLRef;
             if ([itemURL isEqual:bundleURL]) {
                 atLoginStarted = true;
                 break;
@@ -271,14 +273,13 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
         int pid = [task processIdentifier];
         kill(pid, SIGKILL);
     } else {
-	    [task terminate];
+        [task terminate];
         [quitItem setTitle:@"Force stop"];
         forceStop = true;
     }
 }
 
 - (void) applicationWillTerminate:(NSNotification *)notification {
-	[task release];
 }
 
 - (void)hideWin {
@@ -322,7 +323,7 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
     quit = false;
     bufferSizeBytes = 0;
     
-    statusItem = [[[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength] retain];
+    statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
     statusMenu = [[NSMenu alloc] init];
     [statusMenu setAutoenablesItems:FALSE];
     
@@ -339,20 +340,21 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
     loginItemsListRef = LSSharedFileListCreate(NULL,
                                                kLSSharedFileListSessionLoginItems,
                                                NULL);
+    
     if (loginItemsListRef) {
         LSSharedFileListAddObserver(loginItemsListRef,
                                     CFRunLoopGetMain(),
                                     kCFRunLoopCommonModes,
                                     loginItemsChanged,
-                                    self);
-        loginItemsChanged(loginItemsListRef, self);
+                                    (__bridge void *)(self));
+        loginItemsChanged(loginItemsListRef, (__bridge void *)(self));
     }
     
     [statusMenu addItem:[NSMenuItem separatorItem]];
     
     quitItem = [statusMenu addItemWithTitle:@"Stop" action:@selector(stopVestige) keyEquivalent:@""];
     
-    NSImage *statusItemImage = [NSImage imageNamed:@"vestige.png"];
+    NSImage *statusItemImage = [NSImage imageNamed:@"vestige"];
     if (!statusItemImage) {
         [statusItem setTitle:@"Vestige"];
     } else {
@@ -405,7 +407,8 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
     [fileHandle readInBackgroundAndNotify];
     [task setStandardOutput: pipe];
     [task setStandardError: pipe];
-    CFSocketContext socketCtxt = {0, self, NULL, NULL, NULL};
+    
+    CFSocketContext socketCtxt = {0, (__bridge void *)(self), NULL, NULL, NULL};
     CFSocketRef ipv4cfsock = CFSocketCreate(kCFAllocatorDefault, PF_INET, SOCK_STREAM, IPPROTO_TCP,
                                             kCFSocketAcceptCallBack, handleConnect, &socketCtxt);
     
@@ -422,7 +425,7 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
     CFSocketSetAddress(ipv4cfsock, sincfd);
     CFRelease(sincfd);
     
-    NSData *addr = [(NSData *)CFSocketCopyAddress(ipv4cfsock) autorelease];
+    NSData *addr = CFBridgingRelease(CFSocketCopyAddress(ipv4cfsock));
     memcpy(&sin, [addr bytes], [addr length]);
     int port = ntohs(sin.sin_port);
     NSMutableDictionary *env = [[NSMutableDictionary alloc] init];
@@ -438,6 +441,7 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
     NSString* vestigeScript = [[NSBundle mainBundle] pathForResource:@"vestige" ofType:nil inDirectory:@"vestige_home"];
     [task setLaunchPath: vestigeScript];
     [task launch];
+     
     
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(processQuit)
