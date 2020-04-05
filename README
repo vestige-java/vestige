@@ -1,0 +1,24 @@
+Vestige should be compiled with an Oracle JDK 7.
+
+Launch vestige compilation with :
+$ mvn clean install
+
+
+
+
+When modifying module-info.java you should use an Oracle JDK 9
+
+Launch java 9 compilation with :
+$ mvn clean install -Pjava9
+
+After this operation maven main launcher module-info.class should be modified to have a main-class :
+
+$ pushd edition/maven_main_launcher; jar --main-class fr.gaellalire.vestige.edition.maven_main_launcher.JPMSMavenMainLauncher --update --file target/vestige.edition.maven_main_launcher*.jar; pushd src/main/resources/ && jar xf ../../../target/vestige.edition.maven_main_launcher*.jar module-info.class; popd; popd
+
+
+
+
+You will need gnu-sed to create assemblies.
+
+On Mac OS X you can install it with brew and modify your PATH :
+$ brew install gnu-sed
