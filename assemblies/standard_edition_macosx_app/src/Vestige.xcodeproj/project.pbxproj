@@ -11,8 +11,8 @@
 		30D02B63243758FC006D6FE2 /* Vestige.m in Sources */ = {isa = PBXBuildFile; fileRef = 30D02B62243758FC006D6FE2 /* Vestige.m */; };
 		30D02B6B243758FD006D6FE2 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 30D02B6A243758FD006D6FE2 /* main.m */; };
 		30E059182437DD2D00EB94B0 /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 30E059172437DD2D00EB94B0 /* Info.plist */; };
-		30E0591C2437E63400EB94B0 /* vestige@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 30E0591B2437E63400EB94B0 /* vestige@2x.png */; };
-		30E0591E2437E66800EB94B0 /* vestige.png in Resources */ = {isa = PBXBuildFile; fileRef = 30E0591D2437E66800EB94B0 /* vestige.png */; };
+		30E0591C2437E63400EB94B0 /* status@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 30E0591B2437E63400EB94B0 /* status@2x.png */; };
+		30E0591E2437E66800EB94B0 /* status.png in Resources */ = {isa = PBXBuildFile; fileRef = 30E0591D2437E66800EB94B0 /* status.png */; };
 		30E059202438876E00EB94B0 /* vestige_home in Resources */ = {isa = PBXBuildFile; fileRef = 30E0591F2438876E00EB94B0 /* vestige_home */; };
 /* End PBXBuildFile section */
 
@@ -23,8 +23,8 @@
 		30D02B62243758FC006D6FE2 /* Vestige.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Vestige.m; sourceTree = "<group>"; };
 		30D02B6A243758FD006D6FE2 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		30E059172437DD2D00EB94B0 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		30E0591B2437E63400EB94B0 /* vestige@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "vestige@2x.png"; sourceTree = "<group>"; };
-		30E0591D2437E66800EB94B0 /* vestige.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = vestige.png; sourceTree = "<group>"; };
+		30E0591B2437E63400EB94B0 /* status@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "status@2x.png"; sourceTree = "<group>"; };
+		30E0591D2437E66800EB94B0 /* status.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = status.png; sourceTree = "<group>"; };
 		30E0591F2438876E00EB94B0 /* vestige_home */ = {isa = PBXFileReference; lastKnownFileType = folder; path = vestige_home; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -60,8 +60,8 @@
 			children = (
 				30517D0B2438A5240063201A /* vestige.icns */,
 				30E0591F2438876E00EB94B0 /* vestige_home */,
-				30E0591D2437E66800EB94B0 /* vestige.png */,
-				30E0591B2437E63400EB94B0 /* vestige@2x.png */,
+				30E0591D2437E66800EB94B0 /* status.png */,
+				30E0591B2437E63400EB94B0 /* status@2x.png */,
 				30E059172437DD2D00EB94B0 /* Info.plist */,
 				30D02B61243758FC006D6FE2 /* Vestige.h */,
 				30D02B62243758FC006D6FE2 /* Vestige.m */,
@@ -127,9 +127,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				30E0591C2437E63400EB94B0 /* vestige@2x.png in Resources */,
+				30E0591C2437E63400EB94B0 /* status@2x.png in Resources */,
 				30517D0C2438A5240063201A /* vestige.icns in Resources */,
-				30E0591E2437E66800EB94B0 /* vestige.png in Resources */,
+				30E0591E2437E66800EB94B0 /* status.png in Resources */,
 				30E059182437DD2D00EB94B0 /* Info.plist in Resources */,
 				30E059202438876E00EB94B0 /* vestige_home in Resources */,
 			);

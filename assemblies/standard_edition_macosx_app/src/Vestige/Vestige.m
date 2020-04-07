@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 #include <signal.h>
 #include <arpa/inet.h>
+#include <dlfcn.h>
 
 @implementation Vestige
 
@@ -85,19 +86,22 @@ static void handleConnect(CFSocketRef socket,
 }
 
 - (void)addP12:(NSString *)path {
-    NSURL *p12Url = [NSURL fileURLWithPath:path];
-    NSData *data = [[NSData alloc] initWithContentsOfURL:p12Url];
-    if (data == nil) {
-        return;
+    if (@available(macOS 10.7, *)) {
+        NSURL *p12Url = [NSURL fileURLWithPath:path];
+        NSData *data = [[NSData alloc] initWithContentsOfURL:p12Url];
+        if (data == nil) {
+            return;
+        }
+
+        CFStringRef * sref = dlsym(RTLD_DEFAULT, "kSecImportExportPassphrase");
+        NSString* password = @"changeit";
+        NSDictionary* options = @{ (__bridge id) (*sref) : password };
+        
+        CFArrayRef rawItems = NULL;
+        SecPKCS12Import((__bridge CFDataRef)data,
+                        (__bridge CFDictionaryRef)options,
+                        &rawItems);
     }
-    
-    NSString* password = @"changeit";
-    NSDictionary* options = @{ (id)kSecImportExportPassphrase : password };
-    
-    CFArrayRef rawItems = NULL;
-    SecPKCS12Import((__bridge CFDataRef)data,
-                    (__bridge CFDictionaryRef)options,
-                    &rawItems);
 }
 
 
@@ -354,7 +358,7 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
     
     quitItem = [statusMenu addItemWithTitle:@"Stop" action:@selector(stopVestige) keyEquivalent:@""];
     
-    NSImage *statusItemImage = [NSImage imageNamed:@"vestige"];
+    NSImage *statusItemImage = [NSImage imageNamed:@"status"];
     if (!statusItemImage) {
         [statusItem setTitle:@"Vestige"];
     } else {
