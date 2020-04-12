@@ -2,7 +2,7 @@
 <configuration scan="false">
   <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
     <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-      <fileNamePattern>${logback.logsDirectory}/%d{yyyy-MM-dd}.log</fileNamePattern>
+      <fileNamePattern>${logback.logsDirectory}/vestige-%d{yyyy-MM-dd}.log</fileNamePattern>
       <!-- one month of logs -->
       <maxHistory>30</maxHistory>
     </rollingPolicy>
