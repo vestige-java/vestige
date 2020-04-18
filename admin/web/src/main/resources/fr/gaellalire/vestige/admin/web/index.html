@@ -3,8 +3,19 @@
 <head>
 <meta charset="utf-8" />
 <title>Vestige Admin</title>
+<script>
+  if (window.matchMedia('(prefers-color-scheme: dark)').media === 'not all') {
+    document.documentElement.style.display = 'none';
+    document.head.insertAdjacentHTML(
+        'beforeend',
+        '<link rel="stylesheet" href="jquery-ui.css" onload="document.documentElement.style.display = \'\'">'
+    );
+  }
+</script>
 <link rel="icon" type="image/x-icon" href="favicon.ico" />
-<link rel="stylesheet" href="jquery-ui.css" />
+<link rel="stylesheet" href="dark.css" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="jquery-ui-dark.css" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="jquery-ui.css" media="(prefers-color-scheme: no-preference), (prefers-color-scheme: light)">
 <link rel="stylesheet" href="jquery.terminal-0.10.12.css" />
 <script src="external/jquery/jquery.js"></script>
 <script src="jquery-ui.js"></script>
