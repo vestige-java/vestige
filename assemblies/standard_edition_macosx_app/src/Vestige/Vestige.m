@@ -390,6 +390,10 @@ static void loginItemsChanged(LSSharedFileListRef listRef, void *context)
     [textView setVerticallyResizable:YES];
     [textView setHorizontallyResizable:YES];
     [textView setAutoresizingMask:(NSViewWidthSizable | NSViewHeightSizable)];
+    if (@available(macOS 10.14, *)) {
+        [textView setUsesAdaptiveColorMappingForDarkAppearance:true];
+    }
+
     [textView setEditable:false];
     
     [[textView textContainer]
