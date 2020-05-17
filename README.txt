@@ -1,5 +1,18 @@
 Vestige should be compiled with an Oracle JDK 7.
 
+The JDK 7 should manage TLSv1.2
+In $JAVA_HOME/jre/lib/ext copy :
+- bcprov-jdk15to18-1.65.jar
+- bctls-jdk15to18-1.65.jar
+
+Edit $JAVA_HOME/jre/lib/security/java.security, add following
+security.provider.1=org.bouncycastle.jce.provider.BouncyCastleProvider
+security.provider.2=org.bouncycastle.jsse.provider.BouncyCastleJsseProvider
+
+and increment by 2 other security.provider.N
+
+export JAVA_TOOL_OPTIONS='-Dhttps.protocols=TLSv1.2 -Djavax.net.ssl.trustStore=/path/to/recent/cacerts'
+
 Launch vestige compilation with :
 $ mvn clean install
 
