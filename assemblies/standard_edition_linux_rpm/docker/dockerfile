@@ -1,0 +1,13 @@
+FROM centos:7
+
+RUN yum install -y rpm-build gpg openssh-server openssh-clients rpm-sign make && yum clean all
+
+RUN useradd builder -u 1000 -m -G users,wheel && \
+    echo "builder ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers && \
+    mkdir -p /home/builder/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS} && \
+    chown -R builder /home/builder && \
+    /usr/bin/ssh-keygen -A
+
+EXPOSE 22
+
+CMD ["/usr/sbin/sshd", "-D"]

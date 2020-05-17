@@ -19,6 +19,6 @@ find target \( -name .svn -o -name .DS_Store \) -exec rm -rf {} \;
 pushd target && tar -czf vestige.tar.gz vestige-$VESTIGE_RPM_VERSION && popd
 scp target/vestige.tar.gz rpmbuilder:rpmbuild/SOURCES/vestige.tar.gz
 scp target/vestige.spec rpmbuilder:rpmbuild/SPECS/vestige.spec
-ssh rpmbuilder rpmbuild -bb '~/rpmbuild/SPECS/vestige.spec'
-ssh rpmbuilder 'echo "" | setsid rpm --addsign rpmbuild/RPMS/noarch/vestige-'$VESTIGE_RPM_VERSION'-1.noarch.rpm'
+ssh rpmbuilder 'rpmbuild -bb ~/rpmbuild/SPECS/vestige.spec'
+ssh rpmbuilder 'echo "" | setsid rpm --define "_gpg_name '$GPG_NAME'" --addsign rpmbuild/RPMS/noarch/vestige-'$VESTIGE_RPM_VERSION'-1.noarch.rpm'
 scp rpmbuilder:rpmbuild/RPMS/noarch/vestige-$VESTIGE_RPM_VERSION-1.noarch.rpm target/vestige-$VESTIGE_RPM_VERSION-1.noarch.rpm

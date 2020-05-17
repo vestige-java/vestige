@@ -33,6 +33,6 @@ cp src/conffiles target/vestige_deb/DEBIAN/
 find target \( -name .svn -o -name .DS_Store \) -exec rm -rf {} \;
 ssh debbuilder rm -rf '~/target'
 scp -r target debbuilder:.
-ssh debbuilder dpkg-deb --no-uniform-compression -b target/vestige_deb/ target/vestige_${VESTIGE_VERSION}_all.deb
+ssh debbuilder fakeroot dpkg-deb --no-uniform-compression -b target/vestige_deb/ target/vestige_${VESTIGE_VERSION}_all.deb
 ssh debbuilder debsigs --sign=origin target/vestige_${VESTIGE_VERSION}_all.deb
 scp debbuilder:target/vestige_${VESTIGE_VERSION}_all.deb target/vestige_${VESTIGE_VERSION}_all.deb 

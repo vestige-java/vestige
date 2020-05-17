@@ -1,3 +1,5 @@
+To run ./build you must be on OS X
+
 to add env variable like 
 
 launchctl setenv VESTIGE_DEBUG 1

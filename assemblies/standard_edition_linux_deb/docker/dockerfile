@@ -1,0 +1,13 @@
+FROM ubuntu:18.04
+
+RUN apt-get update && apt-get install -y openssh-server openssh-client debsigs fakeroot
+
+RUN useradd builder -u 1000 -m -G users && \
+    echo "builder ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers && \
+    chown -R builder /home/builder && \
+    mkdir -p -m0755 /var/run/sshd  && \
+    /usr/bin/ssh-keygen -A
+
+EXPOSE 22
+
+CMD ["/usr/sbin/sshd", "-D"]
