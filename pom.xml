@@ -166,7 +166,7 @@
     <jetty.version>8.1.11.v20130520</jetty.version>
     <milton.version>2.5.0.1</milton.version>
     <javax-servlet.version>3.0.0.v201112011016</javax-servlet.version>
-    <bouncycastle.version>1.65</bouncycastle.version>
+    <bouncycastle.version>1.66</bouncycastle.version>
     <httpcomponents.version>4.5.3</httpcomponents.version>
     <proxy_vole.version>java6-3</proxy_vole.version>
     <maven-resolver.version>java6-2</maven-resolver.version>
@@ -314,7 +314,7 @@
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bctls-jdk15on</artifactId>
-        <version>1.66b04</version>
+        <version>${bouncycastle.version}</version>
       </dependency>
       
       <dependency>
@@ -335,7 +335,7 @@
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bctls-jdk15to18</artifactId>
-        <version>1.66b04</version>
+        <version>${bouncycastle.version}</version>
       </dependency>
       
       
