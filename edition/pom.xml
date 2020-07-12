@@ -2,7 +2,7 @@
   <parent>
     <groupId>fr.gaellalire.vestige</groupId>
     <artifactId>vestige</artifactId>
-    <version>8.0.3</version>
+    <version>8.0.4-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>vestige.edition</artifactId>
