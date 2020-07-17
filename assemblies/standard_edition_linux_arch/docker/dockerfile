@@ -1,6 +1,6 @@
 FROM archlinux
 
-RUN pacman -Syu --noconfirm openssh sudo fakeroot binutils jre-openjdk-headless wget
+RUN pacman -Syu --noconfirm openssh sudo fakeroot binutils
 
 RUN useradd builder -u 1000 -m -G users,wheel && \
     echo "builder ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers && \

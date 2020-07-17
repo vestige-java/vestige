@@ -28,5 +28,5 @@ sed -e 's/pkgver=.*/pkgver='$VESTIGE_ARCH_VERSION'/' src/PKGBUILD > target/PKGBU
 find target \( -name .svn -o -name .DS_Store \) -exec rm -rf {} \;
 ssh archbuilder rm -rf '~/target'
 scp -r target archbuilder:.
-ssh archbuilder 'cd target && makepkg -s --sign'
+ssh archbuilder 'cd target && makepkg -d --sign'
 scp archbuilder:target/vestige-${VESTIGE_ARCH_VERSION}-1-any.pkg.tar.xz* target/ 
