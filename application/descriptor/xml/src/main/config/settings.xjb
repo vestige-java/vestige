@@ -1,5 +1,5 @@
 <jaxb:bindings xmlns:jaxb="http://java.sun.com/xml/ns/jaxb" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xjc="http://java.sun.com/xml/ns/jaxb/xjc"
-  jaxb:extensionBindingPrefixes="xjc" jaxb:version="2.0">
+  xmlns:vu="http://gaellalire.fr/vestige/UTILS" jaxb:extensionBindingPrefixes="xjc" jaxb:version="2.0">
 
   <jaxb:bindings scd="x-schema::a" xmlns:a="http://gaellalire.fr/vestige/APPLICATION">
     <jaxb:schemaBindings>
@@ -12,10 +12,11 @@
     </jaxb:schemaBindings>
   </jaxb:bindings>
 
-
-  <jaxb:globalBindings>
-    <xjc:javaType name="java.lang.String" xmlType="xsd:string" adapter="fr.gaellalire.vestige.utils.jaxb.StringAdapter" />
-    <xjc:javaType name="java.lang.Integer" xmlType="xsd:int" adapter="fr.gaellalire.vestige.utils.jaxb.IntegerAdapter" />
-    <xjc:javaType name="java.lang.Boolean" xmlType="xsd:boolean" adapter="fr.gaellalire.vestige.utils.jaxb.BooleanAdapter" />
+  <jaxb:globalBindings generateIsSetMethod="true">
+    <xjc:javaType name="fr.gaellalire.vestige.utils.StringProperty" xmlType="xsd:string" adapter="fr.gaellalire.vestige.utils.jaxb.StringAdapter" />
+    <xjc:javaType name="fr.gaellalire.vestige.utils.IntegerProperty" xmlType="vu:propertyOrInt" adapter="fr.gaellalire.vestige.utils.jaxb.IntegerAdapter" />
+    <xjc:javaType name="fr.gaellalire.vestige.utils.BooleanProperty" xmlType="vu:propertyOrBoolean" adapter="fr.gaellalire.vestige.utils.jaxb.BooleanAdapter" />
+    <xjc:javaType name="fr.gaellalire.vestige.utils.AnyURIProperty" xmlType="vu:propertyOrAnyURI" adapter="fr.gaellalire.vestige.utils.jaxb.AnyURIAdapter" />
   </jaxb:globalBindings>
 </jaxb:bindings>
+

@@ -19,20 +19,20 @@ package fr.gaellalire.vestige.utils.jaxb;
 
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 
-import fr.gaellalire.vestige.utils.IntegerProperty;
+import fr.gaellalire.vestige.utils.AnyURIProperty;
 
 /**
  * @author Gael Lalire
  */
-public class IntegerAdapter extends XmlAdapter<String, IntegerProperty> {
+public class AnyURIAdapter extends XmlAdapter<String, AnyURIProperty> {
 
     @Override
-    public IntegerProperty unmarshal(final String v) {
-        return new IntegerProperty(v);
+    public AnyURIProperty unmarshal(final String v) throws Exception {
+        return new AnyURIProperty(v);
     }
 
     @Override
-    public String marshal(final IntegerProperty v) {
+    public String marshal(final AnyURIProperty v) throws Exception {
         return v.getRawValue();
     }
 

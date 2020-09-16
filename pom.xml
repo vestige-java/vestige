@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>fr.gaellalire.vestige</groupId>
   <artifactId>vestige</artifactId>
@@ -163,6 +164,7 @@
     <vestige.spi.resolver.maven.version>2.0</vestige.spi.resolver.maven.version>
     <vestige.maven.version>java6-3</vestige.maven.version>
     <logback.version>1.2.3</logback.version>
+    <logstash.logback.encoder.version>4.11</logstash.logback.encoder.version>
     <jetty.version>8.1.11.v20130520</jetty.version>
     <milton.version>2.5.0.1</milton.version>
     <javax-servlet.version>3.0.0.v201112011016</javax-servlet.version>
@@ -227,6 +229,16 @@
         <groupId>ch.qos.logback</groupId>
         <artifactId>logback-classic</artifactId>
         <version>${logback.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>2.7.9.7</version>
+      </dependency>
+      <dependency>
+        <groupId>net.logstash.logback</groupId>
+        <artifactId>logstash-logback-encoder</artifactId>
+        <version>${logstash.logback.encoder.version}</version>
       </dependency>
       <dependency>
         <groupId>fr.gaellalire.vestige</groupId>
@@ -295,7 +307,7 @@
         <artifactId>json-smart</artifactId>
         <version>1.1.1</version>
       </dependency>
-      
+
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcpg-jdk15on</artifactId>
@@ -316,7 +328,7 @@
         <artifactId>bctls-jdk15on</artifactId>
         <version>${bouncycastle.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcpg-jdk15to18</artifactId>
@@ -337,9 +349,9 @@
         <artifactId>bctls-jdk15to18</artifactId>
         <version>${bouncycastle.version}</version>
       </dependency>
-      
-      
-      
+
+
+
       <dependency>
         <groupId>org.codehaus.janino</groupId>
         <artifactId>janino</artifactId>

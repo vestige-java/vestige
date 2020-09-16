@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <settings xmlns="http://gaellalire.fr/vestige/SETTINGS" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-xsi:schemaLocation="http://gaellalire.fr/vestige/SETTINGS http://gaellalire.fr/vestige/settings-1.0.0.xsd">
+xsi:schemaLocation="http://gaellalire.fr/vestige/SETTINGS http://gaellalire.fr/vestige/settings-1.1.0.xsd">
+
   <admin>
-    <ssh enabled="false">
-      <bind port="0" />
+    <ssh enabled="${VESTIGE_ADMIN_SSH_ENABLED:-false}">
+      <bind host="${VESTIGE_ADMIN_SSH_HOST:-*}" port="${VESTIGE_ADMIN_SSH_PORT:-0}" />
     </ssh>
-    <web enabled="true">
-      <bind host="127.0.0.1" port="0" />
+    <web enabled="${VESTIGE_ADMIN_WEB_ENABLED:-true}">
+      <bind host="${VESTIGE_ADMIN_WEB_HOST:-127.0.0.1}" port="${VESTIGE_ADMIN_WEB_PORT:-0}" />
     </web>
   </admin>
 </settings>

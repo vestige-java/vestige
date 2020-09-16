@@ -15,25 +15,29 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.utils.jaxb;
+package fr.gaellalire.vestige.utils;
 
-import javax.xml.bind.annotation.adapters.XmlAdapter;
-
-import fr.gaellalire.vestige.utils.IntegerProperty;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author Gael Lalire
  */
-public class IntegerAdapter extends XmlAdapter<String, IntegerProperty> {
+public class KeepExpandMapValueGetter implements ValueGetter {
+
+    private Map<String, String> expandMap = new HashMap<String, String>();
 
     @Override
-    public IntegerProperty unmarshal(final String v) {
-        return new IntegerProperty(v);
+    public <E> E getValue(final Property<E> property) {
+        if (property == null) {
+            return null;
+        }
+        expandMap.putAll(property.getExpandMap());
+        return property.getValue();
     }
 
-    @Override
-    public String marshal(final IntegerProperty v) {
-        return v.getRawValue();
+    public Map<String, String> getExpandMap() {
+        return expandMap;
     }
 
 }

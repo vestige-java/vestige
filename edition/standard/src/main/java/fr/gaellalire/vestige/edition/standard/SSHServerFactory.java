@@ -66,11 +66,13 @@ import org.slf4j.LoggerFactory;
 
 import fr.gaellalire.vestige.admin.command.VestigeCommandExecutor;
 import fr.gaellalire.vestige.admin.ssh.DefaultPublickeyAuthenticator;
+import fr.gaellalire.vestige.admin.ssh.FixedSSHServer;
 import fr.gaellalire.vestige.admin.ssh.RootedFileSystemFactory;
 import fr.gaellalire.vestige.admin.ssh.SSHExecCommand;
 import fr.gaellalire.vestige.admin.ssh.SSHShellCommandFactory;
 import fr.gaellalire.vestige.edition.standard.schema.Bind;
 import fr.gaellalire.vestige.edition.standard.schema.SSH;
+import fr.gaellalire.vestige.utils.SimpleValueGetter;
 
 /**
  * @author Gael Lalire
@@ -207,7 +209,7 @@ public class SSHServerFactory implements Callable<VestigeServer> {
         LOGGER.info("Use {} for authorized public SSH keys file", authorizedKeysFile);
 
         KeyPairProvider keyPairProvider = new FileKeyPairProvider(new String[] {privateKey.getPath()});
-        final SshServer sshServer = SshServer.setUpDefaultServer();
+        final SshServer sshServer = FixedSSHServer.setUpDefaultServer();
         sshServer.setChannelFactories(Arrays.<NamedFactory<Channel>> asList(new ChannelSession.Factory() {
             @Override
             public Channel create() {
@@ -244,9 +246,9 @@ public class SSHServerFactory implements Callable<VestigeServer> {
 
         sshServer.setFileSystemFactory(new RootedFileSystemFactory(appHomeFile, "vestige"));
         sshServer.setIoServiceFactoryFactory(new MinaServiceFactoryFactory());
-        final String host = bind.getHost();
+        final String host = SimpleValueGetter.INSTANCE.getValue(bind.getHost());
         sshServer.setHost(host);
-        sshServer.setPort(bind.getPort());
+        sshServer.setPort(SimpleValueGetter.INSTANCE.getValue(bind.getPort()));
         sshServer.setCommandFactory(new ScpCommandFactory(new CommandFactory() {
 
             public Command createCommand(final String command) {

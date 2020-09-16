@@ -58,6 +58,8 @@ import fr.gaellalire.vestige.spi.resolver.maven.ResolveMavenArtifactRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolveMode;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolvedMavenArtifact;
 import fr.gaellalire.vestige.spi.resolver.url_list.URLListRequest;
+import fr.gaellalire.vestige.utils.AnyURIProperty;
+import fr.gaellalire.vestige.utils.SimpleValueGetter;
 
 /**
  * @author Gael Lalire
@@ -167,7 +169,7 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
         if (installer == null) {
             return null;
         }
-        return installer.getClazz();
+        return SimpleValueGetter.INSTANCE.getValue(installer.getClazz());
     }
 
     public ApplicationResolvedClassLoaderConfiguration getInstallerClassLoaderConfiguration(final String configurationName) throws ApplicationException {
@@ -180,19 +182,19 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
             URLListRequest urlListRequest = xmlApplicationRepositoryManager.getVestigeURLListResolver().createURLListRequest(convertScope(urlsInstaller.getScope()),
                     configurationName);
 
-            for (String string : urlsInstaller.getUrl()) {
+            for (AnyURIProperty string : urlsInstaller.getUrl()) {
                 try {
-                    urlListRequest.addURL(new URL(string));
+                    urlListRequest.addURL(new URL(SimpleValueGetter.INSTANCE.getValue(string)));
                 } catch (MalformedURLException e) {
                     throw new ApplicationException("Not an URL", e);
                 }
             }
 
             for (fr.gaellalire.vestige.application.descriptor.xml.schema.application.ModulePackageName modulePackageName : urlsInstaller.getAddExports()) {
-                urlListRequest.addExports(modulePackageName.getModule(), modulePackageName.getPackage());
+                urlListRequest.addExports(SimpleValueGetter.INSTANCE.getValue(modulePackageName.getModule()), SimpleValueGetter.INSTANCE.getValue(modulePackageName.getPackage()));
             }
             for (fr.gaellalire.vestige.application.descriptor.xml.schema.application.ModulePackageName modulePackageName : urlsInstaller.getAddOpens()) {
-                urlListRequest.addOpens(modulePackageName.getModule(), modulePackageName.getPackage());
+                urlListRequest.addOpens(SimpleValueGetter.INSTANCE.getValue(modulePackageName.getModule()), SimpleValueGetter.INSTANCE.getValue(modulePackageName.getPackage()));
             }
 
             try {
@@ -206,7 +208,7 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
 
     public String getLauncherClassName() throws ApplicationException {
         Launcher launcher = application.getLauncher();
-        return launcher.getClazz();
+        return SimpleValueGetter.INSTANCE.getValue(launcher.getClazz());
     }
 
     public boolean isInstallerPrivateSystem() throws ApplicationException {
@@ -214,7 +216,7 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
         if (installer == null) {
             return false;
         }
-        return installer.isPrivateSystem();
+        return SimpleValueGetter.INSTANCE.getValue(installer.getPrivateSystem());
     }
 
     public boolean isLauncherPrivateSystem() throws ApplicationException {
@@ -222,13 +224,14 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
         if (launcher == null) {
             return false;
         }
-        return launcher.isPrivateSystem();
+        return SimpleValueGetter.INSTANCE.getValue(launcher.getPrivateSystem());
     }
 
     public List<AddInject> getLauncherAddInjects() {
         List<AddInject> addInjects = new ArrayList<AddInject>();
         for (Inject inject : application.getLauncher().getInject()) {
-            addInjects.add(new AddInject(inject.getServiceClassName(), inject.getTargetServiceClassName(), inject.getSetterName()));
+            addInjects.add(new AddInject(SimpleValueGetter.INSTANCE.getValue(inject.getServiceClassName()), SimpleValueGetter.INSTANCE.getValue(inject.getTargetServiceClassName()),
+                    SimpleValueGetter.INSTANCE.getValue(inject.getSetterName())));
         }
         return addInjects;
     }
@@ -241,7 +244,8 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
         }
         List<AddInject> addInjects = new ArrayList<AddInject>();
         for (Inject inject : installer.getInject()) {
-            addInjects.add(new AddInject(inject.getServiceClassName(), inject.getTargetServiceClassName(), inject.getSetterName()));
+            addInjects.add(new AddInject(SimpleValueGetter.INSTANCE.getValue(inject.getServiceClassName()), SimpleValueGetter.INSTANCE.getValue(inject.getTargetServiceClassName()),
+                    SimpleValueGetter.INSTANCE.getValue(inject.getSetterName())));
         }
         return addInjects;
     }
@@ -253,19 +257,19 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
             URLListRequest urlListRequest = xmlApplicationRepositoryManager.getVestigeURLListResolver().createURLListRequest(convertScope(urlsLauncher.getScope()),
                     configurationName);
 
-            for (String string : urlsLauncher.getUrl()) {
+            for (AnyURIProperty string : urlsLauncher.getUrl()) {
                 try {
-                    urlListRequest.addURL(new URL(string));
+                    urlListRequest.addURL(new URL(SimpleValueGetter.INSTANCE.getValue(string)));
                 } catch (MalformedURLException e) {
                     throw new ApplicationException("Not an URL", e);
                 }
             }
 
             for (fr.gaellalire.vestige.application.descriptor.xml.schema.application.ModulePackageName modulePackageName : urlsLauncher.getAddExports()) {
-                urlListRequest.addExports(modulePackageName.getModule(), modulePackageName.getPackage());
+                urlListRequest.addExports(SimpleValueGetter.INSTANCE.getValue(modulePackageName.getModule()), SimpleValueGetter.INSTANCE.getValue(modulePackageName.getPackage()));
             }
             for (fr.gaellalire.vestige.application.descriptor.xml.schema.application.ModulePackageName modulePackageName : urlsLauncher.getAddOpens()) {
-                urlListRequest.addOpens(modulePackageName.getModule(), modulePackageName.getPackage());
+                urlListRequest.addOpens(SimpleValueGetter.INSTANCE.getValue(modulePackageName.getModule()), SimpleValueGetter.INSTANCE.getValue(modulePackageName.getPackage()));
             }
             urlsLauncher.getScope();
 
@@ -311,7 +315,8 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
             throw new ApplicationException("Unknown launch mode " + mode);
         }
 
-        ResolveMavenArtifactRequest resolveMavenArtifactRequest = mavenContext.resolve(mavenClassType.getGroupId(), mavenClassType.getArtifactId(), mavenClassType.getVersion());
+        ResolveMavenArtifactRequest resolveMavenArtifactRequest = mavenContext.resolve(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getGroupId()),
+                SimpleValueGetter.INSTANCE.getValue(mavenClassType.getArtifactId()), SimpleValueGetter.INSTANCE.getValue(mavenClassType.getVersion()));
 
         ResolvedMavenArtifact resolvedMavenArtifact;
         try {
@@ -324,19 +329,20 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
                 convertScope(mavenClassType.getScope()));
 
         for (ModifyScope modifyScope : mavenClassType.getModifyScope()) {
-            createClassLoaderConfigurationRequest.addModifyScope(modifyScope.getGroupId(), modifyScope.getArtifactId(), convertScope(modifyScope.getScope()));
+            createClassLoaderConfigurationRequest.addModifyScope(SimpleValueGetter.INSTANCE.getValue(modifyScope.getGroupId()),
+                    SimpleValueGetter.INSTANCE.getValue(modifyScope.getArtifactId()), convertScope(modifyScope.getScope()));
         }
 
         List<ModifyLoadedDependency> modifyLoadedDependencyList = mavenClassType.getModifyLoadedDependency();
         if (modifyLoadedDependencyList != null) {
             for (ModifyLoadedDependency modifyDependency : modifyLoadedDependencyList) {
-                ModifyLoadedDependencyRequest modifyDependencyRequest = createClassLoaderConfigurationRequest.addModifyLoadedDependency(modifyDependency.getGroupId(),
-                        modifyDependency.getArtifactId());
+                ModifyLoadedDependencyRequest modifyDependencyRequest = createClassLoaderConfigurationRequest.addModifyLoadedDependency(
+                        SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()), SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()));
                 for (ModulePackageName addExports : modifyDependency.getAddExports()) {
-                    modifyDependencyRequest.addExports(addExports.getModule(), addExports.getPackage());
+                    modifyDependencyRequest.addExports(SimpleValueGetter.INSTANCE.getValue(addExports.getModule()), SimpleValueGetter.INSTANCE.getValue(addExports.getPackage()));
                 }
                 for (ModulePackageName addExports : modifyDependency.getAddOpens()) {
-                    modifyDependencyRequest.addOpens(addExports.getModule(), addExports.getPackage());
+                    modifyDependencyRequest.addOpens(SimpleValueGetter.INSTANCE.getValue(addExports.getModule()), SimpleValueGetter.INSTANCE.getValue(addExports.getPackage()));
                 }
                 if (modifyDependency.getAddBeforeParent() != null) {
                     modifyDependencyRequest.setBeforeParent(true);
@@ -349,13 +355,16 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
         if (activateNamedModules != null) {
             createClassLoaderConfigurationRequest.setNamedModuleActivated(true);
             for (AddReads addReads : activateNamedModules.getAddReads()) {
-                createClassLoaderConfigurationRequest.addReads(addReads.getSource(), addReads.getTarget());
+                createClassLoaderConfigurationRequest.addReads(SimpleValueGetter.INSTANCE.getValue(addReads.getSource()),
+                        SimpleValueGetter.INSTANCE.getValue(addReads.getTarget()));
             }
             for (AddExports addExports : activateNamedModules.getAddExports()) {
-                createClassLoaderConfigurationRequest.addExports(addExports.getSource(), addExports.getPn(), addExports.getTarget());
+                createClassLoaderConfigurationRequest.addExports(SimpleValueGetter.INSTANCE.getValue(addExports.getSource()),
+                        SimpleValueGetter.INSTANCE.getValue(addExports.getPn()), SimpleValueGetter.INSTANCE.getValue(addExports.getTarget()));
             }
             for (AddOpens addOpens : activateNamedModules.getAddOpens()) {
-                createClassLoaderConfigurationRequest.addOpens(addOpens.getSource(), addOpens.getPn(), addOpens.getTarget());
+                createClassLoaderConfigurationRequest.addOpens(SimpleValueGetter.INSTANCE.getValue(addOpens.getSource()), SimpleValueGetter.INSTANCE.getValue(addOpens.getPn()),
+                        SimpleValueGetter.INSTANCE.getValue(addOpens.getTarget()));
             }
         }
 

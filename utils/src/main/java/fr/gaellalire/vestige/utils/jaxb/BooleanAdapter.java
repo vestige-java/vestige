@@ -19,21 +19,21 @@ package fr.gaellalire.vestige.utils.jaxb;
 
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 
-import fr.gaellalire.vestige.utils.PropertyExpander;
+import fr.gaellalire.vestige.utils.BooleanProperty;
 
 /**
  * @author Gael Lalire
  */
-public class BooleanAdapter extends XmlAdapter<String, Boolean> {
+public class BooleanAdapter extends XmlAdapter<String, BooleanProperty> {
 
     @Override
-    public Boolean unmarshal(final String v) {
-        return Boolean.parseBoolean(PropertyExpander.expand(v));
+    public BooleanProperty unmarshal(final String v) {
+        return new BooleanProperty(v);
     }
 
     @Override
-    public String marshal(final Boolean v) {
-        return String.valueOf(v);
+    public String marshal(final BooleanProperty v) {
+        return v.getRawValue();
     }
 
 }

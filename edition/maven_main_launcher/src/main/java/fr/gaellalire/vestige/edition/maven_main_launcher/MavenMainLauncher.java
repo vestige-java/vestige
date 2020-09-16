@@ -109,6 +109,7 @@ import fr.gaellalire.vestige.resolver.maven.SSLContextAccessor;
 import fr.gaellalire.vestige.spi.job.DummyJobHelper;
 import fr.gaellalire.vestige.spi.resolver.Scope;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolveMode;
+import fr.gaellalire.vestige.utils.SimpleValueGetter;
 
 /**
  * @author Gael Lalire
@@ -173,12 +174,12 @@ public final class MavenMainLauncher {
             final List<fr.gaellalire.vestige.edition.maven_main_launcher.schema.ModulePackageName> addOpens) {
         List<ModuleConfiguration> moduleConfigurations = new ArrayList<ModuleConfiguration>(addExports.size() + addOpens.size());
         for (fr.gaellalire.vestige.edition.maven_main_launcher.schema.ModulePackageName modulePackageName : addExports) {
-            moduleConfigurations
-                    .add(new ModuleConfiguration(modulePackageName.getModule(), Collections.singleton(modulePackageName.getPackage()), Collections.<String> emptySet(), null));
+            moduleConfigurations.add(new ModuleConfiguration(SimpleValueGetter.INSTANCE.getValue(modulePackageName.getModule()),
+                    Collections.singleton(SimpleValueGetter.INSTANCE.getValue(modulePackageName.getPackage())), Collections.<String> emptySet(), null));
         }
         for (fr.gaellalire.vestige.edition.maven_main_launcher.schema.ModulePackageName modulePackageName : addOpens) {
-            moduleConfigurations
-                    .add(new ModuleConfiguration(modulePackageName.getModule(), Collections.<String> emptySet(), Collections.singleton(modulePackageName.getPackage()), null));
+            moduleConfigurations.add(new ModuleConfiguration(SimpleValueGetter.INSTANCE.getValue(modulePackageName.getModule()), Collections.<String> emptySet(),
+                    Collections.singleton(SimpleValueGetter.INSTANCE.getValue(modulePackageName.getPackage())), null));
         }
         return moduleConfigurations;
     }
@@ -195,12 +196,14 @@ public final class MavenMainLauncher {
         List<AddExports> addExportsXMLList = activateNamedModules.getAddExports();
         Set<AddAccessibility> addExportsList = new HashSet<AddAccessibility>(addExportsXMLList.size());
         for (AddExports addExports : addExportsXMLList) {
-            addExportsList.add(new AddAccessibility(addExports.getSource(), addExports.getPn(), addExports.getTarget()));
+            addExportsList.add(new AddAccessibility(SimpleValueGetter.INSTANCE.getValue(addExports.getSource()), SimpleValueGetter.INSTANCE.getValue(addExports.getPn()),
+                    SimpleValueGetter.INSTANCE.getValue(addExports.getTarget())));
         }
         List<AddOpens> addOpensXMLList = activateNamedModules.getAddOpens();
         Set<AddAccessibility> addOpensList = new HashSet<AddAccessibility>(addOpensXMLList.size());
         for (AddOpens addExports : addOpensXMLList) {
-            addOpensList.add(new AddAccessibility(addExports.getSource(), addExports.getPn(), addExports.getTarget()));
+            addOpensList.add(new AddAccessibility(SimpleValueGetter.INSTANCE.getValue(addExports.getSource()), SimpleValueGetter.INSTANCE.getValue(addExports.getPn()),
+                    SimpleValueGetter.INSTANCE.getValue(addExports.getTarget())));
         }
 
         return new JPMSNamedModulesConfiguration(addReadsList, addExportsList, addOpensList);
@@ -260,48 +263,56 @@ public final class MavenMainLauncher {
                         List<AddDependency> addDependencies = modifyDependency.getAddDependency();
                         List<Dependency> dependencies = new ArrayList<Dependency>(addDependencies.size());
                         for (AddDependency addDependency : addDependencies) {
-                            dependencies.add(
-                                    new Dependency(new DefaultArtifact(addDependency.getGroupId(), addDependency.getArtifactId(), "jar", addDependency.getVersion()), "runtime"));
+                            dependencies.add(new Dependency(new DefaultArtifact(SimpleValueGetter.INSTANCE.getValue(addDependency.getGroupId()),
+                                    SimpleValueGetter.INSTANCE.getValue(addDependency.getArtifactId()), "jar", SimpleValueGetter.INSTANCE.getValue(addDependency.getVersion())),
+                                    "runtime"));
                         }
-                        defaultJPMSConfiguration.addModuleConfiguration(modifyDependency.getGroupId(), modifyDependency.getArtifactId(),
+                        defaultJPMSConfiguration.addModuleConfiguration(SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()),
+                                SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()),
                                 toModuleConfigurations(modifyDependency.getAddExports(), modifyDependency.getAddOpens()));
-                        defaultDependencyModifier.add(modifyDependency.getGroupId(), modifyDependency.getArtifactId(), dependencies);
+                        defaultDependencyModifier.add(SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()),
+                                SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()), dependencies);
                         if (modifyDependency.getAddBeforeParent() != null) {
-                            defaultDependencyModifier.addBeforeParent(modifyDependency.getGroupId(), modifyDependency.getArtifactId());
+                            defaultDependencyModifier.addBeforeParent(SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()),
+                                    SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()));
                         }
                     } else if (object instanceof ReplaceDependency) {
                         ReplaceDependency replaceDependency = (ReplaceDependency) object;
                         List<AddDependency> addDependencies = replaceDependency.getAddDependency();
                         List<Dependency> dependencies = new ArrayList<Dependency>(addDependencies.size());
                         for (AddDependency addDependency : addDependencies) {
-                            dependencies.add(
-                                    new Dependency(new DefaultArtifact(addDependency.getGroupId(), addDependency.getArtifactId(), "jar", addDependency.getVersion()), "runtime"));
+                            dependencies.add(new Dependency(new DefaultArtifact(SimpleValueGetter.INSTANCE.getValue(addDependency.getGroupId()),
+                                    SimpleValueGetter.INSTANCE.getValue(addDependency.getArtifactId()), "jar", SimpleValueGetter.INSTANCE.getValue(addDependency.getVersion())),
+                                    "runtime"));
                         }
                         Map<String, Set<String>> exceptsMap = null;
                         List<ExceptIn> excepts = replaceDependency.getExceptIn();
                         if (excepts != null) {
                             exceptsMap = new HashMap<String, Set<String>>();
                             for (ExceptIn except : excepts) {
-                                Set<String> set = exceptsMap.get(except.getGroupId());
+                                Set<String> set = exceptsMap.get(SimpleValueGetter.INSTANCE.getValue(except.getGroupId()));
                                 if (set == null) {
                                     set = new HashSet<String>();
-                                    exceptsMap.put(except.getGroupId(), set);
+                                    exceptsMap.put(SimpleValueGetter.INSTANCE.getValue(except.getGroupId()), set);
                                 }
-                                set.add(except.getArtifactId());
+                                set.add(SimpleValueGetter.INSTANCE.getValue(except.getArtifactId()));
                             }
                         }
-                        defaultDependencyModifier.replace(replaceDependency.getGroupId(), replaceDependency.getArtifactId(), dependencies, exceptsMap);
+                        defaultDependencyModifier.replace(SimpleValueGetter.INSTANCE.getValue(replaceDependency.getGroupId()),
+                                SimpleValueGetter.INSTANCE.getValue(replaceDependency.getArtifactId()), dependencies, exceptsMap);
                     } else if (object instanceof AdditionalRepository) {
                         AdditionalRepository additionalRepository = (AdditionalRepository) object;
-                        additionalRepositories.add(new MavenRepository(additionalRepository.getId(), additionalRepository.getLayout(), additionalRepository.getUrl()));
+                        additionalRepositories.add(new MavenRepository(SimpleValueGetter.INSTANCE.getValue(additionalRepository.getId()),
+                                SimpleValueGetter.INSTANCE.getValue(additionalRepository.getLayout()), SimpleValueGetter.INSTANCE.getValue(additionalRepository.getUrl())));
                     } else if (object instanceof FileAdditionalRepository) {
                         FileAdditionalRepository additionalRepository = (FileAdditionalRepository) object;
-                        additionalRepositories.add(new MavenRepository(additionalRepository.getId(), additionalRepository.getLayout(),
-                                new File(additionalRepository.getPath()).toURI().toURL().toString()));
+                        additionalRepositories.add(new MavenRepository(SimpleValueGetter.INSTANCE.getValue(additionalRepository.getId()),
+                                SimpleValueGetter.INSTANCE.getValue(additionalRepository.getLayout()),
+                                new File(SimpleValueGetter.INSTANCE.getValue(additionalRepository.getPath())).toURI().toURL().toString()));
                     }
                 }
-                pomRepositoriesIgnored = mavenConfig.isPomRepositoriesIgnored();
-                superPomRepositoriesIgnored = mavenConfig.isSuperPomRepositoriesIgnored();
+                pomRepositoriesIgnored = SimpleValueGetter.INSTANCE.getValue(mavenConfig.getPomRepositoriesIgnored());
+                superPomRepositoriesIgnored = SimpleValueGetter.INSTANCE.getValue(mavenConfig.getSuperPomRepositoriesIgnored());
             }
 
             SSLContextAccessor lazySSLContextAccessor = new SSLContextAccessor() {
@@ -348,9 +359,9 @@ public final class MavenMainLauncher {
                 Scope mavenScope = convertScope(mavenClassType.getScope());
 
                 ResolveParameters resolveRequest = new ResolveParameters();
-                resolveRequest.setGroupId(mavenClassType.getGroupId());
-                resolveRequest.setArtifactId(mavenClassType.getArtifactId());
-                resolveRequest.setVersion(mavenClassType.getVersion());
+                resolveRequest.setGroupId(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getGroupId()));
+                resolveRequest.setArtifactId(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getArtifactId()));
+                resolveRequest.setVersion(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getVersion()));
                 resolveRequest.setExtension("jar");
                 resolveRequest.setAdditionalRepositories(additionalRepositories);
                 resolveRequest.setDependencyModifier(defaultDependencyModifier);
@@ -378,9 +389,9 @@ public final class MavenMainLauncher {
             Scope mavenScope = convertScope(mavenClassType.getScope());
 
             ResolveParameters resolveRequest = new ResolveParameters();
-            resolveRequest.setGroupId(mavenClassType.getGroupId());
-            resolveRequest.setArtifactId(mavenClassType.getArtifactId());
-            resolveRequest.setVersion(mavenClassType.getVersion());
+            resolveRequest.setGroupId(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getGroupId()));
+            resolveRequest.setArtifactId(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getArtifactId()));
+            resolveRequest.setVersion(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getVersion()));
             resolveRequest.setExtension("jar");
             resolveRequest.setAdditionalRepositories(additionalRepositories);
             resolveRequest.setDependencyModifier(defaultDependencyModifier);
@@ -401,7 +412,7 @@ public final class MavenMainLauncher {
             Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
             Security.removeProvider(BouncyCastleJsseProvider.PROVIDER_NAME);
 
-            mavenResolverCache = new MavenResolverCache(launchCaches, mavenClassType.getClazz(), classLoaderConfiguration, lastModified);
+            mavenResolverCache = new MavenResolverCache(launchCaches, SimpleValueGetter.INSTANCE.getValue(mavenClassType.getClazz()), classLoaderConfiguration, lastModified);
             try {
                 File parentFile = mavenResolverCacheFile.getParentFile();
                 if (!parentFile.isDirectory()) {

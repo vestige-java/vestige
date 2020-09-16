@@ -15,25 +15,19 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.utils.jaxb;
+package fr.gaellalire.vestige.utils;
 
-import javax.xml.bind.annotation.adapters.XmlAdapter;
-
-import fr.gaellalire.vestige.utils.IntegerProperty;
+import java.net.URL;
 
 /**
  * @author Gael Lalire
  */
-public class IntegerAdapter extends XmlAdapter<String, IntegerProperty> {
+public final class UtilsSchema {
 
-    @Override
-    public IntegerProperty unmarshal(final String v) {
-        return new IntegerProperty(v);
+    private UtilsSchema() {
     }
 
-    @Override
-    public String marshal(final IntegerProperty v) {
-        return v.getRawValue();
+    public static URL getURL() {
+        return UtilsSchema.class.getResource("utils.xsd");
     }
-
 }

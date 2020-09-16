@@ -18,20 +18,34 @@
 package fr.gaellalire.vestige.utils;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * A copy of sun class.
  * @author Gael Lalire
+ * @param <E> property type
  */
-public final class PropertyExpander {
+public abstract class Property<E> {
 
-    private PropertyExpander() {
+    private E value;
+
+    private String rawValue;
+
+    private Map<String, String> expandMap;
+
+    public Property(final String rawValue) {
+        this.rawValue = rawValue;
+        if (rawValue != null) {
+            String expanded = expand(rawValue);
+            if (expanded != null) {
+                value = convert(expanded);
+            }
+        }
     }
 
-    public static String expand(final String value) throws ExpandException {
-        if (value == null) {
-            return null;
-        }
+    public abstract E convert(String value);
+
+    private String expand(final String value) throws ExpandException {
 
         int p = value.indexOf("${", 0);
 
@@ -65,8 +79,11 @@ public final class PropertyExpander {
                     sb.append(value.substring(p, pe + 1));
                 }
             } else {
-                while ((pe < max) && (value.charAt(pe) != '}')) {
+                String dval = null;
+                char lv = value.charAt(pe);
+                while ((pe < max) && (lv != '}') && lv != ':') {
                     pe++;
+                    lv = value.charAt(pe);
                 }
                 if (pe == max) {
                     // no matching '}' found, just add in as normal text
@@ -74,14 +91,38 @@ public final class PropertyExpander {
                     break scanner;
                 }
                 String prop = value.substring(p + 2, pe);
+                if (lv == ':') {
+                    pe++;
+                    lv = value.charAt(pe);
+                    if (lv == '-') {
+                        int spe = pe + 1;
+                        do {
+                            pe++;
+                            lv = value.charAt(pe);
+                        } while ((pe < max) && (lv != '}'));
+                        dval = value.substring(spe, pe);
+                    }
+                }
                 if (prop.equals("/")) {
                     sb.append(File.separatorChar);
                 } else {
+                    if (expandMap == null) {
+                        expandMap = new HashMap<String, String>();
+                    }
                     String val = System.getProperty(prop);
+                    if (val == null) {
+                        val = System.getenv(prop);
+                        if (val == null) {
+                            if (dval != null) {
+                                sb.append(dval);
+                            } else {
+                                throw new ExpandException("unable to expand property " + prop);
+                            }
+                        }
+                    }
+                    expandMap.put(prop, val);
                     if (val != null) {
                         sb.append(val);
-                    } else {
-                        throw new ExpandException("unable to expand property " + prop);
                     }
                 }
             }
@@ -96,7 +137,25 @@ public final class PropertyExpander {
                 break scanner;
             }
         }
+        if (sb.length() == 0) {
+            return null;
+        }
         return sb.toString();
+    }
+
+    public E getValue() {
+        return value;
+    }
+
+    /**
+     * @return null if the value is not defined through a property
+     */
+    public String getRawValue() {
+        return rawValue;
+    }
+
+    public Map<String, String> getExpandMap() {
+        return expandMap;
     }
 
 }

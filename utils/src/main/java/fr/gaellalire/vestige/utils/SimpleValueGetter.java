@@ -15,25 +15,24 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.utils.jaxb;
-
-import javax.xml.bind.annotation.adapters.XmlAdapter;
-
-import fr.gaellalire.vestige.utils.IntegerProperty;
+package fr.gaellalire.vestige.utils;
 
 /**
  * @author Gael Lalire
  */
-public class IntegerAdapter extends XmlAdapter<String, IntegerProperty> {
+public final class SimpleValueGetter implements ValueGetter {
 
-    @Override
-    public IntegerProperty unmarshal(final String v) {
-        return new IntegerProperty(v);
+    public static final SimpleValueGetter INSTANCE = new SimpleValueGetter();
+
+    private SimpleValueGetter() {
     }
 
     @Override
-    public String marshal(final IntegerProperty v) {
-        return v.getRawValue();
+    public <E> E getValue(final Property<E> property) {
+        if (property == null) {
+            return null;
+        }
+        return property.getValue();
     }
 
 }

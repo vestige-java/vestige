@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" xmlns:tns="http://gaellalire.fr/vestige/UTILS" xmlns="http://gaellalire.fr/vestige/UTILS"
+  targetNamespace="http://gaellalire.fr/vestige/UTILS" version="1.0.0">
+
+  <xs:simpleType name="property">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\$.*"></xs:pattern>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="propertyOrBoolean">
+    <xs:union memberTypes="property xs:boolean" />
+  </xs:simpleType>
+
+  <xs:simpleType name="propertyOrInt">
+    <xs:union memberTypes="property xs:int" />
+  </xs:simpleType>
+
+  <xs:simpleType name="propertyOrAnyURI">
+    <xs:union memberTypes="property xs:anyURI" />
+  </xs:simpleType>
+
+</xs:schema>

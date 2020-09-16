@@ -19,21 +19,21 @@ package fr.gaellalire.vestige.utils.jaxb;
 
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 
-import fr.gaellalire.vestige.utils.PropertyExpander;
+import fr.gaellalire.vestige.utils.StringProperty;
 
 /**
  * @author Gael Lalire
  */
-public class StringAdapter extends XmlAdapter<String, String> {
+public class StringAdapter extends XmlAdapter<String, StringProperty> {
 
     @Override
-    public String unmarshal(final String v) throws Exception {
-        return PropertyExpander.expand(v);
+    public StringProperty unmarshal(final String v) throws Exception {
+        return new StringProperty(v);
     }
 
     @Override
-    public String marshal(final String v) throws Exception {
-        return v;
+    public String marshal(final StringProperty v) throws Exception {
+        return v.getRawValue();
     }
 
 }

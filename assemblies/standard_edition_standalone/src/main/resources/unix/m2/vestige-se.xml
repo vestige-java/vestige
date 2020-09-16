@@ -34,6 +34,7 @@
     </replaceDependency>
     <modifyDependency artifactId="slf4j-api" groupId="org.slf4j">
       <addDependency artifactId="logback-classic" groupId="ch.qos.logback" version="${logback.version}" />
+      <addDependency artifactId="logstash-logback-encoder" groupId="net.logstash.logback" version="${logstash.logback.encoder.version}" />
     </modifyDependency>
     <replaceDependency artifactId="commons-logging" groupId="commons-logging">
       <addDependency artifactId="jcl-over-slf4j" groupId="org.slf4j" version="${slf4j.version}" />

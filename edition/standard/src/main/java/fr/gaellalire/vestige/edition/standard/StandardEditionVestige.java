@@ -53,6 +53,8 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
+import javax.xml.transform.Source;
+import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 
@@ -120,6 +122,8 @@ import fr.gaellalire.vestige.system.PrivateVestigeSecurityManager;
 import fr.gaellalire.vestige.system.PrivateWhiteListVestigePolicy;
 import fr.gaellalire.vestige.system.SecureProxySelector;
 import fr.gaellalire.vestige.system.VestigeSystemAction;
+import fr.gaellalire.vestige.utils.SimpleValueGetter;
+import fr.gaellalire.vestige.utils.UtilsSchema;
 
 /**
  * @author Gael Lalire
@@ -268,7 +272,7 @@ public class StandardEditionVestige implements Runnable {
 
             URL xsdURL = StandardEditionVestige.class.getResource("settings.xsd");
             SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
-            Schema schema = schemaFactory.newSchema(xsdURL);
+            Schema schema = schemaFactory.newSchema(new Source[] {new StreamSource(xsdURL.toExternalForm()), new StreamSource(UtilsSchema.getURL().toExternalForm())});
             unMarshaller.setSchema(schema);
         } catch (Exception e) {
             throw new RuntimeException("Unable to initialize settings parser", e);
@@ -463,14 +467,14 @@ public class StandardEditionVestige implements Runnable {
         File commandHistory = new File(cacheFile, "history.txt");
 
         Future<VestigeServer> futureSshServer = null;
-        if (ssh.isEnabled()) {
+        if (SimpleValueGetter.INSTANCE.getValue(ssh.getEnabled())) {
             File sshConfig = new File(configFile, "ssh");
             File sshData = new File(dataFile, "ssh");
             futureSshServer = executorService.submit(new SSHServerFactory(sshConfig, sshData, commandHistory, ssh, configFile, vestigeCommandExecutor));
         }
 
         Future<VestigeServer> futureWebServer = null;
-        if (web.isEnabled()) {
+        if (SimpleValueGetter.INSTANCE.getValue(web.getEnabled())) {
             File webConfig = new File(configFile, "web");
             File webData = new File(dataFile, "web");
             // TODO share commandHistory with ssh

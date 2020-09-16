@@ -66,6 +66,7 @@ import fr.gaellalire.vestige.spi.resolver.maven.ModifyDependencyRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.ReplaceDependencyRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.VestigeMavenResolver;
 import fr.gaellalire.vestige.spi.resolver.url_list.VestigeURLListResolver;
+import fr.gaellalire.vestige.utils.SimpleValueGetter;
 
 /**
  * @author Gael Lalire
@@ -117,7 +118,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
             return false;
         }
         try {
-            if (compatibilityChecker.isJavaSpecificationVersionCompatible(getApplication(inputStream).getJavaSpecificationVersion())) {
+            if (compatibilityChecker.isJavaSpecificationVersionCompatible(SimpleValueGetter.INSTANCE.getValue(getApplication(inputStream).getJavaSpecificationVersion()))) {
                 return true;
             }
             return false;
@@ -176,7 +177,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         task.setDone();
 
         Config configurations = application.getConfigurations();
-        String javaSpecificationVersion = application.getJavaSpecificationVersion();
+        String javaSpecificationVersion = SimpleValueGetter.INSTANCE.getValue(application.getJavaSpecificationVersion());
         Set<Permission> installerPermissionSet = new HashSet<Permission>();
         Set<Permission> launcherPermissionSet = new HashSet<Permission>();
         MavenContext mavenConfigResolved;
@@ -214,9 +215,9 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
         for (fr.gaellalire.vestige.application.descriptor.xml.schema.application.Permission perm : permissions.getPermission()) {
             try {
-                String type = perm.getType();
-                String name = perm.getName();
-                String actions = perm.getActions();
+                String type = SimpleValueGetter.INSTANCE.getValue(perm.getType());
+                String name = SimpleValueGetter.INSTANCE.getValue(perm.getName());
+                String actions = SimpleValueGetter.INSTANCE.getValue(perm.getActions());
                 Class<?> loadClass = systemClassLoader.loadClass(type);
                 if (name == null) {
                     try {
@@ -253,34 +254,38 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         for (Object object : mavenConfig.getModifyDependencyOrReplaceDependencyOrAdditionalRepository()) {
             if (object instanceof ModifyDependency) {
                 ModifyDependency modifyDependency = (ModifyDependency) object;
-                ModifyDependencyRequest modifyDependencyRequest = mavenResolverRequestContext.addModifyDependency(modifyDependency.getGroupId(), modifyDependency.getArtifactId());
+                ModifyDependencyRequest modifyDependencyRequest = mavenResolverRequestContext.addModifyDependency(
+                        SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()), SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()));
                 List<AddDependency> addDependencies = modifyDependency.getAddDependency();
                 for (AddDependency addDependency : addDependencies) {
-                    modifyDependencyRequest.addDependency(addDependency.getGroupId(), addDependency.getArtifactId(), addDependency.getVersion());
+                    modifyDependencyRequest.addDependency(SimpleValueGetter.INSTANCE.getValue(addDependency.getGroupId()),
+                            SimpleValueGetter.INSTANCE.getValue(addDependency.getArtifactId()), SimpleValueGetter.INSTANCE.getValue(addDependency.getVersion()));
                 }
                 modifyDependencyRequest.execute();
             } else if (object instanceof ReplaceDependency) {
                 ReplaceDependency replaceDependency = (ReplaceDependency) object;
-                ReplaceDependencyRequest replaceDependencyRequest = mavenResolverRequestContext.addReplaceDependency(replaceDependency.getGroupId(),
-                        replaceDependency.getArtifactId());
+                ReplaceDependencyRequest replaceDependencyRequest = mavenResolverRequestContext.addReplaceDependency(
+                        SimpleValueGetter.INSTANCE.getValue(replaceDependency.getGroupId()), SimpleValueGetter.INSTANCE.getValue(replaceDependency.getArtifactId()));
                 List<AddDependency> addDependencies = replaceDependency.getAddDependency();
                 for (AddDependency addDependency : addDependencies) {
-                    replaceDependencyRequest.addDependency(addDependency.getGroupId(), addDependency.getArtifactId(), addDependency.getVersion());
+                    replaceDependencyRequest.addDependency(SimpleValueGetter.INSTANCE.getValue(addDependency.getGroupId()),
+                            SimpleValueGetter.INSTANCE.getValue(addDependency.getArtifactId()), SimpleValueGetter.INSTANCE.getValue(addDependency.getVersion()));
                 }
                 List<ExceptIn> excepts = replaceDependency.getExceptIn();
                 if (excepts != null) {
                     for (ExceptIn except : excepts) {
-                        replaceDependencyRequest.addExcept(except.getGroupId(), except.getArtifactId());
+                        replaceDependencyRequest.addExcept(SimpleValueGetter.INSTANCE.getValue(except.getGroupId()), SimpleValueGetter.INSTANCE.getValue(except.getArtifactId()));
                     }
                 }
                 replaceDependencyRequest.execute();
             } else if (object instanceof AdditionalRepository) {
                 AdditionalRepository additionalRepository = (AdditionalRepository) object;
-                mavenResolverRequestContext.addAdditionalRepository(additionalRepository.getId(), additionalRepository.getLayout(), additionalRepository.getUrl());
+                mavenResolverRequestContext.addAdditionalRepository(SimpleValueGetter.INSTANCE.getValue(additionalRepository.getId()),
+                        SimpleValueGetter.INSTANCE.getValue(additionalRepository.getLayout()), SimpleValueGetter.INSTANCE.getValue(additionalRepository.getUrl()));
             }
         }
-        mavenResolverRequestContext.setSuperPomRepositoriesIgnored(mavenConfig.isSuperPomRepositoriesUsed());
-        mavenResolverRequestContext.setPomRepositoriesIgnored(mavenConfig.isPomRepositoriesIgnored());
+        mavenResolverRequestContext.setSuperPomRepositoriesIgnored(SimpleValueGetter.INSTANCE.getValue(mavenConfig.getSuperPomRepositoriesUsed()));
+        mavenResolverRequestContext.setPomRepositoriesIgnored(SimpleValueGetter.INSTANCE.getValue(mavenConfig.getPomRepositoriesIgnored()));
         return mavenResolverRequestContext.build();
     }
 
@@ -335,9 +340,9 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         for (fr.gaellalire.vestige.application.descriptor.xml.schema.repository.Repository.Application application : repository.getApplication()) {
             Set<List<Integer>> versions = new TreeSet<List<Integer>>(VersionUtils.VERSION_COMPARATOR);
             for (Version v : application.getVersion()) {
-                versions.add(VersionUtils.fromString(v.getValue()));
+                versions.add(VersionUtils.fromString(SimpleValueGetter.INSTANCE.getValue(v.getValue())));
             }
-            versionsByNames.put(application.getName(), versions);
+            versionsByNames.put(SimpleValueGetter.INSTANCE.getValue(application.getName()), versions);
         }
         return new XMLApplicationRepositoryMetadata(versionsByNames);
 

@@ -96,6 +96,7 @@ import fr.gaellalire.vestige.admin.web.VestigeServlet;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
 import fr.gaellalire.vestige.edition.standard.schema.Bind;
 import fr.gaellalire.vestige.edition.standard.schema.Web;
+import fr.gaellalire.vestige.utils.SimpleValueGetter;
 
 /**
  * @author Gael Lalire
@@ -431,7 +432,7 @@ public class WebServerFactory implements Callable<VestigeServer> {
                     final Set<String> names = new HashSet<String>();
                     names.add("localhost");
                     for (final Bind bind : binds) {
-                        String host = bind.getHost();
+                        String host = SimpleValueGetter.INSTANCE.getValue(bind.getHost());
                         if (host == null) {
                             Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
                             while (e.hasMoreElements()) {
@@ -516,7 +517,7 @@ public class WebServerFactory implements Callable<VestigeServer> {
                 @Override
                 public void open() throws IOException {
                     super.open();
-                    final String host = bind.getHost();
+                    final String host = SimpleValueGetter.INSTANCE.getValue(bind.getHost());
                     int localPort = getLocalPort();
                     if (host == null) {
                         localHostBind.host = "localhost";
@@ -555,8 +556,8 @@ public class WebServerFactory implements Callable<VestigeServer> {
                     }
                 }
             };
-            connector.setPort(bind.getPort());
-            connector.setHost(bind.getHost());
+            connector.setPort(SimpleValueGetter.INSTANCE.getValue(bind.getPort()));
+            connector.setHost(SimpleValueGetter.INSTANCE.getValue(bind.getHost()));
             connectors.add(connector);
         }
         webServer.setConnectors(connectors.toArray(new Connector[connectors.size()]));
