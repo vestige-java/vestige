@@ -435,8 +435,14 @@ public class ClassLoaderConfigurationFactory {
                         classLoaderConfigurationKey.getModuleConfiguration(), namedModulesConfiguration, classLoaderConfigurationKey.getBeforeParents());
                 name = classLoaderConfigurationKey.getArtifacts().toString() + " of " + appName;
             }
+            boolean mdcIncluded = false;
+            for (MavenArtifact mavenArtifact : classLoaderConfigurationKey.getArtifacts()) {
+                if ("org.slf4j".equals(mavenArtifact.getGroupId()) && "slf4j-api".equals(mavenArtifact.getArtifactId())) {
+                    mdcIncluded = true;
+                }
+            }
             cachedClassLoaderConfiguration = new ClassLoaderConfiguration(classLoaderConfigurationKey, name, scope == Scope.ATTACHMENT, beforeUrls, afterUrls, dependencies, paths,
-                    pathIdsList, pathsByResourceName, pathsByClassName, classLoaderConfigurationKey.getModuleConfiguration(), namedModulesConfiguration);
+                    pathIdsList, pathsByResourceName, pathsByClassName, classLoaderConfigurationKey.getModuleConfiguration(), namedModulesConfiguration, mdcIncluded);
             LOGGER.trace("Classloader rules created");
         }
         return cachedClassLoaderConfiguration;

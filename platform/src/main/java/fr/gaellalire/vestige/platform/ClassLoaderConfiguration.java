@@ -59,9 +59,12 @@ public class ClassLoaderConfiguration implements Serializable {
 
     private JPMSNamedModulesConfiguration namedModulesConfiguration;
 
+    private boolean mdcIncluded;
+
     public ClassLoaderConfiguration(final Serializable key, final String name, final boolean attachmentScoped, final List<SecureFile> beforeUrls, final List<SecureFile> afterUrls,
             final List<ClassLoaderConfiguration> dependencies, final List<Integer> paths, final List<List<Integer>> pathIdsList, final StringParser pathIdsPositionByResourceName,
-            final StringParser pathIdsPositionByClassName, final JPMSClassLoaderConfiguration moduleConfiguration, final JPMSNamedModulesConfiguration namedModulesConfiguration) {
+            final StringParser pathIdsPositionByClassName, final JPMSClassLoaderConfiguration moduleConfiguration, final JPMSNamedModulesConfiguration namedModulesConfiguration,
+            final boolean mdcIncluded) {
         this.key = key;
         this.name = name;
         this.attachmentScoped = attachmentScoped;
@@ -84,6 +87,7 @@ public class ClassLoaderConfiguration implements Serializable {
         }
         this.moduleConfiguration = moduleConfiguration;
         this.namedModulesConfiguration = namedModulesConfiguration;
+        this.mdcIncluded = mdcIncluded;
     }
 
     public JPMSNamedModulesConfiguration getNamedModulesConfiguration() {
@@ -182,6 +186,10 @@ public class ClassLoaderConfiguration implements Serializable {
             }
         }
         return result;
+    }
+
+    public boolean isMdcIncluded() {
+        return mdcIncluded;
     }
 
 }

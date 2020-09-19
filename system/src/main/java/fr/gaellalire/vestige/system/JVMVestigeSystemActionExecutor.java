@@ -63,6 +63,7 @@ import fr.gaellalire.vestige.system.interceptor.VestigeURLHandlersHashTable;
 import fr.gaellalire.vestige.system.interceptor.VestigeURLStreamHandlerFactory;
 import fr.gaellalire.vestige.system.logger.SLF4JLoggerFactoryAdapter;
 import fr.gaellalire.vestige.system.logger.SLF4JPrintStream;
+import fr.gaellalire.vestige.system.logger.SLF4JUncaughtExceptionHandler;
 import fr.gaellalire.vestige.system.logger.SecureSLF4JLoggerFactoryAdapter;
 
 /**
@@ -159,6 +160,12 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
                 vestigeSystem.setSecurityManager(vestigeSecurityManager.getNextHandler());
                 System.setSecurityManager(vestigeSecurityManager);
             }
+        }
+
+        SLF4JUncaughtExceptionHandler slf4jUncaughtExceptionHandler;
+        synchronized (Thread.class) {
+            slf4jUncaughtExceptionHandler = new SLF4JUncaughtExceptionHandler(Thread.getDefaultUncaughtExceptionHandler());
+            Thread.setDefaultUncaughtExceptionHandler(slf4jUncaughtExceptionHandler);
         }
 
         VestigeProxySelector proxySelector;
@@ -427,6 +434,10 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
 
             synchronized (ProxySelector.class) {
                 ProxySelector.setDefault(StackedHandlerUtils.uninstallStackedHandler(proxySelector, ProxySelector.getDefault()));
+            }
+
+            synchronized (Thread.class) {
+                Thread.setDefaultUncaughtExceptionHandler(StackedHandlerUtils.uninstallStackedHandler(slf4jUncaughtExceptionHandler, Thread.getDefaultUncaughtExceptionHandler()));
             }
 
             synchronized (System.class) {

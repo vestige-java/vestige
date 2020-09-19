@@ -197,10 +197,14 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
             } else {
                 artifacts = this.artifacts;
             }
+            boolean mdcIncluded = false;
             boolean[] beforeParents = null;
             int i = 0;
             for (MavenArtifactAndMetadata artifact : artifacts) {
                 MavenArtifact mavenArtifact = artifact.getMavenArtifact();
+                if ("org.slf4j".equals(mavenArtifact.getGroupId()) && "slf4j-api".equals(mavenArtifact.getArtifactId())) {
+                    mdcIncluded = true;
+                }
                 mavenArtifacts.add(mavenArtifact);
                 List<SecureFile> urls;
                 if (beforeParentController.isBeforeParent(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId())) {
@@ -243,7 +247,7 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
                 name = appName;
             }
             classLoaderConfiguration = new ClassLoaderConfiguration(key, name, scope == Scope.ATTACHMENT, beforeUrls, afterUrls, Collections.<ClassLoaderConfiguration> emptyList(),
-                    null, null, null, null, key.getModuleConfiguration(), jpmsNamedModulesConfiguration);
+                    null, null, null, null, key.getModuleConfiguration(), jpmsNamedModulesConfiguration, mdcIncluded);
         }
         LOGGER.info("Classloader configuration created");
         return classLoaderConfiguration;

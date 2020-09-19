@@ -86,7 +86,7 @@ public class DefaultVestigeURLListResolver implements VestigeURLListResolver {
                 return new DefaultResolvedClassLoaderConfiguration(vestigePlatform,
                         new ClassLoaderConfiguration(key, name, scope == Scope.ATTACHMENT, Collections.<SecureFile> emptyList(), files,
                                 Collections.<ClassLoaderConfiguration> emptyList(), null, null, null, null, JPMSClassLoaderConfiguration.EMPTY_INSTANCE.merge(moduleConfigurations),
-                                null),
+                                null, false),
                         true);
             }
 

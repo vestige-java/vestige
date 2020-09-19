@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Field;
 import java.net.URLStreamHandler;
 import java.net.URLStreamHandlerFactory;
 import java.util.ArrayList;
@@ -36,6 +37,7 @@ import java.util.jar.JarFile;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import fr.gaellalire.vestige.core.ModuleEncapsulationEnforcer;
 import fr.gaellalire.vestige.core.VestigeClassLoader;
@@ -80,6 +82,52 @@ public class DefaultVestigePlatform implements VestigePlatform {
 
     private static final VestigeClassLoaderConfiguration[][] BEFORE_PARENT_NO_DEPENDENCY_LIST = new VestigeClassLoaderConfiguration[][] {
             new VestigeClassLoaderConfiguration[] {VestigeClassLoaderConfiguration.THIS_PARENT_UNSEARCHED, null}};
+
+    public static final InheritableThreadLocal<Map<String, String>> BASIC_MDC_HOOK = new InheritableThreadLocal<Map<String, String>>() {
+
+        private Map<String, String> map = new HashMap<String, String>() {
+
+            private static final long serialVersionUID = -5393662769412628524L;
+
+            @Override
+            public Set<String> keySet() {
+                return MDC.getCopyOfContextMap().keySet();
+            }
+
+            @Override
+            public String get(final Object key) {
+                return MDC.get((String) key);
+            }
+
+            @Override
+            public String put(final String key, final String value) {
+                MDC.put(key, value);
+                return null;
+            }
+
+            @Override
+            public String remove(final Object key) {
+                MDC.remove((String) key);
+                return null;
+            }
+
+            @Override
+            public Set<java.util.Map.Entry<String, String>> entrySet() {
+                return MDC.getCopyOfContextMap().entrySet();
+            }
+
+        };
+
+        @Override
+        public Map<String, String> get() {
+            return map;
+        }
+
+        @Override
+        public void remove() {
+            MDC.clear();
+        }
+    };
 
     private List<AttachedVestigeClassLoader> attached = new ArrayList<AttachedVestigeClassLoader>();
 
@@ -475,6 +523,36 @@ public class DefaultVestigePlatform implements VestigePlatform {
                         }
                     }
                 }
+            }
+
+            if (classLoaderConfiguration.isMdcIncluded()) {
+                Thread currentThread = Thread.currentThread();
+                ClassLoader contextClassLoader = currentThread.getContextClassLoader();
+                currentThread.setContextClassLoader(vestigeClassLoader);
+                try {
+                    Object basicMDCAdapter = vestigeClassLoader.loadClass("org.slf4j.MDC").getMethod("getMDCAdapter").invoke(null);
+                    Class<? extends Object> class1 = basicMDCAdapter.getClass();
+                    if ("org.slf4j.helpers.BasicMDCAdapter".equals(class1.getName())) {
+                        if (selfNeedModuleDefine) {
+                            JPMSModuleAccessor slf4jModule = moduleLayer.findModule("org.slf4j");
+                            if (slf4jModule != null) {
+                                slf4jModule.addOpens("org.slf4j.helpers", DefaultVestigePlatform.class);
+                            }
+                        }
+                        Field declaredField = class1.getDeclaredField("inheritableThreadLocal");
+                        declaredField.setAccessible(true);
+                        try {
+                            declaredField.set(basicMDCAdapter, BASIC_MDC_HOOK);
+                        } finally {
+                            declaredField.setAccessible(false);
+                        }
+                    }
+                } catch (Exception e) {
+                    LOGGER.warn("Unable to redirect MDC", e);
+                } finally {
+                    currentThread.setContextClassLoader(contextClassLoader);
+                }
+
             }
 
             if (classLoaderConfiguration.isAttachmentScoped()) {
