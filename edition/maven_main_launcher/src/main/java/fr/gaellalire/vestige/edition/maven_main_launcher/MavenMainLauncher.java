@@ -52,6 +52,8 @@ import javax.net.ssl.TrustManagerFactory;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.Unmarshaller;
+import javax.xml.transform.Source;
+import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 
@@ -110,6 +112,7 @@ import fr.gaellalire.vestige.spi.job.DummyJobHelper;
 import fr.gaellalire.vestige.spi.resolver.Scope;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolveMode;
 import fr.gaellalire.vestige.utils.SimpleValueGetter;
+import fr.gaellalire.vestige.utils.UtilsSchema;
 
 /**
  * @author Gael Lalire
@@ -247,7 +250,7 @@ public final class MavenMainLauncher {
 
             URL xsdURL = MavenMainLauncher.class.getResource("mavenLauncher.xsd");
             SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
-            Schema schema = schemaFactory.newSchema(xsdURL);
+            Schema schema = schemaFactory.newSchema(new Source[] {new StreamSource(UtilsSchema.getURL().toExternalForm()), new StreamSource(xsdURL.toExternalForm())});
             unMarshaller.setSchema(schema);
             MavenLauncher mavenLauncher = ((JAXBElement<MavenLauncher>) unMarshaller.unmarshal(mavenLauncherFile)).getValue();
             DefaultDependencyModifier defaultDependencyModifier = new DefaultDependencyModifier();

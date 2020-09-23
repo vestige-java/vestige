@@ -272,7 +272,7 @@ public class StandardEditionVestige implements Runnable {
 
             URL xsdURL = StandardEditionVestige.class.getResource("settings.xsd");
             SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
-            Schema schema = schemaFactory.newSchema(new Source[] {new StreamSource(xsdURL.toExternalForm()), new StreamSource(UtilsSchema.getURL().toExternalForm())});
+            Schema schema = schemaFactory.newSchema(new Source[] {new StreamSource(UtilsSchema.getURL().toExternalForm()), new StreamSource(xsdURL.toExternalForm())});
             unMarshaller.setSchema(schema);
         } catch (Exception e) {
             throw new RuntimeException("Unable to initialize settings parser", e);
@@ -520,12 +520,17 @@ public class StandardEditionVestige implements Runnable {
                 LOGGER.info("Vestige SE started in {} ms ({} ms since JVM started)", currentTimeMillis - startTimeMillis, currentTimeMillis - jvmStartTime);
             }
             vestigeStateListener.started();
-            synchronized (this) {
-                try {
-                    wait();
-                } catch (InterruptedException e) {
-                    LOGGER.trace("Vestige SE interrupted", e);
+            String stopAfterStart = System.getenv("VESTIGE_STOP_AFTER_START");
+            if (stopAfterStart == null || !Boolean.parseBoolean(stopAfterStart)) {
+                synchronized (this) {
+                    try {
+                        wait();
+                    } catch (InterruptedException e) {
+                        LOGGER.trace("Vestige SE interrupted", e);
+                    }
                 }
+            } else {
+                LOGGER.trace("Stop according to VESTIGE_STOP_AFTER_START");
             }
         }
         try {
@@ -783,7 +788,16 @@ public class StandardEditionVestige implements Runnable {
                         }
                     }
                 });
-
+                String stopAfterStart = System.getenv("VESTIGE_STOP_AFTER_START");
+                if (stopAfterStart != null && Boolean.parseBoolean(stopAfterStart)) {
+                    // accelerate the stop process, run in separate thread to avoid thread lock
+                    new Thread() {
+                        @Override
+                        public void run() {
+                            System.exit(0);
+                        }
+                    }.start();
+                }
             } finally {
                 if (socketChannel != null) {
                     socketChannel.close();

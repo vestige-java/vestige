@@ -33,6 +33,8 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
+import javax.xml.transform.Source;
+import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 
@@ -67,6 +69,7 @@ import fr.gaellalire.vestige.spi.resolver.maven.ReplaceDependencyRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.VestigeMavenResolver;
 import fr.gaellalire.vestige.spi.resolver.url_list.VestigeURLListResolver;
 import fr.gaellalire.vestige.utils.SimpleValueGetter;
+import fr.gaellalire.vestige.utils.UtilsSchema;
 
 /**
  * @author Gael Lalire
@@ -137,7 +140,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
 
             URL xsdURL = XMLApplicationRepositoryManager.class.getResource("application.xsd");
             SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
-            Schema schema = schemaFactory.newSchema(xsdURL);
+            Schema schema = schemaFactory.newSchema(new Source[] {new StreamSource(UtilsSchema.getURL().toExternalForm()), new StreamSource(xsdURL.toExternalForm())});
             unMarshaller.setSchema(schema);
         } catch (Exception e) {
             throw new ApplicationException("Unable to initialize settings parser", e);
@@ -309,7 +312,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
 
             URL xsdURL = XMLApplicationRepositoryManager.class.getResource("repository.xsd");
             SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
-            Schema schema = schemaFactory.newSchema(xsdURL);
+            Schema schema = schemaFactory.newSchema(new Source[] {new StreamSource(UtilsSchema.getURL().toExternalForm()), new StreamSource(xsdURL.toExternalForm())});
             unMarshaller.setSchema(schema);
         } catch (Exception e) {
             LOGGER.warn("Unable to initialize repository parser", e);
