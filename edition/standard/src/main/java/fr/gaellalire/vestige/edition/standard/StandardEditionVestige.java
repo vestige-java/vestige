@@ -26,6 +26,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
 import java.net.ProxySelector;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -97,7 +98,10 @@ import fr.gaellalire.vestige.edition.standard.schema.SSH;
 import fr.gaellalire.vestige.edition.standard.schema.Settings;
 import fr.gaellalire.vestige.edition.standard.schema.Web;
 import fr.gaellalire.vestige.job.DefaultJobManager;
+import fr.gaellalire.vestige.job.JobController;
+import fr.gaellalire.vestige.job.JobListener;
 import fr.gaellalire.vestige.job.JobManager;
+import fr.gaellalire.vestige.job.TaskListener;
 import fr.gaellalire.vestige.jpms.JPMSAccessor;
 import fr.gaellalire.vestige.jpms.JPMSAccessorLoader;
 import fr.gaellalire.vestige.jpms.JPMSModuleAccessor;
@@ -428,7 +432,29 @@ public class StandardEditionVestige implements Runnable {
         };
 
         List<VestigeResolver> vestigeResolvers = Arrays.asList(vestigeURLListResolver, vestigeMavenResolver);
-        ApplicationRepositoryManager applicationDescriptorFactory = new XMLApplicationRepositoryManager(vestigeURLListResolver, 0, vestigeMavenResolver, 1, opener);
+        final String installM2Repo = System.getenv("VESTIGE_INSTALL_M2_REPO");
+        MavenArtifactResolver installVestigeMavenResolver = null;
+        if (installM2Repo != null) {
+            File installM2RepoFile = new File(installM2Repo);
+            if (installM2RepoFile.mkdirs()) {
+                try {
+                    installVestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile, new SSLContextAccessor() {
+
+                        @Override
+                        public SSLContext getSSLContext() {
+                            return sslContext;
+                        }
+                    }, "installation", installM2RepoFile);
+                    // the mvn protocol of the launching code may not be the same as ours
+                    // vestigeSystem.setURLStreamHandlerForProtocol(MavenArtifactResolver.MVN_PROTOCOL, MavenArtifactResolver.URL_STREAM_HANDLER);
+                } catch (NoLocalRepositoryManagerException e) {
+                    LOGGER.error("NoLocalRepositoryManagerException", e);
+                    return;
+                }
+            }
+        }
+        ApplicationRepositoryManager applicationDescriptorFactory = new XMLApplicationRepositoryManager(vestigeURLListResolver, 0, vestigeMavenResolver,
+                installVestigeMavenResolver, 1, opener);
 
         JobManager actionManager = new DefaultJobManager();
 
@@ -520,17 +546,80 @@ public class StandardEditionVestige implements Runnable {
                 LOGGER.info("Vestige SE started in {} ms ({} ms since JVM started)", currentTimeMillis - startTimeMillis, currentTimeMillis - jvmStartTime);
             }
             vestigeStateListener.started();
-            String stopAfterStart = System.getenv("VESTIGE_STOP_AFTER_START");
-            if (stopAfterStart == null || !Boolean.parseBoolean(stopAfterStart)) {
-                synchronized (this) {
-                    try {
-                        wait();
-                    } catch (InterruptedException e) {
-                        LOGGER.trace("Vestige SE interrupted", e);
+            URL vestigeInstallURL = null;
+            String vestigeInstallURLString = System.getenv("VESTIGE_INSTALL_URL");
+            try {
+                if (vestigeInstallURLString == null) {
+                    String vestigeInstallFileString = System.getenv("VESTIGE_INSTALL_FILE");
+                    if (vestigeInstallFileString != null) {
+                        File vestigeInstallFile = new File(vestigeInstallFileString);
+                        if (vestigeInstallFile.isFile()) {
+                            vestigeInstallURL = vestigeInstallFile.toURI().toURL();
+                        }
                     }
+                } else {
+                    vestigeInstallURL = new URL(vestigeInstallURLString);
                 }
-            } else {
-                LOGGER.trace("Stop according to VESTIGE_STOP_AFTER_START");
+            } catch (MalformedURLException e) {
+                LOGGER.trace("Vestige SE auto installing invalid URL", e);
+            }
+            if (vestigeInstallURL != null) {
+                try {
+                    final String installLocalName = System.getenv("VESTIGE_INSTALL_LOCAL_NAME");
+                    if (installLocalName != null) {
+                        final JobController jobController = defaultApplicationManager.install(vestigeInstallURL, null, null, null, installLocalName, new JobListener() {
+
+                            @Override
+                            public TaskListener taskAdded(final String description) {
+                                return new TaskListener() {
+
+                                    @Override
+                                    public void taskDone() {
+                                    }
+
+                                    @Override
+                                    public void progressChanged(final float progress) {
+                                    }
+                                };
+                            }
+
+                            @Override
+                            public void jobDone() {
+                                synchronized (StandardEditionVestige.this) {
+                                    StandardEditionVestige.this.notify();
+                                }
+                            }
+                        });
+                        synchronized (this) {
+                            try {
+                                while (!jobController.isDone()) {
+                                    wait();
+                                }
+                                defaultApplicationManager.setAutoStarted(installLocalName, true);
+                            } catch (InterruptedException e) {
+                                LOGGER.trace("Vestige SE interrupted while auto installing", e);
+                                jobController.interrupt();
+                                interrupted = true;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    LOGGER.warn("Vestige SE auto installing failed", e);
+                }
+            }
+            if (!interrupted) {
+                String stopAfterStart = System.getenv("VESTIGE_STOP_AFTER_START");
+                if (stopAfterStart == null || !Boolean.parseBoolean(stopAfterStart)) {
+                    synchronized (this) {
+                        try {
+                            wait();
+                        } catch (InterruptedException e) {
+                            LOGGER.trace("Vestige SE interrupted", e);
+                        }
+                    }
+                } else {
+                    LOGGER.trace("Stop according to VESTIGE_STOP_AFTER_START");
+                }
             }
         }
         try {

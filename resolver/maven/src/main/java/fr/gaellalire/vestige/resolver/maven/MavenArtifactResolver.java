@@ -186,8 +186,21 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
 
     private VestigePlatform vestigePlatform;
 
+    private String logAppend;
+
     public MavenArtifactResolver(final VestigePlatform vestigePlatform, final File settingsFile, final SSLContextAccessor sslContextAccessor)
             throws NoLocalRepositoryManagerException {
+        this(vestigePlatform, settingsFile, sslContextAccessor, null, null);
+
+    }
+
+    public MavenArtifactResolver(final VestigePlatform vestigePlatform, final File settingsFile, final SSLContextAccessor sslContextAccessor, final String name,
+            final File localRepositoryFileOverride) throws NoLocalRepositoryManagerException {
+        if (name == null) {
+            logAppend = "";
+        } else {
+            logAppend = " in " + name + " resolver";
+        }
         this.vestigePlatform = vestigePlatform;
         File localRepositoryFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "repository");
         try {
@@ -203,9 +216,9 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
                     authentication = new AuthenticationBuilder().addUsername(activeProxy.getUsername()).addPassword(activeProxy.getPassword()).build();
                 }
                 proxy = new Proxy(activeProxy.getProtocol(), activeProxy.getHost(), activeProxy.getPort(), authentication);
-                LOGGER.info("Use proxy in Maven settings with id {}", activeProxy.getId());
+                LOGGER.info("Use proxy in Maven settings with id {}{}", activeProxy.getId(), logAppend);
             } else {
-                LOGGER.info("No proxy in Maven settings, system proxy will be used (if any)");
+                LOGGER.info("No proxy in Maven settings, system proxy will be used (if any){}", logAppend);
             }
             String settingsLocalRepository = settings.getLocalRepository();
             if (settingsLocalRepository != null && settingsLocalRepository.length() != 0) {
@@ -213,9 +226,14 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
             }
             offline = settings.isOffline();
         } catch (SettingsBuildingException e) {
-            LOGGER.warn("Unable to read settings.xml, use default values", e);
+            if (LOGGER.isWarnEnabled()) {
+                LOGGER.warn("Unable to read settings.xml, use default values" + logAppend, e);
+            }
         }
-        LOGGER.info("Use m2 repository {}", localRepositoryFile);
+        if (localRepositoryFileOverride != null) {
+            localRepositoryFile = localRepositoryFileOverride;
+        }
+        LOGGER.info("Use m2 repository {}{}", localRepositoryFile, logAppend);
 
         this.localRepository = new LocalRepository(localRepositoryFile);
 
@@ -384,7 +402,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
         boolean firstTry = true;
         doresolve: while (true) {
 
-            LOGGER.info("Collecting dependencies for {}", dependency);
+            LOGGER.info("Collecting dependencies for {}{}", dependency, logAppend);
             DependencyNode node;
             DependencyModifier dependencyModifier = resolveRequest.getDependencyModifier();
             if (dependencyModifier == null) {
@@ -394,7 +412,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
             try {
                 node = dependencyCollector.collectDependencies(session, collectRequest, dependencyModifier).getRoot();
             } catch (DependencyCollectionException e) {
-                throw new ResolverException("Dependencies collection failed", e);
+                throw new ResolverException("Dependencies collection failed" + logAppend, e);
             }
 
             DependencyRequest dependencyRequest = new DependencyRequest(node, null);
@@ -402,7 +420,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
             try {
                 repoSystem.resolveDependencies(session, dependencyRequest);
             } catch (DependencyResolutionException e) {
-                throw new ResolverException("Dependencies resolving failed", e);
+                throw new ResolverException("Dependencies resolving failed" + logAppend, e);
             }
 
             PreorderNodeListGenerator nlg = new PreorderNodeListGenerator();
@@ -411,7 +429,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
             boolean hasNullSha1 = false;
 
             List<Artifact> artifacts = nlg.getArtifacts(true);
-            LOGGER.info("Dependencies collected");
+            LOGGER.info("Dependencies collected{}", logAppend);
 
             List<MavenArtifactAndMetadata> mavenArtifactAndMetadatas = new ArrayList<MavenArtifactAndMetadata>(artifacts.size());
 
@@ -433,7 +451,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
                 try {
                     secureFile = new SecureFile(file, new URL(mavenArtifact.toString()), mavenArtifact.getSha1sum());
                 } catch (MalformedURLException e) {
-                    throw new ResolverException("Unable to create Maven URL", e);
+                    throw new ResolverException("Unable to create Maven URL" + logAppend, e);
                 }
                 mavenArtifactAndMetadatas.add(new MavenArtifactAndMetadata(mavenArtifact, secureFile));
             }

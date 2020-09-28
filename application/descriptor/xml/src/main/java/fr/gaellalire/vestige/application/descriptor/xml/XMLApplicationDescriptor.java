@@ -76,6 +76,8 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
 
     private MavenContext mavenContext;
 
+    private MavenContext installerMavenContext;
+
     private Set<Permission> installerPermissions;
 
     private Set<Permission> permissions;
@@ -85,13 +87,14 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
     private String javaSpecificationVersion;
 
     public XMLApplicationDescriptor(final XMLApplicationRepositoryManager xmlApplicationRepositoryManager, final String javaSpecificationVersion, final List<Integer> version,
-            final Application application, final MavenContext mavenConfigResolved, final Set<Permission> permissions, final Set<Permission> installerPermissions,
-            final JobHelper jobHelper) {
+            final Application application, final MavenContext mavenContext, final MavenContext installerMavenContext, final Set<Permission> permissions,
+            final Set<Permission> installerPermissions, final JobHelper jobHelper) {
         this.xmlApplicationRepositoryManager = xmlApplicationRepositoryManager;
         this.javaSpecificationVersion = javaSpecificationVersion;
         this.version = version;
         this.application = application;
-        this.mavenContext = mavenConfigResolved;
+        this.mavenContext = mavenContext;
+        this.installerMavenContext = installerMavenContext;
         this.permissions = permissions;
         this.installerPermissions = installerPermissions;
         this.jobHelper = jobHelper;
@@ -122,9 +125,11 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
                 int lastBugfix = Integer.parseInt(matcher.group(g++));
                 for (int i = firstBugfix; i <= lastBugfix; i++) {
                     List<Integer> otherVersion = Arrays.asList(major, minor, i);
-                    Integer compare = VersionUtils.compare(version, otherVersion);
-                    if (compare != null && compare.intValue() < 0) {
-                        throw new ApplicationException("Version " + VersionUtils.toString(otherVersion) + " cannot be supported by " + VersionUtils.toString(version));
+                    if (version != null) {
+                        Integer compare = VersionUtils.compare(version, otherVersion);
+                        if (compare != null && compare.intValue() < 0) {
+                            throw new ApplicationException("Version " + VersionUtils.toString(otherVersion) + " cannot be supported by " + VersionUtils.toString(version));
+                        }
                     }
                     supportedMigrationVersion.add(otherVersion);
                 }
@@ -153,9 +158,11 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
                 int lastBugfix = Integer.parseInt(matcher.group(g++));
                 for (int i = firstBugfix; i <= lastBugfix; i++) {
                     List<Integer> otherVersion = Arrays.asList(major, minor, i);
-                    Integer compare = VersionUtils.compare(version, otherVersion);
-                    if (compare != null && compare.intValue() < 0) {
-                        throw new ApplicationException("Version " + VersionUtils.toString(otherVersion) + " cannot be supported by " + VersionUtils.toString(version));
+                    if (version != null) {
+                        Integer compare = VersionUtils.compare(version, otherVersion);
+                        if (compare != null && compare.intValue() < 0) {
+                            throw new ApplicationException("Version " + VersionUtils.toString(otherVersion) + " cannot be supported by " + VersionUtils.toString(version));
+                        }
                     }
                     uninterruptedMigrationVersion.add(otherVersion);
                 }
@@ -203,7 +210,7 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
                 throw new ApplicationException(e);
             }
         }
-        return resolve(configurationName, installer.getMavenResolver(), jobHelper);
+        return resolve(installerMavenContext, configurationName, installer.getMavenResolver(), jobHelper);
     }
 
     public String getLauncherClassName() throws ApplicationException {
@@ -279,7 +286,7 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
                 throw new ApplicationException(e);
             }
         }
-        return resolve(configurationName, launcher.getMavenResolver(), jobHelper);
+        return resolve(mavenContext, configurationName, launcher.getMavenResolver(), jobHelper);
     }
 
     public static Scope convertScope(final fr.gaellalire.vestige.application.descriptor.xml.schema.application.Scope scope) throws ApplicationException {
@@ -300,8 +307,8 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
         return mavenScope;
     }
 
-    public ApplicationResolvedClassLoaderConfiguration resolve(final String configurationName, final MavenClassType mavenClassType, final JobHelper actionHelper)
-            throws ApplicationException {
+    public ApplicationResolvedClassLoaderConfiguration resolve(final MavenContext mavenContext, final String configurationName, final MavenClassType mavenClassType,
+            final JobHelper actionHelper) throws ApplicationException {
         ResolveMode resolveMode;
         Mode mode = mavenClassType.getMode();
         switch (mode) {

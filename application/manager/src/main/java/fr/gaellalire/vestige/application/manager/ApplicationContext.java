@@ -74,6 +74,8 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     private List<AddInject> installerAddInjects;
 
+    private URL overrideURL;
+
     public List<AddInject> getInstallerAddInjects() {
         return installerAddInjects;
     }
@@ -326,6 +328,14 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     public void setCache(final File cache) {
         this.cache = cache;
+    }
+
+    public URL getOverrideURL() {
+        return overrideURL;
+    }
+
+    public void setOverrideURL(final URL overrideURL) {
+        this.overrideURL = overrideURL;
     }
 
     // private void writeObject(ObjectOutputStream out) throws IOException {

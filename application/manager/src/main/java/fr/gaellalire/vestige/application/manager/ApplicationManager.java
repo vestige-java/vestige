@@ -35,7 +35,7 @@ public interface ApplicationManager extends ApplicationManagerState {
 
     void removeRepository(String name) throws ApplicationException;
 
-    JobController install(URL repoURL, String appName, List<Integer> version, String installName, JobListener jobListener) throws ApplicationException;
+    JobController install(URL overrideURL, URL repoURL, String appName, List<Integer> version, String installName, JobListener jobListener) throws ApplicationException;
 
     JobController reloadDescriptor(String application, JobListener jobListener) throws ApplicationException;
 

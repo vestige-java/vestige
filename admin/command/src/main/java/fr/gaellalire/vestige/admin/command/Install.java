@@ -67,7 +67,7 @@ public class Install implements Command {
     public JobController execute(final CommandContext commandContext) {
 
         try {
-            return applicationManager.install(applicationManager.getRepositoryURL(repositoryArgument.getRepository()), applicationArgument.getApplication(),
+            return applicationManager.install(null, applicationManager.getRepositoryURL(repositoryArgument.getRepository()), applicationArgument.getApplication(),
                     versionArgument.getVersion(), installNameArgument.getApplication(), commandContext.getJobListener());
         } catch (ApplicationException e) {
             e.printStackTrace(commandContext.getOut());

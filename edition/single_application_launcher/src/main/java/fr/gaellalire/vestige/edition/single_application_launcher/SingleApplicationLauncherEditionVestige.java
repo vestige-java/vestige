@@ -342,7 +342,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
         };
 
         List<VestigeResolver> vestigeResolvers = Arrays.asList(vestigeURLListResolver, vestigeMavenResolver);
-        ApplicationRepositoryManager applicationDescriptorFactory = new XMLApplicationRepositoryManager(vestigeURLListResolver, 0, vestigeMavenResolver, 1, opener);
+        ApplicationRepositoryManager applicationDescriptorFactory = new XMLApplicationRepositoryManager(vestigeURLListResolver, 0, vestigeMavenResolver, null, 1, opener);
 
         JobManager actionManager = new DefaultJobManager();
 
@@ -368,7 +368,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
         }
 
         try {
-            defaultApplicationManager.install(null, "local", Arrays.<Integer> asList(0, 0, 0), "app", null);
+            defaultApplicationManager.install(null, null, "local", Arrays.<Integer> asList(0, 0, 0), "app", null);
 
             defaultApplicationManager.start("app");
         } catch (ApplicationException e1) {

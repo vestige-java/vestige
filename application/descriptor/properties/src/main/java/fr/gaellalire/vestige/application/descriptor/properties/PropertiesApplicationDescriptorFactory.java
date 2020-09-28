@@ -39,7 +39,7 @@ public class PropertiesApplicationDescriptorFactory implements ApplicationReposi
     }
 
     @Override
-    public ApplicationDescriptor createApplicationDescriptor(final URL context, final String appName, final List<Integer> version, final JobHelper actionHelper)
+    public ApplicationDescriptor createApplicationDescriptor(final URL o, final URL context, final String appName, final List<Integer> version, final JobHelper actionHelper)
             throws ApplicationException {
         // TODO Auto-generated method stub
         return null;

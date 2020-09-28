@@ -82,6 +82,8 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
 
     private VestigeMavenResolver vestigeMavenResolver;
 
+    private VestigeMavenResolver installVestigeMavenResolver;
+
     private int vestigeURLListResolverIndex;
 
     private int vestigeMavenResolverIndex;
@@ -89,10 +91,11 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
     private URLOpener opener;
 
     public XMLApplicationRepositoryManager(final VestigeURLListResolver vestigeURLListResolver, final int vestigeURLListResolverIndex,
-            final VestigeMavenResolver vestigeMavenResolver, final int vestigeMavenResolverIndex, final URLOpener opener) {
+            final VestigeMavenResolver vestigeMavenResolver, final VestigeMavenResolver installVestigeMavenResolver, final int vestigeMavenResolverIndex, final URLOpener opener) {
         this.vestigeURLListResolver = vestigeURLListResolver;
         this.vestigeURLListResolverIndex = vestigeURLListResolverIndex;
         this.vestigeMavenResolver = vestigeMavenResolver;
+        this.installVestigeMavenResolver = installVestigeMavenResolver;
         this.vestigeMavenResolverIndex = vestigeMavenResolverIndex;
         this.opener = opener;
     }
@@ -148,14 +151,16 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         return ((JAXBElement<Application>) unMarshaller.unmarshal(inputStream)).getValue();
     }
 
-    public ApplicationDescriptor createApplicationDescriptor(final URL context, final String appName, final List<Integer> version, final JobHelper jobHelper)
+    public ApplicationDescriptor createApplicationDescriptor(final URL overrideURL, final URL context, final String appName, final List<Integer> version, final JobHelper jobHelper)
             throws ApplicationException {
         TaskHelper task = jobHelper.addTask("Reading application descriptor");
-        URL url;
-        try {
-            url = new URL(context, appName + "/" + appName + "-" + VersionUtils.toString(version) + ".xml");
-        } catch (MalformedURLException e) {
-            throw new ApplicationException("URL repo issue", e);
+        URL url = overrideURL;
+        if (url == null) {
+            try {
+                url = new URL(context, appName + "/" + appName + "-" + VersionUtils.toString(version) + ".xml");
+            } catch (MalformedURLException e) {
+                throw new ApplicationException("URL repo issue", e);
+            }
         }
 
         InputStream inputStream;
@@ -183,11 +188,24 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         String javaSpecificationVersion = SimpleValueGetter.INSTANCE.getValue(application.getJavaSpecificationVersion());
         Set<Permission> installerPermissionSet = new HashSet<Permission>();
         Set<Permission> launcherPermissionSet = new HashSet<Permission>();
+        MavenContext mavenContext = createMavenContext(configurations, installerPermissionSet, launcherPermissionSet, vestigeMavenResolver);
+        MavenContext installerMavenContext;
+        if (installVestigeMavenResolver != null) {
+            installerMavenContext = createMavenContext(configurations, installerPermissionSet, launcherPermissionSet, installVestigeMavenResolver);
+        } else {
+            installerMavenContext = mavenContext;
+        }
+        return new XMLApplicationDescriptor(this, javaSpecificationVersion, version, application, mavenContext, installerMavenContext, launcherPermissionSet,
+                installerPermissionSet, jobHelper);
+    }
+
+    public MavenContext createMavenContext(final Config configurations, final Set<Permission> installerPermissionSet, final Set<Permission> launcherPermissionSet,
+            final VestigeMavenResolver vestigeMavenResolver) {
         MavenContext mavenConfigResolved;
         if (configurations != null) {
             MavenConfig mavenConfig = configurations.getMavenConfig();
             if (mavenConfig != null) {
-                mavenConfigResolved = resolveMavenConfig(mavenConfig);
+                mavenConfigResolved = resolveMavenConfig(mavenConfig, vestigeMavenResolver);
             } else {
                 mavenConfigResolved = vestigeMavenResolver.createMavenContextBuilder().build();
             }
@@ -207,7 +225,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         } else {
             mavenConfigResolved = vestigeMavenResolver.createMavenContextBuilder().build();
         }
-        return new XMLApplicationDescriptor(this, javaSpecificationVersion, version, application, mavenConfigResolved, launcherPermissionSet, installerPermissionSet, jobHelper);
+        return mavenConfigResolved;
     }
 
     public VestigeURLListResolver getVestigeURLListResolver() {
@@ -251,7 +269,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         }
     }
 
-    public MavenContext resolveMavenConfig(final MavenConfig mavenConfig) {
+    public MavenContext resolveMavenConfig(final MavenConfig mavenConfig, final VestigeMavenResolver vestigeMavenResolver) {
         MavenContextBuilder mavenResolverRequestContext = vestigeMavenResolver.createMavenContextBuilder();
 
         for (Object object : mavenConfig.getModifyDependencyOrReplaceDependencyOrAdditionalRepository()) {

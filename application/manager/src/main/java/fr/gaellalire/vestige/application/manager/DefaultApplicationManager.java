@@ -231,9 +231,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         }
     }
 
-    public ApplicationContext createApplicationContext(final URL repoURL, final String appName, final List<Integer> version, final String installName, final JobHelper jobHelper)
-            throws ApplicationException {
-        ApplicationDescriptor applicationDescriptor = applicationDescriptorFactory.createApplicationDescriptor(repoURL, appName, version, jobHelper);
+    public ApplicationContext createApplicationContext(final URL overrideURL, final URL repoURL, final String appName, final List<Integer> version, final String installName,
+            final JobHelper jobHelper) throws ApplicationException {
+        ApplicationDescriptor applicationDescriptor = applicationDescriptorFactory.createApplicationDescriptor(overrideURL, repoURL, appName, version, jobHelper);
 
         String javaSpecificationVersion = applicationDescriptor.getJavaSpecificationVersion();
         if (!isJavaSpecificationVersionCompatible(javaSpecificationVersion)) {
@@ -273,6 +273,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         applicationContext.setAddInjects(applicationDescriptor.getLauncherAddInjects());
         applicationContext.setInstallerAddInjects(applicationDescriptor.getInstallerAddInjects());
 
+        applicationContext.setOverrideURL(overrideURL);
+
         return applicationContext;
     }
 
@@ -280,8 +282,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
     private JobManager jobManager;
 
-    public JobController install(final URL repoURL, final String appName, final List<Integer> version, final String pinstallName, final JobListener jobListener)
-            throws ApplicationException {
+    public JobController install(final URL overrideURL, final URL repoURL, final String appName, final List<Integer> version, final String pinstallName,
+            final JobListener jobListener) throws ApplicationException {
         String installName = pinstallName;
         if (installName == null || installName.length() == 0) {
             installName = appName;
@@ -294,13 +296,15 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 throw new ApplicationException("application already installing");
             }
         }
-        return jobManager.submitJob("install", "Installing " + installName, new InstallAction(repoURL, appName, version, installName), jobListener);
+        return jobManager.submitJob("install", "Installing " + installName, new InstallAction(overrideURL, repoURL, appName, version, installName), jobListener);
     }
 
     /**
      * @author Gael Lalire
      */
     private class InstallAction implements Job {
+
+        private URL overrideURL;
 
         private URL repoURL;
 
@@ -310,7 +314,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
         private String installName;
 
-        InstallAction(final URL repoURL, final String appName, final List<Integer> version, final String installName) {
+        InstallAction(final URL overrideURL, final URL repoURL, final String appName, final List<Integer> version, final String installName) {
+            this.overrideURL = overrideURL;
             this.repoURL = repoURL;
             this.appName = appName;
             this.version = version;
@@ -323,7 +328,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
             boolean successful = false;
             try {
-                applicationContext = createApplicationContext(repoURL, appName, version, installName, jobHelper);
+                applicationContext = createApplicationContext(overrideURL, repoURL, appName, version, installName, jobHelper);
                 final File config = applicationContext.getConfig();
                 if (config.exists()) {
                     try {
@@ -457,8 +462,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         public void run(final JobHelper jobHelper) throws ApplicationException {
             ApplicationContext reloadedApplicationContext = null;
             try {
-                reloadedApplicationContext = createApplicationContext(applicationContext.getRepoURL(), applicationContext.getRepoApplicationName(),
-                        applicationContext.getRepoApplicationVersion(), installName, jobHelper);
+                reloadedApplicationContext = createApplicationContext(applicationContext.getOverrideURL(), applicationContext.getRepoURL(),
+                        applicationContext.getRepoApplicationName(), applicationContext.getRepoApplicationVersion(), installName, jobHelper);
             } finally {
                 if (reloadedApplicationContext != null) {
                     synchronized (state) {
@@ -848,8 +853,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 LOGGER.info("Migrating {} to version {} ", installName, VersionUtils.toString(toVersion));
             }
             try {
-                final ApplicationContext toApplicationContext = createApplicationContext(fromApplicationContext.getRepoURL(), fromApplicationContext.getRepoApplicationName(),
-                        toVersion, installName, jobHelper);
+                final ApplicationContext toApplicationContext = createApplicationContext(fromApplicationContext.getOverrideURL(), fromApplicationContext.getRepoURL(),
+                        fromApplicationContext.getRepoApplicationName(), toVersion, installName, jobHelper);
 
                 int level = fromApplicationContext.getAutoMigrateLevel();
                 // migration target inherits autoMigrateLevel
