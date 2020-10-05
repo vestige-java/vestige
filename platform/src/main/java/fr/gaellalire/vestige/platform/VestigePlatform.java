@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Set;
 
 import fr.gaellalire.vestige.core.VestigeClassLoader;
+import fr.gaellalire.vestige.core.executor.VestigeWorker;
 import fr.gaellalire.vestige.jpms.ModuleLayerLinker;
 
 /**
@@ -33,7 +34,7 @@ public interface VestigePlatform extends ModuleLayerLinker<VestigeClassLoader<At
 
     int attach(VestigeClassLoader<AttachedVestigeClassLoader> classLoader);
 
-    int attach(ClassLoaderConfiguration classLoaderConfiguration) throws InterruptedException, IOException;
+    int attach(ClassLoaderConfiguration classLoaderConfiguration, VestigeWorker vestigeWorker) throws InterruptedException, IOException;
 
     void detach(int id);
 

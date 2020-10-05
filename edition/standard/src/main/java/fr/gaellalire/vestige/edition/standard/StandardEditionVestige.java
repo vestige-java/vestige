@@ -90,6 +90,7 @@ import fr.gaellalire.vestige.application.manager.DefaultApplicationManager;
 import fr.gaellalire.vestige.application.manager.URLOpener;
 import fr.gaellalire.vestige.core.VestigeCoreContext;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;
+import fr.gaellalire.vestige.core.executor.VestigeWorker;
 import fr.gaellalire.vestige.core.function.Function;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandlerFactory;
 import fr.gaellalire.vestige.edition.standard.schema.Admin;
@@ -146,7 +147,7 @@ public class StandardEditionVestige implements Runnable {
 
     private VestigeExecutor vestigeExecutor;
 
-    private Thread workerThread;
+    private VestigeWorker[] vestigeWorker = new VestigeWorker[1];
 
     // private ApplicationDescriptorFactory applicationDescriptorFactory;
 
@@ -212,8 +213,9 @@ public class StandardEditionVestige implements Runnable {
     @SuppressWarnings("unchecked")
     @Override
     public void run() {
-        // FIXME maybe vestigeExecutor is useless now that detach will not run anything
+        boolean vestigeExecutorCreated = false;
         if (vestigeExecutor == null) {
+            vestigeExecutorCreated = true;
             vestigeExecutor = new VestigeExecutor();
         }
         if (vestigeURLListResolver == null || vestigeMavenResolver == null) {
@@ -223,7 +225,7 @@ public class StandardEditionVestige implements Runnable {
                 if (jpmsAccessor != null) {
                     moduleLayerRepository = jpmsAccessor.createModuleLayerRepository();
                 }
-                vestigePlatform = new DefaultVestigePlatform(vestigeExecutor, moduleLayerRepository);
+                vestigePlatform = new DefaultVestigePlatform(moduleLayerRepository);
             }
         }
 
@@ -362,7 +364,7 @@ public class StandardEditionVestige implements Runnable {
         }
 
         if (vestigeURLListResolver == null) {
-            vestigeURLListResolver = new DefaultVestigeURLListResolver(vestigePlatform);
+            vestigeURLListResolver = new DefaultVestigeURLListResolver(vestigePlatform, vestigeWorker);
         }
 
         final SSLContext sslContext;
@@ -390,7 +392,7 @@ public class StandardEditionVestige implements Runnable {
 
         if (vestigeMavenResolver == null) {
             try {
-                vestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile, new SSLContextAccessor() {
+                vestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, vestigeWorker, mavenSettingsFile, new SSLContextAccessor() {
 
                     @Override
                     public SSLContext getSSLContext() {
@@ -438,7 +440,7 @@ public class StandardEditionVestige implements Runnable {
             File installM2RepoFile = new File(installM2Repo);
             if (installM2RepoFile.mkdirs()) {
                 try {
-                    installVestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile, new SSLContextAccessor() {
+                    installVestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, vestigeWorker, mavenSettingsFile, new SSLContextAccessor() {
 
                         @Override
                         public SSLContext getSSLContext() {
@@ -471,11 +473,6 @@ public class StandardEditionVestige implements Runnable {
 
         defaultApplicationManager = new DefaultApplicationManager(actionManager, appBaseFile, appDataFile, appCacheFile, applicationsVestigeSystem, standardEditionVestigeSystem,
                 vestigePolicy, vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile, vestigeResolvers, injectableByClassName);
-        try {
-            defaultApplicationManager.restoreState();
-        } catch (ApplicationException e) {
-            LOGGER.warn("Unable to restore application manager state", e);
-        }
 
         Admin admin = settings.getAdmin();
         SSH ssh = admin.getSsh();
@@ -630,6 +627,10 @@ public class StandardEditionVestige implements Runnable {
                     vestigePlatform.detach(id);
                 }
             }
+            if (vestigeExecutorCreated) {
+                vestigeExecutor.getThreadReaperHelper().reap();
+            }
+
             LOGGER.info("Vestige SE stopped");
             vestigeStateListener.stopped();
         } catch (Exception e) {
@@ -646,10 +647,17 @@ public class StandardEditionVestige implements Runnable {
     }
 
     public void start(final JobManager jobManager) throws Exception {
-        if (workerThread != null) {
+        if (vestigeWorker[0] != null) {
             return;
         }
-        workerThread = vestigeExecutor.createWorker("se-worker", true, 0);
+        vestigeWorker[0] = vestigeExecutor.createWorker("se-worker", true, 0);
+        vestigePlatform = null;
+        try {
+            defaultApplicationManager.restoreState();
+        } catch (ApplicationException e) {
+            LOGGER.warn("Unable to restore application manager state", e);
+        }
+
         // try {
         // defaultApplicationManager.autoMigrate();
         // } catch (ApplicationException e) {
@@ -675,7 +683,7 @@ public class StandardEditionVestige implements Runnable {
     }
 
     public void stop() throws Exception {
-        if (workerThread == null) {
+        if (vestigeWorker[0] == null) {
             return;
         }
         if (webServer != null) {
@@ -694,9 +702,9 @@ public class StandardEditionVestige implements Runnable {
         }
         defaultApplicationManager.stopAll();
         defaultApplicationManager.stopStateListenerThread();
-        workerThread.interrupt();
-        workerThread.join();
-        workerThread = null;
+        vestigeWorker[0].interrupt();
+        vestigeWorker[0].join();
+        vestigeWorker = null;
     }
 
     public static void configureLogback() {
@@ -729,7 +737,7 @@ public class StandardEditionVestige implements Runnable {
                 copyOnThreadLocalField.setAccessible(false);
             }
 
-            final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+            final ClassLoader contextClassLoader = ClassLoader.getSystemClassLoader();
             final Field threadFactoryField = ExecutorServiceUtil.class.getDeclaredField("THREAD_FACTORY");
             try {
                 JVMVestigeSystemActionExecutor.setStaticFieldValue(threadFactoryField, new ThreadFactory() {
@@ -917,7 +925,8 @@ public class StandardEditionVestige implements Runnable {
             }
             moduleLayerRepository = jpmsAccessor.createModuleLayerRepository();
         }
-        VestigePlatform vestigePlatform = new DefaultVestigePlatform(vestigeCoreContext.getVestigeExecutor(), moduleLayerRepository);
+
+        VestigePlatform vestigePlatform = new DefaultVestigePlatform(moduleLayerRepository);
 
         File mavenSettingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
         if (!mavenSettingsFile.isFile()) {
@@ -925,7 +934,8 @@ public class StandardEditionVestige implements Runnable {
         }
         LOGGER.info("Use {} for Maven settings file", mavenSettingsFile);
 
-        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile, null);
+        // we don't need vestigePlatform or vestigeWorker because we will never create a classloader, we only want the baseDir
+        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(null, null, mavenSettingsFile, null);
         VestigeURLStreamHandlerFactory vestigeURLStreamHandlerFactory = new VestigeURLStreamHandlerFactory();
         MavenArtifactResolver.replaceMavenURLStreamHandler(mavenArtifactResolver.getBaseDir(), vestigeURLStreamHandlerFactory);
         DelegateURLStreamHandlerFactory streamHandlerFactory = vestigeCoreContext.getStreamHandlerFactory();
@@ -939,9 +949,9 @@ public class StandardEditionVestige implements Runnable {
     }
 
     public static void main(final String[] args) throws Exception {
-        DelegateURLStreamHandlerFactory streamHandlerFactory = new DelegateURLStreamHandlerFactory();
-        URL.setURLStreamHandlerFactory(streamHandlerFactory);
-        vestigeCoreMain(new VestigeCoreContext(streamHandlerFactory, new VestigeExecutor()), args);
+        VestigeCoreContext vestigeCoreContext = VestigeCoreContext.buildDefaultInstance();
+        URL.setURLStreamHandlerFactory(vestigeCoreContext.getStreamHandlerFactory());
+        vestigeCoreMain(vestigeCoreContext, args);
     }
 
 }

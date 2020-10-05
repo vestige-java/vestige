@@ -31,6 +31,7 @@ import org.eclipse.aether.artifact.Artifact;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.gaellalire.vestige.core.executor.VestigeWorker;
 import fr.gaellalire.vestige.jpms.NamedModuleUtils;
 import fr.gaellalire.vestige.platform.AddAccessibility;
 import fr.gaellalire.vestige.platform.AddReads;
@@ -73,6 +74,8 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
 
     private VestigePlatform vestigePlatform;
 
+    private VestigeWorker vestigeWorker;
+
     private static final BeforeParentController NOOP_BEFORE_PARENT_CONTROLLER = new BeforeParentController() {
 
         @Override
@@ -81,9 +84,10 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
         }
     };
 
-    public DefaultResolvedMavenArtifact(final VestigePlatform vestigePlatform, final DependencyReader dependencyReader, final NodeAndState nodeAndState,
-            final List<MavenArtifactAndMetadata> artifacts, final boolean relevantDataLimited) {
+    public DefaultResolvedMavenArtifact(final VestigePlatform vestigePlatform, final VestigeWorker vestigeWorker, final DependencyReader dependencyReader,
+            final NodeAndState nodeAndState, final List<MavenArtifactAndMetadata> artifacts, final boolean relevantDataLimited) {
         this.vestigePlatform = vestigePlatform;
+        this.vestigeWorker = vestigeWorker;
         this.dependencyReader = dependencyReader;
         this.nodeAndState = nodeAndState;
         this.artifacts = artifacts;
@@ -114,7 +118,7 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
         List<NodeAndState> dependencies = dependencyReader.getDependencies(nodeAndState);
         List<DefaultResolvedMavenArtifact> resolvedMavenArtifacts = new ArrayList<DefaultResolvedMavenArtifact>(dependencies.size());
         for (NodeAndState nodeAndState : dependencies) {
-            resolvedMavenArtifacts.add(new DefaultResolvedMavenArtifact(vestigePlatform, dependencyReader, nodeAndState, artifacts, false));
+            resolvedMavenArtifacts.add(new DefaultResolvedMavenArtifact(vestigePlatform, vestigeWorker, dependencyReader, nodeAndState, artifacts, false));
         }
         return resolvedMavenArtifacts;
     }
@@ -341,7 +345,7 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
                 resolveRequest.setScopeModifier(scopeModifier);
                 resolveRequest.setSelfExcluded(selfExcluded);
 
-                return new DefaultResolvedClassLoaderConfiguration(vestigePlatform, createClassLoaderConfiguration(resolveRequest),
+                return new DefaultResolvedClassLoaderConfiguration(vestigePlatform, vestigeWorker, createClassLoaderConfiguration(resolveRequest),
                         beforeParentController.isBeforeParent(getGroupId(), getArtifactId()));
 
             }

@@ -92,6 +92,7 @@ import org.eclipse.aether.util.repository.AuthenticationBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.gaellalire.vestige.core.executor.VestigeWorker;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandler;
 import fr.gaellalire.vestige.core.url.VestigeURLStreamHandler;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
@@ -186,22 +187,24 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
 
     private VestigePlatform vestigePlatform;
 
+    private VestigeWorker[] vestigeWorker;
+
     private String logAppend;
 
-    public MavenArtifactResolver(final VestigePlatform vestigePlatform, final File settingsFile, final SSLContextAccessor sslContextAccessor)
+    public MavenArtifactResolver(final VestigePlatform vestigePlatform, final VestigeWorker[] vestigeWorker, final File settingsFile, final SSLContextAccessor sslContextAccessor)
             throws NoLocalRepositoryManagerException {
-        this(vestigePlatform, settingsFile, sslContextAccessor, null, null);
-
+        this(vestigePlatform, vestigeWorker, settingsFile, sslContextAccessor, null, null);
     }
 
-    public MavenArtifactResolver(final VestigePlatform vestigePlatform, final File settingsFile, final SSLContextAccessor sslContextAccessor, final String name,
-            final File localRepositoryFileOverride) throws NoLocalRepositoryManagerException {
+    public MavenArtifactResolver(final VestigePlatform vestigePlatform, final VestigeWorker[] vestigeWorker, final File settingsFile, final SSLContextAccessor sslContextAccessor,
+            final String name, final File localRepositoryFileOverride) throws NoLocalRepositoryManagerException {
         if (name == null) {
             logAppend = "";
         } else {
             logAppend = " in " + name + " resolver";
         }
         this.vestigePlatform = vestigePlatform;
+        this.vestigeWorker = vestigeWorker;
         File localRepositoryFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "repository");
         try {
             DefaultSettingsBuilder defaultSettingsBuilder = new DefaultSettingsBuilderFactory().newInstance();
@@ -460,7 +463,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
                 continue doresolve;
             }
 
-            return new DefaultResolvedMavenArtifact(vestigePlatform, new DependencyReader(descriptorReader, collectRequest, session, dependencyModifier),
+            return new DefaultResolvedMavenArtifact(vestigePlatform, vestigeWorker[0], new DependencyReader(descriptorReader, collectRequest, session, dependencyModifier),
                     new NodeAndState(null, node, session.getDependencyManager()), mavenArtifactAndMetadatas, true);
         }
     }
@@ -485,7 +488,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
             };
             boolean firstBeforeParent = internObjectInputStream.readBoolean();
             ClassLoaderConfiguration classLoaderConfiguration = (ClassLoaderConfiguration) internObjectInputStream.readObject();
-            return new DefaultResolvedClassLoaderConfiguration(vestigePlatform, classLoaderConfiguration, firstBeforeParent);
+            return new DefaultResolvedClassLoaderConfiguration(vestigePlatform, vestigeWorker[0], classLoaderConfiguration, firstBeforeParent);
         } catch (ClassNotFoundException e) {
             throw new IOException("ClassNotFoundException", e);
         }

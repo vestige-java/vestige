@@ -60,6 +60,7 @@ import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.DefaultApplicationManager;
 import fr.gaellalire.vestige.application.manager.URLOpener;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;
+import fr.gaellalire.vestige.core.executor.VestigeWorker;
 import fr.gaellalire.vestige.core.function.Function;
 import fr.gaellalire.vestige.job.DefaultJobManager;
 import fr.gaellalire.vestige.job.JobManager;
@@ -100,7 +101,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
 
     private VestigeExecutor vestigeExecutor;
 
-    private Thread workerThread;
+    private VestigeWorker[] vestigeWorker = new VestigeWorker[1];
 
     // private ApplicationDescriptorFactory applicationDescriptorFactory;
 
@@ -165,7 +166,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
                 if (jpmsAccessor != null) {
                     moduleLayerRepository = jpmsAccessor.createModuleLayerRepository();
                 }
-                vestigePlatform = new DefaultVestigePlatform(vestigeExecutor, moduleLayerRepository);
+                vestigePlatform = new DefaultVestigePlatform(moduleLayerRepository);
             }
         }
 
@@ -261,7 +262,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
         }
 
         if (vestigeURLListResolver == null) {
-            vestigeURLListResolver = new DefaultVestigeURLListResolver(vestigePlatform);
+            vestigeURLListResolver = new DefaultVestigeURLListResolver(vestigePlatform, vestigeWorker);
         }
 
         SSLContextAccessor lazySSLContextAccessor = new SSLContextAccessor() {
@@ -326,7 +327,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
 
         if (vestigeMavenResolver == null) {
             try {
-                vestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, mavenSettingsFile, lazySSLContextAccessor);
+                vestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, vestigeWorker, mavenSettingsFile, lazySSLContextAccessor);
             } catch (NoLocalRepositoryManagerException e) {
                 LOGGER.error("NoLocalRepositoryManagerException", e);
                 return;
@@ -361,20 +362,6 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
         defaultApplicationManager = new DefaultApplicationManager(actionManager, appConfigFile, appDataFile, cacheDataFile, applicationsVestigeSystem,
                 singleApplicationLauncherEditionVestigeSystem, vestigePolicy, vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile,
                 vestigeResolvers, injectableByClassName);
-        try {
-            defaultApplicationManager.restoreState();
-        } catch (ApplicationException e) {
-            LOGGER.warn("Unable to restore application manager state", e);
-        }
-
-        try {
-            defaultApplicationManager.install(null, null, "local", Arrays.<Integer> asList(0, 0, 0), "app", null);
-
-            defaultApplicationManager.start("app");
-        } catch (ApplicationException e1) {
-            // TODO Auto-generated catch block
-            e1.printStackTrace();
-        }
 
         boolean started = false;
         try {
@@ -420,23 +407,40 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
     }
 
     public void start(final JobManager jobManager) throws Exception {
-        if (workerThread != null) {
+        if (vestigeWorker[0] != null) {
             return;
         }
-        workerThread = vestigeExecutor.createWorker("se-worker", true, 0);
+
+        vestigeWorker[0] = vestigeExecutor.createWorker("se-worker", true, 0);
+
+        try {
+            defaultApplicationManager.restoreState();
+        } catch (ApplicationException e) {
+            LOGGER.warn("Unable to restore application manager state", e);
+        }
+
+        try {
+            defaultApplicationManager.install(null, null, "local", Arrays.<Integer> asList(0, 0, 0), "app", null);
+
+            defaultApplicationManager.start("app");
+        } catch (ApplicationException e1) {
+            // TODO Auto-generated catch block
+            e1.printStackTrace();
+        }
+
         defaultApplicationManager.startStateListenerThread();
         defaultApplicationManager.autoStart();
     }
 
     public void stop() throws Exception {
-        if (workerThread == null) {
+        if (vestigeWorker[0] == null) {
             return;
         }
         defaultApplicationManager.stopAll();
         defaultApplicationManager.stopStateListenerThread();
-        workerThread.interrupt();
-        workerThread.join();
-        workerThread = null;
+        vestigeWorker[0].interrupt();
+        vestigeWorker[0].join();
+        vestigeWorker = null;
     }
 
     public static void giveDirectStreamAccessToLogback() {
@@ -609,7 +613,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
             }
             moduleLayerRepository = jpmsAccessor.createModuleLayerRepository();
         }
-        VestigePlatform vestigePlatform = new DefaultVestigePlatform(vestigeExecutor, moduleLayerRepository);
+        VestigePlatform vestigePlatform = new DefaultVestigePlatform(moduleLayerRepository);
         vestigeMain(vestigeExecutor, vestigePlatform, addShutdownHook, removeShutdownHook, null, null, args);
     }
 

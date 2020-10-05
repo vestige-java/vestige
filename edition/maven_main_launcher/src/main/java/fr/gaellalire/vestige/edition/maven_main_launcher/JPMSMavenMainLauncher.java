@@ -22,9 +22,7 @@ import java.net.URL;
 import java.util.List;
 
 import fr.gaellalire.vestige.core.VestigeCoreContext;
-import fr.gaellalire.vestige.core.executor.VestigeExecutor;
 import fr.gaellalire.vestige.core.function.Function;
-import fr.gaellalire.vestige.core.url.DelegateURLStreamHandlerFactory;
 
 /**
  * @author Gael Lalire
@@ -50,9 +48,9 @@ public final class JPMSMavenMainLauncher {
     }
 
     public static void main(final String[] args) throws Exception {
-        DelegateURLStreamHandlerFactory streamHandlerFactory = new DelegateURLStreamHandlerFactory();
-        URL.setURLStreamHandlerFactory(streamHandlerFactory);
-        vestigeCoreMain(new VestigeCoreContext(streamHandlerFactory, new VestigeExecutor()), args);
+        VestigeCoreContext vestigeCoreContext = VestigeCoreContext.buildDefaultInstance();
+        URL.setURLStreamHandlerFactory(vestigeCoreContext.getStreamHandlerFactory());
+        vestigeCoreMain(vestigeCoreContext, args);
     }
 
 }

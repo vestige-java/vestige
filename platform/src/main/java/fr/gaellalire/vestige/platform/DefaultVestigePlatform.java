@@ -42,7 +42,7 @@ import org.slf4j.MDC;
 import fr.gaellalire.vestige.core.ModuleEncapsulationEnforcer;
 import fr.gaellalire.vestige.core.VestigeClassLoader;
 import fr.gaellalire.vestige.core.VestigeClassLoaderConfiguration;
-import fr.gaellalire.vestige.core.executor.VestigeExecutor;
+import fr.gaellalire.vestige.core.executor.VestigeWorker;
 import fr.gaellalire.vestige.core.function.Function;
 import fr.gaellalire.vestige.core.parser.ClassStringParser;
 import fr.gaellalire.vestige.core.parser.NoStateStringParser;
@@ -137,12 +137,9 @@ public class DefaultVestigePlatform implements VestigePlatform {
 
     private Map<Serializable, WeakReference<AttachedVestigeClassLoader>> map = new HashMap<Serializable, WeakReference<AttachedVestigeClassLoader>>();
 
-    private VestigeExecutor vestigeExecutor;
-
     private JPMSModuleLayerRepository moduleLayerRepository;
 
-    public DefaultVestigePlatform(final VestigeExecutor vestigeExecutor, final JPMSModuleLayerRepository moduleLayerRepository) {
-        this.vestigeExecutor = vestigeExecutor;
+    public DefaultVestigePlatform(final JPMSModuleLayerRepository moduleLayerRepository) {
         this.moduleLayerRepository = moduleLayerRepository;
     }
 
@@ -163,7 +160,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
         }
     }
 
-    public int attach(final ClassLoaderConfiguration classLoaderConfiguration) throws InterruptedException, IOException {
+    public int attach(final ClassLoaderConfiguration classLoaderConfiguration, final VestigeWorker vestigeWorker) throws InterruptedException, IOException {
         int size = attached.size();
         int id = 0;
         while (id < size) {
@@ -173,7 +170,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
             id++;
         }
         Map<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>> attachmentMap = new HashMap<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>>();
-        AttachedVestigeClassLoader load = attachDependencies(attachmentMap, classLoaderConfiguration);
+        AttachedVestigeClassLoader load = attachDependencies(attachmentMap, classLoaderConfiguration, vestigeWorker);
         Iterator<SoftReference<?>> iterator = load.getSoftReferences().iterator();
         while (iterator.hasNext()) {
             SoftReference<?> next = iterator.next();
@@ -373,7 +370,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
     }
 
     private AttachedVestigeClassLoader attachDependencies(final Map<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>> attachmentMap,
-            final ClassLoaderConfiguration classLoaderConfiguration) throws InterruptedException, IOException {
+            final ClassLoaderConfiguration classLoaderConfiguration, final VestigeWorker vestigeWorker) throws InterruptedException, IOException {
         Serializable key = classLoaderConfiguration.getKey();
 
         JPMSNamedModulesConfiguration namedModulesConfiguration = classLoaderConfiguration.getNamedModulesConfiguration();
@@ -387,7 +384,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
         List<ClassLoaderConfiguration> configurationDependencies = classLoaderConfiguration.getDependencies();
         List<AttachedVestigeClassLoader> classLoaderDependencies = new ArrayList<AttachedVestigeClassLoader>();
         for (ClassLoaderConfiguration configurationDependency : configurationDependencies) {
-            AttachedVestigeClassLoader attachDependency = attachDependencies(attachmentMap, configurationDependency);
+            AttachedVestigeClassLoader attachDependency = attachDependencies(attachmentMap, configurationDependency, vestigeWorker);
             classLoaderDependencies.add(attachDependency);
             if (selfNeedModuleDefine) {
                 moduleLayerList.addInRepositoryModuleLayerByIndex(attachDependency.getModuleLayer().getRepositoryIndex());
@@ -453,7 +450,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
                 moduleEncapsulationEnforcer = configuration.getModuleEncapsulationEnforcer();
                 resourceStringParser = new ResourceEncapsulationEnforcer(resourceStringParser, configuration.getEncapsulatedPackageNames(), -1);
             }
-            vestigeClassLoader = vestigeExecutor.createVestigeClassLoader(ClassLoader.getSystemClassLoader(), convert(attachedVestigeClassLoader, classLoaderConfiguration),
+            vestigeClassLoader = vestigeWorker.createVestigeClassLoader(ClassLoader.getSystemClassLoader(), convert(attachedVestigeClassLoader, classLoaderConfiguration),
                     classStringParser, resourceStringParser, moduleEncapsulationEnforcer, urls);
             vestigeClassLoader.setDataProtector(null, this);
 
@@ -549,6 +546,10 @@ public class DefaultVestigePlatform implements VestigePlatform {
                     }
                 } catch (Exception e) {
                     LOGGER.warn("Unable to redirect MDC", e);
+                } catch (UnsupportedClassVersionError e) {
+                    LOGGER.warn("Unable to redirect MDC", e);
+                } catch (NoClassDefFoundError e) {
+                    LOGGER.warn("Unable to redirect MDC", e);
                 } finally {
                     currentThread.setContextClassLoader(contextClassLoader);
                 }
@@ -562,6 +563,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
             }
         }
         return vestigeClassLoader.getData(this);
+
     }
 
     public static void setURLStreamHandlerFactoryDelegate(final DelegateURLStreamHandlerFactory delegateURLStreamHandlerFactory,
@@ -611,6 +613,22 @@ public class DefaultVestigePlatform implements VestigePlatform {
     @Override
     public void link(final JPMSInRepositoryModuleLayerAccessor moduleLayer, final VestigeClassLoader<AttachedVestigeClassLoader> classLoader) {
         classLoader.getData(this).setModuleLayer(moduleLayer);
+    }
+
+    public JPMSModuleLayerRepository getModuleLayerRepository() {
+        return moduleLayerRepository;
+    }
+
+    public List<List<WeakReference<AttachedVestigeClassLoader>>> getAttachedClassLoaders() {
+        return attachedClassLoaders;
+    }
+
+    public List<AttachedVestigeClassLoader> getAttached() {
+        return attached;
+    }
+
+    public Map<Serializable, WeakReference<AttachedVestigeClassLoader>> getMap() {
+        return map;
     }
 
 }

@@ -24,6 +24,7 @@ import java.security.Permission;
 import java.util.Collection;
 import java.util.Enumeration;
 
+import fr.gaellalire.vestige.core.executor.VestigeWorker;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.spi.resolver.AttachedClassLoader;
@@ -38,13 +39,16 @@ public class DefaultResolvedClassLoaderConfiguration implements ResolvedClassLoa
 
     private VestigePlatform vestigePlatform;
 
+    private VestigeWorker vestigeWorker;
+
     private ClassLoaderConfiguration classLoaderConfiguration;
 
     private boolean firstBeforeParent;
 
-    public DefaultResolvedClassLoaderConfiguration(final VestigePlatform vestigePlatform, final ClassLoaderConfiguration classLoaderConfiguration,
-            final boolean firstBeforeParent) {
+    public DefaultResolvedClassLoaderConfiguration(final VestigePlatform vestigePlatform, final VestigeWorker vestigeWorker,
+            final ClassLoaderConfiguration classLoaderConfiguration, final boolean firstBeforeParent) {
         this.vestigePlatform = vestigePlatform;
+        this.vestigeWorker = vestigeWorker;
         this.classLoaderConfiguration = classLoaderConfiguration;
     }
 
@@ -68,7 +72,7 @@ public class DefaultResolvedClassLoaderConfiguration implements ResolvedClassLoa
         int installerAttach;
         synchronized (vestigePlatform) {
             try {
-                installerAttach = vestigePlatform.attach(classLoaderConfiguration);
+                installerAttach = vestigePlatform.attach(classLoaderConfiguration, vestigeWorker);
             } catch (IOException e) {
                 throw new ResolverException("Unable to attach", e);
             }

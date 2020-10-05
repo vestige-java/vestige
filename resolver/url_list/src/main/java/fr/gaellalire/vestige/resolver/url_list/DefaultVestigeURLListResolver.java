@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import fr.gaellalire.vestige.core.executor.VestigeWorker;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.ModuleConfiguration;
@@ -48,8 +49,11 @@ public class DefaultVestigeURLListResolver implements VestigeURLListResolver {
 
     private VestigePlatform vestigePlatform;
 
-    public DefaultVestigeURLListResolver(final VestigePlatform vestigePlatform) {
+    private VestigeWorker[] vestigeWorker;
+
+    public DefaultVestigeURLListResolver(final VestigePlatform vestigePlatform, final VestigeWorker[] vestigeWorker) {
         this.vestigePlatform = vestigePlatform;
+        this.vestigeWorker = vestigeWorker;
     }
 
     @Override
@@ -83,7 +87,7 @@ public class DefaultVestigeURLListResolver implements VestigeURLListResolver {
                     key = new URLClassLoaderConfigurationKey(false, urlArray);
                     name = configurationName;
                 }
-                return new DefaultResolvedClassLoaderConfiguration(vestigePlatform,
+                return new DefaultResolvedClassLoaderConfiguration(vestigePlatform, vestigeWorker[0],
                         new ClassLoaderConfiguration(key, name, scope == Scope.ATTACHMENT, Collections.<SecureFile> emptyList(), files,
                                 Collections.<ClassLoaderConfiguration> emptyList(), null, null, null, null, JPMSClassLoaderConfiguration.EMPTY_INSTANCE.merge(moduleConfigurations),
                                 null, false),
@@ -118,7 +122,7 @@ public class DefaultVestigeURLListResolver implements VestigeURLListResolver {
                 }
 
             }.readObject();
-            return new DefaultResolvedClassLoaderConfiguration(vestigePlatform, classLoaderConfiguration, true);
+            return new DefaultResolvedClassLoaderConfiguration(vestigePlatform, vestigeWorker[0], classLoaderConfiguration, true);
         } catch (ClassNotFoundException e) {
             throw new IOException("ClassNotFoundException", e);
         }

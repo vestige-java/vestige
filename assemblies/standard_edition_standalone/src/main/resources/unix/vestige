@@ -104,13 +104,15 @@ VESTIGE_CORE_RELATIVE_DIRECTORY="$VESTIGE_SYSTEM_DATA"
 if "$VESTIGE_JAVA" --add-modules java.base -version >/dev/null 2>&1; then
   export VESTIGE_CORE_MODULEPATH_FILE="$VESTIGE_SYSTEM_DATA/unix-classpath.txt"
   VESTIGE_OPTS=("${VESTIGE_OPTS[@]}" --add-modules ALL-DEFAULT --patch-module "java.base=$VESTIGE_SYSTEM_DATA/lib/moduleEncapsulationBreaker.jar")
-  VESTIGE_ARGS=(-p "$VESTIGE_SYSTEM_DATA/lib/vestige.core-${vestige.core.version}.jar" -m fr.gaellalire.vestige.core --env-to-prop LOGBACK_LOGS_DIRECTORY logback.logsDirectory --env-to-prop LOGBACK_CONFIGURATION_FILE logback.configurationFile --add-modules fr.gaellalire.vestige.edition.maven_main_launcher emp fr.gaellalire.vestige.jvm_enhancer.boot)
+  VESTIGE_ARGS=(-p "$VESTIGE_SYSTEM_DATA/lib/vestige.core-${vestige.core.version}.jar" -m fr.gaellalire.vestige.core --env-to-prop LOGBACK_LOGS_DIRECTORY logback.logsDirectory --env-to-prop LOGBACK_CONFIGURATION_FILE logback.configurationFile --add-modules fr.gaellalire.vestige.jvm_enhancer.boot,fr.gaellalire.vestige.edition.maven_main_launcher emp fr.gaellalire.vestige.logback_enhancer)
+  VESTIGE_ARGS=("${VESTIGE_ARGS[@]}" fr.gaellalire.vestige.jvm_enhancer.boot)
   VESTIGE_ARGS=("${VESTIGE_ARGS[@]}" "$VESTIGE_SYSTEM_DATA" "$VESTIGE_SYSTEM_DATA/jvm_enhancer.properties" fr.gaellalire.vestige.edition.maven_main_launcher)
   MAVEN_LAUNCHER_FILE="$VESTIGE_SYSTEM_DATA/m2/vestige-se.xml"
   MAVEN_RESOLVER_CACHE_FILE="$VESTIGE_CACHE/m2/resolver-cache.ser"
 else
   export VESTIGE_CORE_CLASSPATH_FILE="$VESTIGE_SYSTEM_DATA/unix-classpath-6to8.txt"
-  VESTIGE_ARGS=(-jar "$VESTIGE_SYSTEM_DATA/lib/vestige.core-${vestige.core.version}.jar" --env-to-prop LOGBACK_LOGS_DIRECTORY logback.logsDirectory --env-to-prop LOGBACK_CONFIGURATION_FILE logback.configurationFile --before 'javax/xml/bind/.*' ecp fr.gaellalire.vestige.jvm_enhancer.boot.JVMEnhancer)
+  VESTIGE_ARGS=(-jar "$VESTIGE_SYSTEM_DATA/lib/vestige.core-${vestige.core.version}.jar" --env-to-prop LOGBACK_LOGS_DIRECTORY logback.logsDirectory --env-to-prop LOGBACK_CONFIGURATION_FILE logback.configurationFile --before 'javax/xml/bind/.*' ecp fr.gaellalire.vestige.logback_enhancer.LogbackEnhancer)
+  VESTIGE_ARGS=("${VESTIGE_ARGS[@]}" fr.gaellalire.vestige.jvm_enhancer.boot.JVMEnhancer)
   VESTIGE_ARGS=("${VESTIGE_ARGS[@]}" "$VESTIGE_SYSTEM_DATA" "$VESTIGE_SYSTEM_DATA/jvm_enhancer.properties" fr.gaellalire.vestige.edition.maven_main_launcher.MavenMainLauncher)
   MAVEN_LAUNCHER_FILE="$VESTIGE_SYSTEM_DATA/m2/vestige-se-6to8.xml"
   MAVEN_RESOLVER_CACHE_FILE="$VESTIGE_CACHE/m2/resolver-cache-6to8.ser"

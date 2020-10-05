@@ -28,10 +28,9 @@ import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import fr.gaellalire.vestige.core.executor.VestigeExecutor;
+import fr.gaellalire.vestige.core.VestigeCoreContext;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandlerFactory;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
-import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
 import fr.gaellalire.vestige.platform.VestigeURLStreamHandlerFactory;
 import fr.gaellalire.vestige.resolver.maven.CreateClassLoaderConfigurationParameters;
 import fr.gaellalire.vestige.resolver.maven.DefaultDependencyModifier;
@@ -50,9 +49,11 @@ import fr.gaellalire.vestige.spi.resolver.maven.ResolvedMavenArtifact;
 public class ResolverTest {
 
     @BeforeClass
-    public static void init() {
-        DelegateURLStreamHandlerFactory streamHandlerFactory = new DelegateURLStreamHandlerFactory();
+    public static void init() throws InterruptedException {
+        VestigeCoreContext vestigeCoreContext = VestigeCoreContext.buildDefaultInstance();
+        final DelegateURLStreamHandlerFactory streamHandlerFactory = vestigeCoreContext.getStreamHandlerFactory();
         URL.setURLStreamHandlerFactory(streamHandlerFactory);
+
         VestigeURLStreamHandlerFactory vestigeURLStreamHandlerFactory = new VestigeURLStreamHandlerFactory();
         File baseDir = new File(System.getProperty("user.home"), ".m2" + File.separator + "repository");
         MavenArtifactResolver.replaceMavenURLStreamHandler(baseDir, vestigeURLStreamHandlerFactory);
@@ -64,7 +65,7 @@ public class ResolverTest {
     public void test() throws Exception {
 
         File settingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
-        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(new DefaultVestigePlatform(new VestigeExecutor(), null), settingsFile, null);
+        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(null, null, settingsFile, null);
 
         ResolveParameters resolveRequest = new ResolveParameters();
         resolveRequest.setGroupId("fr.gaellalire.vestige_app.mywar");
@@ -101,7 +102,7 @@ public class ResolverTest {
     public void testEAR() throws Exception {
 
         File settingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
-        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(new DefaultVestigePlatform(new VestigeExecutor(), null), settingsFile, null);
+        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(null, null, settingsFile, null);
 
         ResolveParameters resolveRequest = new ResolveParameters();
         resolveRequest.setGroupId("fr.gaellalire.vestige_app.myeeapps");
@@ -138,7 +139,7 @@ public class ResolverTest {
     public void testClasspath() throws Exception {
 
         File settingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
-        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(new DefaultVestigePlatform(new VestigeExecutor(), null), settingsFile, null);
+        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(null, null, settingsFile, null);
 
         ResolveParameters resolveRequest = new ResolveParameters();
         resolveRequest.setGroupId("fr.gaellalire.vestige_app.myeeapps");

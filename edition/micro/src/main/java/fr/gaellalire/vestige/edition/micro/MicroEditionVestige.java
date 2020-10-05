@@ -32,6 +32,7 @@ import fr.gaellalire.vestige.application.descriptor.properties.PropertiesApplica
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.DefaultApplicationManager;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;
+import fr.gaellalire.vestige.core.executor.VestigeWorker;
 import fr.gaellalire.vestige.core.logger.VestigeLoggerFactory;
 import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
 import fr.gaellalire.vestige.platform.VestigePlatform;
@@ -56,7 +57,7 @@ public class MicroEditionVestige {
 
     private VestigeExecutor vestigeExecutor;
 
-    private Thread workerThread;
+    private VestigeWorker workerThread;
 
     private ApplicationRepositoryManager applicationDescriptorFactory;
 
@@ -158,7 +159,7 @@ public class MicroEditionVestige {
             System.setProperties(vestigeProperties);
 
             VestigeExecutor vestigeExecutor = new VestigeExecutor();
-            VestigePlatform vestigePlatform = new DefaultVestigePlatform(vestigeExecutor, null);
+            VestigePlatform vestigePlatform = new DefaultVestigePlatform(null);
             File baseFile = new File(args[0]);
             File dataFile = new File(args[1]);
             if (!baseFile.isDirectory()) {
