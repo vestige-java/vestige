@@ -104,8 +104,6 @@ public class VestigeSecureExecutor {
             }
         }
         systemResourcePermissions = Collections.unmodifiableSet(resourcesPermissions);
-        threadGroupDestroyer = new ThreadGroupDestroyer();
-        threadGroupDestroyer.start();
     }
 
     public <E> VestigeSecureExecution<E> execute(final ClassLoader contextClassLoader, final Set<Permission> additionnalPermissions, final List<ThreadGroup> threadGroups,
@@ -225,12 +223,19 @@ public class VestigeSecureExecutor {
         return new VestigeSecureExecution<E>(thread, futureTask);
     }
 
-    public void stop() {
+    public void startService() {
+        threadGroupDestroyer = new ThreadGroupDestroyer();
+        threadGroupDestroyer.start();
+    }
+
+    public void stopService() {
         threadGroupDestroyer.interrupt();
         try {
             threadGroupDestroyer.join();
         } catch (InterruptedException e) {
             LOGGER.warn("Interrupted while stopping", e);
+        } finally {
+            threadGroupDestroyer = null;
         }
     }
 

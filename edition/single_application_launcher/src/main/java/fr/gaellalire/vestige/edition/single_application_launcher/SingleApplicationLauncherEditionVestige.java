@@ -428,7 +428,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
             e1.printStackTrace();
         }
 
-        defaultApplicationManager.startStateListenerThread();
+        defaultApplicationManager.startService();
         defaultApplicationManager.autoStart();
     }
 
@@ -437,7 +437,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
             return;
         }
         defaultApplicationManager.stopAll();
-        defaultApplicationManager.stopStateListenerThread();
+        defaultApplicationManager.stopService();
         vestigeWorker[0].interrupt();
         vestigeWorker[0].join();
         vestigeWorker = null;

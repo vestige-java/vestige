@@ -52,4 +52,6 @@ public interface VestigePlatform extends ModuleLayerLinker<VestigeClassLoader<At
 
     List<WeakReference<AttachedVestigeClassLoader>> getAttachmentScopedUnattachedVestigeClassLoaders();
 
+    void close();
+
 }

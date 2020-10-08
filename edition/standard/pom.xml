@@ -119,5 +119,9 @@
       <groupId>fr.gaellalire.jaxb</groupId>
       <artifactId>jaxb-runtime</artifactId>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>vestige.logback_enhancer</artifactId>
+    </dependency>
   </dependencies>
 </project>

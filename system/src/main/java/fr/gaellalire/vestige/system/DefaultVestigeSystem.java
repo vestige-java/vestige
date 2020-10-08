@@ -106,8 +106,7 @@ public final class DefaultVestigeSystem implements VestigeSystem {
 
             @Override
             public boolean implies(final ProtectionDomain domain, final Permission permission) {
-                DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
-                vestigeSystemHolder.setVestigeSystem(DefaultVestigeSystem.this);
+                VestigeSystem currentVestigeSystem = vestigeSystemHolder.setVestigeSystem(DefaultVestigeSystem.this);
                 try {
                     if (previousBlackListPolicy != null && !previousBlackListPolicy.implies(domain, permission)) {
                         return false;
@@ -118,7 +117,7 @@ public final class DefaultVestigeSystem implements VestigeSystem {
                     }
                     return false;
                 } finally {
-                    vestigeSystemHolder.setVestigeSystem(currentVestigeSystem);
+                    currentVestigeSystem.setCurrentSystem();
                 }
             }
         };
@@ -130,8 +129,7 @@ public final class DefaultVestigeSystem implements VestigeSystem {
 
             @Override
             public boolean implies(final ProtectionDomain domain, final Permission permission) {
-                DefaultVestigeSystem currentVestigeSystem = vestigeSystemHolder.getVestigeSystem();
-                vestigeSystemHolder.setVestigeSystem(DefaultVestigeSystem.this);
+                VestigeSystem currentVestigeSystem = vestigeSystemHolder.setVestigeSystem(DefaultVestigeSystem.this);
                 try {
                     if (previousWhiteListPolicy != null && previousWhiteListPolicy.implies(domain, permission)) {
                         return true;
@@ -153,7 +151,7 @@ public final class DefaultVestigeSystem implements VestigeSystem {
                     }
                     return true;
                 } finally {
-                    vestigeSystemHolder.setVestigeSystem(currentVestigeSystem);
+                    currentVestigeSystem.setCurrentSystem();
                 }
             }
         };

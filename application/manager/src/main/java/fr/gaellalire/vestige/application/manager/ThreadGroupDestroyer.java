@@ -35,7 +35,7 @@ public class ThreadGroupDestroyer extends Thread {
     private static final Logger LOGGER = LoggerFactory.getLogger(ThreadGroupDestroyer.class);
 
     public ThreadGroupDestroyer() {
-        super("ThreadGroupDestroyer");
+        super("thread-group-destroyer");
     }
 
     private Map<Thread, ThreadGroup> threadGroupToDestroyByThread = new WeakHashMap<Thread, ThreadGroup>();

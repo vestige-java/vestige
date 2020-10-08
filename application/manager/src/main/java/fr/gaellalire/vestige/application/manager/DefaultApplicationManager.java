@@ -1512,7 +1512,6 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 vestigeSecureExecutions.add(vestigeSecureExecution);
             }
         }
-        this.vestigeSecureExecutor.stop();
         for (VestigeSecureExecution<Void> vestigeSecureExecution : vestigeSecureExecutions) {
             try {
                 vestigeSecureExecution.join();
@@ -1826,8 +1825,10 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         return applicationDescriptorFactory.getMetadata(repoURL);
     }
 
-    public void startStateListenerThread() {
-        stateListenerThread = new Thread("DefaultApplicationManager-stateListener") {
+    public void startService() {
+        vestigeSecureExecutor.startService();
+
+        stateListenerThread = new Thread("default-application-manager-state-listener") {
             @Override
             public void run() {
                 try {
@@ -1858,10 +1859,11 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         stateListenerThread.start();
     }
 
-    public void stopStateListenerThread() throws InterruptedException {
+    public void stopService() throws InterruptedException {
         stateListenerThread.interrupt();
         stateListenerThread.join();
         stateListenerThread = null;
+        this.vestigeSecureExecutor.stopService();
     }
 
     @Override

@@ -86,6 +86,7 @@ import fr.gaellalire.vestige.jpms.JPMSAccessorLoader;
 import fr.gaellalire.vestige.jpms.JPMSInRepositoryModuleLayerAccessor;
 import fr.gaellalire.vestige.jpms.JPMSModuleAccessor;
 import fr.gaellalire.vestige.jpms.JPMSModuleLayerRepository;
+import fr.gaellalire.vestige.logback_enhancer.LogbackEnhancer;
 import fr.gaellalire.vestige.platform.AddAccessibility;
 import fr.gaellalire.vestige.platform.AddReads;
 import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
@@ -455,18 +456,31 @@ public final class MavenMainLauncher {
         currentThread.setContextClassLoader(mavenResolverClassLoader);
         Object loadedVestigePlatform;
         final Method vestigeMain;
+        URLStreamHandlerFactory loadedURLStreamHandlerFactory = null;
         try {
+
+            try {
+                Class<?> logbackEnhancerClass = Class.forName(LogbackEnhancer.class.getName(), false, mavenResolverClassLoader);
+                vestigeWorker.invoke(mavenResolverClassLoader, logbackEnhancerClass.getMethod("enhance", VestigeCoreContext.class), null, vestigeCoreContext);
+            } catch (ClassNotFoundException e) {
+                // ignore
+            }
+
             String className = mavenResolverCache.getClassName();
+
             Class<?> vestigeMainClass = Class.forName(className, false, mavenResolverClassLoader);
-            vestigeMain = vestigeMainClass.getMethod("vestigeMain", VestigeExecutor.class, Class.forName(VestigePlatform.class.getName(), false, mavenResolverClassLoader),
-                    Function.class, Function.class, List.class, WeakReference.class, String[].class);
+            Class<?> vestigeURLStreamHandlerFactoryClass = Class.forName(VestigeURLStreamHandlerFactory.class.getName(), false, mavenResolverClassLoader);
+            vestigeMain = vestigeMainClass.getMethod("vestigeMain", VestigeCoreContext.class, vestigeURLStreamHandlerFactoryClass,
+                    Class.forName(VestigePlatform.class.getName(), false, mavenResolverClassLoader), Function.class, Function.class, List.class, WeakReference.class,
+                    String[].class);
 
             Class<?> vestigePlatformConverterClass = vestigeWorker.classForName(mavenResolverClassLoader, VestigePlatformConverter.class.getName());
-            LOGGER.info("Start converting vestige platform");
+            LOGGER.trace("Start converting vestige platform");
             loadedVestigePlatform = vestigeWorker.invoke(mavenResolverClassLoader, vestigePlatformConverterClass.getMethod("convert", Object.class), null, vestigePlatform);
-            LOGGER.info("Vestige platform converted");
+            LOGGER.trace("Vestige platform converted");
 
-            installConvertedVestigeURLStreamHandlerFactory(mavenResolverClassLoader, streamHandlerFactory, vestigeURLStreamHandlerFactory, mavenArtifactResolver.getBaseDir());
+            loadedURLStreamHandlerFactory = installConvertedVestigeURLStreamHandlerFactory(mavenResolverClassLoader, vestigeURLStreamHandlerFactoryClass, streamHandlerFactory,
+                    vestigeURLStreamHandlerFactory, mavenArtifactResolver.getBaseDir());
         } finally {
             currentThread.setContextClassLoader(contextClassLoader);
         }
@@ -477,13 +491,13 @@ public final class MavenMainLauncher {
         // start a new thread to allow this classloader to be GC even if the
         // vestigeMain method does not return
         vestigeWorker = vestigeExecutor.createWorker("resolver-maven-main", false, 1);
-        vestigeWorker.submit(new InvokeMethod(mavenResolverClassLoader, vestigeMain, null, new Object[] {vestigeExecutor, loadedVestigePlatform, addShutdownHook,
-                removeShutdownHook, privilegedClassloaders, new WeakReference<ClassLoader>(MavenMainLauncher.class.getClassLoader()), dargs}));
+        vestigeWorker.submit(new InvokeMethod(mavenResolverClassLoader, vestigeMain, null, new Object[] {vestigeCoreContext, loadedURLStreamHandlerFactory, loadedVestigePlatform,
+                addShutdownHook, removeShutdownHook, privilegedClassloaders, new WeakReference<ClassLoader>(MavenMainLauncher.class.getClassLoader()), dargs}));
     }
 
-    private static void installConvertedVestigeURLStreamHandlerFactory(final VestigeClassLoader<AttachedVestigeClassLoader> mavenResolverClassLoader,
-            final DelegateURLStreamHandlerFactory streamHandlerFactory, final VestigeURLStreamHandlerFactory vestigeURLStreamHandlerFactory, final File baseDir) throws Exception {
-        Class<?> vestigeURLStreamHandlerFactoryClass = Class.forName(VestigeURLStreamHandlerFactory.class.getName(), false, mavenResolverClassLoader);
+    private static URLStreamHandlerFactory installConvertedVestigeURLStreamHandlerFactory(final VestigeClassLoader<AttachedVestigeClassLoader> mavenResolverClassLoader,
+            final Class<?> vestigeURLStreamHandlerFactoryClass, final DelegateURLStreamHandlerFactory streamHandlerFactory,
+            final VestigeURLStreamHandlerFactory vestigeURLStreamHandlerFactory, final File baseDir) throws Exception {
         Map<String, DelegateURLStreamHandler> copyMap = vestigeURLStreamHandlerFactory.copyMap();
         URLStreamHandlerFactory newInstance = (URLStreamHandlerFactory) vestigeURLStreamHandlerFactoryClass.getConstructor(Map.class).newInstance(copyMap);
 
@@ -491,6 +505,7 @@ public final class MavenMainLauncher {
         mavenArtifactResolverClass.getMethod("replaceMavenURLStreamHandler", File.class, vestigeURLStreamHandlerFactoryClass).invoke(null, baseDir, newInstance);
 
         streamHandlerFactory.setDelegate(newInstance);
+        return newInstance;
     }
 
     public static void vestigeEnhancedCoreMain(final VestigeCoreContext vestigeCoreContext, final Function<Thread, Void, RuntimeException> addShutdownHook,
@@ -564,6 +579,7 @@ public final class MavenMainLauncher {
                 } catch (IOException e) {
                     LOGGER.trace("Unable to close bootstrap resources", e);
                 }
+                vestigeCoreContext.setCloseable(null);
             }
         }
     }

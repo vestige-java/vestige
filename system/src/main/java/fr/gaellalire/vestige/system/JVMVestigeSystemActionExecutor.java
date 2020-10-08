@@ -103,12 +103,15 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
 
         VestigeSecurityManager vestigeSecurityManager = null;
         VestigeProperties vestigeProperties;
+        SLF4JPrintStream pout;
+        SLF4JPrintStream perr;
         VestigePrintStream out;
         VestigePrintStream err;
         VestigeInputStream in;
         // avoid direct log
         synchronized (System.class) {
-            out = new VestigePrintStream(new SLF4JPrintStream(vestigeSystem, true, System.out)) {
+            pout = new SLF4JPrintStream(vestigeSystem, true, System.out);
+            out = new VestigePrintStream(pout) {
 
                 @Override
                 public PrintStream getPrintStream() {
@@ -118,7 +121,8 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
             vestigeSystem.setOut(out.getNextHandler());
             System.setOut(out);
 
-            err = new VestigePrintStream(new SLF4JPrintStream(vestigeSystem, false, System.err)) {
+            perr = new SLF4JPrintStream(vestigeSystem, false, System.err);
+            err = new VestigePrintStream(perr) {
 
                 @Override
                 public PrintStream getPrintStream() {
@@ -229,17 +233,15 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
         }
 
         // JDK log
-        if (levelClass != null) {
-            synchronized (VestigeLoggerFactory.class) {
-                SLF4JLoggerFactoryAdapter factory;
-                if (securityEnabled) {
-                    factory = new SecureSLF4JLoggerFactoryAdapter(vestigeSystem);
-                } else {
-                    factory = new SLF4JLoggerFactoryAdapter();
-                }
-                factory.setNextHandler(VestigeLoggerFactory.getVestigeLoggerFactory());
-                VestigeLoggerFactory.setVestigeLoggerFactory(factory);
+        SLF4JLoggerFactoryAdapter slf4jLoggerFactoryAdapter;
+        synchronized (VestigeLoggerFactory.class) {
+            if (securityEnabled) {
+                slf4jLoggerFactoryAdapter = new SecureSLF4JLoggerFactoryAdapter(vestigeSystem);
+            } else {
+                slf4jLoggerFactoryAdapter = new SLF4JLoggerFactoryAdapter();
             }
+            slf4jLoggerFactoryAdapter.setNextHandler(VestigeLoggerFactory.getVestigeLoggerFactory());
+            VestigeLoggerFactory.setVestigeLoggerFactory(slf4jLoggerFactoryAdapter);
         }
 
         Map<String, StackedHandler<?>> securityFields = new HashMap<String, StackedHandler<?>>();
@@ -424,6 +426,13 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
                 }
             }
 
+            if (slf4jLoggerFactoryAdapter != null) {
+                synchronized (VestigeLoggerFactory.class) {
+                    VestigeLoggerFactory
+                            .setVestigeLoggerFactory(StackedHandlerUtils.uninstallStackedHandler(slf4jLoggerFactoryAdapter, VestigeLoggerFactory.getVestigeLoggerFactory()));
+                }
+            }
+
             if (levelFields != null) {
                 try {
                     uninstallFields(levelClass, levelFields);
@@ -448,6 +457,8 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
                 System.setOut(StackedHandlerUtils.uninstallStackedHandler(out, System.out));
                 System.setErr(StackedHandlerUtils.uninstallStackedHandler(err, System.err));
                 System.setIn(StackedHandlerUtils.uninstallStackedHandler(in, System.in));
+                System.setOut(StackedHandlerUtils.uninstallStackedHandler(pout, System.out));
+                System.setErr(StackedHandlerUtils.uninstallStackedHandler(perr, System.err));
             }
 
             if (securityEnabled) {

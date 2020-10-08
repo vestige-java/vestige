@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>fr.gaellalire.vestige</groupId>
   <artifactId>vestige</artifactId>
@@ -155,15 +156,15 @@
     <slf4j.version>1.7.25</slf4j.version>
     <vestige.core.version>8</vestige.core.version>
     <vestige.jpms.version>2.0</vestige.jpms.version>
-    <vestige.jvm_enhancer.version>4.0</vestige.jvm_enhancer.version>
-    <vestige.logback_enhancer.version>1.0-SNAPSHOT</vestige.logback_enhancer.version>
+    <vestige.jvm_enhancer.version>4.1</vestige.jvm_enhancer.version>
+    <vestige.logback_enhancer.version>1.0</vestige.logback_enhancer.version>
     <vestige.spi.system.version>1.0</vestige.spi.system.version>
     <vestige.spi.job.version>1.1</vestige.spi.job.version>
     <vestige.spi.resolver.version>2.0</vestige.spi.resolver.version>
     <vestige.spi.resolver.url_list.version>2.0</vestige.spi.resolver.url_list.version>
     <vestige.spi.resolver.maven.version>2.0</vestige.spi.resolver.maven.version>
     <vestige.maven.version>java6-3</vestige.maven.version>
-    <logback.version>1.2.4-SNAPSHOT</logback.version>
+    <logback.version>1.2.3</logback.version>
     <logstash.logback.encoder.version>4.11</logstash.logback.encoder.version>
     <jetty.version>8.1.11.v20130520</jetty.version>
     <milton.version>2.5.0.1</milton.version>
@@ -229,6 +230,11 @@
         <groupId>ch.qos.logback</groupId>
         <artifactId>logback-classic</artifactId>
         <version>${logback.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-core</artifactId>
+        <version>1.2.3.1</version>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
@@ -349,9 +355,16 @@
         <artifactId>bctls-jdk15to18</artifactId>
         <version>${bouncycastle.version}</version>
       </dependency>
-
-
-
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>vestige.logback_enhancer</artifactId>
+        <version>${vestige.logback_enhancer.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>vestige.jvm_enhancer.boot</artifactId>
+        <version>${vestige.jvm_enhancer.version}</version>
+      </dependency>
       <dependency>
         <groupId>org.codehaus.janino</groupId>
         <artifactId>janino</artifactId>

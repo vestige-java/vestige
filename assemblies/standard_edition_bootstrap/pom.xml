@@ -92,12 +92,10 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>vestige.logback_enhancer</artifactId>
-      <version>${vestige.logback_enhancer.version}</version>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>vestige.jvm_enhancer.boot</artifactId>
-      <version>${vestige.jvm_enhancer.version}</version>
     </dependency>
   </dependencies>
 </project>

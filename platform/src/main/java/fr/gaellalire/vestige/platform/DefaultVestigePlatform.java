@@ -631,4 +631,47 @@ public class DefaultVestigePlatform implements VestigePlatform {
         return map;
     }
 
+    public void close() {
+        for (AttachedVestigeClassLoader attachedVestigeClassLoader : attached) {
+            VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader = attachedVestigeClassLoader.getVestigeClassLoader();
+            vestigeClassLoader.setData(this, null);
+            vestigeClassLoader.setDataProtector(this, null);
+
+        }
+        for (List<WeakReference<AttachedVestigeClassLoader>> attachedVestigeClassLoaderList : attachedClassLoaders) {
+            if (attachedVestigeClassLoaderList != null) {
+                for (WeakReference<AttachedVestigeClassLoader> reference : attachedVestigeClassLoaderList) {
+                    AttachedVestigeClassLoader attachedVestigeClassLoader = reference.get();
+                    if (attachedVestigeClassLoader != null) {
+                        VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader = attachedVestigeClassLoader.getVestigeClassLoader();
+                        vestigeClassLoader.setData(this, null);
+                        vestigeClassLoader.setDataProtector(this, null);
+                    }
+                }
+            }
+        }
+        for (WeakReference<AttachedVestigeClassLoader> reference : unattached) {
+            AttachedVestigeClassLoader attachedVestigeClassLoader = reference.get();
+            if (attachedVestigeClassLoader != null) {
+                VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader = attachedVestigeClassLoader.getVestigeClassLoader();
+                vestigeClassLoader.setData(this, null);
+                vestigeClassLoader.setDataProtector(this, null);
+
+            }
+        }
+        for (WeakReference<AttachedVestigeClassLoader> reference : map.values()) {
+            AttachedVestigeClassLoader attachedVestigeClassLoader = reference.get();
+            if (attachedVestigeClassLoader != null) {
+                VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader = attachedVestigeClassLoader.getVestigeClassLoader();
+                vestigeClassLoader.setData(this, null);
+                vestigeClassLoader.setDataProtector(this, null);
+
+            }
+        }
+        attached.clear();
+        attachedClassLoaders.clear();
+        unattached.clear();
+        map.clear();
+    }
+
 }

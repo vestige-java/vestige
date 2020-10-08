@@ -45,8 +45,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
@@ -78,7 +76,6 @@ import ch.qos.logback.classic.util.ContextInitializer;
 import ch.qos.logback.classic.util.LogbackMDCAdapter;
 import ch.qos.logback.core.joran.spi.ConsoleTarget;
 import ch.qos.logback.core.joran.spi.JoranException;
-import ch.qos.logback.core.util.ExecutorServiceUtil;
 import ch.qos.logback.core.util.StatusPrinter;
 import fr.gaellalire.vestige.admin.command.CheckBootstrap;
 import fr.gaellalire.vestige.admin.command.Platform;
@@ -214,6 +211,7 @@ public class StandardEditionVestige implements Runnable {
     @Override
     public void run() {
         boolean vestigeExecutorCreated = false;
+        boolean vestigePlatformCreated = false;
         if (vestigeExecutor == null) {
             vestigeExecutorCreated = true;
             vestigeExecutor = new VestigeExecutor();
@@ -226,6 +224,7 @@ public class StandardEditionVestige implements Runnable {
                     moduleLayerRepository = jpmsAccessor.createModuleLayerRepository();
                 }
                 vestigePlatform = new DefaultVestigePlatform(moduleLayerRepository);
+                vestigePlatformCreated = true;
             }
         }
 
@@ -529,7 +528,7 @@ public class StandardEditionVestige implements Runnable {
         boolean started = false;
         if (!interrupted) {
             try {
-                start(actionManager);
+                startService(actionManager);
                 started = true;
             } catch (Exception e) {
                 LOGGER.error("Unable to start Vestige SE", e);
@@ -621,11 +620,14 @@ public class StandardEditionVestige implements Runnable {
         }
         try {
             vestigeStateListener.stopping();
-            stop();
+            stopService();
             if (vestigePlatform != null) {
                 for (Integer id : vestigePlatform.getAttachments()) {
                     vestigePlatform.detach(id);
                 }
+            }
+            if (vestigePlatformCreated) {
+                vestigePlatform.close();
             }
             if (vestigeExecutorCreated) {
                 vestigeExecutor.getThreadReaperHelper().reap();
@@ -646,7 +648,7 @@ public class StandardEditionVestige implements Runnable {
         }
     }
 
-    public void start(final JobManager jobManager) throws Exception {
+    public void startService(final JobManager jobManager) throws Exception {
         if (vestigeWorker[0] != null) {
             return;
         }
@@ -658,12 +660,12 @@ public class StandardEditionVestige implements Runnable {
             LOGGER.warn("Unable to restore application manager state", e);
         }
 
+        defaultApplicationManager.startService();
         // try {
         // defaultApplicationManager.autoMigrate();
         // } catch (ApplicationException e) {
         // LOGGER.error("Automigration failed", e);
         // }
-        defaultApplicationManager.startStateListenerThread();
         defaultApplicationManager.autoStart();
         if (sshServer != null) {
             try {
@@ -682,7 +684,7 @@ public class StandardEditionVestige implements Runnable {
         }
     }
 
-    public void stop() throws Exception {
+    public void stopService() throws Exception {
         if (vestigeWorker[0] == null) {
             return;
         }
@@ -701,7 +703,7 @@ public class StandardEditionVestige implements Runnable {
             }
         }
         defaultApplicationManager.stopAll();
-        defaultApplicationManager.stopStateListenerThread();
+        defaultApplicationManager.stopService();
         vestigeWorker[0].interrupt();
         vestigeWorker[0].join();
         vestigeWorker = null;
@@ -736,31 +738,6 @@ public class StandardEditionVestige implements Runnable {
             } finally {
                 copyOnThreadLocalField.setAccessible(false);
             }
-
-            final ClassLoader contextClassLoader = ClassLoader.getSystemClassLoader();
-            final Field threadFactoryField = ExecutorServiceUtil.class.getDeclaredField("THREAD_FACTORY");
-            try {
-                JVMVestigeSystemActionExecutor.setStaticFieldValue(threadFactoryField, new ThreadFactory() {
-
-                    private final ThreadFactory defaultFactory = Executors.defaultThreadFactory();
-
-                    private final AtomicInteger threadNumber = new AtomicInteger(1);
-
-                    public Thread newThread(final Runnable r) {
-                        Thread thread = defaultFactory.newThread(r);
-                        if (!thread.isDaemon()) {
-                            thread.setDaemon(true);
-                        }
-                        // set contextClassLoader to avoid memory leak
-                        thread.setContextClassLoader(contextClassLoader);
-                        thread.setName("logback-" + threadNumber.getAndIncrement());
-                        return thread;
-                    }
-                });
-            } catch (Exception e) {
-                LOGGER.warn("Cannot replace ExecutorServiceUtil.THREAD_FACTORY memory leak may happen", e);
-            }
-
         } catch (NoSuchFieldException e) {
             LOGGER.error("Logback appender changes", e);
         } catch (IllegalAccessException e) {
@@ -768,7 +745,8 @@ public class StandardEditionVestige implements Runnable {
         }
     }
 
-    public static void vestigeMain(final VestigeExecutor vestigeExecutor, final VestigePlatform vestigePlatform, final Function<Thread, Void, RuntimeException> addShutdownHook,
+    public static void vestigeMain(final VestigeCoreContext vestigeCoreContext, final VestigeURLStreamHandlerFactory vestigeURLStreamHandlerFactory,
+            final VestigePlatform vestigePlatform, final Function<Thread, Void, RuntimeException> addShutdownHook,
             final Function<Thread, Void, RuntimeException> removeShutdownHook, final List<? extends ClassLoader> privilegedClassloaders,
             final WeakReference<Object> bootstrapObject, final String[] args) {
         try {
@@ -873,7 +851,7 @@ public class StandardEditionVestige implements Runnable {
                         final StandardEditionVestige standardEditionVestige = new StandardEditionVestige(configFile, dataFile, cacheFile);
                         standardEditionVestige.setPrivilegedClassloaders(privilegedClassloaders);
                         standardEditionVestige.setBootstrapObject(bootstrapObject);
-                        standardEditionVestige.setVestigeExecutor(vestigeExecutor);
+                        standardEditionVestige.setVestigeExecutor(vestigeCoreContext.getVestigeExecutor());
                         standardEditionVestige.setVestigePlatform(vestigePlatform);
                         standardEditionVestige.setVestigeStateListener(vestigeStateListener);
                         standardEditionVestige.setVestigeSystem(vestigeSystem);
@@ -895,6 +873,19 @@ public class StandardEditionVestige implements Runnable {
                         }
                     }.start();
                 }
+                try {
+                    if (removeShutdownHook == null) {
+                        Runtime.getRuntime().removeShutdownHook(seShutdownThread);
+                    } else {
+                        removeShutdownHook.apply(seShutdownThread);
+                    }
+                } catch (IllegalStateException e) {
+                    // ok, shutdown in progress
+                }
+                vestigePlatform.close();
+                Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
+                Security.removeProvider(BouncyCastleJsseProvider.PROVIDER_NAME);
+                vestigeCoreContext.getStreamHandlerFactory().setDelegate(null);
             } finally {
                 if (socketChannel != null) {
                     socketChannel.close();
@@ -941,7 +932,7 @@ public class StandardEditionVestige implements Runnable {
         DelegateURLStreamHandlerFactory streamHandlerFactory = vestigeCoreContext.getStreamHandlerFactory();
         streamHandlerFactory.setDelegate(vestigeURLStreamHandlerFactory);
 
-        vestigeMain(vestigeCoreContext.getVestigeExecutor(), vestigePlatform, addShutdownHook, removeShutdownHook, null, null, args);
+        vestigeMain(vestigeCoreContext, vestigeURLStreamHandlerFactory, vestigePlatform, addShutdownHook, removeShutdownHook, null, null, args);
     }
 
     public static void vestigeCoreMain(final VestigeCoreContext vestigeCoreContext, final String[] args) throws Exception {

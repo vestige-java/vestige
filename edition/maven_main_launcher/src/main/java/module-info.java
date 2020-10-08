@@ -21,6 +21,8 @@ module fr.gaellalire.vestige.edition.maven_main_launcher {
     requires org.bouncycastle.tls;
     
     requires org.bouncycastle.pkix;
+    
+    requires fr.gaellalire.vestige.logback_enhancer;
 
     exports fr.gaellalire.vestige.edition.maven_main_launcher;
     

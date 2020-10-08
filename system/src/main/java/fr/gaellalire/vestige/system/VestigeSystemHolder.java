@@ -17,12 +17,16 @@
 
 package fr.gaellalire.vestige.system;
 
+import fr.gaellalire.vestige.spi.system.VestigeSystem;
+
 /**
  * @author Gael Lalire
  */
 public class VestigeSystemHolder {
 
     private ThreadLocal<DefaultVestigeSystem> vestigeSystems = new InheritableThreadLocal<DefaultVestigeSystem>();
+
+    private NullVestigeSystem nullVestigeSystem = new NullVestigeSystem(this);
 
     private DefaultVestigeSystem fallbackVestigeSystem;
 
@@ -36,9 +40,12 @@ public class VestigeSystemHolder {
         return fallbackVestigeSystem;
     }
 
-    public DefaultVestigeSystem setVestigeSystem(final DefaultVestigeSystem vestigeSystem) {
+    public VestigeSystem setVestigeSystem(final DefaultVestigeSystem vestigeSystem) {
         DefaultVestigeSystem pushedDefaultVestigeSystem = vestigeSystems.get();
         vestigeSystems.set(vestigeSystem);
+        if (pushedDefaultVestigeSystem == null) {
+            return nullVestigeSystem;
+        }
         return pushedDefaultVestigeSystem;
     }
 
