@@ -932,7 +932,7 @@ public class StandardEditionVestige implements Runnable {
         DelegateURLStreamHandlerFactory streamHandlerFactory = vestigeCoreContext.getStreamHandlerFactory();
         streamHandlerFactory.setDelegate(vestigeURLStreamHandlerFactory);
 
-        vestigeMain(vestigeCoreContext, vestigeURLStreamHandlerFactory, vestigePlatform, addShutdownHook, removeShutdownHook, null, null, args);
+        vestigeMain(vestigeCoreContext, vestigeURLStreamHandlerFactory, vestigePlatform, addShutdownHook, removeShutdownHook, privilegedClassloaders, null, args);
     }
 
     public static void vestigeCoreMain(final VestigeCoreContext vestigeCoreContext, final String[] args) throws Exception {

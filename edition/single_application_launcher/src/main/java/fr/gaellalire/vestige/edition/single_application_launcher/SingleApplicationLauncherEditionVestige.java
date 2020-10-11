@@ -59,11 +59,16 @@ import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.DefaultApplicationManager;
 import fr.gaellalire.vestige.application.manager.URLOpener;
+import fr.gaellalire.vestige.core.VestigeCoreContext;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;
 import fr.gaellalire.vestige.core.executor.VestigeWorker;
 import fr.gaellalire.vestige.core.function.Function;
+import fr.gaellalire.vestige.core.url.DelegateURLStreamHandlerFactory;
 import fr.gaellalire.vestige.job.DefaultJobManager;
+import fr.gaellalire.vestige.job.JobController;
+import fr.gaellalire.vestige.job.JobListener;
 import fr.gaellalire.vestige.job.JobManager;
+import fr.gaellalire.vestige.job.TaskListener;
 import fr.gaellalire.vestige.jpms.JPMSAccessor;
 import fr.gaellalire.vestige.jpms.JPMSAccessorLoader;
 import fr.gaellalire.vestige.jpms.JPMSModuleAccessor;
@@ -72,6 +77,7 @@ import fr.gaellalire.vestige.jpms.JPMSModuleLayerRepository;
 import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
 import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
 import fr.gaellalire.vestige.platform.VestigePlatform;
+import fr.gaellalire.vestige.platform.VestigeURLStreamHandlerFactory;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
 import fr.gaellalire.vestige.resolver.maven.SSLContextAccessor;
 import fr.gaellalire.vestige.resolver.maven.secure.SecureVestigeMavenResolver;
@@ -121,7 +127,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
 
     private VestigeURLListResolver vestigeURLListResolver;
 
-    private File appFile;
+    private URL appURL;
 
     public void setVestigeExecutor(final VestigeExecutor vestigeExecutor) {
         this.vestigeExecutor = vestigeExecutor;
@@ -135,8 +141,8 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
         this.privilegedClassloaders = privilegedClassloaders;
     }
 
-    public void setAppFile(final File appFile) {
-        this.appFile = appFile;
+    public void setAppURL(final URL appURL) {
+        this.appURL = appURL;
     }
 
     public void setVestigeSystem(final VestigeSystem vestigeSystem) {
@@ -154,8 +160,6 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
 
     @Override
     public void run() {
-
-        // FIXME maybe vestigeExecutor is useless now that detach will not run anything
         if (vestigeExecutor == null) {
             vestigeExecutor = new VestigeExecutor();
         }
@@ -338,7 +342,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
 
             @Override
             public InputStream openURL(final URL url) throws IOException {
-                return new FileInputStream(appFile);
+                return url.openStream();
             }
         };
 
@@ -420,12 +424,36 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
         }
 
         try {
-            defaultApplicationManager.install(null, null, "local", Arrays.<Integer> asList(0, 0, 0), "app", null);
+            if (!defaultApplicationManager.getApplicationsName().contains("app")) {
+                final boolean[] installDone = new boolean[] {false};
+                JobController jobController = defaultApplicationManager.install(appURL, null, "app", Arrays.<Integer> asList(0, 0, 0), "app", new JobListener() {
 
+                    @Override
+                    public TaskListener taskAdded(final String description) {
+                        return null;
+                    }
+
+                    @Override
+                    public void jobDone() {
+                        synchronized (installDone) {
+                            installDone[0] = true;
+                            installDone.notifyAll();
+                        }
+                    }
+                });
+                synchronized (installDone) {
+                    while (!installDone[0]) {
+                        installDone.wait();
+                    }
+                }
+                Exception exception = jobController.getException();
+                if (exception != null) {
+                    LOGGER.error("Got an installing exception", exception);
+                }
+            }
             defaultApplicationManager.start("app");
         } catch (ApplicationException e1) {
-            // TODO Auto-generated catch block
-            e1.printStackTrace();
+            LOGGER.error("Got an exception", e1);
         }
 
         defaultApplicationManager.startService();
@@ -475,7 +503,8 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
         }
     }
 
-    public static void vestigeMain(final VestigeExecutor vestigeExecutor, final VestigePlatform vestigePlatform, final Function<Thread, Void, RuntimeException> addShutdownHook,
+    public static void vestigeMain(final VestigeCoreContext vestigeCoreContext, final VestigeURLStreamHandlerFactory vestigeURLStreamHandlerFactory,
+            final VestigePlatform vestigePlatform, final Function<Thread, Void, RuntimeException> addShutdownHook,
             final Function<Thread, Void, RuntimeException> removeShutdownHook, final List<? extends ClassLoader> privilegedClassloaders,
             final WeakReference<Object> bootstrapObject, final String[] args) {
         try {
@@ -553,21 +582,31 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
                 securityEnabled = Boolean.parseBoolean(vestigeSecurity);
             }
 
-            int argIndex = 0;
-            String app = args[argIndex++];
+            final URL appURL;
+            String app = System.getenv("VESTIGE_SAL_APP_URL");
+            if (app == null) {
+                app = System.getenv("VESTIGE_SAL_APP_FILE");
+                appURL = new File(app).toURI().toURL();
+            } else {
+                appURL = new URL(app);
+            }
 
             final File configFile = new File(config).getCanonicalFile();
             final File dataFile = new File(data).getCanonicalFile();
             final File cacheFile = new File(cache).getCanonicalFile();
-            final File appFile = new File(app).getCanonicalFile();
             if (!configFile.isDirectory()) {
                 if (!configFile.mkdirs()) {
-                    LOGGER.error("Unable to create vestige base");
+                    LOGGER.error("Unable to create vestige config");
                 }
             }
             if (!dataFile.isDirectory()) {
                 if (!dataFile.mkdirs()) {
                     LOGGER.error("Unable to create vestige data");
+                }
+            }
+            if (!cacheFile.isDirectory()) {
+                if (!cacheFile.mkdirs()) {
+                    LOGGER.error("Unable to create vestige cache");
                 }
             }
             new JVMVestigeSystemActionExecutor(securityEnabled).execute(new VestigeSystemAction() {
@@ -576,10 +615,10 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
                 public void vestigeSystemRun(final VestigeSystem vestigeSystem) {
                     final SingleApplicationLauncherEditionVestige singleApplicationLauncherVestige = new SingleApplicationLauncherEditionVestige(configFile, dataFile, cacheFile);
                     singleApplicationLauncherVestige.setPrivilegedClassloaders(privilegedClassloaders);
-                    singleApplicationLauncherVestige.setVestigeExecutor(vestigeExecutor);
+                    singleApplicationLauncherVestige.setVestigeExecutor(vestigeCoreContext.getVestigeExecutor());
                     singleApplicationLauncherVestige.setVestigePlatform(vestigePlatform);
                     singleApplicationLauncherVestige.setVestigeSystem(vestigeSystem);
-                    singleApplicationLauncherVestige.setAppFile(appFile);
+                    singleApplicationLauncherVestige.setAppURL(appURL);
                     VestigeSystemCache vestigeSystemCache = vestigeSystem.pushVestigeSystemCache();
                     try {
                         singleApplicationLauncherVestige.run();
@@ -594,8 +633,8 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
         }
     }
 
-    public static void vestigeEnhancedCoreMain(final VestigeExecutor vestigeExecutor, final Function<Thread, Void, RuntimeException> addShutdownHook,
-            final Function<Thread, Void, RuntimeException> removeShutdownHook, final String[] args) {
+    public static void vestigeEnhancedCoreMain(final VestigeCoreContext vestigeCoreContext, final Function<Thread, Void, RuntimeException> addShutdownHook,
+            final Function<Thread, Void, RuntimeException> removeShutdownHook, final List<? extends ClassLoader> privilegedClassloaders, final String[] args) throws Exception {
         JPMSAccessor jpmsAccessor = JPMSAccessorLoader.INSTANCE;
         JPMSModuleLayerRepository moduleLayerRepository = null;
         if (jpmsAccessor != null) {
@@ -613,17 +652,33 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
             }
             moduleLayerRepository = jpmsAccessor.createModuleLayerRepository();
         }
+
         VestigePlatform vestigePlatform = new DefaultVestigePlatform(moduleLayerRepository);
-        vestigeMain(vestigeExecutor, vestigePlatform, addShutdownHook, removeShutdownHook, null, null, args);
+
+        File mavenSettingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
+        if (!mavenSettingsFile.isFile()) {
+            mavenSettingsFile = new File(args[0]).getAbsoluteFile();
+        }
+        LOGGER.info("Use {} for Maven settings file", mavenSettingsFile);
+
+        // we don't need vestigePlatform or vestigeWorker because we will never create a classloader, we only want the baseDir
+        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(null, null, mavenSettingsFile, null);
+        VestigeURLStreamHandlerFactory vestigeURLStreamHandlerFactory = new VestigeURLStreamHandlerFactory();
+        MavenArtifactResolver.replaceMavenURLStreamHandler(mavenArtifactResolver.getBaseDir(), vestigeURLStreamHandlerFactory);
+        DelegateURLStreamHandlerFactory streamHandlerFactory = vestigeCoreContext.getStreamHandlerFactory();
+        streamHandlerFactory.setDelegate(vestigeURLStreamHandlerFactory);
+
+        vestigeMain(vestigeCoreContext, vestigeURLStreamHandlerFactory, vestigePlatform, addShutdownHook, removeShutdownHook, privilegedClassloaders, null, args);
     }
 
-    public static void vestigeCoreMain(final VestigeExecutor vestigeExecutor, final String[] args) {
-        vestigeEnhancedCoreMain(vestigeExecutor, null, null, args);
+    public static void vestigeCoreMain(final VestigeCoreContext vestigeCoreContext, final String[] args) throws Exception {
+        vestigeEnhancedCoreMain(vestigeCoreContext, null, null, null, args);
     }
 
     public static void main(final String[] args) throws Exception {
-        VestigeExecutor vestigeExecutor = new VestigeExecutor();
-        vestigeCoreMain(vestigeExecutor, args);
+        VestigeCoreContext vestigeCoreContext = VestigeCoreContext.buildDefaultInstance();
+        URL.setURLStreamHandlerFactory(vestigeCoreContext.getStreamHandlerFactory());
+        vestigeCoreMain(vestigeCoreContext, args);
     }
 
 }

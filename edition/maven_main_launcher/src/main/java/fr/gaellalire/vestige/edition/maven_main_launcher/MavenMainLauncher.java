@@ -334,7 +334,9 @@ public final class MavenMainLauncher {
                             try {
                                 KeyStore trustStore = KeyStore.getInstance("PKCS12", BouncyCastleProvider.PROVIDER_NAME);
 
-                                trustStore.load(new FileInputStream(mavenCacertsFile), "changeit".toCharArray());
+                                if (mavenCacertsFile != null) {
+                                    trustStore.load(new FileInputStream(mavenCacertsFile), "changeit".toCharArray());
+                                }
 
                                 TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX", BouncyCastleJsseProvider.PROVIDER_NAME);
                                 trustManagerFactory.init(trustStore);
@@ -535,10 +537,6 @@ public final class MavenMainLauncher {
                 return;
             }
             String mavenCacerts = System.getenv("MAVEN_CACERTS");
-            if (mavenCacerts == null) {
-                LOGGER.error("MAVEN_CACERTS must be defined");
-                return;
-            }
 
             String cache = System.getenv("MAVEN_RESOLVER_CACHE_FILE");
             if (cache == null) {
@@ -555,8 +553,11 @@ public final class MavenMainLauncher {
             }
             LOGGER.info("Use {} for Maven settings file", mavenSettingsFile);
 
-            File mavenCacertsFile = new File(mavenCacerts).getCanonicalFile();
-            LOGGER.debug("Use {} for Maven CA Certs store", mavenCacertsFile);
+            File mavenCacertsFile = null;
+            if (mavenCacerts != null) {
+                mavenCacertsFile = new File(mavenCacerts).getCanonicalFile();
+                LOGGER.debug("Use {} for Maven CA Certs store", mavenCacertsFile);
+            }
 
             File mavenResolverCacheFile = new File(cache).getCanonicalFile();
             LOGGER.debug("Use {} for Maven resolver cache file", mavenResolverCacheFile);
