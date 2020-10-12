@@ -45,8 +45,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
@@ -145,8 +148,6 @@ public class StandardEditionVestige implements Runnable {
     private VestigeExecutor vestigeExecutor;
 
     private VestigeWorker[] vestigeWorker = new VestigeWorker[1];
-
-    // private ApplicationDescriptorFactory applicationDescriptorFactory;
 
     private File systemConfigFile;
 
@@ -324,11 +325,9 @@ public class StandardEditionVestige implements Runnable {
             applicationsVestigeSystem.setSecurityManager(vestigeSecurityManager);
         }
 
-        ExecutorService executorService = Executors.newCachedThreadPool();
-
-        File appBaseFile = new File(configFile, "app");
-        if (!appBaseFile.exists()) {
-            appBaseFile.mkdir();
+        File appConfigFile = new File(configFile, "app");
+        if (!appConfigFile.exists()) {
+            appConfigFile.mkdir();
         }
         File appDataFile = new File(dataFile, "app");
         if (!appDataFile.exists()) {
@@ -376,14 +375,20 @@ public class StandardEditionVestige implements Runnable {
                     caCerts = new File(systemConfigFile, "cacerts.p12");
                 }
             }
+            TrustManager[] trustManagers = null;
             if (caCerts.isFile()) {
-                trustStore.load(new FileInputStream(caCerts), "changeit".toCharArray());
+                TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX", BouncyCastleJsseProvider.PROVIDER_NAME);
+                FileInputStream stream = new FileInputStream(caCerts);
+                try {
+                    trustStore.load(stream, "changeit".toCharArray());
+                } finally {
+                    stream.close();
+                }
+                trustManagerFactory.init(trustStore);
+                trustManagers = trustManagerFactory.getTrustManagers();
             }
-
-            TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX", BouncyCastleJsseProvider.PROVIDER_NAME);
-            trustManagerFactory.init(trustStore);
             sslContext = SSLContext.getInstance("TLS", BouncyCastleJsseProvider.PROVIDER_NAME);
-            sslContext.init(null, trustManagerFactory.getTrustManagers(), SecureRandom.getInstance("DEFAULT", BouncyCastleProvider.PROVIDER_NAME));
+            sslContext.init(null, trustManagers, SecureRandom.getInstance("DEFAULT", BouncyCastleProvider.PROVIDER_NAME));
         } catch (Exception e) {
             LOGGER.error("SSLContext creation failed", e);
             return;
@@ -470,7 +475,7 @@ public class StandardEditionVestige implements Runnable {
         injectableByClassName.put(VestigeMavenResolver.class.getName(), new SecureVestigeMavenResolver(standardEditionVestigeSystem, vestigePolicy, vestigeMavenResolver));
         // injectableByClassName.put(VestigeURLListResolver.class.getName(), vestigeURLListResolver);
 
-        defaultApplicationManager = new DefaultApplicationManager(actionManager, appBaseFile, appDataFile, appCacheFile, applicationsVestigeSystem, standardEditionVestigeSystem,
+        defaultApplicationManager = new DefaultApplicationManager(actionManager, appConfigFile, appDataFile, appCacheFile, applicationsVestigeSystem, standardEditionVestigeSystem,
                 vestigePolicy, vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile, vestigeResolvers, injectableByClassName);
 
         Admin admin = settings.getAdmin();
@@ -488,41 +493,55 @@ public class StandardEditionVestige implements Runnable {
 
         File commandHistory = new File(cacheFile, "history.txt");
 
-        Future<VestigeServer> futureSshServer = null;
-        if (SimpleValueGetter.INSTANCE.getValue(ssh.getEnabled())) {
-            File sshConfig = new File(configFile, "ssh");
-            File sshData = new File(dataFile, "ssh");
-            futureSshServer = executorService.submit(new SSHServerFactory(sshConfig, sshData, commandHistory, ssh, configFile, vestigeCommandExecutor));
-        }
-
-        Future<VestigeServer> futureWebServer = null;
-        if (SimpleValueGetter.INSTANCE.getValue(web.getEnabled())) {
-            File webConfig = new File(configFile, "web");
-            File webData = new File(dataFile, "web");
-            // TODO share commandHistory with ssh
-            futureWebServer = executorService
-                    .submit(new WebServerFactory(webConfig, webData, web, defaultApplicationManager, configFile, vestigeCommandExecutor, vestigeStateListener));
-        }
-
         boolean interrupted = false;
+        ExecutorService executorService = Executors.newCachedThreadPool(new ThreadFactory() {
+
+            private AtomicInteger count = new AtomicInteger();
+
+            @Override
+            public Thread newThread(final Runnable r) {
+                return new Thread(r, "se-executor-" + count.incrementAndGet());
+            }
+        });
         try {
-            if (futureSshServer != null) {
-                try {
-                    sshServer = futureSshServer.get();
-                } catch (ExecutionException e) {
-                    LOGGER.error("Unable to create SSH access", e);
-                }
+
+            Future<VestigeServer> futureSshServer = null;
+            if (SimpleValueGetter.INSTANCE.getValue(ssh.getEnabled())) {
+                File sshConfig = new File(configFile, "ssh");
+                File sshData = new File(dataFile, "ssh");
+                futureSshServer = executorService.submit(new SSHServerFactory(sshConfig, sshData, commandHistory, ssh, configFile, vestigeCommandExecutor));
             }
-            if (futureWebServer != null) {
-                try {
-                    webServer = futureWebServer.get();
-                } catch (ExecutionException e) {
-                    LOGGER.error("Unable to create web access", e);
-                }
+
+            Future<VestigeServer> futureWebServer = null;
+            if (SimpleValueGetter.INSTANCE.getValue(web.getEnabled())) {
+                File webConfig = new File(configFile, "web");
+                File webData = new File(dataFile, "web");
+                // TODO share commandHistory with ssh
+                futureWebServer = executorService
+                        .submit(new WebServerFactory(webConfig, webData, web, defaultApplicationManager, configFile, vestigeCommandExecutor, vestigeStateListener));
             }
-        } catch (InterruptedException e) {
-            LOGGER.info("Vestige SE stopped before start finished");
-            interrupted = true;
+
+            try {
+                if (futureSshServer != null) {
+                    try {
+                        sshServer = futureSshServer.get();
+                    } catch (ExecutionException e) {
+                        LOGGER.error("Unable to create SSH access", e);
+                    }
+                }
+                if (futureWebServer != null) {
+                    try {
+                        webServer = futureWebServer.get();
+                    } catch (ExecutionException e) {
+                        LOGGER.error("Unable to create web access", e);
+                    }
+                }
+            } catch (InterruptedException e) {
+                LOGGER.info("Vestige SE stopped before start finished");
+                interrupted = true;
+            }
+        } finally {
+            executorService.shutdownNow();
         }
 
         boolean started = false;
@@ -653,7 +672,6 @@ public class StandardEditionVestige implements Runnable {
             return;
         }
         vestigeWorker[0] = vestigeExecutor.createWorker("se-worker", true, 0);
-        vestigePlatform = null;
         try {
             defaultApplicationManager.restoreState();
         } catch (ApplicationException e) {
@@ -720,15 +738,17 @@ public class StandardEditionVestige implements Runnable {
             LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
             ContextInitializer ci = new ContextInitializer(loggerContext);
             URL url = ci.findURLOfDefaultConfigurationFile(true);
-            try {
-                JoranConfigurator configurator = new JoranConfigurator();
-                configurator.setContext(loggerContext);
-                loggerContext.reset();
-                configurator.doConfigure(url);
-            } catch (JoranException je) {
-                // StatusPrinter will handle this
+            if (url != null) {
+                try {
+                    JoranConfigurator configurator = new JoranConfigurator();
+                    configurator.setContext(loggerContext);
+                    loggerContext.reset();
+                    configurator.doConfigure(url);
+                } catch (JoranException je) {
+                    // StatusPrinter will handle this
+                }
+                StatusPrinter.printInCaseOfErrorsOrWarnings(loggerContext);
             }
-            StatusPrinter.printInCaseOfErrorsOrWarnings(loggerContext);
 
             // Bug of logback
             Field copyOnThreadLocalField = LogbackMDCAdapter.class.getDeclaredField("copyOnThreadLocal");

@@ -43,6 +43,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
@@ -334,14 +335,21 @@ public final class MavenMainLauncher {
                             try {
                                 KeyStore trustStore = KeyStore.getInstance("PKCS12", BouncyCastleProvider.PROVIDER_NAME);
 
+                                TrustManager[] trustManagers = null;
                                 if (mavenCacertsFile != null) {
-                                    trustStore.load(new FileInputStream(mavenCacertsFile), "changeit".toCharArray());
+                                    TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX", BouncyCastleJsseProvider.PROVIDER_NAME);
+                                    FileInputStream stream = new FileInputStream(mavenCacertsFile);
+                                    try {
+                                        trustStore.load(stream, "changeit".toCharArray());
+                                    } finally {
+                                        stream.close();
+                                    }
+                                    trustManagerFactory.init(trustStore);
+                                    trustManagers = trustManagerFactory.getTrustManagers();
                                 }
 
-                                TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX", BouncyCastleJsseProvider.PROVIDER_NAME);
-                                trustManagerFactory.init(trustStore);
                                 sslContext = SSLContext.getInstance("TLS", BouncyCastleJsseProvider.PROVIDER_NAME);
-                                sslContext.init(null, trustManagerFactory.getTrustManagers(), SecureRandom.getInstance("DEFAULT", BouncyCastleProvider.PROVIDER_NAME));
+                                sslContext.init(null, trustManagers, SecureRandom.getInstance("DEFAULT", BouncyCastleProvider.PROVIDER_NAME));
                             } catch (Exception e) {
                                 throw new Error("SSLContext creation failed", e);
                             }
