@@ -45,7 +45,7 @@ public abstract class AbstractStringParserFactory implements StringParserFactory
         return tab;
     }
 
-    public abstract void createStates(final Map<String, Integer> valueByName, final StringParserFactoryHelper states);
+    public abstract void createStates(Map<String, Integer> valueByName, StringParserFactoryHelper states);
 
     public StringParser createStringParser(final Map<String, Integer> valueByName, final int defaultValue) {
         if (valueByName.size() == 0) {
@@ -139,7 +139,7 @@ public abstract class AbstractStringParserFactory implements StringParserFactory
                 state++;
             }
             fastStringParser = new ShortStateStringParser(firstCharacter, characterIds, initialState.shortValue(), stateByCharacterIdAndState, statesNumber, data, defaultValue);
-        }  else {
+        } else {
             int[] stateByCharacterIdAndState = new int[idCount * statesNumber];
             Arrays.fill(stateByCharacterIdAndState, -1);
             int state = 1;
@@ -171,6 +171,5 @@ public abstract class AbstractStringParserFactory implements StringParserFactory
         }
         return fastStringParser;
     }
-
 
 }

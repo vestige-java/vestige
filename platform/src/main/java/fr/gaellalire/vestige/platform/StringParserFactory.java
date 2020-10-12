@@ -26,6 +26,6 @@ import fr.gaellalire.vestige.core.parser.StringParser;
  */
 public interface StringParserFactory {
 
-    StringParser createStringParser(final Map<String, Integer> valueByName, final int defaultValue);
+    StringParser createStringParser(Map<String, Integer> valueByName, int defaultValue);
 
 }
