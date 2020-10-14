@@ -17,55 +17,19 @@
 
 package fr.gaellalire.vestige.application.manager;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-
 /**
  * @author Gael Lalire
  * @param <E>
  */
-public class VestigeSecureExecution<E> {
+public interface VestigeSecureExecution<E> {
 
-    private Thread thread;
+    void start();
 
-    private Future<E> future;
+    void interrupt();
 
-    public VestigeSecureExecution(final Thread thread, final Future<E> future) {
-        this.thread = thread;
-        this.future = future;
-    }
+    E get() throws Exception;
 
-    public void start() {
-        thread.start();
-    }
+    void join() throws InterruptedException;
 
-    public void interrupt() {
-        thread.interrupt();
-    }
-
-    public E get() throws Exception {
-        do {
-            try {
-                return future.get();
-            } catch (InterruptedException e) {
-                thread.interrupt();
-            } catch (ExecutionException e) {
-                Throwable cause = e.getCause();
-                if (cause instanceof Exception) {
-                    throw (Exception) cause;
-                } else {
-                    throw e;
-                }
-            }
-        } while (true);
-    }
-
-    public void join() throws InterruptedException {
-        thread.join();
-    }
-
-    public ThreadGroup getThreadGroup() {
-        return thread.getThreadGroup();
-    }
-
+    ThreadGroup getThreadGroup();
 }

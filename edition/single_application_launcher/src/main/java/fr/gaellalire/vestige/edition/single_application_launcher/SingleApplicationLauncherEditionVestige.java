@@ -277,39 +277,66 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
             vestigeURLListResolver = new DefaultVestigeURLListResolver(vestigePlatform, vestigeWorker);
         }
 
-        final SSLContext sslContext;
-        try {
-            KeyStore trustStore = KeyStore.getInstance("PKCS12", BouncyCastleProvider.PROVIDER_NAME);
+        final SSLContextAccessor lazySSLContextAccessor = new SSLContextAccessor() {
 
-            File caCerts = new File(configFile, "cacerts.p12");
-            TrustManager[] trustManagers = null;
-            if (caCerts.isFile()) {
-                TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX", BouncyCastleJsseProvider.PROVIDER_NAME);
-                FileInputStream stream = new FileInputStream(caCerts);
-                try {
-                    trustStore.load(stream, "changeit".toCharArray());
-                } finally {
-                    stream.close();
+            private SSLContext sslContext;
+
+            private volatile SSLContext volatileSSLContext;
+
+            private Object mutex = new Object();
+
+            @Override
+            public SSLContext getSSLContext() {
+                if (sslContext == null) {
+                    if (volatileSSLContext == null) {
+                        synchronized (mutex) {
+                            if (volatileSSLContext == null) {
+                                SSLContext sslContext;
+                                try {
+                                    KeyStore trustStore = KeyStore.getInstance("PKCS12", BouncyCastleProvider.PROVIDER_NAME);
+
+                                    File caCerts = new File(configFile, "cacerts.p12");
+                                    TrustManager[] trustManagers = null;
+                                    if (caCerts.isFile()) {
+                                        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX", BouncyCastleJsseProvider.PROVIDER_NAME);
+                                        FileInputStream stream = new FileInputStream(caCerts);
+                                        try {
+                                            trustStore.load(stream, "changeit".toCharArray());
+                                        } finally {
+                                            stream.close();
+                                        }
+                                        trustManagerFactory.init(trustStore);
+                                        trustManagers = trustManagerFactory.getTrustManagers();
+                                    }
+
+                                    sslContext = SSLContext.getInstance("TLS", BouncyCastleJsseProvider.PROVIDER_NAME);
+                                    sslContext.init(null, trustManagers, SecureRandom.getInstance("DEFAULT", BouncyCastleProvider.PROVIDER_NAME));
+                                    volatileSSLContext = sslContext;
+                                } catch (Exception e) {
+                                    throw new Error("SSLContext creation failed", e);
+                                }
+                            }
+                        }
+                    }
+                    sslContext = volatileSSLContext;
                 }
-                trustManagerFactory.init(trustStore);
-                trustManagers = trustManagerFactory.getTrustManagers();
+                return sslContext;
             }
-            sslContext = SSLContext.getInstance("TLS", BouncyCastleJsseProvider.PROVIDER_NAME);
-            sslContext.init(null, trustManagers, SecureRandom.getInstance("DEFAULT", BouncyCastleProvider.PROVIDER_NAME));
-        } catch (Exception e) {
-            LOGGER.error("SSLContext creation failed", e);
-            return;
-        }
+        };
+
+        Thread thread = new Thread(new Runnable() {
+
+            @Override
+            public void run() {
+                lazySSLContextAccessor.getSSLContext();
+            }
+        }, "sal-ssl-context-creator");
+        thread.setDaemon(true);
+        thread.start();
 
         if (vestigeMavenResolver == null) {
             try {
-                vestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, vestigeWorker, mavenSettingsFile, new SSLContextAccessor() {
-
-                    @Override
-                    public SSLContext getSSLContext() {
-                        return sslContext;
-                    }
-                });
+                vestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, vestigeWorker, mavenSettingsFile, lazySSLContextAccessor);
             } catch (NoLocalRepositoryManagerException e) {
                 LOGGER.error("NoLocalRepositoryManagerException", e);
                 return;
@@ -361,9 +388,9 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
             }
             synchronized (this) {
                 try {
-                    wait();
-                } catch (InterruptedException e) {
-                    LOGGER.trace("Vestige SAL interrupted", e);
+                    defaultApplicationManager.run(appName);
+                } catch (ApplicationException e) {
+                    LOGGER.trace("Vestige SAL exception", e);
                 }
             }
         }
@@ -378,7 +405,13 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
         } catch (Exception e) {
             LOGGER.error("Unable to stop Vestige SAL", e);
         }
-
+        // accelerate the stop process, run in separate thread to avoid thread lock
+        new Thread() {
+            @Override
+            public void run() {
+                System.exit(0);
+            }
+        }.start();
     }
 
     public void addAll(final AttachedVestigeClassLoader attachedVestigeClassLoader, final PrivateWhiteListVestigePolicy whiteListVestigePolicy) {
@@ -392,7 +425,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
         if (vestigeWorker[0] != null) {
             return;
         }
-        vestigeWorker[0] = vestigeExecutor.createWorker("se-worker", true, 0);
+        vestigeWorker[0] = vestigeExecutor.createWorker("sal-worker", true, 0);
         try {
             defaultApplicationManager.restoreState();
         } catch (ApplicationException e) {
@@ -427,21 +460,16 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
                     LOGGER.error("Got an installing exception", exception);
                 }
             }
-            defaultApplicationManager.start(appName);
         } catch (ApplicationException e) {
             LOGGER.error("Got an exception", e);
         }
 
-        defaultApplicationManager.startService();
-        defaultApplicationManager.autoStart();
     }
 
     public void stopService() throws Exception {
         if (vestigeWorker[0] == null) {
             return;
         }
-        defaultApplicationManager.stopAll();
-        defaultApplicationManager.stopService();
         vestigeWorker[0].interrupt();
         vestigeWorker[0].join();
         vestigeWorker = null;
@@ -501,7 +529,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
                 return;
             }
 
-            Thread seShutdownThread = new Thread("se-shutdown") {
+            Thread salShutdownThread = new Thread("sal-shutdown") {
                 @Override
                 public void run() {
                     currentThread.interrupt();
@@ -513,9 +541,9 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
                 }
             };
             if (addShutdownHook == null) {
-                Runtime.getRuntime().addShutdownHook(seShutdownThread);
+                Runtime.getRuntime().addShutdownHook(salShutdownThread);
             } else {
-                addShutdownHook.apply(seShutdownThread);
+                addShutdownHook.apply(salShutdownThread);
             }
 
             Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
@@ -592,7 +620,19 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
                     }
                 }
             });
-
+            try {
+                if (removeShutdownHook == null) {
+                    Runtime.getRuntime().removeShutdownHook(salShutdownThread);
+                } else {
+                    removeShutdownHook.apply(salShutdownThread);
+                }
+            } catch (IllegalStateException e) {
+                // ok, shutdown in progress
+            }
+            vestigePlatform.close();
+            Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
+            Security.removeProvider(BouncyCastleJsseProvider.PROVIDER_NAME);
+            vestigeCoreContext.getStreamHandlerFactory().setDelegate(null);
         } catch (Throwable e) {
             LOGGER.error("Uncatched throwable", e);
         }

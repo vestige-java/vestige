@@ -21,6 +21,7 @@ import java.lang.ModuleLayer.Controller;
 import java.net.URL;
 import java.util.List;
 
+import fr.gaellalire.vestige.core.Vestige;
 import fr.gaellalire.vestige.core.VestigeCoreContext;
 import fr.gaellalire.vestige.core.function.Function;
 
@@ -32,25 +33,25 @@ public final class JPMSMavenMainLauncher {
     private JPMSMavenMainLauncher() {
     }
 
-    public static void vestigeEnhancedCoreMain(final VestigeCoreContext vestigeCoreContext, final Function<Thread, Void, RuntimeException> addShutdownHook,
+    public static Object vestigeEnhancedCoreMain(final VestigeCoreContext vestigeCoreContext, final Function<Thread, Void, RuntimeException> addShutdownHook,
             final Function<Thread, Void, RuntimeException> removeShutdownHook, final List<? extends ClassLoader> privilegedClassloaders, final Controller controller,
             final String[] args) {
         // controller is just useless because this classloader is wanted to be GC
-        MavenMainLauncher.vestigeEnhancedCoreMain(vestigeCoreContext, addShutdownHook, removeShutdownHook, privilegedClassloaders, args);
+        return MavenMainLauncher.vestigeEnhancedCoreMain(vestigeCoreContext, addShutdownHook, removeShutdownHook, privilegedClassloaders, args);
     }
 
-    public static void vestigeCoreMain(final VestigeCoreContext vestigeCoreContext, final Controller controller, final String[] args) throws Exception {
-        vestigeEnhancedCoreMain(vestigeCoreContext, null, null, null, controller, args);
+    public static Object vestigeCoreMain(final VestigeCoreContext vestigeCoreContext, final Controller controller, final String[] args) throws Exception {
+        return vestigeEnhancedCoreMain(vestigeCoreContext, null, null, null, controller, args);
     }
 
-    public static void vestigeCoreMain(final VestigeCoreContext vestigeCoreContext, final String[] args) throws Exception {
-        vestigeCoreMain(vestigeCoreContext, null, args);
+    public static Object vestigeCoreMain(final VestigeCoreContext vestigeCoreContext, final String[] args) throws Exception {
+        return vestigeCoreMain(vestigeCoreContext, null, args);
     }
 
     public static void main(final String[] args) throws Exception {
         VestigeCoreContext vestigeCoreContext = VestigeCoreContext.buildDefaultInstance();
         URL.setURLStreamHandlerFactory(vestigeCoreContext.getStreamHandlerFactory());
-        vestigeCoreMain(vestigeCoreContext, args);
+        Vestige.runCallableLoop(vestigeCoreMain(vestigeCoreContext, args));
     }
 
 }

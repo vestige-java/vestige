@@ -108,7 +108,17 @@ public class VestigeSecureExecutor {
 
     public <E> VestigeSecureExecution<E> execute(final ClassLoader contextClassLoader, final Set<Permission> additionnalPermissions, final List<ThreadGroup> threadGroups,
             final String name, final VestigeSystem appVestigeSystem, final VestigeSecureCallable<E> callable, final FutureDoneHandler<E> doneHandler) {
-        final ThreadGroup threadGroup = new ThreadGroup(name);
+        return execute(contextClassLoader, additionnalPermissions, threadGroups, name, appVestigeSystem, callable, doneHandler, false);
+    }
+
+    public <E> VestigeSecureExecution<E> execute(final ClassLoader contextClassLoader, final Set<Permission> additionnalPermissions, final List<ThreadGroup> threadGroups,
+            final String name, final VestigeSystem appVestigeSystem, final VestigeSecureCallable<E> callable, final FutureDoneHandler<E> doneHandler, final boolean selfThread) {
+        final ThreadGroup threadGroup;
+        if (selfThread) {
+            threadGroup = null;
+        } else {
+            threadGroup = new ThreadGroup(name);
+        }
         final List<ThreadGroup> accessibleThreadGroups;
         final Permissions permissions;
 
@@ -116,9 +126,15 @@ public class VestigeSecureExecutor {
             if (threadGroups != null) {
                 accessibleThreadGroups = new ArrayList<ThreadGroup>(threadGroups.size() + 1);
                 accessibleThreadGroups.addAll(threadGroups);
-                accessibleThreadGroups.add(threadGroup);
+                if (!selfThread) {
+                    accessibleThreadGroups.add(threadGroup);
+                }
             } else {
-                accessibleThreadGroups = Collections.singletonList(threadGroup);
+                if (selfThread) {
+                    accessibleThreadGroups = Collections.emptyList();
+                } else {
+                    accessibleThreadGroups = Collections.singletonList(threadGroup);
+                }
             }
             permissions = new Permissions();
             // getResource for system jar
@@ -170,7 +186,13 @@ public class VestigeSecureExecutor {
                 MDC.put(VESTIGE_APP_NAME, name);
                 try {
                     if (vestigeSecurityManager != null) {
-                        vestigeSecurityManager.setThreadGroups(accessibleThreadGroups);
+                        if (selfThread) {
+                            List<ThreadGroup> localAccessibleThreadGroups = new ArrayList<ThreadGroup>(accessibleThreadGroups.size() + 1);
+                            localAccessibleThreadGroups.add(Thread.currentThread().getThreadGroup());
+                            vestigeSecurityManager.setThreadGroups(localAccessibleThreadGroups);
+                        } else {
+                            vestigeSecurityManager.setThreadGroups(accessibleThreadGroups);
+                        }
                         vestigePolicy.setPermissionCollection(permissions);
                         try {
                             return AccessController.doPrivileged(new PrivilegedExceptionAction<E>() {
@@ -213,14 +235,20 @@ public class VestigeSecureExecutor {
                         doneHandler.futureDone(this);
                     }
                 } finally {
-                    threadGroupDestroyer.destroy(Thread.currentThread(), threadGroup);
+                    if (threadGroupDestroyer != null) {
+                        threadGroupDestroyer.destroy(Thread.currentThread(), threadGroup);
+                    }
                     MDC.remove(VESTIGE_APP_NAME);
                 }
             }
         };
-        Thread thread = new Thread(threadGroup, futureTask, "main");
-        thread.setContextClassLoader(contextClassLoader);
-        return new VestigeSecureExecution<E>(thread, futureTask);
+        if (selfThread) {
+            return new SelfThreadVestigeSecureExecution<E>(futureTask);
+        } else {
+            Thread thread = new Thread(threadGroup, futureTask, "main");
+            thread.setContextClassLoader(contextClassLoader);
+            return new NewThreadVestigeSecureExecution<E>(thread, futureTask);
+        }
     }
 
     public void startService() {

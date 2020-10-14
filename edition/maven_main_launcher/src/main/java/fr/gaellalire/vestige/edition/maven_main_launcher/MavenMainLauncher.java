@@ -60,6 +60,7 @@ import org.eclipse.aether.graph.Dependency;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.gaellalire.vestige.core.Vestige;
 import fr.gaellalire.vestige.core.VestigeClassLoader;
 import fr.gaellalire.vestige.core.VestigeCoreContext;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;
@@ -210,7 +211,7 @@ public final class MavenMainLauncher {
     }
 
     @SuppressWarnings("unchecked")
-    public static void runVestigeMain(final VestigeCoreContext vestigeCoreContext, final File mavenLauncherFile, final File mavenSettingsFile, final File mavenCacertsFile,
+    public static Object runVestigeMain(final VestigeCoreContext vestigeCoreContext, final File mavenLauncherFile, final File mavenSettingsFile, final File mavenCacertsFile,
             final File mavenResolverCacheFile, final Function<Thread, Void, RuntimeException> addShutdownHook, final Function<Thread, Void, RuntimeException> removeShutdownHook,
             final List<? extends ClassLoader> privilegedClassloaders, final JPMSModuleLayerRepository repository, final String[] dargs) throws Exception {
         VestigeExecutor vestigeExecutor = vestigeCoreContext.getVestigeExecutor();
@@ -438,7 +439,7 @@ public final class MavenMainLauncher {
             }
             if (!mavenResolverCache.verify()) {
                 LOGGER.error("Unable to fix maven repository, aborting vestige run");
-                return;
+                return null;
             }
         } else {
             LOGGER.info("Maven launcher file not modified, use resolver cache");
@@ -498,11 +499,8 @@ public final class MavenMainLauncher {
         vestigeWorker.interrupt();
         vestigeWorker.join();
 
-        // start a new thread to allow this classloader to be GC even if the
-        // vestigeMain method does not return
-        vestigeWorker = vestigeExecutor.createWorker("resolver-maven-main", false, 1);
-        vestigeWorker.submit(new InvokeMethod(mavenResolverClassLoader, vestigeMain, null, new Object[] {vestigeCoreContext, loadedURLStreamHandlerFactory, loadedVestigePlatform,
-                addShutdownHook, removeShutdownHook, privilegedClassloaders, new WeakReference<ClassLoader>(MavenMainLauncher.class.getClassLoader()), dargs}));
+        return new InvokeMethod(mavenResolverClassLoader, vestigeMain, null, new Object[] {vestigeCoreContext, loadedURLStreamHandlerFactory, loadedVestigePlatform,
+                addShutdownHook, removeShutdownHook, privilegedClassloaders, new WeakReference<ClassLoader>(MavenMainLauncher.class.getClassLoader()), dargs});
     }
 
     private static URLStreamHandlerFactory installConvertedVestigeURLStreamHandlerFactory(final VestigeClassLoader<AttachedVestigeClassLoader> mavenResolverClassLoader,
@@ -518,7 +516,7 @@ public final class MavenMainLauncher {
         return newInstance;
     }
 
-    public static void vestigeEnhancedCoreMain(final VestigeCoreContext vestigeCoreContext, final Function<Thread, Void, RuntimeException> addShutdownHook,
+    public static Object vestigeEnhancedCoreMain(final VestigeCoreContext vestigeCoreContext, final Function<Thread, Void, RuntimeException> addShutdownHook,
             final Function<Thread, Void, RuntimeException> removeShutdownHook, final List<? extends ClassLoader> privilegedClassloaders, final String[] args) {
         try {
             long currentTimeMillis = 0;
@@ -537,19 +535,19 @@ public final class MavenMainLauncher {
             String launcher = System.getenv("MAVEN_LAUNCHER_FILE");
             if (launcher == null) {
                 LOGGER.error("MAVEN_LAUNCHER_FILE must be defined");
-                return;
+                return null;
             }
             String settings = System.getenv("MAVEN_SETTINGS_FILE");
             if (settings == null) {
                 LOGGER.error("MAVEN_SETTINGS_FILE must be defined");
-                return;
+                return null;
             }
             String mavenCacerts = System.getenv("MAVEN_CACERTS");
 
             String cache = System.getenv("MAVEN_RESOLVER_CACHE_FILE");
             if (cache == null) {
                 LOGGER.error("MAVEN_RESOLVER_CACHE_FILE must be defined");
-                return;
+                return null;
             }
 
             File mavenLauncherFile = new File(launcher).getCanonicalFile();
@@ -570,13 +568,15 @@ public final class MavenMainLauncher {
             File mavenResolverCacheFile = new File(cache).getCanonicalFile();
             LOGGER.debug("Use {} for Maven resolver cache file", mavenResolverCacheFile);
 
-            runVestigeMain(vestigeCoreContext, mavenLauncherFile, mavenSettingsFile, mavenCacertsFile, mavenResolverCacheFile, addShutdownHook, removeShutdownHook,
+            Object result = runVestigeMain(vestigeCoreContext, mavenLauncherFile, mavenSettingsFile, mavenCacertsFile, mavenResolverCacheFile, addShutdownHook, removeShutdownHook,
                     privilegedClassloaders, repository, args);
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info("Maven application started in {} ms", System.currentTimeMillis() - currentTimeMillis);
             }
+            return result;
         } catch (Throwable e) {
             LOGGER.error("Unable to start Maven application", e);
+            return null;
         } finally {
             // logback use introspector cache
             Introspector.flushCaches();
@@ -593,14 +593,14 @@ public final class MavenMainLauncher {
         }
     }
 
-    public static void vestigeCoreMain(final VestigeCoreContext vestigeCoreContext, final String[] args) throws Exception {
-        vestigeEnhancedCoreMain(vestigeCoreContext, null, null, null, args);
+    public static Object vestigeCoreMain(final VestigeCoreContext vestigeCoreContext, final String[] args) throws Exception {
+        return vestigeEnhancedCoreMain(vestigeCoreContext, null, null, null, args);
     }
 
     public static void main(final String[] args) throws Exception {
         VestigeCoreContext vestigeCoreContext = VestigeCoreContext.buildDefaultInstance();
         URL.setURLStreamHandlerFactory(vestigeCoreContext.getStreamHandlerFactory());
-        vestigeCoreMain(vestigeCoreContext, args);
+        Vestige.runCallableLoop(vestigeCoreMain(vestigeCoreContext, args));
     }
 
 }

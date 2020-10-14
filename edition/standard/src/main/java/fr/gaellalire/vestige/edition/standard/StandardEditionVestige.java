@@ -365,44 +365,66 @@ public class StandardEditionVestige implements Runnable {
             vestigeURLListResolver = new DefaultVestigeURLListResolver(vestigePlatform, vestigeWorker);
         }
 
-        final SSLContext sslContext;
-        try {
-            KeyStore trustStore = KeyStore.getInstance("PKCS12", BouncyCastleProvider.PROVIDER_NAME);
+        final SSLContextAccessor lazySSLContextAccessor = new SSLContextAccessor() {
 
-            File caCerts = new File(configFile, "cacerts.p12");
-            if (!caCerts.isFile()) {
-                if (systemConfigFile != null) {
-                    caCerts = new File(systemConfigFile, "cacerts.p12");
+            private SSLContext sslContext;
+
+            private volatile SSLContext volatileSSLContext;
+
+            private Object mutex = new Object();
+
+            @Override
+            public SSLContext getSSLContext() {
+                if (sslContext == null) {
+                    if (volatileSSLContext == null) {
+                        synchronized (mutex) {
+                            if (volatileSSLContext == null) {
+                                SSLContext sslContext;
+                                try {
+                                    KeyStore trustStore = KeyStore.getInstance("PKCS12", BouncyCastleProvider.PROVIDER_NAME);
+
+                                    File caCerts = new File(configFile, "cacerts.p12");
+                                    TrustManager[] trustManagers = null;
+                                    if (caCerts.isFile()) {
+                                        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX", BouncyCastleJsseProvider.PROVIDER_NAME);
+                                        FileInputStream stream = new FileInputStream(caCerts);
+                                        try {
+                                            trustStore.load(stream, "changeit".toCharArray());
+                                        } finally {
+                                            stream.close();
+                                        }
+                                        trustManagerFactory.init(trustStore);
+                                        trustManagers = trustManagerFactory.getTrustManagers();
+                                    }
+
+                                    sslContext = SSLContext.getInstance("TLS", BouncyCastleJsseProvider.PROVIDER_NAME);
+                                    sslContext.init(null, trustManagers, SecureRandom.getInstance("DEFAULT", BouncyCastleProvider.PROVIDER_NAME));
+                                    volatileSSLContext = sslContext;
+                                } catch (Exception e) {
+                                    throw new Error("SSLContext creation failed", e);
+                                }
+                            }
+                        }
+                    }
+                    sslContext = volatileSSLContext;
                 }
+                return sslContext;
             }
-            TrustManager[] trustManagers = null;
-            if (caCerts.isFile()) {
-                TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX", BouncyCastleJsseProvider.PROVIDER_NAME);
-                FileInputStream stream = new FileInputStream(caCerts);
-                try {
-                    trustStore.load(stream, "changeit".toCharArray());
-                } finally {
-                    stream.close();
-                }
-                trustManagerFactory.init(trustStore);
-                trustManagers = trustManagerFactory.getTrustManagers();
+        };
+
+        Thread thread = new Thread(new Runnable() {
+
+            @Override
+            public void run() {
+                lazySSLContextAccessor.getSSLContext();
             }
-            sslContext = SSLContext.getInstance("TLS", BouncyCastleJsseProvider.PROVIDER_NAME);
-            sslContext.init(null, trustManagers, SecureRandom.getInstance("DEFAULT", BouncyCastleProvider.PROVIDER_NAME));
-        } catch (Exception e) {
-            LOGGER.error("SSLContext creation failed", e);
-            return;
-        }
+        }, "se-ssl-context-creator");
+        thread.setDaemon(true);
+        thread.start();
 
         if (vestigeMavenResolver == null) {
             try {
-                vestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, vestigeWorker, mavenSettingsFile, new SSLContextAccessor() {
-
-                    @Override
-                    public SSLContext getSSLContext() {
-                        return sslContext;
-                    }
-                });
+                vestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, vestigeWorker, mavenSettingsFile, lazySSLContextAccessor);
                 // the mvn protocol of the launching code may not be the same as ours
                 // vestigeSystem.setURLStreamHandlerForProtocol(MavenArtifactResolver.MVN_PROTOCOL, MavenArtifactResolver.URL_STREAM_HANDLER);
             } catch (NoLocalRepositoryManagerException e) {
@@ -417,7 +439,7 @@ public class StandardEditionVestige implements Runnable {
             public InputStream openURL(final URL url) throws IOException {
                 // TODO how to share httpClient ?
                 HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
-                httpClientBuilder.setSSLContext(sslContext);
+                httpClientBuilder.setSSLContext(lazySSLContextAccessor.getSSLContext());
                 // httpClientBuilder.setDefaultCredentialsProvider(new SystemDefaultCredentialsProvider());
                 httpClientBuilder.setRoutePlanner(new SystemDefaultRoutePlanner(DefaultSchemePortResolver.INSTANCE, ProxySelector.getDefault()));
                 // httpClientBuilder.useSystemProperties();
@@ -444,13 +466,8 @@ public class StandardEditionVestige implements Runnable {
             File installM2RepoFile = new File(installM2Repo);
             if (installM2RepoFile.mkdirs()) {
                 try {
-                    installVestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, vestigeWorker, mavenSettingsFile, new SSLContextAccessor() {
-
-                        @Override
-                        public SSLContext getSSLContext() {
-                            return sslContext;
-                        }
-                    }, "installation", installM2RepoFile);
+                    installVestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, vestigeWorker, mavenSettingsFile, lazySSLContextAccessor, "installation",
+                            installM2RepoFile);
                     // the mvn protocol of the launching code may not be the same as ours
                     // vestigeSystem.setURLStreamHandlerForProtocol(MavenArtifactResolver.MVN_PROTOCOL, MavenArtifactResolver.URL_STREAM_HANDLER);
                 } catch (NoLocalRepositoryManagerException e) {
