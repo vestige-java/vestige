@@ -673,7 +673,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         additionnalPermissions.add(new FilePermission(cache.getPath(), "read,write"));
         additionnalPermissions.add(new FilePermission(cache.getPath() + File.separator + "-", "read,write,delete"));
         additionnalPermissions.addAll(applicationContext.getResolve().getPermissions());
-        additionnalPermissions.addAll(applicationContext.getInstallerPermissions());
+        additionnalPermissions.addAll(applicationContext.getInstallerPermissions().createPermissionSet());
         final VestigeSystem vestigeSystem;
         if (applicationContext.isInstallerPrivateSystem()) {
             vestigeSystem = rootVestigeSystem.createSubSystem("app-" + installName + "-installer");
@@ -1409,7 +1409,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             additionnalPermissions.addAll(resolve.getPermissions());
             additionnalPermissions.add(new FilePermission(applicationContext.getConfig().getPath(), "read,write"));
             additionnalPermissions.add(new FilePermission(applicationContext.getConfig().getPath() + File.separator + "-", "read,write,delete"));
-            additionnalPermissions.addAll(applicationContext.getPermissions());
+            additionnalPermissions.addAll(applicationContext.getPermissions().createPermissionSet());
             additionnalPermissions.add(new FilePermission(applicationContext.getData().getPath(), "read,write"));
             additionnalPermissions.add(new FilePermission(applicationContext.getData().getPath() + File.separator + "-", "read,write,delete"));
             additionnalPermissions.add(new FilePermission(applicationContext.getCache().getPath(), "read,write"));

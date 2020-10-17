@@ -32,7 +32,10 @@ public class KeepExpandMapValueGetter implements ValueGetter {
         if (property == null) {
             return null;
         }
-        expandMap.putAll(property.getExpandMap());
+        Map<String, String> propertyExpandMap = property.getExpandMap();
+        if (propertyExpandMap != null) {
+            expandMap.putAll(propertyExpandMap);
+        }
         return property.getValue();
     }
 

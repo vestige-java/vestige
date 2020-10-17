@@ -18,6 +18,8 @@
 package fr.gaellalire.vestige.utils;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -25,9 +27,11 @@ import java.util.Map;
  * @author Gael Lalire
  * @param <E> property type
  */
-public abstract class Property<E> {
+public abstract class Property<E> implements Serializable {
 
-    private E value;
+    private static final long serialVersionUID = 3213799486269632767L;
+
+    private transient E value;
 
     private String rawValue;
 
@@ -35,6 +39,16 @@ public abstract class Property<E> {
 
     public Property(final String rawValue) {
         this.rawValue = rawValue;
+        if (rawValue != null) {
+            String expanded = expand(rawValue);
+            if (expanded != null) {
+                value = convert(expanded);
+            }
+        }
+    }
+
+    private void readObject(final java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
         if (rawValue != null) {
             String expanded = expand(rawValue);
             if (expanded != null) {
@@ -154,6 +168,9 @@ public abstract class Property<E> {
         return rawValue;
     }
 
+    /**
+     * @return null if the value is not defined through a property
+     */
     public Map<String, String> getExpandMap() {
         return expandMap;
     }

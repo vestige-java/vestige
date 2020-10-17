@@ -22,6 +22,8 @@ package fr.gaellalire.vestige.utils;
  */
 public class IntegerProperty extends Property<Integer> {
 
+    private static final long serialVersionUID = 8832172668815227690L;
+
     public IntegerProperty(final String rawValue) {
         super(rawValue);
     }

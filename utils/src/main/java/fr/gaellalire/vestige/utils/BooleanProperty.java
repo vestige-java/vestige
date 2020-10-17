@@ -22,6 +22,8 @@ package fr.gaellalire.vestige.utils;
  */
 public class BooleanProperty extends Property<Boolean> {
 
+    private static final long serialVersionUID = -6574145998056432239L;
+
     public BooleanProperty(final String rawValue) {
         super(rawValue);
     }

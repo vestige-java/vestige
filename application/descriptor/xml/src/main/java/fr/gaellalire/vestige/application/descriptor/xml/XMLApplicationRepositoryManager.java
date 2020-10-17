@@ -21,8 +21,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.security.Permission;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,6 +56,8 @@ import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryMetadata;
 import fr.gaellalire.vestige.application.manager.CompatibilityChecker;
+import fr.gaellalire.vestige.application.manager.PermissionFactory;
+import fr.gaellalire.vestige.application.manager.PermissionSetFactory;
 import fr.gaellalire.vestige.application.manager.URLOpener;
 import fr.gaellalire.vestige.application.manager.VersionUtils;
 import fr.gaellalire.vestige.spi.job.JobHelper;
@@ -186,8 +186,8 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
 
         Config configurations = application.getConfigurations();
         String javaSpecificationVersion = SimpleValueGetter.INSTANCE.getValue(application.getJavaSpecificationVersion());
-        Set<Permission> installerPermissionSet = new HashSet<Permission>();
-        Set<Permission> launcherPermissionSet = new HashSet<Permission>();
+        PermissionSetFactory installerPermissionSet = new PermissionSetFactory();
+        PermissionSetFactory launcherPermissionSet = new PermissionSetFactory();
         MavenContext mavenContext = createMavenContext(configurations, installerPermissionSet, launcherPermissionSet, vestigeMavenResolver);
         MavenContext installerMavenContext;
         if (installVestigeMavenResolver != null) {
@@ -199,7 +199,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
                 installerPermissionSet, jobHelper);
     }
 
-    public MavenContext createMavenContext(final Config configurations, final Set<Permission> installerPermissionSet, final Set<Permission> launcherPermissionSet,
+    public MavenContext createMavenContext(final Config configurations, final PermissionSetFactory installerPermissionSet, final PermissionSetFactory launcherPermissionSet,
             final VestigeMavenResolver vestigeMavenResolver) {
         MavenContext mavenConfigResolved;
         if (configurations != null) {
@@ -232,40 +232,9 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         return vestigeURLListResolver;
     }
 
-    public void readPermissions(final Permissions permissions, final Set<Permission> result) {
-        ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
+    public void readPermissions(final Permissions permissions, final PermissionSetFactory result) {
         for (fr.gaellalire.vestige.application.descriptor.xml.schema.application.Permission perm : permissions.getPermission()) {
-            try {
-                String type = SimpleValueGetter.INSTANCE.getValue(perm.getType());
-                String name = SimpleValueGetter.INSTANCE.getValue(perm.getName());
-                String actions = SimpleValueGetter.INSTANCE.getValue(perm.getActions());
-                Class<?> loadClass = systemClassLoader.loadClass(type);
-                if (name == null) {
-                    try {
-                        result.add((Permission) loadClass.newInstance());
-                        continue;
-                    } catch (Exception e) {
-                        LOGGER.trace("Exception", e);
-                    }
-                }
-                if (actions == null) {
-                    try {
-                        result.add((Permission) loadClass.getConstructor(String.class).newInstance(name));
-                        continue;
-                    } catch (Exception e) {
-                        LOGGER.trace("Exception", e);
-                    }
-                }
-                try {
-                    result.add((Permission) loadClass.getConstructor(String.class, String.class).newInstance(name, actions));
-                    continue;
-                } catch (Exception e) {
-                    LOGGER.trace("Exception", e);
-                }
-                LOGGER.error("Permission issue");
-            } catch (Exception e) {
-                LOGGER.error("Permission issue", e);
-            }
+            result.addPermissionFactory(new PermissionFactory(perm.getType(), perm.getName(), perm.getActions()));
         }
     }
 

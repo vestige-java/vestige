@@ -17,7 +17,6 @@
 
 package fr.gaellalire.vestige.application.manager;
 
-import java.security.Permission;
 import java.util.List;
 import java.util.Set;
 
@@ -44,9 +43,9 @@ public interface ApplicationDescriptor {
 
     ApplicationResolvedClassLoaderConfiguration getLauncherClassLoaderConfiguration(String configurationName) throws ApplicationException;
 
-    Set<Permission> getInstallerPermissions() throws ApplicationException;
+    PermissionSetFactory getInstallerPermissions() throws ApplicationException;
 
-    Set<Permission> getPermissions() throws ApplicationException;
+    PermissionSetFactory getPermissions() throws ApplicationException;
 
     List<AddInject> getLauncherAddInjects() throws ApplicationException;
 

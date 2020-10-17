@@ -19,7 +19,6 @@ package fr.gaellalire.vestige.application.descriptor.xml;
 
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.security.Permission;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -47,6 +46,7 @@ import fr.gaellalire.vestige.application.manager.AddInject;
 import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationResolvedClassLoaderConfiguration;
+import fr.gaellalire.vestige.application.manager.PermissionSetFactory;
 import fr.gaellalire.vestige.application.manager.VersionUtils;
 import fr.gaellalire.vestige.spi.job.JobHelper;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
@@ -78,17 +78,17 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
 
     private MavenContext installerMavenContext;
 
-    private Set<Permission> installerPermissions;
+    private PermissionSetFactory installerPermissions;
 
-    private Set<Permission> permissions;
+    private PermissionSetFactory permissions;
 
     private JobHelper jobHelper;
 
     private String javaSpecificationVersion;
 
     public XMLApplicationDescriptor(final XMLApplicationRepositoryManager xmlApplicationRepositoryManager, final String javaSpecificationVersion, final List<Integer> version,
-            final Application application, final MavenContext mavenContext, final MavenContext installerMavenContext, final Set<Permission> permissions,
-            final Set<Permission> installerPermissions, final JobHelper jobHelper) {
+            final Application application, final MavenContext mavenContext, final MavenContext installerMavenContext, final PermissionSetFactory permissions,
+            final PermissionSetFactory installerPermissions, final JobHelper jobHelper) {
         this.xmlApplicationRepositoryManager = xmlApplicationRepositoryManager;
         this.javaSpecificationVersion = javaSpecificationVersion;
         this.version = version;
@@ -384,12 +384,12 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
     }
 
     @Override
-    public Set<Permission> getInstallerPermissions() throws ApplicationException {
+    public PermissionSetFactory getInstallerPermissions() throws ApplicationException {
         return installerPermissions;
     }
 
     @Override
-    public Set<Permission> getPermissions() throws ApplicationException {
+    public PermissionSetFactory getPermissions() throws ApplicationException {
         return permissions;
     }
 

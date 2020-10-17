@@ -21,7 +21,6 @@ import java.io.File;
 import java.io.Serializable;
 import java.lang.ref.WeakReference;
 import java.net.URL;
-import java.security.Permission;
 import java.util.List;
 import java.util.Set;
 
@@ -32,9 +31,9 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     private static final long serialVersionUID = -63902830158746259L;
 
-    private Set<Permission> permissions;
+    private PermissionSetFactory permissions;
 
-    private Set<Permission> installerPermissions;
+    private PermissionSetFactory installerPermissions;
 
     private transient ApplicationResolvedClassLoaderConfiguration resolve;
 
@@ -298,19 +297,19 @@ public class ApplicationContext implements Serializable, Cloneable {
         this.privateSystem = privateSystem;
     }
 
-    public Set<Permission> getPermissions() {
+    public PermissionSetFactory getPermissions() {
         return permissions;
     }
 
-    public void setPermissions(final Set<Permission> permissions) {
+    public void setPermissions(final PermissionSetFactory permissions) {
         this.permissions = permissions;
     }
 
-    public Set<Permission> getInstallerPermissions() {
+    public PermissionSetFactory getInstallerPermissions() {
         return installerPermissions;
     }
 
-    public void setInstallerPermissions(final Set<Permission> installerPermissions) {
+    public void setInstallerPermissions(final PermissionSetFactory installerPermissions) {
         this.installerPermissions = installerPermissions;
     }
 

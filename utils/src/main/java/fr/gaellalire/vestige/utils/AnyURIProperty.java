@@ -22,6 +22,8 @@ package fr.gaellalire.vestige.utils;
  */
 public class AnyURIProperty extends Property<String> {
 
+    private static final long serialVersionUID = -5559543021914822495L;
+
     public AnyURIProperty(final String rawValue) {
         super(rawValue);
     }

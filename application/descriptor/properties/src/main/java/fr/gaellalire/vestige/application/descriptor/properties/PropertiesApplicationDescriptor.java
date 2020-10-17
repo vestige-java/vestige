@@ -17,7 +17,6 @@
 
 package fr.gaellalire.vestige.application.descriptor.properties;
 
-import java.security.Permission;
 import java.util.List;
 import java.util.Set;
 
@@ -25,6 +24,7 @@ import fr.gaellalire.vestige.application.manager.AddInject;
 import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationResolvedClassLoaderConfiguration;
+import fr.gaellalire.vestige.application.manager.PermissionSetFactory;
 
 /**
  * @author Gael Lalire
@@ -68,13 +68,13 @@ public class PropertiesApplicationDescriptor implements ApplicationDescriptor {
     }
 
     @Override
-    public Set<Permission> getPermissions() throws ApplicationException {
+    public PermissionSetFactory getPermissions() throws ApplicationException {
         // TODO Auto-generated method stub
         return null;
     }
 
     @Override
-    public Set<Permission> getInstallerPermissions() throws ApplicationException {
+    public PermissionSetFactory getInstallerPermissions() throws ApplicationException {
         // TODO Auto-generated method stub
         return null;
     }
