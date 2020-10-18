@@ -50,6 +50,6 @@ public interface ApplicationManagerState {
 
     List<Integer> getRepositoryApplicationVersion(String installName) throws ApplicationException;
 
-    Exception getException(String installName) throws ApplicationException;
+    String getExceptionStackTrace(String installName) throws ApplicationException;
 
 }

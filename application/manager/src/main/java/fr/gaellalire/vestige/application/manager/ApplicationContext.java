@@ -18,7 +18,9 @@
 package fr.gaellalire.vestige.application.manager;
 
 import java.io.File;
+import java.io.PrintWriter;
 import java.io.Serializable;
+import java.io.StringWriter;
 import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.util.List;
@@ -161,7 +163,7 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     private transient boolean started;
 
-    private transient Exception exception;
+    private transient String exceptionStackTrace;
 
     public ApplicationResolvedClassLoaderConfiguration getResolve() {
         return resolve;
@@ -187,12 +189,18 @@ public class ApplicationContext implements Serializable, Cloneable {
         this.started = started;
     }
 
-    public Exception getException() {
-        return exception;
+    public String getExceptionStackTrace() {
+        return exceptionStackTrace;
     }
 
     public void setException(final Exception exception) {
-        this.exception = exception;
+        if (exception != null) {
+            StringWriter stringWriter = new StringWriter();
+            exception.printStackTrace(new PrintWriter(stringWriter));
+            this.exceptionStackTrace = stringWriter.toString();
+        } else {
+            this.exceptionStackTrace = null;
+        }
     }
 
     public File getConfig() {

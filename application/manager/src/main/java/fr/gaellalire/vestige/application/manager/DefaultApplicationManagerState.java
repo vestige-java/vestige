@@ -163,9 +163,9 @@ public class DefaultApplicationManagerState implements Serializable, Application
     }
 
     @Override
-    public Exception getException(final String installName) throws ApplicationException {
+    public String getExceptionStackTrace(final String installName) throws ApplicationException {
         final ApplicationContext applicationContext = getApplicationContext(installName);
-        return applicationContext.getException();
+        return applicationContext.getExceptionStackTrace();
     }
 
     public ApplicationManagerState copy() {

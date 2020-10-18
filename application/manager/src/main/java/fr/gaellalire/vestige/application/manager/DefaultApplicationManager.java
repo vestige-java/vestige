@@ -1766,9 +1766,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
     }
 
     @Override
-    public Exception getException(final String installName) throws ApplicationException {
+    public String getExceptionStackTrace(final String installName) throws ApplicationException {
         synchronized (state) {
-            return state.getException(installName);
+            return state.getExceptionStackTrace(installName);
         }
     }
 

@@ -62,10 +62,10 @@ public class Status implements Command {
             if (copyState.isStarted(application)) {
                 out.println(application + " is running");
             } else {
-                Exception exception = copyState.getException(application);
-                if (exception != null) {
+                String exceptionStackTrace = copyState.getExceptionStackTrace(application);
+                if (exceptionStackTrace != null) {
                     out.println(application + " stopped with exception");
-                    exception.printStackTrace(out);
+                    out.print(exceptionStackTrace);
                 } else {
                     out.println(application + " is stopped");
                 }
