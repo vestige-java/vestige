@@ -19,7 +19,10 @@ package fr.gaellalire.vestige.resolver.maven.secure;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.security.Permission;
+import java.security.PermissionCollection;
 
+import fr.gaellalire.vestige.resolver.common.secure.SecureResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.maven.MavenContextBuilder;
 import fr.gaellalire.vestige.spi.resolver.maven.VestigeMavenResolver;
@@ -57,7 +60,13 @@ public class SecureVestigeMavenResolver implements VestigeMavenResolver {
     public ResolvedClassLoaderConfiguration restoreSavedResolvedClassLoaderConfiguration(final ObjectInputStream objectInputStream) throws IOException {
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {
-            return delegate.restoreSavedResolvedClassLoaderConfiguration(new SecureObjectInputStream(vestigeSystem, objectInputStream));
+            ResolvedClassLoaderConfiguration resolvedClassLoaderConfiguration = delegate
+                    .restoreSavedResolvedClassLoaderConfiguration(new SecureObjectInputStream(vestigeSystem, objectInputStream));
+            PermissionCollection permissionCollection = vestigePolicy.getPermissionCollection();
+            for (Permission permission : resolvedClassLoaderConfiguration.getPermissions()) {
+                permissionCollection.add(permission);
+            }
+            return new SecureResolvedClassLoaderConfiguration(secureVestigeSystem, resolvedClassLoaderConfiguration);
         } finally {
             vestigeSystem.setCurrentSystem();
         }
