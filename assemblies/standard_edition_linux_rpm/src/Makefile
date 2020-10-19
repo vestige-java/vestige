@@ -9,7 +9,7 @@ build:
 
 install:
 	mkdir -p $(DESTDIR)/$(datadir)/vestige
-	mkdir -p $(DESTDIR)/etc/vestige
+	mkdir -p $(DESTDIR)/etc/vestige/template
 	cp vestige $(DESTDIR)/$(datadir)/vestige/
 	cp vestigessh $(DESTDIR)/$(datadir)/vestige/
 	cp vestigeweb $(DESTDIR)/$(datadir)/vestige/
