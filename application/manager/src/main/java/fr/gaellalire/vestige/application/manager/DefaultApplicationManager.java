@@ -423,9 +423,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 }
             }
 
-            if (LOGGER.isInfoEnabled()) {
-                LOGGER.info("Application {} version {} on repository {} installed", new Object[] {appName, VersionUtils.toString(version), repoURL});
-            }
+            LOGGER.info("Application {} installed", installName);
         }
     }
 

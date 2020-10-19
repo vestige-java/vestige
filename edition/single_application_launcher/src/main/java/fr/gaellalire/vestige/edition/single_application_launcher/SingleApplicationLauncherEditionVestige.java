@@ -435,7 +435,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
         try {
             if (!defaultApplicationManager.getApplicationsName().contains(appName)) {
                 final boolean[] installDone = new boolean[] {false};
-                JobController jobController = defaultApplicationManager.install(appURL, null, appName, Arrays.<Integer> asList(0, 0, 0), appName, new JobListener() {
+                JobController jobController = defaultApplicationManager.install(appURL, null, null, null, appName, new JobListener() {
 
                     @Override
                     public TaskListener taskAdded(final String description) {
