@@ -11,12 +11,12 @@ if you want persistent (after a reboot) modification edit file
 /etc/launchd.conf
 setenv VESTIGE_OPTS -Xmx4096m
 
-Starting for OSX 10.10 (Yosemite) file /etc/launchd.conf is not read anymore you can restore the behavior with the following commands
+Starting from OSX 10.10 (Yosemite) file /etc/launchd.conf is not read anymore you can restore the behavior with the following commands
 
 sudo tee /usr/local/bin/launchd.conf.sh > /dev/null << EOF
 echo '#!/bin/sh
 
-while read line || [[ -n $line ]] ; do launchctl $line ; done < /etc/launchd.conf;
+while read line || [[ -n "$line" ]] ; do [[ -n "$line" ]] && eval launchctl $line; done < /etc/launchd.conf;
 EOF
 
 sudo chmod +x /usr/local/bin/launchd.conf.sh
@@ -39,3 +39,5 @@ sudo tee /Library/LaunchAgents/launchd.conf.plist > /dev/null << EOF
 </dict>
 </plist>
 EOF
+
+launchctl load -w  /Library/LaunchAgents/launchd.conf.plist
