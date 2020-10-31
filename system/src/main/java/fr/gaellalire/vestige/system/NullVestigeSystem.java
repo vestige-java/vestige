@@ -144,4 +144,9 @@ public class NullVestigeSystem implements VestigeSystem {
         return null;
     }
 
+    @Override
+    public URLStreamHandlerFactory getURLStreamHandlerFactory() {
+        return null;
+    }
+
 }

@@ -157,7 +157,7 @@
     <vestige.jpms.version>2.0</vestige.jpms.version>
     <vestige.jvm_enhancer.version>4.2</vestige.jvm_enhancer.version>
     <vestige.logback_enhancer.version>1.1</vestige.logback_enhancer.version>
-    <vestige.spi.system.version>1.0</vestige.spi.system.version>
+    <vestige.spi.system.version>1.1</vestige.spi.system.version>
     <vestige.spi.job.version>1.1</vestige.spi.job.version>
     <vestige.spi.resolver.version>2.0</vestige.spi.resolver.version>
     <vestige.spi.resolver.url_list.version>2.0</vestige.spi.resolver.url_list.version>
