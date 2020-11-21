@@ -63,7 +63,8 @@ public final class VestigePlatformConverter {
         for (Object dependency : dependencies) {
             list.add(convertAttachedVestigeClassLoader(dependency, oldVestigePlatform, vestigePlatform, loadedModuleLayers));
         }
-        AttachedVestigeClassLoader attachedVestigeClassLoader = new AttachedVestigeClassLoader(uncheckedVestigeClassLoader, list,
+        AttachedVestigeClassLoader attachedVestigeClassLoader = new AttachedVestigeClassLoader(
+                (Serializable) oldAttachedVestigeClassLoaderClass.getMethod("getKey").invoke(oldAttachedVestigeClassLoader), uncheckedVestigeClassLoader, list,
                 (String) oldAttachedVestigeClassLoaderClass.getMethod("getName").invoke(oldAttachedVestigeClassLoader),
                 (Boolean) oldAttachedVestigeClassLoaderClass.getMethod("isAttachmentScoped").invoke(oldAttachedVestigeClassLoader),
                 (JarFileResourceLocator[]) oldAttachedVestigeClassLoaderClass.getMethod("getCache").invoke(oldAttachedVestigeClassLoader),
@@ -142,7 +143,7 @@ public final class VestigePlatformConverter {
         // fetch fields
         List<AttachedVestigeClassLoader> attached = loadedVestigePlatform.getAttached();
         List<WeakReference<AttachedVestigeClassLoader>> unattached = loadedVestigePlatform.getAttachmentScopedUnattachedVestigeClassLoaders();
-        List<List<WeakReference<AttachedVestigeClassLoader>>> attachedClassLoaders = loadedVestigePlatform.getAttachedClassLoaders();
+        List<List<WeakReference<AttachedVestigeClassLoader>>> attachedClassLoaders = loadedVestigePlatform.getAttachmentScopedAttachedClassLoaders();
         Map<Serializable, WeakReference<AttachedVestigeClassLoader>> map = loadedVestigePlatform.getMap();
 
         Class<?> oldVestigePlatformClass = oldVestigePlatform.getClass();
@@ -150,8 +151,8 @@ public final class VestigePlatformConverter {
         // fill fields
         Set<Integer> attachments = (Set<Integer>) oldVestigePlatformClass.getMethod("getAttachments").invoke(oldVestigePlatform);
         for (Integer id : attachments) {
-            attached.add(convertAttachedVestigeClassLoader(oldVestigePlatformClass.getMethod("getAttachedVestigeClassLoader", int.class).invoke(oldVestigePlatform, id), oldVestigePlatform,
-                    loadedVestigePlatform, loadedModuleLayers));
+            attached.add(convertAttachedVestigeClassLoader(oldVestigePlatformClass.getMethod("getAttachedVestigeClassLoader", int.class).invoke(oldVestigePlatform, id),
+                    oldVestigePlatform, loadedVestigePlatform, loadedModuleLayers));
         }
 
         List<WeakReference<?>> unattachedVestigeClassLoaders = (List<WeakReference<?>>) oldVestigePlatformClass.getMethod("getAttachmentScopedUnattachedVestigeClassLoaders")
@@ -165,8 +166,8 @@ public final class VestigePlatformConverter {
             }
         }
 
-        List<List<WeakReference<?>>> attachmentScopedAttachedClassLoaders = (List<List<WeakReference<?>>>) oldVestigePlatformClass.getMethod("getAttachmentScopedAttachedClassLoaders")
-                .invoke(oldVestigePlatform);
+        List<List<WeakReference<?>>> attachmentScopedAttachedClassLoaders = (List<List<WeakReference<?>>>) oldVestigePlatformClass
+                .getMethod("getAttachmentScopedAttachedClassLoaders").invoke(oldVestigePlatform);
         for (List<WeakReference<?>> list : attachmentScopedAttachedClassLoaders) {
             if (list == null) {
                 attachedClassLoaders.add(null);

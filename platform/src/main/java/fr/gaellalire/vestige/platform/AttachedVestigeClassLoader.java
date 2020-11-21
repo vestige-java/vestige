@@ -17,6 +17,7 @@
 
 package fr.gaellalire.vestige.platform;
 
+import java.io.Serializable;
 import java.lang.ref.SoftReference;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +30,8 @@ import fr.gaellalire.vestige.jpms.JPMSInRepositoryModuleLayerAccessor;
  * @author Gael Lalire
  */
 public class AttachedVestigeClassLoader {
+
+    private Serializable key;
 
     private List<SoftReference<?>> softReferences;
 
@@ -52,9 +55,10 @@ public class AttachedVestigeClassLoader {
         this.dependencies = dependencies;
     }
 
-    public AttachedVestigeClassLoader(final VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader, final List<AttachedVestigeClassLoader> dependencies,
-            final String name, final boolean attachmentScoped, final JarFileResourceLocator[] cache, final JPMSInRepositoryModuleLayerAccessor moduleLayer,
-            final boolean jpmsActivated) {
+    public AttachedVestigeClassLoader(final Serializable key, final VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader,
+            final List<AttachedVestigeClassLoader> dependencies, final String name, final boolean attachmentScoped, final JarFileResourceLocator[] cache,
+            final JPMSInRepositoryModuleLayerAccessor moduleLayer, final boolean jpmsActivated) {
+        this.key = key;
         this.vestigeClassLoader = vestigeClassLoader;
         this.dependencies = dependencies;
         this.name = name;
@@ -83,6 +87,10 @@ public class AttachedVestigeClassLoader {
 
     public String getName() {
         return name;
+    }
+
+    public Serializable getKey() {
+        return key;
     }
 
     public int getAttachments() {

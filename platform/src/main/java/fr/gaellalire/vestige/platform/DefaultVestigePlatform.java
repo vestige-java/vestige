@@ -28,6 +28,7 @@ import java.net.URLStreamHandlerFactory;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -129,12 +130,24 @@ public class DefaultVestigePlatform implements VestigePlatform {
         }
     };
 
+    /**
+     * Attached classloaders (all scope).
+     */
     private List<AttachedVestigeClassLoader> attached = new ArrayList<AttachedVestigeClassLoader>();
 
+    /**
+     * Attachment scoped attached classloaders.
+     */
     private List<List<WeakReference<AttachedVestigeClassLoader>>> attachedClassLoaders = new ArrayList<List<WeakReference<AttachedVestigeClassLoader>>>();
 
+    /**
+     * Attachment scoped unattached classloaders.
+     */
     private List<WeakReference<AttachedVestigeClassLoader>> unattached = new ArrayList<WeakReference<AttachedVestigeClassLoader>>();
 
+    /**
+     * Platform scoped classloaders.
+     */
     private Map<Serializable, WeakReference<AttachedVestigeClassLoader>> map = new HashMap<Serializable, WeakReference<AttachedVestigeClassLoader>>();
 
     private JPMSModuleLayerRepository moduleLayerRepository;
@@ -459,7 +472,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
             if (classLoaderConfiguration.isAttachmentScoped()) {
                 name = name + " @ " + Integer.toHexString(System.identityHashCode(attachmentMap));
             }
-            attachedVestigeClassLoader = new AttachedVestigeClassLoader(vestigeClassLoader, classLoaderDependencies, name, classLoaderConfiguration.isAttachmentScoped(), urls,
+            attachedVestigeClassLoader = new AttachedVestigeClassLoader(key, vestigeClassLoader, classLoaderDependencies, name, classLoaderConfiguration.isAttachmentScoped(), urls,
                     null, namedModulesConfiguration != null);
             vestigeClassLoader.setData(this, attachedVestigeClassLoader);
 
@@ -619,10 +632,6 @@ public class DefaultVestigePlatform implements VestigePlatform {
         return moduleLayerRepository;
     }
 
-    public List<List<WeakReference<AttachedVestigeClassLoader>>> getAttachedClassLoaders() {
-        return attachedClassLoaders;
-    }
-
     public List<AttachedVestigeClassLoader> getAttached() {
         return attached;
     }
@@ -672,6 +681,35 @@ public class DefaultVestigePlatform implements VestigePlatform {
         attachedClassLoaders.clear();
         unattached.clear();
         map.clear();
+    }
+
+    public static void add(final Set<AttachedVestigeClassLoader> set, final AttachedVestigeClassLoader attachedVestigeClassLoader) {
+        set.add(attachedVestigeClassLoader);
+        for (AttachedVestigeClassLoader depAttachedVestigeClassLoader : attachedVestigeClassLoader.getDependencies()) {
+            add(set, depAttachedVestigeClassLoader);
+        }
+    }
+
+    @Override
+    public void discardUnattached() {
+        Set<AttachedVestigeClassLoader> set = new HashSet<AttachedVestigeClassLoader>();
+        for (AttachedVestigeClassLoader attach : attached) {
+            if (attach != null) {
+                add(set, attach);
+            }
+        }
+
+        Iterator<WeakReference<AttachedVestigeClassLoader>> iterator = map.values().iterator();
+        while (iterator.hasNext()) {
+            WeakReference<AttachedVestigeClassLoader> next = iterator.next();
+            AttachedVestigeClassLoader attachedVestigeClassLoader = next.get();
+            if (attachedVestigeClassLoader != null && !set.contains(attachedVestigeClassLoader)) {
+                iterator.remove();
+            }
+        }
+
+        // also clear attachment scoped classloaders
+        unattached.clear();
     }
 
 }

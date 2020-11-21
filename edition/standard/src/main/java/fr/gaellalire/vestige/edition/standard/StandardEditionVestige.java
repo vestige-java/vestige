@@ -81,6 +81,7 @@ import ch.qos.logback.core.joran.spi.ConsoleTarget;
 import ch.qos.logback.core.joran.spi.JoranException;
 import ch.qos.logback.core.util.StatusPrinter;
 import fr.gaellalire.vestige.admin.command.CheckBootstrap;
+import fr.gaellalire.vestige.admin.command.DiscardUnattached;
 import fr.gaellalire.vestige.admin.command.Platform;
 import fr.gaellalire.vestige.admin.command.VestigeCommandExecutor;
 import fr.gaellalire.vestige.application.descriptor.xml.XMLApplicationRepositoryManager;
@@ -504,6 +505,7 @@ public class StandardEditionVestige implements Runnable {
         }
         if (vestigePlatform != null) {
             vestigeCommandExecutor.addCommand(new Platform(vestigePlatform));
+            vestigeCommandExecutor.addCommand(new DiscardUnattached(vestigePlatform));
         }
 
         Web web = admin.getWeb();
