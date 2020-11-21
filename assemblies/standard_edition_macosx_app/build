@@ -6,6 +6,7 @@ rm -r target
 mkdir target
 bunzip2 -kc src/wc.dmg.bz2 > target/wc.dmg
 hdiutil attach target/wc.dmg -noautoopen -quiet -mountpoint target/wc
+rm -rf src/Vestige.app/Contents/Resources/vestige_home/
 cp -r src/Vestige.app target/wc/
 unzip -d target/wc/Vestige.app/Contents/Resources/vestige_home ../standard_edition_standalone/target/vestige.assemblies.standard_edition_standalone-$VESTIGE_VERSION-unix.zip
 sed -i~ -e 's/-Djava.util.logging.manager/-Dapple.awt.UIElement=true -Djava.util.logging.manager/' -e 's/VESTIGE_CONFIG=.*/VESTIGE_CONFIG="$HOME\/Library\/Preferences\/Vestige"/' -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="$HOME\/Library\/Application Support\/Vestige"/' -e 's/VESTIGE_CACHE=.*/VESTIGE_CACHE="$HOME\/Library\/Caches\/Vestige"/' -e 's/$VESTIGE_CACHE\/logs/$HOME\/Library\/Logs\/Vestige/' target/wc/Vestige.app/Contents/Resources/vestige_home/vestige
