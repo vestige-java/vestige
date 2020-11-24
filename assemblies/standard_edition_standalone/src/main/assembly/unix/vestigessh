@@ -15,4 +15,4 @@ if [ ! -f "$VESTIGE_DATA/ssh/port.txt" ]; then
   exit 1
 fi
 
-exec ssh -o UserKnownHostsFile="\"$VESTIGE_DATA/ssh/known_hosts\"" -o StrictHostKeyChecking=yes -i "$VESTIGE_DATA/ssh/client_rsa" -p $(cat "$VESTIGE_DATA/ssh/port.txt") admin@localhost
+exec ssh -o UserKnownHostsFile="\"$VESTIGE_DATA/ssh/known_hosts\"" -o StrictHostKeyChecking=yes -i "$VESTIGE_DATA/ssh/client_rsa" -p $(cat "$VESTIGE_DATA/ssh/port.txt") admin@localhost "$@"
