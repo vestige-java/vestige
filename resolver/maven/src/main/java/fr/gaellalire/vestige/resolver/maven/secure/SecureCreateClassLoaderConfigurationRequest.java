@@ -98,8 +98,10 @@ public class SecureCreateClassLoaderConfigurationRequest implements CreateClassL
         try {
             ResolvedClassLoaderConfiguration execute = delegate.execute();
             PermissionCollection permissionCollection = vestigePolicy.getPermissionCollection();
-            for (Permission permission : execute.getPermissions()) {
-                permissionCollection.add(permission);
+            if (permissionCollection != null) {
+                for (Permission permission : execute.getPermissions()) {
+                    permissionCollection.add(permission);
+                }
             }
             return new SecureResolvedClassLoaderConfiguration(secureVestigeSystem, execute);
         } finally {
