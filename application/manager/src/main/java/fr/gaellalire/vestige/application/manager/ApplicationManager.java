@@ -47,6 +47,8 @@ public interface ApplicationManager extends ApplicationManagerState {
 
     void run(String installName) throws ApplicationException;
 
+    void discard(String installName) throws ApplicationException;
+
     JobController stop(String installName, JobListener jobListener) throws ApplicationException;
 
     void setAutoMigrateLevel(String installName, int level) throws ApplicationException;

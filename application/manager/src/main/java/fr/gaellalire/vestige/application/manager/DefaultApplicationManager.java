@@ -1220,10 +1220,23 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         synchronized (state) {
             final ApplicationContext applicationContext = state.getUnlockedApplicationContext(installName);
             if (applicationContext.isStarted()) {
-                throw new ApplicationException("already started");
+                throw new ApplicationException("Already started");
             }
             LOGGER.info("Application {} started", installName);
             start(applicationContext, installName, true);
+        }
+    }
+
+    @Override
+    public void discard(final String installName) throws ApplicationException {
+        ApplicationContext applicationContext;
+        synchronized (state) {
+            applicationContext = state.getUnlockedApplicationContext(installName);
+            if (applicationContext.isStarted()) {
+                throw new ApplicationException("Cannot discard started application state");
+            }
+            applicationContext.setRuntimeApplicationContext(null);
+            applicationContext.setRuntimeApplicationInstallerContext(null);
         }
     }
 
