@@ -842,6 +842,11 @@ public class StandardEditionVestige implements Runnable {
             if (vestigeSecurity != null) {
                 securityEnabled = Boolean.parseBoolean(vestigeSecurity);
             }
+            if (securityEnabled) {
+                LOGGER.info("Vestige security is enabled");
+            } else {
+                LOGGER.info("Vestige security is disabled");
+            }
             String vestigeListenerPort = System.getenv("VESTIGE_LISTENER_PORT");
             int listenerPort = 0;
             if (vestigeListenerPort != null) {
