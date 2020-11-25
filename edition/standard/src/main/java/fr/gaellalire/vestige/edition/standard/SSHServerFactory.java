@@ -21,7 +21,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileWriter;
-import java.io.IOException;
 import java.math.BigInteger;
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -40,14 +39,11 @@ import org.apache.sshd.SshServer;
 import org.apache.sshd.common.Channel;
 import org.apache.sshd.common.KeyPairProvider;
 import org.apache.sshd.common.NamedFactory;
-import org.apache.sshd.common.PtyMode;
 import org.apache.sshd.common.forward.TcpipServerChannel;
 import org.apache.sshd.common.io.mina.MinaServiceFactoryFactory;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
-import org.apache.sshd.common.util.Buffer;
 import org.apache.sshd.server.Command;
 import org.apache.sshd.server.CommandFactory;
-import org.apache.sshd.server.Environment;
 import org.apache.sshd.server.ServerFactoryManager;
 import org.apache.sshd.server.channel.ChannelSession;
 import org.apache.sshd.server.command.ScpCommandFactory;
@@ -70,6 +66,7 @@ import fr.gaellalire.vestige.admin.ssh.FixedSSHServer;
 import fr.gaellalire.vestige.admin.ssh.RootedFileSystemFactory;
 import fr.gaellalire.vestige.admin.ssh.SSHExecCommand;
 import fr.gaellalire.vestige.admin.ssh.SSHShellCommandFactory;
+import fr.gaellalire.vestige.admin.ssh.VestigeChannelSession;
 import fr.gaellalire.vestige.edition.standard.schema.Bind;
 import fr.gaellalire.vestige.edition.standard.schema.SSH;
 import fr.gaellalire.vestige.utils.SimpleValueGetter;
@@ -213,34 +210,7 @@ public class SSHServerFactory implements Callable<VestigeServer> {
         sshServer.setChannelFactories(Arrays.<NamedFactory<Channel>> asList(new ChannelSession.Factory() {
             @Override
             public Channel create() {
-                return new ChannelSession() {
-
-                    @Override
-                    protected boolean handlePtyReq(final Buffer buffer) throws IOException {
-                        String term = buffer.getString();
-                        int tColumns = buffer.getInt();
-                        int tRows = buffer.getInt();
-                        int tWidth = buffer.getInt();
-                        int tHeight = buffer.getInt();
-                        byte[] modes = buffer.getBytes();
-                        for (int i = 0; i < modes.length && modes[i] != 0;) {
-                            PtyMode mode = PtyMode.fromInt(modes[i++]);
-                            if (mode != null) {
-                                int val = ((modes[i++] << 24) & 0xff000000) | ((modes[i++] << 16) & 0x00ff0000) | ((modes[i++] << 8) & 0x0000ff00) | ((modes[i++]) & 0x000000ff);
-                                getEnvironment().getPtyModes().put(mode, val);
-                            }
-                        }
-                        if (log.isDebugEnabled()) {
-                            log.debug("pty for channel {}: term={}, size=({} - {}), pixels=({}, {}), modes=[{}]",
-                                    new Object[] {id, term, tColumns, tRows, tWidth, tHeight, getEnvironment().getPtyModes()});
-                        }
-                        addEnvVariable(Environment.ENV_TERM, term);
-                        addEnvVariable(Environment.ENV_COLUMNS, Integer.toString(tColumns));
-                        addEnvVariable(Environment.ENV_LINES, Integer.toString(tRows));
-                        return true;
-                    }
-
-                };
+                return new VestigeChannelSession();
             }
         }, new TcpipServerChannel.DirectTcpipFactory()));
 
