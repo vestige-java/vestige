@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.locks.LockSupport;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,9 @@ import org.slf4j.LoggerFactory;
 import fr.gaellalire.vestige.admin.command.CommandLineParser;
 import fr.gaellalire.vestige.admin.command.DefaultCommandContext;
 import fr.gaellalire.vestige.admin.command.VestigeCommandExecutor;
+import fr.gaellalire.vestige.job.JobController;
+import fr.gaellalire.vestige.job.JobListener;
+import fr.gaellalire.vestige.job.TaskListener;
 
 /**
  * @author Gael Lalire
@@ -45,8 +49,7 @@ public class TelnetSession implements Runnable {
 
     private Thread thread;
 
-    public TelnetSession(final VestigeCommandExecutor commandExecutor, final BufferedReader bufferedReader,
-            final PrintWriter printWriter) {
+    public TelnetSession(final VestigeCommandExecutor commandExecutor, final BufferedReader bufferedReader, final PrintWriter printWriter) {
         this.bufferedReader = bufferedReader;
         this.printWriter = printWriter;
         this.commandExecutor = commandExecutor;
@@ -66,6 +69,19 @@ public class TelnetSession implements Runnable {
 
     public void run() {
         DefaultCommandContext defaultCommandContext = new DefaultCommandContext();
+        final Thread currentThread = Thread.currentThread();
+        defaultCommandContext.setJobListener(new JobListener() {
+
+            @Override
+            public TaskListener taskAdded(final String description) {
+                return null;
+            }
+
+            @Override
+            public void jobDone() {
+                LockSupport.unpark(currentThread);
+            }
+        });
         CommandLineParser commandLineParser = new CommandLineParser();
         defaultCommandContext.setOut(printWriter);
         try {
@@ -86,7 +102,12 @@ public class TelnetSession implements Runnable {
                 } else {
                     continue;
                 }
-                commandExecutor.exec(defaultCommandContext, arguments);
+                JobController jobController = commandExecutor.exec(defaultCommandContext, arguments);
+                if (jobController != null) {
+                    while (!jobController.isDone()) {
+                        LockSupport.park();
+                    }
+                }
                 readLine = bufferedReader.readLine();
             }
         } catch (IOException e) {

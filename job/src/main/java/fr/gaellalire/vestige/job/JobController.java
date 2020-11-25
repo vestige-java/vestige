@@ -26,13 +26,19 @@ public interface JobController {
 
     void interrupt();
 
+    /**
+     * This should be kept in uncached memory (volatile or atomic).
+     */
     boolean isDone();
+
+    /**
+     * This should be kept in uncached memory (volatile or atomic).
+     */
+    Exception getException();
 
     String getDescription();
 
     List<TaskData> takeTasksSnapshot();
-
-    Exception getException();
 
     String getJobId();
 }

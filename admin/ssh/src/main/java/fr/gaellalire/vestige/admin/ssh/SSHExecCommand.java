@@ -24,6 +24,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 
 import org.apache.sshd.server.Command;
 import org.apache.sshd.server.Environment;
@@ -34,6 +35,9 @@ import org.slf4j.LoggerFactory;
 import fr.gaellalire.vestige.admin.command.CommandLineParser;
 import fr.gaellalire.vestige.admin.command.DefaultCommandContext;
 import fr.gaellalire.vestige.admin.command.VestigeCommandExecutor;
+import fr.gaellalire.vestige.job.JobController;
+import fr.gaellalire.vestige.job.JobListener;
+import fr.gaellalire.vestige.job.TaskListener;
 
 /**
  * @author Gael Lalire
@@ -88,6 +92,19 @@ public class SSHExecCommand implements Command, Runnable {
     public void run() {
         DefaultCommandContext defaultCommandContext = new DefaultCommandContext();
         defaultCommandContext.setOut(out);
+        final Thread currentThread = Thread.currentThread();
+        defaultCommandContext.setJobListener(new JobListener() {
+
+            @Override
+            public TaskListener taskAdded(final String description) {
+                return null;
+            }
+
+            @Override
+            public void jobDone() {
+                LockSupport.unpark(currentThread);
+            }
+        });
         CommandLineParser commandLineParser = new CommandLineParser();
         try {
             try {
@@ -108,7 +125,12 @@ public class SSHExecCommand implements Command, Runnable {
                     } else {
                         continue;
                     }
-                    vestigeCommand.exec(defaultCommandContext, arguments);
+                    JobController jobController = vestigeCommand.exec(defaultCommandContext, arguments);
+                    if (jobController != null) {
+                        while (!jobController.isDone()) {
+                            LockSupport.park();
+                        }
+                    }
                 }
                 callback.onExit(0);
             } finally {
