@@ -241,266 +241,270 @@ public final class MavenMainLauncher {
             LOGGER.warn("Unable to restore main resolver", e);
         }
 
-        long lastModified = mavenLauncherFile.lastModified();
-        if (mavenResolverCache == null || lastModified != mavenResolverCache.getLastModified() || !mavenResolverCache.verify()) {
-            JAXBContext jc = JAXBContext.newInstance(ObjectFactory.class.getPackage().getName());
-            Unmarshaller unMarshaller = jc.createUnmarshaller();
-
-            URL xsdURL = MavenMainLauncher.class.getResource("mavenLauncher.xsd");
-            SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
-            Schema schema = schemaFactory.newSchema(new Source[] {new StreamSource(UtilsSchema.getURL().toExternalForm()), new StreamSource(xsdURL.toExternalForm())});
-            unMarshaller.setSchema(schema);
-            MavenLauncher mavenLauncher = ((JAXBElement<MavenLauncher>) unMarshaller.unmarshal(mavenLauncherFile)).getValue();
-            DefaultDependencyModifier defaultDependencyModifier = new DefaultDependencyModifier();
-            DefaultJPMSConfiguration defaultJPMSConfiguration = new DefaultJPMSConfiguration();
-            MavenConfig mavenConfig = mavenLauncher.getConfig();
-            List<MavenRepository> additionalRepositories = new ArrayList<MavenRepository>();
-            boolean pomRepositoriesIgnored = false;
-            boolean superPomRepositoriesIgnored = true;
-            if (mavenConfig != null) {
-                for (Object object : mavenConfig.getModifyDependencyOrReplaceDependencyOrAdditionalRepository()) {
-                    if (object instanceof ModifyDependency) {
-                        ModifyDependency modifyDependency = (ModifyDependency) object;
-                        List<AddDependency> addDependencies = modifyDependency.getAddDependency();
-                        List<Dependency> dependencies = new ArrayList<Dependency>(addDependencies.size());
-                        for (AddDependency addDependency : addDependencies) {
-                            dependencies.add(new Dependency(new DefaultArtifact(SimpleValueGetter.INSTANCE.getValue(addDependency.getGroupId()),
-                                    SimpleValueGetter.INSTANCE.getValue(addDependency.getArtifactId()), "jar", SimpleValueGetter.INSTANCE.getValue(addDependency.getVersion())),
-                                    "runtime"));
-                        }
-                        defaultJPMSConfiguration.addModuleConfiguration(SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()),
-                                SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()),
-                                toModuleConfigurations(modifyDependency.getAddExports(), modifyDependency.getAddOpens()));
-                        defaultDependencyModifier.add(SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()),
-                                SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()), dependencies);
-                        if (modifyDependency.getAddBeforeParent() != null) {
-                            defaultDependencyModifier.addBeforeParent(SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()),
-                                    SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()));
-                        }
-                    } else if (object instanceof ReplaceDependency) {
-                        ReplaceDependency replaceDependency = (ReplaceDependency) object;
-                        List<AddDependency> addDependencies = replaceDependency.getAddDependency();
-                        List<Dependency> dependencies = new ArrayList<Dependency>(addDependencies.size());
-                        for (AddDependency addDependency : addDependencies) {
-                            dependencies.add(new Dependency(new DefaultArtifact(SimpleValueGetter.INSTANCE.getValue(addDependency.getGroupId()),
-                                    SimpleValueGetter.INSTANCE.getValue(addDependency.getArtifactId()), "jar", SimpleValueGetter.INSTANCE.getValue(addDependency.getVersion())),
-                                    "runtime"));
-                        }
-                        Map<String, Set<String>> exceptsMap = null;
-                        List<ExceptIn> excepts = replaceDependency.getExceptIn();
-                        if (excepts != null) {
-                            exceptsMap = new HashMap<String, Set<String>>();
-                            for (ExceptIn except : excepts) {
-                                Set<String> set = exceptsMap.get(SimpleValueGetter.INSTANCE.getValue(except.getGroupId()));
-                                if (set == null) {
-                                    set = new HashSet<String>();
-                                    exceptsMap.put(SimpleValueGetter.INSTANCE.getValue(except.getGroupId()), set);
-                                }
-                                set.add(SimpleValueGetter.INSTANCE.getValue(except.getArtifactId()));
-                            }
-                        }
-                        defaultDependencyModifier.replace(SimpleValueGetter.INSTANCE.getValue(replaceDependency.getGroupId()),
-                                SimpleValueGetter.INSTANCE.getValue(replaceDependency.getArtifactId()), dependencies, exceptsMap);
-                    } else if (object instanceof AdditionalRepository) {
-                        AdditionalRepository additionalRepository = (AdditionalRepository) object;
-                        additionalRepositories.add(new MavenRepository(SimpleValueGetter.INSTANCE.getValue(additionalRepository.getId()),
-                                SimpleValueGetter.INSTANCE.getValue(additionalRepository.getLayout()), SimpleValueGetter.INSTANCE.getValue(additionalRepository.getUrl())));
-                    } else if (object instanceof FileAdditionalRepository) {
-                        FileAdditionalRepository additionalRepository = (FileAdditionalRepository) object;
-                        additionalRepositories.add(new MavenRepository(SimpleValueGetter.INSTANCE.getValue(additionalRepository.getId()),
-                                SimpleValueGetter.INSTANCE.getValue(additionalRepository.getLayout()),
-                                new File(SimpleValueGetter.INSTANCE.getValue(additionalRepository.getPath())).toURI().toURL().toString()));
-                    }
-                }
-                pomRepositoriesIgnored = SimpleValueGetter.INSTANCE.getValue(mavenConfig.getPomRepositoriesIgnored());
-                superPomRepositoriesIgnored = SimpleValueGetter.INSTANCE.getValue(mavenConfig.getSuperPomRepositoriesIgnored());
-            }
-
-            SSLContextAccessor lazySSLContextAccessor = new SSLContextAccessor() {
-
-                private SSLContext sslContext;
-
-                private Object mutex = new Object();
-
-                @Override
-                public SSLContext getSSLContext() {
-                    synchronized (mutex) {
-                        if (sslContext == null) {
-                            Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
-                            int bcpos = Security.addProvider(new BouncyCastleProvider());
-                            LOGGER.debug("BC position is {}", bcpos);
-                            Security.removeProvider(BouncyCastleJsseProvider.PROVIDER_NAME);
-                            int bcjssepos = Security.addProvider(new BouncyCastleJsseProvider(Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)));
-                            LOGGER.debug("BCJSSE position is {}", bcjssepos);
-
-                            try {
-                                KeyStore trustStore = KeyStore.getInstance("PKCS12", BouncyCastleProvider.PROVIDER_NAME);
-
-                                TrustManager[] trustManagers = null;
-                                if (mavenCacertsFile != null) {
-                                    TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX", BouncyCastleJsseProvider.PROVIDER_NAME);
-                                    FileInputStream stream = new FileInputStream(mavenCacertsFile);
-                                    try {
-                                        trustStore.load(stream, "changeit".toCharArray());
-                                    } finally {
-                                        stream.close();
-                                    }
-                                    trustManagerFactory.init(trustStore);
-                                    trustManagers = trustManagerFactory.getTrustManagers();
-                                }
-
-                                sslContext = SSLContext.getInstance("TLS", BouncyCastleJsseProvider.PROVIDER_NAME);
-                                sslContext.init(null, trustManagers, SecureRandom.getInstance("DEFAULT", BouncyCastleProvider.PROVIDER_NAME));
-                            } catch (Exception e) {
-                                throw new Error("SSLContext creation failed", e);
-                            }
-                        }
-                        return sslContext;
-                    }
-                }
-            };
-
-            mavenArtifactResolver = new MavenArtifactResolver(vestigePlatform, new VestigeWorker[] {vestigeWorker}, mavenSettingsFile, lazySSLContextAccessor);
-
-            List<ClassLoaderConfiguration> launchCaches = new ArrayList<ClassLoaderConfiguration>();
-            int attachCount = 0;
-            for (MavenAttachType mavenClassType : mavenLauncher.getAttach()) {
-                ResolveMode resolveMode = convertMode(mavenClassType.getMode());
-                Scope mavenScope = convertScope(mavenClassType.getScope());
-
-                ResolveParameters resolveRequest = new ResolveParameters();
-                resolveRequest.setGroupId(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getGroupId()));
-                resolveRequest.setArtifactId(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getArtifactId()));
-                resolveRequest.setVersion(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getVersion()));
-                resolveRequest.setExtension("jar");
-                resolveRequest.setAdditionalRepositories(additionalRepositories);
-                resolveRequest.setDependencyModifier(defaultDependencyModifier);
-                resolveRequest.setSuperPomRepositoriesIgnored(superPomRepositoriesIgnored);
-                resolveRequest.setPomRepositoriesIgnored(pomRepositoriesIgnored);
-                resolveRequest.setChecksumVerified(true);
-
-                CreateClassLoaderConfigurationParameters createClassLoaderConfigurationParameters = new CreateClassLoaderConfigurationParameters();
-
-                createClassLoaderConfigurationParameters.setAppName("vestige-attach-" + attachCount);
-                createClassLoaderConfigurationParameters.setJpmsConfiguration(defaultJPMSConfiguration);
-                createClassLoaderConfigurationParameters.setManyLoaders(resolveMode == ResolveMode.FIXED_DEPENDENCIES);
-                createClassLoaderConfigurationParameters.setScope(mavenScope);
-
-                ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
-                        .createClassLoaderConfiguration(createClassLoaderConfigurationParameters);
-
-                launchCaches.add(classLoaderConfiguration);
-                attachCount++;
-            }
-
-            MavenClassType mavenClassType = mavenLauncher.getLaunch();
-            JPMSNamedModulesConfiguration namedModulesConfiguration = convertActivateNamedModule(mavenClassType.getActivateNamedModules());
-            ResolveMode resolveMode = convertMode(mavenClassType.getMode());
-            Scope mavenScope = convertScope(mavenClassType.getScope());
-
-            ResolveParameters resolveRequest = new ResolveParameters();
-            resolveRequest.setGroupId(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getGroupId()));
-            resolveRequest.setArtifactId(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getArtifactId()));
-            resolveRequest.setVersion(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getVersion()));
-            resolveRequest.setExtension("jar");
-            resolveRequest.setAdditionalRepositories(additionalRepositories);
-            resolveRequest.setDependencyModifier(defaultDependencyModifier);
-            resolveRequest.setSuperPomRepositoriesIgnored(superPomRepositoriesIgnored);
-            resolveRequest.setPomRepositoriesIgnored(pomRepositoriesIgnored);
-            resolveRequest.setChecksumVerified(true);
-
-            CreateClassLoaderConfigurationParameters createClassLoaderConfigurationParameters = new CreateClassLoaderConfigurationParameters();
-            createClassLoaderConfigurationParameters.setAppName("vestige");
-            createClassLoaderConfigurationParameters.setJpmsConfiguration(defaultJPMSConfiguration);
-            createClassLoaderConfigurationParameters.setJpmsNamedModulesConfiguration(namedModulesConfiguration);
-            createClassLoaderConfigurationParameters.setManyLoaders(resolveMode == ResolveMode.FIXED_DEPENDENCIES);
-            createClassLoaderConfigurationParameters.setScope(mavenScope);
-
-            ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
-                    .createClassLoaderConfiguration(createClassLoaderConfigurationParameters);
-
-            Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
-            Security.removeProvider(BouncyCastleJsseProvider.PROVIDER_NAME);
-
-            mavenResolverCache = new MavenResolverCache(launchCaches, SimpleValueGetter.INSTANCE.getValue(mavenClassType.getClazz()), classLoaderConfiguration, lastModified);
-            try {
-                File parentFile = mavenResolverCacheFile.getParentFile();
-                if (!parentFile.isDirectory()) {
-                    parentFile.mkdirs();
-                }
-                ObjectOutputStream objectOutputStream = new ObjectOutputStream(new FileOutputStream(mavenResolverCacheFile));
-                try {
-                    objectOutputStream.writeObject(mavenResolverCache);
-                } finally {
-                    objectOutputStream.close();
-                }
-            } catch (Exception e) {
-                LOGGER.warn("Unable to save main resolver", e);
-            }
-            if (!mavenResolverCache.verify()) {
-                LOGGER.error("Unable to fix maven repository, aborting vestige run");
-                return null;
-            }
-        } else {
-            LOGGER.info("Maven launcher file not modified, use resolver cache");
-        }
-
-        for (ClassLoaderConfiguration classLoaderConfiguration : mavenResolverCache.getClassLoaderConfigurations()) {
-            LOGGER.debug("Attach:\n{}", classLoaderConfiguration);
-            // int attach =
-            vestigePlatform.attach(classLoaderConfiguration, vestigeWorker);
-            // vestigePlatform.start(attach);
-        }
-
-        LOGGER.debug("Attach and run vestigeMain:\n{}", mavenResolverCache.getClassLoaderConfiguration());
-        int load = vestigePlatform.attach(mavenResolverCache.getClassLoaderConfiguration(), vestigeWorker);
-        // vestigePlatform.start(load);
-
-        final VestigeClassLoader<AttachedVestigeClassLoader> mavenResolverClassLoader = vestigePlatform.getClassLoader(load);
-        JPMSInRepositoryModuleLayerAccessor moduleLayer = mavenResolverClassLoader.getData(vestigePlatform).getModuleLayer();
-        if (moduleLayer != null) {
-            moduleLayer.findModule("fr.gaellalire.vestige.platform").addOpens("fr.gaellalire.vestige.platform", MavenMainLauncher.class);
-        }
-
-        Thread currentThread = Thread.currentThread();
-        ClassLoader contextClassLoader = currentThread.getContextClassLoader();
-        currentThread.setContextClassLoader(mavenResolverClassLoader);
-        Object loadedVestigePlatform;
-        final Method vestigeMain;
-        URLStreamHandlerFactory loadedURLStreamHandlerFactory = null;
+        Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
+        int bcpos = Security.addProvider(new BouncyCastleProvider());
         try {
-
+            LOGGER.debug("BC position is {}", bcpos);
+            Security.removeProvider(BouncyCastleJsseProvider.PROVIDER_NAME);
+            int bcjssepos = Security.addProvider(new BouncyCastleJsseProvider(Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)));
             try {
-                Class<?> logbackEnhancerClass = Class.forName(LogbackEnhancer.class.getName(), false, mavenResolverClassLoader);
-                vestigeWorker.invoke(mavenResolverClassLoader, logbackEnhancerClass.getMethod("enhance", VestigeCoreContext.class), null, vestigeCoreContext);
-            } catch (ClassNotFoundException e) {
-                // ignore
+                LOGGER.debug("BCJSSE position is {}", bcjssepos);
+
+                long lastModified = mavenLauncherFile.lastModified();
+                if (mavenResolverCache == null || lastModified != mavenResolverCache.getLastModified() || !mavenResolverCache.verify()) {
+                    JAXBContext jc = JAXBContext.newInstance(ObjectFactory.class.getPackage().getName());
+                    Unmarshaller unMarshaller = jc.createUnmarshaller();
+
+                    URL xsdURL = MavenMainLauncher.class.getResource("mavenLauncher.xsd");
+                    SchemaFactory schemaFactory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
+                    Schema schema = schemaFactory.newSchema(new Source[] {new StreamSource(UtilsSchema.getURL().toExternalForm()), new StreamSource(xsdURL.toExternalForm())});
+                    unMarshaller.setSchema(schema);
+                    MavenLauncher mavenLauncher = ((JAXBElement<MavenLauncher>) unMarshaller.unmarshal(mavenLauncherFile)).getValue();
+                    DefaultDependencyModifier defaultDependencyModifier = new DefaultDependencyModifier();
+                    DefaultJPMSConfiguration defaultJPMSConfiguration = new DefaultJPMSConfiguration();
+                    MavenConfig mavenConfig = mavenLauncher.getConfig();
+                    List<MavenRepository> additionalRepositories = new ArrayList<MavenRepository>();
+                    boolean pomRepositoriesIgnored = false;
+                    boolean superPomRepositoriesIgnored = true;
+                    if (mavenConfig != null) {
+                        for (Object object : mavenConfig.getModifyDependencyOrReplaceDependencyOrAdditionalRepository()) {
+                            if (object instanceof ModifyDependency) {
+                                ModifyDependency modifyDependency = (ModifyDependency) object;
+                                List<AddDependency> addDependencies = modifyDependency.getAddDependency();
+                                List<Dependency> dependencies = new ArrayList<Dependency>(addDependencies.size());
+                                for (AddDependency addDependency : addDependencies) {
+                                    dependencies.add(new Dependency(new DefaultArtifact(SimpleValueGetter.INSTANCE.getValue(addDependency.getGroupId()),
+                                            SimpleValueGetter.INSTANCE.getValue(addDependency.getArtifactId()), "jar",
+                                            SimpleValueGetter.INSTANCE.getValue(addDependency.getVersion())), "runtime"));
+                                }
+                                defaultJPMSConfiguration.addModuleConfiguration(SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()),
+                                        SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()),
+                                        toModuleConfigurations(modifyDependency.getAddExports(), modifyDependency.getAddOpens()));
+                                defaultDependencyModifier.add(SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()),
+                                        SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()), dependencies);
+                                if (modifyDependency.getAddBeforeParent() != null) {
+                                    defaultDependencyModifier.addBeforeParent(SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()),
+                                            SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()));
+                                }
+                            } else if (object instanceof ReplaceDependency) {
+                                ReplaceDependency replaceDependency = (ReplaceDependency) object;
+                                List<AddDependency> addDependencies = replaceDependency.getAddDependency();
+                                List<Dependency> dependencies = new ArrayList<Dependency>(addDependencies.size());
+                                for (AddDependency addDependency : addDependencies) {
+                                    dependencies.add(new Dependency(new DefaultArtifact(SimpleValueGetter.INSTANCE.getValue(addDependency.getGroupId()),
+                                            SimpleValueGetter.INSTANCE.getValue(addDependency.getArtifactId()), "jar",
+                                            SimpleValueGetter.INSTANCE.getValue(addDependency.getVersion())), "runtime"));
+                                }
+                                Map<String, Set<String>> exceptsMap = null;
+                                List<ExceptIn> excepts = replaceDependency.getExceptIn();
+                                if (excepts != null) {
+                                    exceptsMap = new HashMap<String, Set<String>>();
+                                    for (ExceptIn except : excepts) {
+                                        Set<String> set = exceptsMap.get(SimpleValueGetter.INSTANCE.getValue(except.getGroupId()));
+                                        if (set == null) {
+                                            set = new HashSet<String>();
+                                            exceptsMap.put(SimpleValueGetter.INSTANCE.getValue(except.getGroupId()), set);
+                                        }
+                                        set.add(SimpleValueGetter.INSTANCE.getValue(except.getArtifactId()));
+                                    }
+                                }
+                                defaultDependencyModifier.replace(SimpleValueGetter.INSTANCE.getValue(replaceDependency.getGroupId()),
+                                        SimpleValueGetter.INSTANCE.getValue(replaceDependency.getArtifactId()), dependencies, exceptsMap);
+                            } else if (object instanceof AdditionalRepository) {
+                                AdditionalRepository additionalRepository = (AdditionalRepository) object;
+                                additionalRepositories.add(new MavenRepository(SimpleValueGetter.INSTANCE.getValue(additionalRepository.getId()),
+                                        SimpleValueGetter.INSTANCE.getValue(additionalRepository.getLayout()), SimpleValueGetter.INSTANCE.getValue(additionalRepository.getUrl())));
+                            } else if (object instanceof FileAdditionalRepository) {
+                                FileAdditionalRepository additionalRepository = (FileAdditionalRepository) object;
+                                additionalRepositories.add(new MavenRepository(SimpleValueGetter.INSTANCE.getValue(additionalRepository.getId()),
+                                        SimpleValueGetter.INSTANCE.getValue(additionalRepository.getLayout()),
+                                        new File(SimpleValueGetter.INSTANCE.getValue(additionalRepository.getPath())).toURI().toURL().toString()));
+                            }
+                        }
+                        pomRepositoriesIgnored = SimpleValueGetter.INSTANCE.getValue(mavenConfig.getPomRepositoriesIgnored());
+                        superPomRepositoriesIgnored = SimpleValueGetter.INSTANCE.getValue(mavenConfig.getSuperPomRepositoriesIgnored());
+                    }
+
+                    SSLContextAccessor lazySSLContextAccessor = new SSLContextAccessor() {
+
+                        private SSLContext sslContext;
+
+                        private Object mutex = new Object();
+
+                        @Override
+                        public SSLContext getSSLContext() {
+                            synchronized (mutex) {
+                                if (sslContext == null) {
+                                    try {
+                                        KeyStore trustStore = KeyStore.getInstance("PKCS12", BouncyCastleProvider.PROVIDER_NAME);
+
+                                        TrustManager[] trustManagers = null;
+                                        if (mavenCacertsFile != null) {
+                                            TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX", BouncyCastleJsseProvider.PROVIDER_NAME);
+                                            FileInputStream stream = new FileInputStream(mavenCacertsFile);
+                                            try {
+                                                trustStore.load(stream, "changeit".toCharArray());
+                                            } finally {
+                                                stream.close();
+                                            }
+                                            trustManagerFactory.init(trustStore);
+                                            trustManagers = trustManagerFactory.getTrustManagers();
+                                        }
+
+                                        sslContext = SSLContext.getInstance("TLS", BouncyCastleJsseProvider.PROVIDER_NAME);
+                                        sslContext.init(null, trustManagers, SecureRandom.getInstance("DEFAULT", BouncyCastleProvider.PROVIDER_NAME));
+                                    } catch (Exception e) {
+                                        throw new Error("SSLContext creation failed", e);
+                                    }
+                                }
+                                return sslContext;
+                            }
+                        }
+                    };
+
+                    mavenArtifactResolver = new MavenArtifactResolver(vestigePlatform, new VestigeWorker[] {vestigeWorker}, mavenSettingsFile, lazySSLContextAccessor);
+
+                    List<ClassLoaderConfiguration> launchCaches = new ArrayList<ClassLoaderConfiguration>();
+                    int attachCount = 0;
+                    for (MavenAttachType mavenClassType : mavenLauncher.getAttach()) {
+                        ResolveMode resolveMode = convertMode(mavenClassType.getMode());
+                        Scope mavenScope = convertScope(mavenClassType.getScope());
+
+                        ResolveParameters resolveRequest = new ResolveParameters();
+                        resolveRequest.setGroupId(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getGroupId()));
+                        resolveRequest.setArtifactId(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getArtifactId()));
+                        resolveRequest.setVersion(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getVersion()));
+                        resolveRequest.setExtension("jar");
+                        resolveRequest.setAdditionalRepositories(additionalRepositories);
+                        resolveRequest.setDependencyModifier(defaultDependencyModifier);
+                        resolveRequest.setSuperPomRepositoriesIgnored(superPomRepositoriesIgnored);
+                        resolveRequest.setPomRepositoriesIgnored(pomRepositoriesIgnored);
+                        resolveRequest.setChecksumVerified(true);
+
+                        CreateClassLoaderConfigurationParameters createClassLoaderConfigurationParameters = new CreateClassLoaderConfigurationParameters();
+
+                        createClassLoaderConfigurationParameters.setAppName("vestige-attach-" + attachCount);
+                        createClassLoaderConfigurationParameters.setJpmsConfiguration(defaultJPMSConfiguration);
+                        createClassLoaderConfigurationParameters.setManyLoaders(resolveMode == ResolveMode.FIXED_DEPENDENCIES);
+                        createClassLoaderConfigurationParameters.setScope(mavenScope);
+
+                        ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
+                                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters);
+
+                        launchCaches.add(classLoaderConfiguration);
+                        attachCount++;
+                    }
+
+                    MavenClassType mavenClassType = mavenLauncher.getLaunch();
+                    JPMSNamedModulesConfiguration namedModulesConfiguration = convertActivateNamedModule(mavenClassType.getActivateNamedModules());
+                    ResolveMode resolveMode = convertMode(mavenClassType.getMode());
+                    Scope mavenScope = convertScope(mavenClassType.getScope());
+
+                    ResolveParameters resolveRequest = new ResolveParameters();
+                    resolveRequest.setGroupId(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getGroupId()));
+                    resolveRequest.setArtifactId(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getArtifactId()));
+                    resolveRequest.setVersion(SimpleValueGetter.INSTANCE.getValue(mavenClassType.getVersion()));
+                    resolveRequest.setExtension("jar");
+                    resolveRequest.setAdditionalRepositories(additionalRepositories);
+                    resolveRequest.setDependencyModifier(defaultDependencyModifier);
+                    resolveRequest.setSuperPomRepositoriesIgnored(superPomRepositoriesIgnored);
+                    resolveRequest.setPomRepositoriesIgnored(pomRepositoriesIgnored);
+                    resolveRequest.setChecksumVerified(true);
+
+                    CreateClassLoaderConfigurationParameters createClassLoaderConfigurationParameters = new CreateClassLoaderConfigurationParameters();
+                    createClassLoaderConfigurationParameters.setAppName("vestige");
+                    createClassLoaderConfigurationParameters.setJpmsConfiguration(defaultJPMSConfiguration);
+                    createClassLoaderConfigurationParameters.setJpmsNamedModulesConfiguration(namedModulesConfiguration);
+                    createClassLoaderConfigurationParameters.setManyLoaders(resolveMode == ResolveMode.FIXED_DEPENDENCIES);
+                    createClassLoaderConfigurationParameters.setScope(mavenScope);
+
+                    ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
+                            .createClassLoaderConfiguration(createClassLoaderConfigurationParameters);
+
+                    mavenResolverCache = new MavenResolverCache(launchCaches, SimpleValueGetter.INSTANCE.getValue(mavenClassType.getClazz()), classLoaderConfiguration,
+                            lastModified);
+                    try {
+                        File parentFile = mavenResolverCacheFile.getParentFile();
+                        if (!parentFile.isDirectory()) {
+                            parentFile.mkdirs();
+                        }
+                        ObjectOutputStream objectOutputStream = new ObjectOutputStream(new FileOutputStream(mavenResolverCacheFile));
+                        try {
+                            objectOutputStream.writeObject(mavenResolverCache);
+                        } finally {
+                            objectOutputStream.close();
+                        }
+                    } catch (Exception e) {
+                        LOGGER.warn("Unable to save main resolver", e);
+                    }
+                    if (!mavenResolverCache.verify()) {
+                        throw new IOException("Unable to fix maven repository, aborting vestige run");
+                    }
+                } else {
+                    LOGGER.info("Maven launcher file not modified, use resolver cache");
+                }
+
+                for (ClassLoaderConfiguration classLoaderConfiguration : mavenResolverCache.getClassLoaderConfigurations()) {
+                    LOGGER.debug("Attach:\n{}", classLoaderConfiguration);
+                    // int attach =
+                    vestigePlatform.attach(classLoaderConfiguration, null, vestigeWorker);
+                    // vestigePlatform.start(attach);
+                }
+
+                LOGGER.debug("Attach and run vestigeMain:\n{}", mavenResolverCache.getClassLoaderConfiguration());
+                int load = vestigePlatform.attach(mavenResolverCache.getClassLoaderConfiguration(), null, vestigeWorker);
+                // vestigePlatform.start(load);
+
+                final VestigeClassLoader<AttachedVestigeClassLoader> mavenResolverClassLoader = vestigePlatform.getClassLoader(load);
+                JPMSInRepositoryModuleLayerAccessor moduleLayer = mavenResolverClassLoader.getData(vestigePlatform).getModuleLayer();
+                if (moduleLayer != null) {
+                    moduleLayer.findModule("fr.gaellalire.vestige.platform").addOpens("fr.gaellalire.vestige.platform", MavenMainLauncher.class);
+                }
+
+                Thread currentThread = Thread.currentThread();
+                ClassLoader contextClassLoader = currentThread.getContextClassLoader();
+                currentThread.setContextClassLoader(mavenResolverClassLoader);
+                Object loadedVestigePlatform;
+                final Method vestigeMain;
+                URLStreamHandlerFactory loadedURLStreamHandlerFactory = null;
+                try {
+
+                    try {
+                        Class<?> logbackEnhancerClass = Class.forName(LogbackEnhancer.class.getName(), false, mavenResolverClassLoader);
+                        vestigeWorker.invoke(mavenResolverClassLoader, logbackEnhancerClass.getMethod("enhance", VestigeCoreContext.class), null, vestigeCoreContext);
+                    } catch (ClassNotFoundException e) {
+                        // ignore
+                    }
+
+                    String className = mavenResolverCache.getClassName();
+
+                    Class<?> vestigeMainClass = Class.forName(className, false, mavenResolverClassLoader);
+                    Class<?> vestigeURLStreamHandlerFactoryClass = Class.forName(VestigeURLStreamHandlerFactory.class.getName(), false, mavenResolverClassLoader);
+                    vestigeMain = vestigeMainClass.getMethod("vestigeMain", VestigeCoreContext.class, vestigeURLStreamHandlerFactoryClass,
+                            Class.forName(VestigePlatform.class.getName(), false, mavenResolverClassLoader), Function.class, Function.class, List.class, WeakReference.class,
+                            String[].class);
+
+                    Class<?> vestigePlatformConverterClass = vestigeWorker.classForName(mavenResolverClassLoader, VestigePlatformConverter.class.getName());
+                    LOGGER.trace("Start converting vestige platform");
+                    loadedVestigePlatform = vestigeWorker.invoke(mavenResolverClassLoader, vestigePlatformConverterClass.getMethod("convert", Object.class), null, vestigePlatform);
+                    LOGGER.trace("Vestige platform converted");
+
+                    loadedURLStreamHandlerFactory = installConvertedVestigeURLStreamHandlerFactory(mavenResolverClassLoader, vestigeURLStreamHandlerFactoryClass,
+                            streamHandlerFactory, vestigeURLStreamHandlerFactory, mavenArtifactResolver.getBaseDir());
+                } finally {
+                    currentThread.setContextClassLoader(contextClassLoader);
+                }
+
+                vestigeWorker.interrupt();
+                vestigeWorker.join();
+                return new InvokeMethod(mavenResolverClassLoader, vestigeMain, null, new Object[] {vestigeCoreContext, loadedURLStreamHandlerFactory, loadedVestigePlatform,
+                        addShutdownHook, removeShutdownHook, privilegedClassloaders, new WeakReference<ClassLoader>(MavenMainLauncher.class.getClassLoader()), dargs});
+            } finally {
+                Security.removeProvider(BouncyCastleJsseProvider.PROVIDER_NAME);
             }
-
-            String className = mavenResolverCache.getClassName();
-
-            Class<?> vestigeMainClass = Class.forName(className, false, mavenResolverClassLoader);
-            Class<?> vestigeURLStreamHandlerFactoryClass = Class.forName(VestigeURLStreamHandlerFactory.class.getName(), false, mavenResolverClassLoader);
-            vestigeMain = vestigeMainClass.getMethod("vestigeMain", VestigeCoreContext.class, vestigeURLStreamHandlerFactoryClass,
-                    Class.forName(VestigePlatform.class.getName(), false, mavenResolverClassLoader), Function.class, Function.class, List.class, WeakReference.class,
-                    String[].class);
-
-            Class<?> vestigePlatformConverterClass = vestigeWorker.classForName(mavenResolverClassLoader, VestigePlatformConverter.class.getName());
-            LOGGER.trace("Start converting vestige platform");
-            loadedVestigePlatform = vestigeWorker.invoke(mavenResolverClassLoader, vestigePlatformConverterClass.getMethod("convert", Object.class), null, vestigePlatform);
-            LOGGER.trace("Vestige platform converted");
-
-            loadedURLStreamHandlerFactory = installConvertedVestigeURLStreamHandlerFactory(mavenResolverClassLoader, vestigeURLStreamHandlerFactoryClass, streamHandlerFactory,
-                    vestigeURLStreamHandlerFactory, mavenArtifactResolver.getBaseDir());
         } finally {
-            currentThread.setContextClassLoader(contextClassLoader);
+            Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
         }
-
-        vestigeWorker.interrupt();
-        vestigeWorker.join();
-
-        return new InvokeMethod(mavenResolverClassLoader, vestigeMain, null, new Object[] {vestigeCoreContext, loadedURLStreamHandlerFactory, loadedVestigePlatform,
-                addShutdownHook, removeShutdownHook, privilegedClassloaders, new WeakReference<ClassLoader>(MavenMainLauncher.class.getClassLoader()), dargs});
     }
 
     private static URLStreamHandlerFactory installConvertedVestigeURLStreamHandlerFactory(final VestigeClassLoader<AttachedVestigeClassLoader> mavenResolverClassLoader,

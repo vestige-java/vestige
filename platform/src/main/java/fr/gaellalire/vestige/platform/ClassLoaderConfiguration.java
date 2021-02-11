@@ -18,10 +18,14 @@
 package fr.gaellalire.vestige.platform;
 
 import java.io.FilePermission;
+import java.io.IOException;
 import java.io.Serializable;
 import java.security.Permission;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import fr.gaellalire.vestige.core.parser.StringParser;
@@ -190,6 +194,32 @@ public class ClassLoaderConfiguration implements Serializable {
 
     public boolean isMdcIncluded() {
         return mdcIncluded;
+    }
+
+    public AttachmentVerificationMetadata createSignature(final Map<ClassLoaderConfiguration, AttachmentVerificationMetadata> signatureByClassLoaderConfigurations) throws IOException {
+        AttachmentVerificationMetadata signature = signatureByClassLoaderConfigurations.get(this);
+        if (signature != null) {
+            return signature;
+        }
+        List<FileVerificationMetadata> beforeFiles = new ArrayList<FileVerificationMetadata>();
+        for (SecureFile url : beforeUrls) {
+            beforeFiles.add(new FileVerificationMetadata(url.getFile().length(), url.createSha512()));
+        }
+        List<FileVerificationMetadata> afterFiles = new ArrayList<FileVerificationMetadata>();
+        for (SecureFile url : afterUrls) {
+            afterFiles.add(new FileVerificationMetadata(url.getFile().length(), url.createSha512()));
+        }
+        List<AttachmentVerificationMetadata> dependencySignatures = new ArrayList<AttachmentVerificationMetadata>();
+        for (ClassLoaderConfiguration dependency : dependencies) {
+            dependencySignatures.add(dependency.createSignature(signatureByClassLoaderConfigurations));
+        }
+        signature = new AttachmentVerificationMetadata(dependencySignatures, beforeFiles, afterFiles);
+        signatureByClassLoaderConfigurations.put(this, signature);
+        return signature;
+    }
+
+    public AttachmentVerificationMetadata createSignature() throws IOException {
+        return createSignature(new HashMap<ClassLoaderConfiguration, AttachmentVerificationMetadata>());
     }
 
 }

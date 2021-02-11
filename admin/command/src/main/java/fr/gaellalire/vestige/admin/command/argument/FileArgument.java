@@ -3,7 +3,6 @@ package fr.gaellalire.vestige.admin.command.argument;
 import java.io.File;
 
 /**
- *
  * @author Gael Lalire
  */
 public class FileArgument implements Argument {
@@ -54,4 +53,5 @@ public class FileArgument implements Argument {
     public File getFile() {
         return file;
     }
+
 }

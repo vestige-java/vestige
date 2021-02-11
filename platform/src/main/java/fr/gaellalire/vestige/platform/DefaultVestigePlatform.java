@@ -19,13 +19,17 @@ package fr.gaellalire.vestige.platform;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serializable;
 import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.net.URLStreamHandler;
 import java.net.URLStreamHandlerFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -50,6 +54,10 @@ import fr.gaellalire.vestige.core.parser.NoStateStringParser;
 import fr.gaellalire.vestige.core.parser.ResourceEncapsulationEnforcer;
 import fr.gaellalire.vestige.core.parser.StringParser;
 import fr.gaellalire.vestige.core.resource.JarFileResourceLocator;
+import fr.gaellalire.vestige.core.resource.SecureJarFile;
+import fr.gaellalire.vestige.core.resource.SecureJarFile.Mode;
+import fr.gaellalire.vestige.core.resource.SecureJarFileResourceLocator;
+import fr.gaellalire.vestige.core.resource.VestigeResourceLocator;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandler;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandlerFactory;
 import fr.gaellalire.vestige.jpms.JPMSAccessorLoader;
@@ -173,7 +181,8 @@ public class DefaultVestigePlatform implements VestigePlatform {
         }
     }
 
-    public int attach(final ClassLoaderConfiguration classLoaderConfiguration, final VestigeWorker vestigeWorker) throws InterruptedException, IOException {
+    public int attach(final ClassLoaderConfiguration classLoaderConfiguration, final AttachmentVerificationMetadata verificationMetadata, final VestigeWorker vestigeWorker)
+            throws InterruptedException, IOException {
         int size = attached.size();
         int id = 0;
         while (id < size) {
@@ -183,7 +192,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
             id++;
         }
         Map<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>> attachmentMap = new HashMap<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>>();
-        AttachedVestigeClassLoader load = attachDependencies(attachmentMap, classLoaderConfiguration, vestigeWorker);
+        AttachedVestigeClassLoader load = attachDependencies(attachmentMap, classLoaderConfiguration, verificationMetadata, vestigeWorker);
         Iterator<SoftReference<?>> iterator = load.getSoftReferences().iterator();
         while (iterator.hasNext()) {
             SoftReference<?> next = iterator.next();
@@ -241,9 +250,9 @@ public class DefaultVestigePlatform implements VestigePlatform {
         return id;
     }
 
-    public void clearCache(final JarFileResourceLocator[] cache) {
+    public void clearCache(final VestigeResourceLocator[] cache) {
         synchronized (cache) {
-            for (JarFileResourceLocator entry : cache) {
+            for (VestigeResourceLocator entry : cache) {
                 try {
                     LOGGER.info("Closing {}", entry);
                     entry.close();
@@ -382,8 +391,36 @@ public class DefaultVestigePlatform implements VestigePlatform {
         return data;
     }
 
+    public VestigeResourceLocator verifyJar(final SecureFile secureFile, final FileVerificationMetadata signedFileMetadata) throws IOException {
+        if (signedFileMetadata == null) {
+            return new JarFileResourceLocator(secureFile.getFile(), secureFile.getCodeBase());
+        }
+        SecureJarFile secureJarFile = new SecureJarFile(secureFile.getFile(), Mode.PRIVATE_MAP);
+        long[] sizeHolder = new long[1];
+        String sha512;
+        InputStream inputStream = secureJarFile.getInputStream();
+        try {
+            try {
+                List<String> checksums = SecureFile.createChecksum(inputStream, Arrays.asList("SHA-512"), sizeHolder);
+                sha512 = checksums.get(0);
+            } catch (NoSuchAlgorithmException e) {
+                throw new IOException("Cannot verify checkum", e);
+            } catch (NoSuchProviderException e) {
+                throw new IOException("Cannot verify checkum", e);
+            }
+
+        } finally {
+            inputStream.close();
+        }
+        if (!sha512.equals(signedFileMetadata.getSha512()) || sizeHolder[0] != signedFileMetadata.getSize()) {
+            throw new IOException("Detected corruption of file " + secureFile.getFile());
+        }
+        return new SecureJarFileResourceLocator(secureJarFile, secureFile.getCodeBase());
+    }
+
     private AttachedVestigeClassLoader attachDependencies(final Map<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>> attachmentMap,
-            final ClassLoaderConfiguration classLoaderConfiguration, final VestigeWorker vestigeWorker) throws InterruptedException, IOException {
+            final ClassLoaderConfiguration classLoaderConfiguration, final AttachmentVerificationMetadata verificationMetadata, final VestigeWorker vestigeWorker)
+            throws InterruptedException, IOException {
         Serializable key = classLoaderConfiguration.getKey();
 
         JPMSNamedModulesConfiguration namedModulesConfiguration = classLoaderConfiguration.getNamedModulesConfiguration();
@@ -396,12 +433,26 @@ public class DefaultVestigePlatform implements VestigePlatform {
 
         List<ClassLoaderConfiguration> configurationDependencies = classLoaderConfiguration.getDependencies();
         List<AttachedVestigeClassLoader> classLoaderDependencies = new ArrayList<AttachedVestigeClassLoader>();
+        Iterator<AttachmentVerificationMetadata> verificationMetadataIterator = null;
+        if (verificationMetadata != null) {
+            verificationMetadataIterator = verificationMetadata.getDependencyVerificationMetadata().iterator();
+        }
         for (ClassLoaderConfiguration configurationDependency : configurationDependencies) {
-            AttachedVestigeClassLoader attachDependency = attachDependencies(attachmentMap, configurationDependency, vestigeWorker);
+            if (verificationMetadataIterator != null && !verificationMetadataIterator.hasNext()) {
+                throw new IOException("Dependency of " + key + " does not match the verification metadata");
+            }
+            AttachmentVerificationMetadata subVerificationMetadata = null;
+            if (verificationMetadataIterator != null) {
+                subVerificationMetadata = verificationMetadataIterator.next();
+            }
+            AttachedVestigeClassLoader attachDependency = attachDependencies(attachmentMap, configurationDependency, subVerificationMetadata, vestigeWorker);
             classLoaderDependencies.add(attachDependency);
             if (selfNeedModuleDefine) {
                 moduleLayerList.addInRepositoryModuleLayerByIndex(attachDependency.getModuleLayer().getRepositoryIndex());
             }
+        }
+        if (verificationMetadataIterator != null && verificationMetadataIterator.hasNext()) {
+            throw new IOException("Dependency of " + key + " does not match the verification metadata");
         }
         VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader = null;
         if (classLoaderConfiguration.isAttachmentScoped()) {
@@ -421,14 +472,39 @@ public class DefaultVestigePlatform implements VestigePlatform {
             // classLoaderDependencies.add(null);
             List<SecureFile> afterUrls = classLoaderConfiguration.getAfterUrls();
             List<SecureFile> beforeUrls = classLoaderConfiguration.getBeforeUrls();
-            JarFileResourceLocator[] urls = new JarFileResourceLocator[beforeUrls.size() + afterUrls.size()];
+            VestigeResourceLocator[] urls = new VestigeResourceLocator[beforeUrls.size() + afterUrls.size()];
+            Iterator<FileVerificationMetadata> iterator = null;
+            if (verificationMetadata != null) {
+                iterator = verificationMetadata.getBeforeFiles().iterator();
+            }
             for (int i = 0; i < beforeUrls.size(); i++) {
-                SecureFile secureFile = beforeUrls.get(i);
-                urls[i] = new JarFileResourceLocator(secureFile.getFile(), secureFile.getCodeBase());
+                if (iterator != null && !iterator.hasNext()) {
+                    throw new IOException("Before file of " + key + " does not match the verification metadata");
+                }
+                FileVerificationMetadata fileMetadata = null;
+                if (iterator != null) {
+                    fileMetadata = iterator.next();
+                }
+                urls[i] = verifyJar(beforeUrls.get(i), fileMetadata);
+            }
+            if (iterator != null && iterator.hasNext()) {
+                throw new IOException("Before file of " + key + " does not match the verification metadata");
+            }
+            if (verificationMetadata != null) {
+                iterator = verificationMetadata.getAfterFiles().iterator();
             }
             for (int i = 0; i < afterUrls.size(); i++) {
-                SecureFile secureFile = afterUrls.get(i);
-                urls[i + beforeUrls.size()] = new JarFileResourceLocator(secureFile.getFile(), secureFile.getCodeBase());
+                if (iterator != null && !iterator.hasNext()) {
+                    throw new IOException("After file of " + key + " does not match the verification metadata");
+                }
+                FileVerificationMetadata fileMetadata = null;
+                if (iterator != null) {
+                    fileMetadata = iterator.next();
+                }
+                urls[i + beforeUrls.size()] = verifyJar(afterUrls.get(i), fileMetadata);
+            }
+            if (iterator != null && iterator.hasNext()) {
+                throw new IOException("After file of " + key + " does not match the verification metadata");
             }
             String name = classLoaderConfiguration.getName();
 
@@ -472,7 +548,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
             if (classLoaderConfiguration.isAttachmentScoped()) {
                 name = name + " @ " + Integer.toHexString(System.identityHashCode(attachmentMap));
             }
-            attachedVestigeClassLoader = new AttachedVestigeClassLoader(key, vestigeClassLoader, classLoaderDependencies, name, classLoaderConfiguration.isAttachmentScoped(), urls,
+            attachedVestigeClassLoader = new AttachedVestigeClassLoader(vestigeClassLoader, classLoaderDependencies, name, classLoaderConfiguration.isAttachmentScoped(), urls,
                     null, namedModulesConfiguration != null);
             vestigeClassLoader.setData(this, attachedVestigeClassLoader);
 
@@ -481,7 +557,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
                 moduleLayer = configuration.defineModules(new Function<String, VestigeClassLoader<AttachedVestigeClassLoader>, RuntimeException>() {
 
                     @Override
-                    public VestigeClassLoader<AttachedVestigeClassLoader> apply(final String t) throws RuntimeException {
+                    public VestigeClassLoader<AttachedVestigeClassLoader> apply(final String t) {
                         return finalClassLoader;
                     }
                 });

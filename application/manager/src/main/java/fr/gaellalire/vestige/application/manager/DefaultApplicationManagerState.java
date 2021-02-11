@@ -154,7 +154,7 @@ public class DefaultApplicationManagerState implements Serializable, Application
 
     public ResolvedClassLoaderConfiguration getClassLoaders(final String installName) throws ApplicationException {
         final ApplicationContext applicationContext = getApplicationContext(installName);
-        return applicationContext.getResolve();
+        return applicationContext.getLauncherAttachmentContext().getResolve();
     }
 
     public int getAutoMigrateLevel(final String installName) throws ApplicationException {

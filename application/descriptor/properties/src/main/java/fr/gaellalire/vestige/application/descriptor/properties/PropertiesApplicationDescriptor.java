@@ -17,73 +17,15 @@
 
 package fr.gaellalire.vestige.application.descriptor.properties;
 
-import java.util.List;
-import java.util.Set;
-
-import fr.gaellalire.vestige.application.manager.AddInject;
 import fr.gaellalire.vestige.application.manager.ApplicationDescriptor;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
-import fr.gaellalire.vestige.application.manager.ApplicationResolvedClassLoaderConfiguration;
-import fr.gaellalire.vestige.application.manager.PermissionSetFactory;
+import fr.gaellalire.vestige.application.manager.InstallerAttachmentDescriptor;
+import fr.gaellalire.vestige.application.manager.LauncherAttachmentDescriptor;
 
 /**
  * @author Gael Lalire
  */
 public class PropertiesApplicationDescriptor implements ApplicationDescriptor {
-
-    public Set<List<Integer>> getSupportedMigrationVersions() throws ApplicationException {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    public Set<List<Integer>> getUninterruptedMigrationVersions() throws ApplicationException {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    public String getInstallerClassName() throws ApplicationException {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    public ApplicationResolvedClassLoaderConfiguration getInstallerClassLoaderConfiguration(final String configurationName) throws ApplicationException {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    public String getLauncherClassName() throws ApplicationException {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    public ApplicationResolvedClassLoaderConfiguration getLauncherClassLoaderConfiguration(final String configurationName) throws ApplicationException {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    @Override
-    public boolean isLauncherPrivateSystem() throws ApplicationException {
-        // TODO Auto-generated method stub
-        return false;
-    }
-
-    @Override
-    public PermissionSetFactory getPermissions() throws ApplicationException {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    @Override
-    public PermissionSetFactory getInstallerPermissions() throws ApplicationException {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    @Override
-    public boolean isInstallerPrivateSystem() throws ApplicationException {
-        // TODO Auto-generated method stub
-        return false;
-    }
 
     @Override
     public String getJavaSpecificationVersion() throws ApplicationException {
@@ -92,13 +34,13 @@ public class PropertiesApplicationDescriptor implements ApplicationDescriptor {
     }
 
     @Override
-    public List<AddInject> getLauncherAddInjects() throws ApplicationException {
+    public LauncherAttachmentDescriptor getLauncherAttachmentDescriptor() throws ApplicationException {
         // TODO Auto-generated method stub
         return null;
     }
 
     @Override
-    public List<AddInject> getInstallerAddInjects() throws ApplicationException {
+    public InstallerAttachmentDescriptor getInstallerAttachmentDescriptor() throws ApplicationException {
         // TODO Auto-generated method stub
         return null;
     }

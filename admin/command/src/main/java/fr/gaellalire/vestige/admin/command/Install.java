@@ -68,7 +68,7 @@ public class Install implements Command {
 
         try {
             return applicationManager.install(null, applicationManager.getRepositoryURL(repositoryArgument.getRepository()), applicationArgument.getApplication(),
-                    versionArgument.getVersion(), installNameArgument.getApplication(), commandContext.getJobListener());
+                    versionArgument.getVersion(), installNameArgument.getApplication(), false, commandContext.getJobListener());
         } catch (ApplicationException e) {
             e.printStackTrace(commandContext.getOut());
             return null;

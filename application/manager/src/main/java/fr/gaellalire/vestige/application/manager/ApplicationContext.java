@@ -21,7 +21,6 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.io.StringWriter;
-import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.util.List;
 import java.util.Set;
@@ -33,17 +32,9 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     private static final long serialVersionUID = -63902830158746259L;
 
-    private PermissionSetFactory permissions;
+    private AttachmentContext<RuntimeApplicationContext> launcherAttachmentContext;
 
-    private PermissionSetFactory installerPermissions;
-
-    private transient ApplicationResolvedClassLoaderConfiguration resolve;
-
-    private transient ApplicationResolvedClassLoaderConfiguration installerResolve;
-
-    private String className;
-
-    private String installerClassName;
+    private AttachmentContext<RuntimeApplicationInstallerContext> installerAttachmentContext;
 
     private String name;
 
@@ -54,10 +45,6 @@ public class ApplicationContext implements Serializable, Cloneable {
     private File cache;
 
     private int autoMigrateLevel;
-
-    private boolean installerPrivateSystem;
-
-    private boolean privateSystem;
 
     private Set<List<Integer>> supportedMigrationVersion;
 
@@ -71,27 +58,9 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     private transient boolean locked;
 
-    private List<AddInject> addInjects;
+    private RepositoryOverride repositoryOverride;
 
-    private List<AddInject> installerAddInjects;
-
-    private URL overrideURL;
-
-    public List<AddInject> getInstallerAddInjects() {
-        return installerAddInjects;
-    }
-
-    public void setInstallerAddInjects(final List<AddInject> installerAddInjects) {
-        this.installerAddInjects = installerAddInjects;
-    }
-
-    public List<AddInject> getAddInjects() {
-        return addInjects;
-    }
-
-    public void setAddInjects(final List<AddInject> addInjects) {
-        this.addInjects = addInjects;
-    }
+    private boolean trusted;
 
     public boolean isLocked() {
         return locked;
@@ -155,31 +124,11 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     private List<Integer> repoApplicationVersion;
 
-    private transient WeakReference<RuntimeApplicationInstallerContext> runtimeApplicationInstallerContext;
-
-    private transient WeakReference<RuntimeApplicationContext> runtimeApplicationContext;
-
     private transient VestigeSecureExecution<Void> vestigeSecureExecution;
 
     private transient boolean started;
 
     private transient String exceptionStackTrace;
-
-    public ApplicationResolvedClassLoaderConfiguration getResolve() {
-        return resolve;
-    }
-
-    public void setResolve(final ApplicationResolvedClassLoaderConfiguration resolve) {
-        this.resolve = resolve;
-    }
-
-    public ApplicationResolvedClassLoaderConfiguration getInstallerResolve() {
-        return installerResolve;
-    }
-
-    public void setInstallerResolve(final ApplicationResolvedClassLoaderConfiguration installerResolve) {
-        this.installerResolve = installerResolve;
-    }
 
     public boolean isStarted() {
         return started;
@@ -211,50 +160,12 @@ public class ApplicationContext implements Serializable, Cloneable {
         this.config = config;
     }
 
-    public RuntimeApplicationInstallerContext getRuntimeApplicationInstallerContext() {
-        if (runtimeApplicationInstallerContext == null) {
-            return null;
-        }
-        return runtimeApplicationInstallerContext.get();
-    }
-
-    public void setRuntimeApplicationInstallerContext(final RuntimeApplicationInstallerContext runtimeApplicationInstallerContext) {
-        this.runtimeApplicationInstallerContext = new WeakReference<RuntimeApplicationInstallerContext>(runtimeApplicationInstallerContext);
-    }
-
-    public RuntimeApplicationContext getRuntimeApplicationContext() {
-        if (runtimeApplicationContext == null) {
-            return null;
-        }
-        return runtimeApplicationContext.get();
-    }
-
-    public void setRuntimeApplicationContext(final RuntimeApplicationContext runtimeApplicationContext) {
-        this.runtimeApplicationContext = new WeakReference<RuntimeApplicationContext>(runtimeApplicationContext);
-    }
-
     public VestigeSecureExecution<Void> getVestigeSecureExecution() {
         return vestigeSecureExecution;
     }
 
     public void setVestigeSecureExecution(final VestigeSecureExecution<Void> vestigeSecureExecution) {
         this.vestigeSecureExecution = vestigeSecureExecution;
-    }
-
-    public String getClassName() {
-        return className;
-    }
-
-    public void setClassName(final String className) {
-        this.className = className;
-    }
-
-    public String getInstallerClassName() {
-        return installerClassName;
-    }
-
-    public void setInstallerClassName(final String installerClassName) {
-        this.installerClassName = installerClassName;
     }
 
     public String getName() {
@@ -289,38 +200,6 @@ public class ApplicationContext implements Serializable, Cloneable {
         this.uninterruptedMigrationVersion = uninterruptedMigrationVersion;
     }
 
-    public boolean isInstallerPrivateSystem() {
-        return installerPrivateSystem;
-    }
-
-    public void setInstallerPrivateSystem(final boolean installerPrivateSystem) {
-        this.installerPrivateSystem = installerPrivateSystem;
-    }
-
-    public boolean isPrivateSystem() {
-        return privateSystem;
-    }
-
-    public void setPrivateSystem(final boolean privateSystem) {
-        this.privateSystem = privateSystem;
-    }
-
-    public PermissionSetFactory getPermissions() {
-        return permissions;
-    }
-
-    public void setPermissions(final PermissionSetFactory permissions) {
-        this.permissions = permissions;
-    }
-
-    public PermissionSetFactory getInstallerPermissions() {
-        return installerPermissions;
-    }
-
-    public void setInstallerPermissions(final PermissionSetFactory installerPermissions) {
-        this.installerPermissions = installerPermissions;
-    }
-
     public File getData() {
         return data;
     }
@@ -337,12 +216,20 @@ public class ApplicationContext implements Serializable, Cloneable {
         this.cache = cache;
     }
 
-    public URL getOverrideURL() {
-        return overrideURL;
+    public RepositoryOverride getOverrideURL() {
+        return repositoryOverride;
     }
 
-    public void setOverrideURL(final URL overrideURL) {
-        this.overrideURL = overrideURL;
+    public void setOverrideURL(final RepositoryOverride repositoryOverride) {
+        this.repositoryOverride = repositoryOverride;
+    }
+
+    public boolean isTrusted() {
+        return trusted;
+    }
+
+    public void setTrusted(final boolean trusted) {
+        this.trusted = trusted;
     }
 
     // private void writeObject(ObjectOutputStream out) throws IOException {
@@ -359,10 +246,47 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     public ApplicationContext copy() {
         try {
-            return (ApplicationContext) clone();
+            ApplicationContext clone = (ApplicationContext) clone();
+            clone.launcherAttachmentContext = clone.launcherAttachmentContext.copy();
+            clone.installerAttachmentContext = clone.installerAttachmentContext.copy();
+            return clone;
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException(e);
         }
     }
 
+    public AttachmentContext<RuntimeApplicationContext> getLauncherAttachmentContext() {
+        return launcherAttachmentContext;
+    }
+
+    public void setLauncherAttachmentContext(final AttachmentContext<RuntimeApplicationContext> launcherAttachmentContext) {
+        this.launcherAttachmentContext = launcherAttachmentContext;
+    }
+
+    public AttachmentContext<RuntimeApplicationInstallerContext> getInstallerAttachmentContext() {
+        return installerAttachmentContext;
+    }
+
+    public void setInstallerAttachmentContext(final AttachmentContext<RuntimeApplicationInstallerContext> installerAttachmentContext) {
+        this.installerAttachmentContext = installerAttachmentContext;
+    }
+
+    public static ApplicationResolvedClassLoaderConfiguration getResolve(final AttachmentContext<?> attachmentContext) {
+        if (attachmentContext == null) {
+            return null;
+        }
+        return attachmentContext.getResolve();
+    }
+
+    public static void setResolve(final AttachmentContext<?> attachmentContext, final ApplicationResolvedClassLoaderConfiguration resolve) {
+        if (attachmentContext != null) {
+            attachmentContext.setResolve(resolve);
+        }
+    }
+
+    public static <RuntimeContext> void setRuntimeApplicationContext(final AttachmentContext<RuntimeContext> attachmentContext, final RuntimeContext context) {
+        if (attachmentContext != null) {
+            attachmentContext.setRuntimeApplicationContext(context);
+        }
+    }
 }

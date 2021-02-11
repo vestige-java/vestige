@@ -17,6 +17,8 @@
 
 package fr.gaellalire.vestige.application.manager;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -24,6 +26,7 @@ import java.io.FilePermission;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.UnsupportedEncodingException;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -45,6 +48,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import org.apache.commons.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,8 +63,14 @@ import fr.gaellalire.vestige.spi.job.TaskHelper;
 import fr.gaellalire.vestige.spi.resolver.AttachableClassLoader;
 import fr.gaellalire.vestige.spi.resolver.AttachedClassLoader;
 import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
+import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.VestigeResolver;
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
+import fr.gaellalire.vestige.spi.trust.PGPPrivatePart;
+import fr.gaellalire.vestige.spi.trust.PGPTrustSystem;
+import fr.gaellalire.vestige.spi.trust.Signature;
+import fr.gaellalire.vestige.spi.trust.TrustException;
+import fr.gaellalire.vestige.spi.trust.TrustSystemAccessor;
 import fr.gaellalire.vestige.system.PrivateVestigePolicy;
 import fr.gaellalire.vestige.system.PrivateVestigeSecurityManager;
 import fr.gaellalire.vestige.system.VestigeSystemJarURLConnection;
@@ -112,10 +122,12 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
     private Map<String, Object> injectableByClassName;
 
+    private TrustSystemAccessor trustSystemAccessor;
+
     public DefaultApplicationManager(final JobManager actionManager, final File appConfigFile, final File appDataFile, final File appCacheFile, final VestigeSystem vestigeSystem,
             final VestigeSystem managerVestigeSystem, final PrivateVestigePolicy vestigePolicy, final PrivateVestigeSecurityManager vestigeSecurityManager,
             final ApplicationRepositoryManager applicationDescriptorFactory, final File resolverFile, final File nextResolverFile, final List<VestigeResolver> vestigeResolvers,
-            final Map<String, Object> injectableByClassName) {
+            final Map<String, Object> injectableByClassName, final TrustSystemAccessor trustSystemAccessor) {
         this.jobManager = actionManager;
         this.appConfigFile = appConfigFile;
         this.appDataFile = appDataFile;
@@ -144,6 +156,42 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 LOGGER.warn("Could not parse java.specification.version, will accept all version");
             }
         }
+        this.trustSystemAccessor = trustSystemAccessor;
+    }
+
+    public AttachedClassLoader attach(final boolean trustedOnly, final AttachmentContext<?> attachmentContext)
+            throws ApplicationException, ResolverException, InterruptedException {
+        ResolvedClassLoaderConfiguration resolve = attachmentContext.getResolve();
+        VerificationMetadata verificationMetadata = attachmentContext.getVerificationMetadata();
+        String text = null;
+        if (verificationMetadata != null) {
+            text = verificationMetadata.getText();
+        }
+        if (text != null) {
+            text = text.trim();
+            if (trustedOnly) {
+                String pgpSignature = verificationMetadata.getPgpSignature();
+                if (pgpSignature != null) {
+                    try {
+                        Signature loadSignature = trustSystemAccessor.getPGPTrustSystem().loadSignature(new ByteArrayInputStream(Base64.decodeBase64(pgpSignature)));
+                        if (!loadSignature.verify(new ByteArrayInputStream(text.getBytes("UTF-8")))) {
+                            throw new ApplicationException("Unable to verify signature");
+                        }
+                    } catch (TrustException e) {
+                        throw new ApplicationException("Trust exception", e);
+                    } catch (UnsupportedEncodingException e) {
+                        // unpossible
+                    }
+                } else {
+                    throw new ApplicationException("No signature found");
+                }
+            }
+            return resolve.verifiedAttach(text);
+        } else if (trustedOnly) {
+            throw new ApplicationException("No verification metadata found");
+        } else {
+            return resolve.attach();
+        }
     }
 
     private ApplicationResolvedClassLoaderConfiguration readResolvedClassLoaderConfiguration(final ObjectInputStream objectInputStream) throws IOException {
@@ -165,8 +213,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         try {
             DefaultApplicationManagerState defaultApplicationManagerState = (DefaultApplicationManagerState) objectInputStream.readObject();
             for (ApplicationContext applicationContext : defaultApplicationManagerState.getApplicationContexts()) {
-                applicationContext.setInstallerResolve(readResolvedClassLoaderConfiguration(objectInputStream));
-                applicationContext.setResolve(readResolvedClassLoaderConfiguration(objectInputStream));
+                ApplicationContext.setResolve(applicationContext.getInstallerAttachmentContext(), readResolvedClassLoaderConfiguration(objectInputStream));
+                ApplicationContext.setResolve(applicationContext.getLauncherAttachmentContext(), readResolvedClassLoaderConfiguration(objectInputStream));
             }
             return defaultApplicationManagerState;
         } finally {
@@ -212,8 +260,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             try {
                 objectOutputStream.writeObject(state);
                 for (ApplicationContext applicationContext : state.getApplicationContexts()) {
-                    saveApplicationResolvedClassLoaderConfiguration(objectOutputStream, applicationContext.getInstallerResolve());
-                    saveApplicationResolvedClassLoaderConfiguration(objectOutputStream, applicationContext.getResolve());
+                    saveApplicationResolvedClassLoaderConfiguration(objectOutputStream, ApplicationContext.getResolve(applicationContext.getInstallerAttachmentContext()));
+                    saveApplicationResolvedClassLoaderConfiguration(objectOutputStream, ApplicationContext.getResolve(applicationContext.getLauncherAttachmentContext()));
                 }
             } finally {
                 objectOutputStream.close();
@@ -231,9 +279,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         }
     }
 
-    public ApplicationContext createApplicationContext(final URL overrideURL, final URL repoURL, final String appName, final List<Integer> version, final String installName,
-            final JobHelper jobHelper) throws ApplicationException {
-        ApplicationDescriptor applicationDescriptor = applicationDescriptorFactory.createApplicationDescriptor(overrideURL, repoURL, appName, version, jobHelper);
+    public ApplicationContext createApplicationContext(final RepositoryOverride repositoryOverride, final URL repoURL, final String appName, final List<Integer> version,
+            final String installName, final boolean trusted, final JobHelper jobHelper) throws ApplicationException {
+        ApplicationDescriptor applicationDescriptor = applicationDescriptorFactory.createApplicationDescriptor(repositoryOverride, repoURL, appName, version, jobHelper);
 
         String javaSpecificationVersion = applicationDescriptor.getJavaSpecificationVersion();
         if (!isJavaSpecificationVersionCompatible(javaSpecificationVersion)) {
@@ -244,24 +292,42 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         File dataFile = new File(appDataFile, installName);
         File cacheFile = new File(appCacheFile, installName);
 
-        Set<List<Integer>> supportedMigrationVersion = applicationDescriptor.getSupportedMigrationVersions();
-        Set<List<Integer>> uninterruptedMigrationVersion = applicationDescriptor.getUninterruptedMigrationVersions();
-        if (!supportedMigrationVersion.containsAll(uninterruptedMigrationVersion)) {
-            throw new ApplicationException("Some migration are uninterrupted but not supported");
+        InstallerAttachmentDescriptor installerAttachmentDescriptor = applicationDescriptor.getInstallerAttachmentDescriptor();
+
+        Set<List<Integer>> supportedMigrationVersion;
+        Set<List<Integer>> uninterruptedMigrationVersion;
+        if (installerAttachmentDescriptor != null) {
+            supportedMigrationVersion = installerAttachmentDescriptor.getSupportedMigrationVersions();
+            uninterruptedMigrationVersion = installerAttachmentDescriptor.getUninterruptedMigrationVersions();
+            if (!supportedMigrationVersion.containsAll(uninterruptedMigrationVersion)) {
+                throw new ApplicationException("Some migration are uninterrupted but not supported");
+            }
+        } else {
+            supportedMigrationVersion = Collections.emptySet();
+            uninterruptedMigrationVersion = Collections.emptySet();
         }
 
         ApplicationContext applicationContext = new ApplicationContext();
+
+        LauncherAttachmentDescriptor launcherAttachmentDescriptor = applicationDescriptor.getLauncherAttachmentDescriptor();
+        AttachmentContext<RuntimeApplicationContext> launcherAttachmentContext = createAttachmentContext(launcherAttachmentDescriptor, installName, " launcher",
+                RuntimeApplicationContext.class);
+        launcherAttachmentContext.setClassName(launcherAttachmentDescriptor.getClassName());
+        launcherAttachmentContext.setPrivateSystem(launcherAttachmentDescriptor.isPrivateSystem());
+
+        applicationContext.setLauncherAttachmentContext(launcherAttachmentContext);
+        AttachmentContext<RuntimeApplicationInstallerContext> installerAttachmentContext = createAttachmentContext(installerAttachmentDescriptor, installName, " installer",
+                RuntimeApplicationInstallerContext.class);
+        if (installerAttachmentDescriptor != null) {
+            installerAttachmentContext.setClassName(installerAttachmentDescriptor.getClassName());
+            installerAttachmentContext.setPrivateSystem(installerAttachmentDescriptor.isPrivateSystem());
+        }
+        applicationContext.setInstallerAttachmentContext(installerAttachmentContext);
+
+        applicationContext.setTrusted(trusted);
         applicationContext.setRepoURL(repoURL);
         applicationContext.setRepoApplicationName(appName);
         applicationContext.setRepoApplicationVersion(version);
-        applicationContext.setInstallerClassName(applicationDescriptor.getInstallerClassName());
-        applicationContext.setInstallerResolve(applicationDescriptor.getInstallerClassLoaderConfiguration(installName + " installer"));
-        applicationContext.setClassName(applicationDescriptor.getLauncherClassName());
-        applicationContext.setInstallerPrivateSystem(applicationDescriptor.isInstallerPrivateSystem());
-        applicationContext.setPrivateSystem(applicationDescriptor.isLauncherPrivateSystem());
-        applicationContext.setResolve(applicationDescriptor.getLauncherClassLoaderConfiguration(installName + " launcher"));
-        applicationContext.setPermissions(applicationDescriptor.getPermissions());
-        applicationContext.setInstallerPermissions(applicationDescriptor.getInstallerPermissions());
 
         applicationContext.setConfig(configFile);
         applicationContext.setData(dataFile);
@@ -270,20 +336,32 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         applicationContext.setUninterruptedMigrationVersion(uninterruptedMigrationVersion);
         applicationContext.setName(installName);
 
-        applicationContext.setAddInjects(applicationDescriptor.getLauncherAddInjects());
-        applicationContext.setInstallerAddInjects(applicationDescriptor.getInstallerAddInjects());
-
-        applicationContext.setOverrideURL(overrideURL);
+        applicationContext.setOverrideURL(repositoryOverride);
 
         return applicationContext;
+    }
+
+    public <RuntimeContext> AttachmentContext<RuntimeContext> createAttachmentContext(final AttachmentDescriptor attachmentDescriptor, final String installName,
+            final String attachmentSuffix, final Class<RuntimeContext> clazz) throws ApplicationException {
+        if (attachmentDescriptor == null) {
+            return null;
+        }
+        AttachmentContext<RuntimeContext> attachmentContext = new AttachmentContext<RuntimeContext>();
+
+        attachmentContext.setResolve(attachmentDescriptor.getClassLoaderConfiguration(installName + " installer"));
+        attachmentContext.setPermissions(attachmentDescriptor.getPermissions());
+        attachmentContext.setAddInjects(attachmentDescriptor.getAddInjects());
+        attachmentContext.setVerificationMetadata(attachmentDescriptor.getVerificationMetadata());
+
+        return attachmentContext;
     }
 
     private Set<String> lockedInstallNames = new HashSet<String>();
 
     private JobManager jobManager;
 
-    public JobController install(final URL overrideURL, final URL repoURL, final String appName, final List<Integer> version, final String pinstallName,
-            final JobListener jobListener) throws ApplicationException {
+    public JobController install(final RepositoryOverride repositoryOverride, final URL repoURL, final String appName, final List<Integer> version, final String pinstallName,
+            final boolean trusted, final JobListener jobListener) throws ApplicationException {
         String installName = pinstallName;
         if (installName == null || installName.length() == 0) {
             installName = appName;
@@ -296,7 +374,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 throw new ApplicationException("application already installing");
             }
         }
-        return jobManager.submitJob("install", "Installing " + installName, new InstallAction(overrideURL, repoURL, appName, version, installName), jobListener);
+        return jobManager.submitJob("install", "Installing " + installName, new InstallAction(repositoryOverride, repoURL, appName, version, installName, trusted), jobListener);
     }
 
     /**
@@ -304,7 +382,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
      */
     private class InstallAction implements Job {
 
-        private URL overrideURL;
+        private RepositoryOverride repositoryOverride;
 
         private URL repoURL;
 
@@ -314,12 +392,16 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
         private String installName;
 
-        InstallAction(final URL overrideURL, final URL repoURL, final String appName, final List<Integer> version, final String installName) {
-            this.overrideURL = overrideURL;
+        private boolean trusted;
+
+        InstallAction(final RepositoryOverride repositoryOverride, final URL repoURL, final String appName, final List<Integer> version, final String installName,
+                final boolean trusted) {
+            this.repositoryOverride = repositoryOverride;
             this.repoURL = repoURL;
             this.appName = appName;
             this.version = version;
             this.installName = installName;
+            this.trusted = trusted;
         }
 
         @Override
@@ -328,7 +410,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
             boolean successful = false;
             try {
-                applicationContext = createApplicationContext(overrideURL, repoURL, appName, version, installName, jobHelper);
+                applicationContext = createApplicationContext(repositoryOverride, repoURL, appName, version, installName, trusted, jobHelper);
                 final File config = applicationContext.getConfig();
                 if (config.exists()) {
                     try {
@@ -359,19 +441,19 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
                 final RuntimeApplicationInstallerContext finalRuntimeApplicationInstallerContext;
                 TaskHelper task = jobHelper.addTask("Attaching installer classLoader");
+                AttachmentContext<RuntimeApplicationInstallerContext> installerAttachmentContext = applicationContext.getInstallerAttachmentContext();
                 AttachedClassLoader installerAttach;
                 try {
-                    // attach
-                    ResolvedClassLoaderConfiguration installerResolve = applicationContext.getInstallerResolve();
-                    if (installerResolve == null) {
+                    if (installerAttachmentContext == null) {
                         successful = true;
                         finalRuntimeApplicationInstallerContext = null;
                         installerAttach = null;
                     } else {
-                        installerAttach = installerResolve.attach();
+                        // attach
+                        installerAttach = attach(trusted, installerAttachmentContext);
 
-                        finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(applicationContext, installerResolve.getPermissions(),
-                                installerAttach.getAttachableClassLoader(), installName);
+                        finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(applicationContext,
+                                installerAttachmentContext.getResolve().getPermissions(), installerAttach.getAttachableClassLoader(), installName);
 
                         installerAttach.getAttachableClassLoader().addSoftReferenceObject(finalRuntimeApplicationInstallerContext);
                     }
@@ -384,8 +466,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
                         final VestigeSystem vestigeSystem = finalRuntimeApplicationInstallerContext.getVestigeSystem();
 
-                        final String installerClassName = applicationContext.getInstallerClassName();
-                        final List<AddInject> addInjects = applicationContext.getInstallerAddInjects();
+                        final String installerClassName = installerAttachmentContext.getClassName();
+                        final List<AddInject> addInjects = installerAttachmentContext.getAddInjects();
                         VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader,
                                 finalRuntimeApplicationInstallerContext.getInstallerAdditionnalPermissions(), null, applicationContext.getName() + "-installer", vestigeSystem,
                                 new VestigeSecureCallable<Void>() {
@@ -461,7 +543,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             ApplicationContext reloadedApplicationContext = null;
             try {
                 reloadedApplicationContext = createApplicationContext(applicationContext.getOverrideURL(), applicationContext.getRepoURL(),
-                        applicationContext.getRepoApplicationName(), applicationContext.getRepoApplicationVersion(), installName, jobHelper);
+                        applicationContext.getRepoApplicationName(), applicationContext.getRepoApplicationVersion(), installName, applicationContext.isTrusted(), jobHelper);
             } finally {
                 if (reloadedApplicationContext != null) {
                     synchronized (state) {
@@ -509,35 +591,35 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 final File cache = applicationContext.getCache();
                 try {
                     RuntimeApplicationInstallerContext runtimeApplicationInstallerContext;
-                    boolean noInstaller = false;
                     TaskHelper task = jobHelper.addTask("Attaching installer classLoader");
+                    final AttachmentContext<RuntimeApplicationInstallerContext> installerAttachmentContext = applicationContext.getInstallerAttachmentContext();
                     AttachedClassLoader installerAttach;
                     try {
-                        runtimeApplicationInstallerContext = applicationContext.getRuntimeApplicationInstallerContext();
-                        if (runtimeApplicationInstallerContext == null) {
-                            // attach
-                            ResolvedClassLoaderConfiguration installerResolve = applicationContext.getInstallerResolve();
-                            if (installerResolve == null) {
-                                noInstaller = true;
-                                installerAttach = null;
-                            } else {
-                                installerAttach = installerResolve.attach();
-                                runtimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(applicationContext, installerResolve.getPermissions(),
-                                        installerAttach.getAttachableClassLoader(), installName);
-                                installerAttach.getAttachableClassLoader().addSoftReferenceObject(runtimeApplicationInstallerContext);
-                            }
+                        if (installerAttachmentContext == null) {
+                            installerAttach = null;
+                            runtimeApplicationInstallerContext = null;
                         } else {
-                            // reattach
-                            installerAttach = runtimeApplicationInstallerContext.getClassLoader().attach();
+                            runtimeApplicationInstallerContext = installerAttachmentContext.getRuntimeApplicationContext();
+                            if (runtimeApplicationInstallerContext == null) {
+                                // attach
+                                installerAttach = attach(applicationContext.isTrusted(), installerAttachmentContext);
+
+                                runtimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(applicationContext,
+                                        installerAttachmentContext.getResolve().getPermissions(), installerAttach.getAttachableClassLoader(), installName);
+                                installerAttach.getAttachableClassLoader().addSoftReferenceObject(runtimeApplicationInstallerContext);
+                            } else {
+                                // reattach
+                                installerAttach = runtimeApplicationInstallerContext.getClassLoader().attach();
+                            }
                         }
                     } finally {
                         task.setDone();
                     }
-                    if (!noInstaller) {
+                    if (installerAttachmentContext != null) {
                         try {
                             final ClassLoader installerClassLoader = installerAttach.getAttachableClassLoader().getClassLoader();
                             final VestigeSystem vestigeSystem = runtimeApplicationInstallerContext.getVestigeSystem();
-                            final List<AddInject> addInjects = applicationContext.getInstallerAddInjects();
+                            final List<AddInject> addInjects = installerAttachmentContext.getAddInjects();
                             VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader,
                                     runtimeApplicationInstallerContext.getInstallerAdditionnalPermissions(), null, applicationContext.getName() + "-installer", vestigeSystem,
                                     new VestigeSecureCallable<Void>() {
@@ -545,7 +627,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                         @Override
                                         public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
                                             ApplicationInstaller applicationInstaller = new ApplicationInstallerInvoker(
-                                                    callConstructorAndInject(installerClassLoader, installerClassLoader.loadClass(applicationContext.getInstallerClassName()),
+                                                    callConstructorAndInject(installerClassLoader, installerClassLoader.loadClass(installerAttachmentContext.getClassName()),
                                                             config, data, cache, addInjects, vestigeSystem, privilegedExecutor));
                                             applicationInstaller.uninstall();
                                             return null;
@@ -664,16 +746,18 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         final File config = applicationContext.getConfig();
         final File data = applicationContext.getData();
         final File cache = applicationContext.getCache();
+        AttachmentContext<RuntimeApplicationInstallerContext> installerAttachmentContext = applicationContext.getInstallerAttachmentContext();
+
         additionnalPermissions.add(new FilePermission(config.getPath(), "read,write"));
         additionnalPermissions.add(new FilePermission(config.getPath() + File.separator + "-", "read,write,delete"));
         additionnalPermissions.add(new FilePermission(data.getPath(), "read,write"));
         additionnalPermissions.add(new FilePermission(data.getPath() + File.separator + "-", "read,write,delete"));
         additionnalPermissions.add(new FilePermission(cache.getPath(), "read,write"));
         additionnalPermissions.add(new FilePermission(cache.getPath() + File.separator + "-", "read,write,delete"));
-        additionnalPermissions.addAll(applicationContext.getResolve().getPermissions());
-        additionnalPermissions.addAll(applicationContext.getInstallerPermissions().createPermissionSet());
+        additionnalPermissions.addAll(installerAttachmentContext.getResolve().getPermissions());
+        additionnalPermissions.addAll(installerAttachmentContext.getPermissions().createPermissionSet());
         final VestigeSystem vestigeSystem;
-        if (applicationContext.isInstallerPrivateSystem()) {
+        if (installerAttachmentContext.isPrivateSystem()) {
             vestigeSystem = rootVestigeSystem.createSubSystem("app-" + installName + "-installer");
         } else {
             vestigeSystem = rootVestigeSystem;
@@ -720,17 +804,18 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             }
 
             try {
+                final AttachmentContext<RuntimeApplicationInstallerContext> migratorInstallerAttachmentContext = migratorApplicationContext.getInstallerAttachmentContext();
                 final RuntimeApplicationInstallerContext finalRuntimeApplicationInstallerContext;
                 TaskHelper task = jobHelper.addTask("Attaching installer classLoader of version " + VersionUtils.toString(migratorApplicationContext.getRepoApplicationVersion()));
                 AttachedClassLoader installerAttach;
                 try {
-                    RuntimeApplicationInstallerContext runtimeApplicationInstallerContext = migratorApplicationContext.getRuntimeApplicationInstallerContext();
+                    RuntimeApplicationInstallerContext runtimeApplicationInstallerContext = migratorInstallerAttachmentContext.getRuntimeApplicationContext();
                     if (runtimeApplicationInstallerContext == null) {
                         // attach
-                        ResolvedClassLoaderConfiguration installerResolve = migratorApplicationContext.getInstallerResolve();
-                        installerAttach = installerResolve.attach();
-                        finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(migratorApplicationContext, installerResolve.getPermissions(),
-                                installerAttach.getAttachableClassLoader(), installName);
+                        installerAttach = attach(fromApplicationContext.isTrusted(), migratorInstallerAttachmentContext);
+
+                        finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(migratorApplicationContext,
+                                migratorInstallerAttachmentContext.getResolve().getPermissions(), installerAttach.getAttachableClassLoader(), installName);
                         installerAttach.getAttachableClassLoader().addSoftReferenceObject(finalRuntimeApplicationInstallerContext);
                     } else {
                         // reattach
@@ -745,7 +830,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
                     Set<Permission> additionnalPermissions = new HashSet<Permission>();
                     finalRuntimeApplicationInstallerContext.addInstallerAdditionnalPermissions(additionnalPermissions);
-                    additionnalPermissions.addAll(migratedApplicationContext.getResolve().getPermissions());
+                    additionnalPermissions.addAll(ApplicationContext.getResolve(migratedApplicationContext.getLauncherAttachmentContext()).getPermissions());
 
                     final VestigeSystem vestigeSystem = finalRuntimeApplicationInstallerContext.getVestigeSystem();
                     VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader, additionnalPermissions, null,
@@ -756,9 +841,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                     ApplicationInstaller applicationInstaller = finalRuntimeApplicationInstallerContext.getApplicationInstaller();
                                     if (applicationInstaller == null) {
                                         applicationInstaller = new ApplicationInstallerInvoker(
-                                                callConstructorAndInject(installerClassLoader, installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()),
+                                                callConstructorAndInject(installerClassLoader, installerClassLoader.loadClass(migratorInstallerAttachmentContext.getClassName()),
                                                         migratorApplicationContext.getConfig(), migratorApplicationContext.getData(), migratorApplicationContext.getCache(),
-                                                        migratorApplicationContext.getInstallerAddInjects(), vestigeSystem, privilegedExecutor));
+                                                        migratorInstallerAttachmentContext.getAddInjects(), vestigeSystem, privilegedExecutor));
                                         finalRuntimeApplicationInstallerContext.setApplicationInstaller(applicationInstaller);
                                     }
                                     try {
@@ -852,7 +937,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             }
             try {
                 final ApplicationContext toApplicationContext = createApplicationContext(fromApplicationContext.getOverrideURL(), fromApplicationContext.getRepoURL(),
-                        fromApplicationContext.getRepoApplicationName(), toVersion, installName, jobHelper);
+                        fromApplicationContext.getRepoApplicationName(), toVersion, installName, fromApplicationContext.isTrusted(), jobHelper);
 
                 int level = fromApplicationContext.getAutoMigrateLevel();
                 // migration target inherits autoMigrateLevel
@@ -877,7 +962,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                     migratedApplicationContext = fromApplicationContext;
                 }
 
-                final RuntimeApplicationContext runtimeApplicationContext = fromApplicationContext.getRuntimeApplicationContext();
+                final RuntimeApplicationContext runtimeApplicationContext = fromApplicationContext.getLauncherAttachmentContext().getRuntimeApplicationContext();
                 // && runtimeApplicationContext != null should be redundant
                 if (fromApplicationContext.isStarted() && runtimeApplicationContext != null) {
                     if (!migratorApplicationContext.getUninterruptedMigrationVersion().contains(migratedApplicationContext.getRepoApplicationVersion())) {
@@ -891,7 +976,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
                     try {
                         final Object runMutex = new Object();
-                        RuntimeApplicationContext toRuntimeApplicationContext = toApplicationContext.getRuntimeApplicationContext();
+                        RuntimeApplicationContext toRuntimeApplicationContext = toApplicationContext.getLauncherAttachmentContext().getRuntimeApplicationContext();
                         Object constructorMutex = null;
                         if (toRuntimeApplicationContext == null) {
                             constructorMutex = new Object();
@@ -901,10 +986,10 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                         start(toApplicationContext, runMutex, constructorMutex, installName, false);
                         if (constructorMutex != null) {
                             synchronized (constructorMutex) {
-                                toRuntimeApplicationContext = toApplicationContext.getRuntimeApplicationContext();
+                                toRuntimeApplicationContext = toApplicationContext.getLauncherAttachmentContext().getRuntimeApplicationContext();
                                 while (toRuntimeApplicationContext == null && toApplicationContext.getVestigeSecureExecution() != null) {
                                     constructorMutex.wait();
-                                    toRuntimeApplicationContext = toApplicationContext.getRuntimeApplicationContext();
+                                    toRuntimeApplicationContext = toApplicationContext.getLauncherAttachmentContext().getRuntimeApplicationContext();
                                 }
                             }
                         }
@@ -932,15 +1017,17 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                             final RuntimeApplicationInstallerContext finalRuntimeApplicationInstallerContext;
                             TaskHelper task = jobHelper
                                     .addTask("Attaching installer classLoader of version " + VersionUtils.toString(migratorApplicationContext.getRepoApplicationVersion()));
+                            final AttachmentContext<RuntimeApplicationInstallerContext> migratorInstallerAttachmentContext = migratorApplicationContext
+                                    .getInstallerAttachmentContext();
                             AttachedClassLoader installerAttach;
                             try {
-                                RuntimeApplicationInstallerContext runtimeApplicationInstallerContext = migratorApplicationContext.getRuntimeApplicationInstallerContext();
+                                RuntimeApplicationInstallerContext runtimeApplicationInstallerContext = migratorInstallerAttachmentContext.getRuntimeApplicationContext();
                                 if (runtimeApplicationInstallerContext == null) {
                                     // attach
-                                    ResolvedClassLoaderConfiguration installerResolve = migratorApplicationContext.getInstallerResolve();
-                                    installerAttach = installerResolve.attach();
+                                    installerAttach = attach(fromApplicationContext.isTrusted(), migratorInstallerAttachmentContext);
+
                                     finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(migratorApplicationContext,
-                                            installerResolve.getPermissions(), installerAttach.getAttachableClassLoader(), installName);
+                                            migratorInstallerAttachmentContext.getResolve().getPermissions(), installerAttach.getAttachableClassLoader(), installName);
                                     installerAttach.getAttachableClassLoader().addSoftReferenceObject(finalRuntimeApplicationInstallerContext);
                                 } else {
                                     // reattach
@@ -955,7 +1042,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
                                 Set<Permission> additionnalPermissions = new HashSet<Permission>();
                                 finalRuntimeApplicationInstallerContext.addInstallerAdditionnalPermissions(additionnalPermissions);
-                                additionnalPermissions.addAll(migratedApplicationContext.getResolve().getPermissions());
+                                additionnalPermissions.addAll(ApplicationContext.getResolve(migratedApplicationContext.getLauncherAttachmentContext()).getPermissions());
 
                                 final VestigeSystem vestigeSystem = finalRuntimeApplicationInstallerContext.getVestigeSystem();
                                 VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader, additionnalPermissions,
@@ -967,9 +1054,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                                 ApplicationInstaller applicationInstaller = finalRuntimeApplicationInstallerContext.getApplicationInstaller();
                                                 if (applicationInstaller == null) {
                                                     applicationInstaller = new ApplicationInstallerInvoker(callConstructorAndInject(installerClassLoader,
-                                                            installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()),
+                                                            installerClassLoader.loadClass(migratorInstallerAttachmentContext.getClassName()),
                                                             migratorApplicationContext.getConfig(), migratorApplicationContext.getData(), migratorApplicationContext.getCache(),
-                                                            migratorApplicationContext.getAddInjects(), vestigeSystem, privilegedExecutor));
+                                                            migratorInstallerAttachmentContext.getAddInjects(), vestigeSystem, privilegedExecutor));
                                                     finalRuntimeApplicationInstallerContext.setApplicationInstaller(applicationInstaller);
                                                 }
                                                 Exception migrateException = null;
@@ -1068,15 +1155,15 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                         final RuntimeApplicationInstallerContext finalRuntimeApplicationInstallerContext;
                         TaskHelper task = jobHelper
                                 .addTask("Attaching installer classLoader of version " + VersionUtils.toString(migratorApplicationContext.getRepoApplicationVersion()));
+                        final AttachmentContext<RuntimeApplicationInstallerContext> migratorInstallerAttachmentContext = migratorApplicationContext.getInstallerAttachmentContext();
                         AttachedClassLoader installerAttach;
                         try {
-                            RuntimeApplicationInstallerContext runtimeApplicationInstallerContext = migratorApplicationContext.getRuntimeApplicationInstallerContext();
+                            RuntimeApplicationInstallerContext runtimeApplicationInstallerContext = migratorInstallerAttachmentContext.getRuntimeApplicationContext();
                             if (runtimeApplicationInstallerContext == null) {
                                 // attach
-                                ResolvedClassLoaderConfiguration installerResolve = migratorApplicationContext.getInstallerResolve();
-                                installerAttach = installerResolve.attach();
-                                finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(migratorApplicationContext, installerResolve.getPermissions(),
-                                        installerAttach.getAttachableClassLoader(), installName);
+                                installerAttach = attach(fromApplicationContext.isTrusted(), migratorInstallerAttachmentContext);
+                                finalRuntimeApplicationInstallerContext = createRuntimeApplicationInstallerContext(migratorApplicationContext,
+                                        migratorInstallerAttachmentContext.getResolve().getPermissions(), installerAttach.getAttachableClassLoader(), installName);
                                 installerAttach.getAttachableClassLoader()
                                         .addSoftReferenceObject(new SoftReference<RuntimeApplicationInstallerContext>(finalRuntimeApplicationInstallerContext));
                             } else {
@@ -1092,7 +1179,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
                             Set<Permission> additionnalPermissions = new HashSet<Permission>();
                             finalRuntimeApplicationInstallerContext.addInstallerAdditionnalPermissions(additionnalPermissions);
-                            additionnalPermissions.addAll(migratedApplicationContext.getResolve().getPermissions());
+                            additionnalPermissions.addAll(ApplicationContext.getResolve(migratedApplicationContext.getLauncherAttachmentContext()).getPermissions());
 
                             final VestigeSystem vestigeSystem = finalRuntimeApplicationInstallerContext.getVestigeSystem();
                             VestigeSecureExecution<Void> vestigeSecureExecution = vestigeSecureExecutor.execute(installerClassLoader, additionnalPermissions, null,
@@ -1103,9 +1190,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                             ApplicationInstaller applicationInstaller = finalRuntimeApplicationInstallerContext.getApplicationInstaller();
                                             if (applicationInstaller == null) {
                                                 applicationInstaller = new ApplicationInstallerInvoker(callConstructorAndInject(installerClassLoader,
-                                                        installerClassLoader.loadClass(migratorApplicationContext.getInstallerClassName()), migratorApplicationContext.getConfig(),
+                                                        installerClassLoader.loadClass(migratorInstallerAttachmentContext.getClassName()), migratorApplicationContext.getConfig(),
                                                         migratorApplicationContext.getData(), migratorApplicationContext.getCache(),
-                                                        migratorApplicationContext.getInstallerAddInjects(), vestigeSystem, privilegedExecutor));
+                                                        migratorInstallerAttachmentContext.getAddInjects(), vestigeSystem, privilegedExecutor));
                                                 finalRuntimeApplicationInstallerContext.setApplicationInstaller(applicationInstaller);
                                             }
                                             Exception migrateException = null;
@@ -1235,9 +1322,53 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             if (applicationContext.isStarted()) {
                 throw new ApplicationException("Cannot discard started application state");
             }
-            applicationContext.setRuntimeApplicationContext(null);
-            applicationContext.setRuntimeApplicationInstallerContext(null);
+            ApplicationContext.setRuntimeApplicationContext(applicationContext.getLauncherAttachmentContext(), null);
+            ApplicationContext.setRuntimeApplicationContext(applicationContext.getInstallerAttachmentContext(), null);
         }
+    }
+
+    public String base64Sign(final PGPPrivatePart privatePart, final String metadata) throws TrustException {
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        try {
+            privatePart.sign(new ByteArrayInputStream(metadata.getBytes("UTF-8")), os);
+        } catch (UnsupportedEncodingException e) {
+            // not possible
+        }
+        return Base64.encodeBase64String(os.toByteArray());
+    }
+
+    @Override
+    public ApplicationVerificationMetadataSigned pgpSign(final String installName, final String key) throws ApplicationException {
+        ApplicationContext applicationContext;
+        synchronized (state) {
+            applicationContext = state.getApplicationContext(installName);
+        }
+        try {
+            PGPTrustSystem pgpTrustSystem = trustSystemAccessor.getPGPTrustSystem();
+            PGPPrivatePart privatePart;
+            if (key == null) {
+                privatePart = pgpTrustSystem.getDefaultPrivatePart();
+            } else {
+                privatePart = pgpTrustSystem.getPrivatePart(key);
+            }
+
+            AttachmentContext<?> installerAttachmentContext = applicationContext.getInstallerAttachmentContext();
+
+            String installerVerificationMetadata = null;
+            String installerBase64Signature = null;
+            if (installerAttachmentContext != null) {
+                installerVerificationMetadata = installerAttachmentContext.getResolve().createVerificationMetadata();
+                installerBase64Signature = base64Sign(privatePart, installerVerificationMetadata);
+            }
+            String launcherVerificationMetadata = applicationContext.getLauncherAttachmentContext().getResolve().createVerificationMetadata();
+            String launcherBase64Signature = base64Sign(privatePart, launcherVerificationMetadata);
+            return new ApplicationVerificationMetadataSigned(launcherVerificationMetadata, launcherBase64Signature, installerVerificationMetadata, installerBase64Signature);
+        } catch (TrustException e) {
+            throw new ApplicationException("Unable to sign", e);
+        } catch (ResolverException e) {
+            throw new ApplicationException("Unable to sign", e);
+        }
+
     }
 
     public JobController stop(final String installName, final JobListener jobListener) throws ApplicationException {
@@ -1393,15 +1524,20 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             final VestigeSystem vestigeSystem;
             final AttachableClassLoader attachableClassLoader;
             final ClassLoader classLoader;
-            RuntimeApplicationContext previousRuntimeApplicationContext = applicationContext.getRuntimeApplicationContext();
-            final ResolvedClassLoaderConfiguration resolve = applicationContext.getResolve();
+
+            final AttachmentContext<RuntimeApplicationContext> launcherAttachmentContext = applicationContext.getLauncherAttachmentContext();
+
+            RuntimeApplicationContext previousRuntimeApplicationContext = launcherAttachmentContext.getRuntimeApplicationContext();
+            final ResolvedClassLoaderConfiguration resolve = launcherAttachmentContext.getResolve();
             final RuntimeApplicationContext finalPreviousRuntimeApplicationContext;
             if (resolve.isAttachmentScoped() || previousRuntimeApplicationContext == null) {
                 previousRuntimeApplicationContext = null;
-                attach = resolve.attach();
+
+                attach = attach(applicationContext.isTrusted(), launcherAttachmentContext);
+
                 attachableClassLoader = attach.getAttachableClassLoader();
                 classLoader = attachableClassLoader.getClassLoader();
-                if (applicationContext.isPrivateSystem()) {
+                if (launcherAttachmentContext.isPrivateSystem()) {
                     vestigeSystem = rootVestigeSystem.createSubSystem("app" + installName);
                 } else {
                     vestigeSystem = rootVestigeSystem;
@@ -1420,7 +1556,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             additionnalPermissions.addAll(resolve.getPermissions());
             additionnalPermissions.add(new FilePermission(applicationContext.getConfig().getPath(), "read,write"));
             additionnalPermissions.add(new FilePermission(applicationContext.getConfig().getPath() + File.separator + "-", "read,write,delete"));
-            additionnalPermissions.addAll(applicationContext.getPermissions().createPermissionSet());
+            additionnalPermissions.addAll(launcherAttachmentContext.getPermissions().createPermissionSet());
             additionnalPermissions.add(new FilePermission(applicationContext.getData().getPath(), "read,write"));
             additionnalPermissions.add(new FilePermission(applicationContext.getData().getPath() + File.separator + "-", "read,write,delete"));
             additionnalPermissions.add(new FilePermission(applicationContext.getCache().getPath(), "read,write"));
@@ -1432,9 +1568,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                             final Callable<?> applicationCallable;
                             RuntimeApplicationContext runtimeApplicationContext;
                             if (finalPreviousRuntimeApplicationContext == null) {
-                                Class<?> cl = classLoader.loadClass(applicationContext.getClassName());
+                                Class<?> cl = classLoader.loadClass(launcherAttachmentContext.getClassName());
                                 Object applicationObject = callConstructorAndInject(classLoader, cl, applicationContext.getConfig(), applicationContext.getData(),
-                                        applicationContext.getCache(), applicationContext.getAddInjects(), vestigeSystem, privilegedExecutor);
+                                        applicationContext.getCache(), launcherAttachmentContext.getAddInjects(), vestigeSystem, privilegedExecutor);
                                 if (applicationObject instanceof Callable<?>) {
                                     applicationCallable = (Callable<?>) applicationObject;
                                 } else {
@@ -1445,11 +1581,11 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                 runtimeApplicationContext = new RuntimeApplicationContext(attachableClassLoader, applicationCallable, vestigeSystem, runMutex == null);
                                 if (constructorMutex != null) {
                                     synchronized (constructorMutex) {
-                                        applicationContext.setRuntimeApplicationContext(runtimeApplicationContext);
+                                        launcherAttachmentContext.setRuntimeApplicationContext(runtimeApplicationContext);
                                         constructorMutex.notify();
                                     }
                                 } else {
-                                    applicationContext.setRuntimeApplicationContext(runtimeApplicationContext);
+                                    launcherAttachmentContext.setRuntimeApplicationContext(runtimeApplicationContext);
                                 }
                                 attachableClassLoader.addSoftReferenceObject(runtimeApplicationContext);
                             } else {

@@ -59,6 +59,7 @@ import fr.gaellalire.vestige.application.descriptor.xml.XMLApplicationRepository
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.DefaultApplicationManager;
+import fr.gaellalire.vestige.application.manager.RepositoryOverride;
 import fr.gaellalire.vestige.application.manager.URLOpener;
 import fr.gaellalire.vestige.core.VestigeCoreContext;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;
@@ -88,12 +89,14 @@ import fr.gaellalire.vestige.spi.resolver.maven.VestigeMavenResolver;
 import fr.gaellalire.vestige.spi.resolver.url_list.VestigeURLListResolver;
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
 import fr.gaellalire.vestige.spi.system.VestigeSystemCache;
+import fr.gaellalire.vestige.spi.trust.TrustSystemAccessor;
 import fr.gaellalire.vestige.system.JVMVestigeSystemActionExecutor;
 import fr.gaellalire.vestige.system.PrivateVestigePolicy;
 import fr.gaellalire.vestige.system.PrivateVestigeSecurityManager;
 import fr.gaellalire.vestige.system.PrivateWhiteListVestigePolicy;
 import fr.gaellalire.vestige.system.SecureProxySelector;
 import fr.gaellalire.vestige.system.VestigeSystemAction;
+import fr.gaellalire.vestige.trust.DefaultTrustSystemAccessor;
 
 /**
  * @author Gael Lalire
@@ -129,6 +132,8 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
     private URL appURL;
 
     private String appName;
+
+    private TrustSystemAccessor trustSystemAccessor;
 
     public void setVestigeExecutor(final VestigeExecutor vestigeExecutor) {
         this.vestigeExecutor = vestigeExecutor;
@@ -180,6 +185,9 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
                 }
                 vestigePlatform = new DefaultVestigePlatform(moduleLayerRepository);
             }
+        }
+        if (trustSystemAccessor == null) {
+            trustSystemAccessor = new DefaultTrustSystemAccessor();
         }
 
         if (LOGGER.isInfoEnabled()) {
@@ -370,7 +378,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
 
         defaultApplicationManager = new DefaultApplicationManager(actionManager, appConfigFile, appDataFile, appCacheFile, applicationsVestigeSystem,
                 singleApplicationLauncherEditionVestigeSystem, vestigePolicy, vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile,
-                vestigeResolvers, injectableByClassName);
+                vestigeResolvers, injectableByClassName, trustSystemAccessor);
 
         boolean started = false;
         try {
@@ -435,7 +443,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
         try {
             if (!defaultApplicationManager.getApplicationsName().contains(appName)) {
                 final boolean[] installDone = new boolean[] {false};
-                JobController jobController = defaultApplicationManager.install(appURL, null, null, null, appName, new JobListener() {
+                JobController jobController = defaultApplicationManager.install(new RepositoryOverride(appURL), null, null, null, appName, false, new JobListener() {
 
                     @Override
                     public TaskListener taskAdded(final String description) {

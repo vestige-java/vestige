@@ -17,9 +17,6 @@
 
 package fr.gaellalire.vestige.application.manager;
 
-import java.util.List;
-import java.util.Set;
-
 /**
  * @author Gael Lalire
  */
@@ -27,28 +24,8 @@ public interface ApplicationDescriptor {
 
     String getJavaSpecificationVersion() throws ApplicationException;
 
-    Set<List<Integer>> getSupportedMigrationVersions() throws ApplicationException;
+    LauncherAttachmentDescriptor getLauncherAttachmentDescriptor() throws ApplicationException;
 
-    Set<List<Integer>> getUninterruptedMigrationVersions() throws ApplicationException;
-
-    String getInstallerClassName() throws ApplicationException;
-
-    ApplicationResolvedClassLoaderConfiguration getInstallerClassLoaderConfiguration(String configurationName) throws ApplicationException;
-
-    String getLauncherClassName() throws ApplicationException;
-
-    boolean isInstallerPrivateSystem() throws ApplicationException;
-
-    boolean isLauncherPrivateSystem() throws ApplicationException;
-
-    ApplicationResolvedClassLoaderConfiguration getLauncherClassLoaderConfiguration(String configurationName) throws ApplicationException;
-
-    PermissionSetFactory getInstallerPermissions() throws ApplicationException;
-
-    PermissionSetFactory getPermissions() throws ApplicationException;
-
-    List<AddInject> getLauncherAddInjects() throws ApplicationException;
-
-    List<AddInject> getInstallerAddInjects() throws ApplicationException;
+    InstallerAttachmentDescriptor getInstallerAttachmentDescriptor() throws ApplicationException;
 
 }

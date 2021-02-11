@@ -58,6 +58,7 @@ import fr.gaellalire.vestige.application.manager.ApplicationRepositoryMetadata;
 import fr.gaellalire.vestige.application.manager.CompatibilityChecker;
 import fr.gaellalire.vestige.application.manager.PermissionFactory;
 import fr.gaellalire.vestige.application.manager.PermissionSetFactory;
+import fr.gaellalire.vestige.application.manager.RepositoryOverride;
 import fr.gaellalire.vestige.application.manager.URLOpener;
 import fr.gaellalire.vestige.application.manager.VersionUtils;
 import fr.gaellalire.vestige.spi.job.JobHelper;
@@ -151,10 +152,13 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         return ((JAXBElement<Application>) unMarshaller.unmarshal(inputStream)).getValue();
     }
 
-    public ApplicationDescriptor createApplicationDescriptor(final URL overrideURL, final URL context, final String appName, final List<Integer> version, final JobHelper jobHelper)
-            throws ApplicationException {
+    public ApplicationDescriptor createApplicationDescriptor(final RepositoryOverride repositoryOverride, final URL context, final String appName, final List<Integer> version,
+            final JobHelper jobHelper) throws ApplicationException {
         TaskHelper task = jobHelper.addTask("Reading application descriptor");
-        URL url = overrideURL;
+        URL url = null;
+        if (repositoryOverride != null) {
+            url = repositoryOverride.getApplication();
+        }
         if (url == null) {
             try {
                 url = new URL(context, appName + "/" + appName + "-" + VersionUtils.toString(version) + ".xml");
@@ -163,25 +167,24 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
             }
         }
 
-        InputStream inputStream;
+        Application application;
         try {
-            inputStream = opener.openURL(url);
+            InputStream inputStream = opener.openURL(url);
+            try {
+                application = getApplication(inputStream);
+            } catch (JAXBException e) {
+                throw new ApplicationException("Unable to unmarshall application xml", e);
+            } finally {
+                try {
+                    inputStream.close();
+                } catch (IOException e) {
+                    LOGGER.warn("Unable to close inputStream", e);
+                }
+            }
         } catch (IOException e) {
             throw new ApplicationException("Cannot connect to repo URL", e);
         }
 
-        Application application;
-        try {
-            application = getApplication(inputStream);
-        } catch (JAXBException e) {
-            throw new ApplicationException("Unable to unmarshall application xml", e);
-        } finally {
-            try {
-                inputStream.close();
-            } catch (IOException e) {
-                LOGGER.warn("Unable to close inputStream", e);
-            }
-        }
         task.setDone();
 
         Config configurations = application.getConfigurations();

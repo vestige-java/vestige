@@ -9,6 +9,10 @@ module fr.gaellalire.vestige.application.manager {
     requires fr.gaellalire.vestige.system;
 
     requires fr.gaellalire.vestige.spi.resolver;
+    
+    requires fr.gaellalire.vestige.spi.trust;
+    
+    requires commons.codec;
 
     exports fr.gaellalire.vestige.application.manager;
 

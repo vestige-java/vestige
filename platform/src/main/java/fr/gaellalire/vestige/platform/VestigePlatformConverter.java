@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.Set;
 
 import fr.gaellalire.vestige.core.VestigeClassLoader;
-import fr.gaellalire.vestige.core.resource.JarFileResourceLocator;
+import fr.gaellalire.vestige.core.resource.VestigeResourceLocator;
 import fr.gaellalire.vestige.jpms.JPMSInRepositoryModuleLayerAccessor;
 import fr.gaellalire.vestige.jpms.JPMSModuleLayerRepository;
 
@@ -63,11 +63,10 @@ public final class VestigePlatformConverter {
         for (Object dependency : dependencies) {
             list.add(convertAttachedVestigeClassLoader(dependency, oldVestigePlatform, vestigePlatform, loadedModuleLayers));
         }
-        AttachedVestigeClassLoader attachedVestigeClassLoader = new AttachedVestigeClassLoader(
-                (Serializable) oldAttachedVestigeClassLoaderClass.getMethod("getKey").invoke(oldAttachedVestigeClassLoader), uncheckedVestigeClassLoader, list,
+        AttachedVestigeClassLoader attachedVestigeClassLoader = new AttachedVestigeClassLoader(uncheckedVestigeClassLoader, list,
                 (String) oldAttachedVestigeClassLoaderClass.getMethod("getName").invoke(oldAttachedVestigeClassLoader),
                 (Boolean) oldAttachedVestigeClassLoaderClass.getMethod("isAttachmentScoped").invoke(oldAttachedVestigeClassLoader),
-                (JarFileResourceLocator[]) oldAttachedVestigeClassLoaderClass.getMethod("getCache").invoke(oldAttachedVestigeClassLoader),
+                (VestigeResourceLocator[]) oldAttachedVestigeClassLoaderClass.getMethod("getCache").invoke(oldAttachedVestigeClassLoader),
                 loadedModuleLayers.get(oldAttachedVestigeClassLoaderClass.getMethod("getModuleLayer").invoke(oldAttachedVestigeClassLoader)),
                 (Boolean) oldAttachedVestigeClassLoaderClass.getMethod("isJPMSActivated").invoke(oldAttachedVestigeClassLoader));
 
@@ -77,6 +76,7 @@ public final class VestigePlatformConverter {
         return attachedVestigeClassLoader;
     }
 
+    @SuppressWarnings("unchecked")
     public static JPMSInRepositoryModuleLayerAccessor convertLayerAccessor(final Object oldLayerAccessor, final JPMSModuleLayerRepository moduleLayerRepository,
             final Map<Object, JPMSInRepositoryModuleLayerAccessor> convertedLayerAccessorByLayerAccessor, final Method addMethod) throws Exception {
         JPMSInRepositoryModuleLayerAccessor convertedLayerAccessor = convertedLayerAccessorByLayerAccessor.get(oldLayerAccessor);
@@ -131,6 +131,7 @@ public final class VestigePlatformConverter {
         return moduleLayerRepository;
     }
 
+    @SuppressWarnings("unchecked")
     public static VestigePlatform convert(final Object oldVestigePlatform) throws Exception {
 
         Map<Object, JPMSInRepositoryModuleLayerAccessor> loadedModuleLayers = new IdentityHashMap<Object, JPMSInRepositoryModuleLayerAccessor>();

@@ -88,6 +88,7 @@ import fr.gaellalire.vestige.application.descriptor.xml.XMLApplicationRepository
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.DefaultApplicationManager;
+import fr.gaellalire.vestige.application.manager.RepositoryOverride;
 import fr.gaellalire.vestige.application.manager.URLOpener;
 import fr.gaellalire.vestige.core.VestigeCoreContext;
 import fr.gaellalire.vestige.core.executor.VestigeExecutor;
@@ -122,12 +123,14 @@ import fr.gaellalire.vestige.spi.resolver.maven.VestigeMavenResolver;
 import fr.gaellalire.vestige.spi.resolver.url_list.VestigeURLListResolver;
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
 import fr.gaellalire.vestige.spi.system.VestigeSystemCache;
+import fr.gaellalire.vestige.spi.trust.TrustSystemAccessor;
 import fr.gaellalire.vestige.system.JVMVestigeSystemActionExecutor;
 import fr.gaellalire.vestige.system.PrivateVestigePolicy;
 import fr.gaellalire.vestige.system.PrivateVestigeSecurityManager;
 import fr.gaellalire.vestige.system.PrivateWhiteListVestigePolicy;
 import fr.gaellalire.vestige.system.SecureProxySelector;
 import fr.gaellalire.vestige.system.VestigeSystemAction;
+import fr.gaellalire.vestige.trust.DefaultTrustSystemAccessor;
 import fr.gaellalire.vestige.utils.SimpleValueGetter;
 import fr.gaellalire.vestige.utils.UtilsSchema;
 
@@ -172,6 +175,8 @@ public class StandardEditionVestige implements Runnable {
 
     private VestigeURLListResolver vestigeURLListResolver;
 
+    private TrustSystemAccessor trustSystemAccessor;
+
     public void setSystemConfigFile(final File systemConfigFile) {
         this.systemConfigFile = systemConfigFile;
     }
@@ -198,6 +203,10 @@ public class StandardEditionVestige implements Runnable {
 
     public void setVestigeSystem(final VestigeSystem vestigeSystem) {
         this.vestigeSystem = vestigeSystem;
+    }
+
+    public void setTrustSystemAccessor(final TrustSystemAccessor trustSystemAccessor) {
+        this.trustSystemAccessor = trustSystemAccessor;
     }
 
     /**
@@ -228,6 +237,9 @@ public class StandardEditionVestige implements Runnable {
                 vestigePlatform = new DefaultVestigePlatform(moduleLayerRepository);
                 vestigePlatformCreated = true;
             }
+        }
+        if (trustSystemAccessor == null) {
+            trustSystemAccessor = new DefaultTrustSystemAccessor();
         }
 
         if (systemConfigFile == null) {
@@ -494,7 +506,7 @@ public class StandardEditionVestige implements Runnable {
         // injectableByClassName.put(VestigeURLListResolver.class.getName(), vestigeURLListResolver);
 
         defaultApplicationManager = new DefaultApplicationManager(actionManager, appConfigFile, appDataFile, appCacheFile, applicationsVestigeSystem, standardEditionVestigeSystem,
-                vestigePolicy, vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile, vestigeResolvers, injectableByClassName);
+                vestigePolicy, vestigeSecurityManager, applicationDescriptorFactory, resolverFile, nextResolverFile, vestigeResolvers, injectableByClassName, trustSystemAccessor);
 
         Admin admin = settings.getAdmin();
         SSH ssh = admin.getSsh();
@@ -601,29 +613,30 @@ public class StandardEditionVestige implements Runnable {
                 try {
                     final String installLocalName = System.getenv("VESTIGE_INSTALL_LOCAL_NAME");
                     if (installLocalName != null) {
-                        final JobController jobController = defaultApplicationManager.install(vestigeInstallURL, null, null, null, installLocalName, new JobListener() {
-
-                            @Override
-                            public TaskListener taskAdded(final String description) {
-                                return new TaskListener() {
+                        final JobController jobController = defaultApplicationManager.install(new RepositoryOverride(vestigeInstallURL), null, null, null, installLocalName, false,
+                                new JobListener() {
 
                                     @Override
-                                    public void taskDone() {
+                                    public TaskListener taskAdded(final String description) {
+                                        return new TaskListener() {
+
+                                            @Override
+                                            public void taskDone() {
+                                            }
+
+                                            @Override
+                                            public void progressChanged(final float progress) {
+                                            }
+                                        };
                                     }
 
                                     @Override
-                                    public void progressChanged(final float progress) {
+                                    public void jobDone() {
+                                        synchronized (StandardEditionVestige.this) {
+                                            StandardEditionVestige.this.notify();
+                                        }
                                     }
-                                };
-                            }
-
-                            @Override
-                            public void jobDone() {
-                                synchronized (StandardEditionVestige.this) {
-                                    StandardEditionVestige.this.notify();
-                                }
-                            }
-                        });
+                                });
                         synchronized (this) {
                             try {
                                 while (!jobController.isDone()) {

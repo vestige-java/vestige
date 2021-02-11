@@ -17,7 +17,6 @@
 
 package fr.gaellalire.vestige.admin.command.argument;
 
-
 /**
  * @author Gael Lalire
  */

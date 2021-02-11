@@ -31,7 +31,9 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -347,22 +349,29 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
         }
 
         try {
-            String createChecksum = SecureFile.createChecksum(file);
-            if (!sha1.equals(createChecksum)) {
-                if (!firstTry) {
-                    throw new ResolverException("SHA-1 did not match for " + artifact + ". Expected " + sha1 + " got " + createChecksum);
+            FileInputStream inputStream = new FileInputStream(file);
+            try {
+                String createChecksum = SecureFile.createChecksum(inputStream, Collections.singletonList("SHA-1"), null).get(0);
+                if (!sha1.equals(createChecksum)) {
+                    if (!firstTry) {
+                        throw new ResolverException("SHA-1 did not match for " + artifact + ". Expected " + sha1 + " got " + createChecksum);
+                    }
+                    File[] listFiles = file.getParentFile().listFiles();
+                    for (File sfile : listFiles) {
+                        // clean dir
+                        sfile.delete();
+                    }
+                    return null;
                 }
-                File[] listFiles = file.getParentFile().listFiles();
-                for (File sfile : listFiles) {
-                    // clean dir
-                    sfile.delete();
-                }
-                return null;
+            } finally {
+                inputStream.close();
             }
             return sha1;
         } catch (IOException e) {
             throw new ResolverException("Unable to compute checksum for " + artifact, e);
         } catch (NoSuchAlgorithmException e) {
+            throw new ResolverException("Unable to compute checksum for " + artifact, e);
+        } catch (NoSuchProviderException e) {
             throw new ResolverException("Unable to compute checksum for " + artifact, e);
         }
     }
@@ -448,11 +457,11 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
                         continue;
                     }
                 }
-                MavenArtifact mavenArtifact = new MavenArtifact(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion(), artifact.getExtension(), sha1);
+                MavenArtifact mavenArtifact = new MavenArtifact(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion(), artifact.getExtension());
                 File file = artifact.getFile();
                 SecureFile secureFile;
                 try {
-                    secureFile = new SecureFile(file, new URL(mavenArtifact.toString()), mavenArtifact.getSha1sum());
+                    secureFile = new SecureFile(file, new URL(mavenArtifact.toString()), sha1);
                 } catch (MalformedURLException e) {
                     throw new ResolverException("Unable to create Maven URL" + logAppend, e);
                 }

@@ -153,22 +153,23 @@
     <at>@</at>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <slf4j.version>1.7.25</slf4j.version>
-    <vestige.core.version>9</vestige.core.version>
+    <vestige.core.version>10-SNAPSHOT</vestige.core.version>
     <vestige.jpms.version>2.0</vestige.jpms.version>
     <vestige.jvm_enhancer.version>4.2</vestige.jvm_enhancer.version>
     <vestige.logback_enhancer.version>1.1</vestige.logback_enhancer.version>
     <vestige.spi.system.version>1.1</vestige.spi.system.version>
     <vestige.spi.job.version>1.1</vestige.spi.job.version>
-    <vestige.spi.resolver.version>2.0</vestige.spi.resolver.version>
+    <vestige.spi.resolver.version>2.1-SNAPSHOT</vestige.spi.resolver.version>
     <vestige.spi.resolver.url_list.version>2.0</vestige.spi.resolver.url_list.version>
     <vestige.spi.resolver.maven.version>2.0</vestige.spi.resolver.maven.version>
+    <vestige.spi.trust.version>1.0-SNAPSHOT</vestige.spi.trust.version>
     <vestige.maven.version>java6-3</vestige.maven.version>
     <logback.version>1.2.3</logback.version>
     <logstash.logback.encoder.version>4.11</logstash.logback.encoder.version>
     <jetty.version>8.1.11.v20130520</jetty.version>
     <milton.version>2.5.0.1</milton.version>
     <javax-servlet.version>3.0.0.v201112011016</javax-servlet.version>
-    <bouncycastle.version>1.66</bouncycastle.version>
+    <bouncycastle.version>1.68</bouncycastle.version>
     <httpcomponents.version>4.5.3</httpcomponents.version>
     <proxy_vole.version>java6-3</proxy_vole.version>
     <maven-resolver.version>java6-2</maven-resolver.version>
@@ -200,6 +201,11 @@
         <artifactId>vestige.spi.resolver</artifactId>
         <version>${vestige.spi.resolver.version}</version>
       </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>vestige.spi.trust</artifactId>
+        <version>${vestige.spi.trust.version}</version>
+    </dependency>
       <dependency>
         <groupId>fr.gaellalire.vestige</groupId>
         <artifactId>vestige.spi.resolver.url_list</artifactId>
@@ -473,6 +479,7 @@
   <modules>
     <module>utils</module>
     <module>job</module>
+    <module>trust</module>
     <module>platform</module>
     <module>system</module>
     <module>resolver</module>

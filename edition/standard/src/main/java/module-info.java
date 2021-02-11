@@ -28,6 +28,10 @@ module fr.gaellalire.vestige.edition.standard {
 
     requires fr.gaellalire.vestige.application.descriptor.xml;
 
+    requires fr.gaellalire.vestige.spi.trust;
+
+    requires fr.gaellalire.vestige.trust;
+
     requires java.xml.bind;
     
     requires java.xml;

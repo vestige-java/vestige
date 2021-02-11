@@ -84,4 +84,24 @@ public class SecureResolvedClassLoaderConfiguration implements ResolvedClassLoad
         }
     }
 
+    @Override
+    public String createVerificationMetadata() throws ResolverException {
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return delegate.createVerificationMetadata();
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
+    }
+
+    @Override
+    public AttachedClassLoader verifiedAttach(final String signature) throws ResolverException, InterruptedException {
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return new SecureAttachedClassLoader(secureVestigeSystem, delegate.verifiedAttach(signature));
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
+    }
+
 }

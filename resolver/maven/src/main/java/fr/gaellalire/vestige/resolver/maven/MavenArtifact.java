@@ -34,9 +34,6 @@ public class MavenArtifact implements Serializable {
 
     private String extension;
 
-    // SHA1Sum is not in equals method, but it could be (not shared between two resolving)
-    private String sha1sum;
-
     private int hashCode;
 
     private boolean virtual;
@@ -45,12 +42,11 @@ public class MavenArtifact implements Serializable {
         virtual = true;
     }
 
-    public MavenArtifact(final String groupId, final String artifactId, final String version, final String extension, final String sha1sum) {
+    public MavenArtifact(final String groupId, final String artifactId, final String version, final String extension) {
         this.groupId = groupId;
         this.artifactId = artifactId;
         this.version = version;
         this.extension = extension;
-        this.sha1sum = sha1sum;
         if (version == null) {
             hashCode = groupId.hashCode() + artifactId.hashCode();
         } else {
@@ -72,10 +68,6 @@ public class MavenArtifact implements Serializable {
 
     public String getExtension() {
         return extension;
-    }
-
-    public String getSha1sum() {
-        return sha1sum;
     }
 
     @Override

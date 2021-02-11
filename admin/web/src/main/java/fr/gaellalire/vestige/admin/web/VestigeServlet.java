@@ -103,7 +103,7 @@ public class VestigeServlet extends WebSocketServlet {
             @Override
             public JobController execute(final JSONObject jsonObject, final JobListener jobListener) throws Exception {
                 return applicationManager.install(null, applicationManager.getRepositoryURL((String) jsonObject.get("repo")), (String) jsonObject.get("name"),
-                        VersionUtils.fromString((String) jsonObject.get("version")), (String) jsonObject.get("local"), jobListener);
+                        VersionUtils.fromString((String) jsonObject.get("version")), (String) jsonObject.get("local"), false, jobListener);
             }
         });
         commandHandlerByName.put("uninstall", new CommandHandler() {

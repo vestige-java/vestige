@@ -35,7 +35,8 @@ public interface ApplicationManager extends ApplicationManagerState {
 
     void removeRepository(String name) throws ApplicationException;
 
-    JobController install(URL overrideURL, URL repoURL, String appName, List<Integer> version, String installName, JobListener jobListener) throws ApplicationException;
+    JobController install(RepositoryOverride repositoryOverride, URL repoURL, String appName, List<Integer> version, String installName, boolean trusted, JobListener jobListener)
+            throws ApplicationException;
 
     JobController reloadDescriptor(String application, JobListener jobListener) throws ApplicationException;
 
@@ -48,6 +49,8 @@ public interface ApplicationManager extends ApplicationManagerState {
     void run(String installName) throws ApplicationException;
 
     void discard(String installName) throws ApplicationException;
+
+    ApplicationVerificationMetadataSigned pgpSign(String installName, String key) throws ApplicationException;
 
     JobController stop(String installName, JobListener jobListener) throws ApplicationException;
 

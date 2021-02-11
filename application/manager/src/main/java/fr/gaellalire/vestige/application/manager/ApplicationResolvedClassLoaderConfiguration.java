@@ -75,4 +75,14 @@ public class ApplicationResolvedClassLoaderConfiguration implements ResolvedClas
         return delegate.getVestigeJarEnumeration();
     }
 
+    @Override
+    public String createVerificationMetadata() throws ResolverException {
+        return delegate.createVerificationMetadata();
+    }
+
+    @Override
+    public AttachedClassLoader verifiedAttach(final String signature) throws ResolverException, InterruptedException {
+        return delegate.verifiedAttach(signature);
+    }
+
 }

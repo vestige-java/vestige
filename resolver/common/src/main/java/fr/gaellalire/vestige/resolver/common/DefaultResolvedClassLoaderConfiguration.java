@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Enumeration;
 
 import fr.gaellalire.vestige.core.executor.VestigeWorker;
+import fr.gaellalire.vestige.platform.AttachmentVerificationMetadata;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.spi.resolver.AttachedClassLoader;
@@ -72,7 +73,21 @@ public class DefaultResolvedClassLoaderConfiguration implements ResolvedClassLoa
         int installerAttach;
         synchronized (vestigePlatform) {
             try {
-                installerAttach = vestigePlatform.attach(classLoaderConfiguration, vestigeWorker);
+                installerAttach = vestigePlatform.attach(classLoaderConfiguration, null, vestigeWorker);
+            } catch (IOException e) {
+                throw new ResolverException("Unable to attach", e);
+            }
+        }
+        return new DefaultAttachedClassLoader(vestigePlatform, installerAttach, new DefaultAttachableClassLoader(vestigePlatform, vestigePlatform.getClassLoader(installerAttach)));
+    }
+
+    @Override
+    public AttachedClassLoader verifiedAttach(final String verificationMetadata) throws ResolverException, InterruptedException {
+        int installerAttach;
+
+        synchronized (vestigePlatform) {
+            try {
+                installerAttach = vestigePlatform.attach(classLoaderConfiguration, AttachmentVerificationMetadata.fromString(verificationMetadata), vestigeWorker);
             } catch (IOException e) {
                 throw new ResolverException("Unable to attach", e);
             }
@@ -110,6 +125,17 @@ public class DefaultResolvedClassLoaderConfiguration implements ResolvedClassLoa
                 return new DefaultVestigeJar(defaultVestigeJarContext.next());
             }
         };
+    }
+
+    @Override
+    public String createVerificationMetadata() throws ResolverException {
+        String signature;
+        try {
+            signature = /* sign with key */ classLoaderConfiguration.createSignature().toString();
+        } catch (IOException e) {
+            throw new ResolverException(e);
+        }
+        return signature;
     }
 
 }

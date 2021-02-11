@@ -22,6 +22,10 @@ module fr.gaellalire.vestige.edition.single_application_launcher {
 
     requires fr.gaellalire.vestige.application.descriptor.xml;
 
+    requires fr.gaellalire.vestige.spi.trust;
+
+    requires fr.gaellalire.vestige.trust;
+
     requires java.xml.bind;
     
     requires java.xml;
@@ -33,7 +37,7 @@ module fr.gaellalire.vestige.edition.single_application_launcher {
     requires org.bouncycastle.tls;
     
     requires org.bouncycastle.pkix;
-
+    
     // Shame part : filename-based automodules
 
     requires logback.classic;

@@ -34,7 +34,8 @@ public interface VestigePlatform extends ModuleLayerLinker<VestigeClassLoader<At
 
     int attach(VestigeClassLoader<AttachedVestigeClassLoader> classLoader);
 
-    int attach(ClassLoaderConfiguration classLoaderConfiguration, VestigeWorker vestigeWorker) throws InterruptedException, IOException;
+    int attach(ClassLoaderConfiguration classLoaderConfiguration, AttachmentVerificationMetadata verificationMetadata, VestigeWorker vestigeWorker)
+            throws InterruptedException, IOException;
 
     void detach(int id);
 

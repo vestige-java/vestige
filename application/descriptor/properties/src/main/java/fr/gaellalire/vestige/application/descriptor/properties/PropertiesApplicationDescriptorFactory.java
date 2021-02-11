@@ -25,6 +25,7 @@ import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryManager;
 import fr.gaellalire.vestige.application.manager.ApplicationRepositoryMetadata;
 import fr.gaellalire.vestige.application.manager.CompatibilityChecker;
+import fr.gaellalire.vestige.application.manager.RepositoryOverride;
 import fr.gaellalire.vestige.spi.job.JobHelper;
 
 /**
@@ -39,8 +40,8 @@ public class PropertiesApplicationDescriptorFactory implements ApplicationReposi
     }
 
     @Override
-    public ApplicationDescriptor createApplicationDescriptor(final URL o, final URL context, final String appName, final List<Integer> version, final JobHelper actionHelper)
-            throws ApplicationException {
+    public ApplicationDescriptor createApplicationDescriptor(final RepositoryOverride o, final URL context, final String appName, final List<Integer> version,
+            final JobHelper actionHelper) throws ApplicationException {
         // TODO Auto-generated method stub
         return null;
     }

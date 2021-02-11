@@ -29,7 +29,8 @@ public interface ApplicationRepositoryManager {
 
     boolean hasApplicationDescriptor(URL context, String appName, List<Integer> version, CompatibilityChecker compatibilityChecker) throws ApplicationException;
 
-    ApplicationDescriptor createApplicationDescriptor(URL overrideURL, URL context, String appName, List<Integer> version, JobHelper jobHelper) throws ApplicationException;
+    ApplicationDescriptor createApplicationDescriptor(RepositoryOverride repositoryOverride, URL context, String appName, List<Integer> version, JobHelper jobHelper)
+            throws ApplicationException;
 
     ApplicationRepositoryMetadata getMetadata(URL context);
 
