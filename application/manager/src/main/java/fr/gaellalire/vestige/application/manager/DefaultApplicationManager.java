@@ -1351,6 +1351,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             } else {
                 privatePart = pgpTrustSystem.getPrivatePart(key);
             }
+            if (privatePart == null) {
+                throw new ApplicationException("Private part not found");
+            }
 
             AttachmentContext<?> installerAttachmentContext = applicationContext.getInstallerAttachmentContext();
 

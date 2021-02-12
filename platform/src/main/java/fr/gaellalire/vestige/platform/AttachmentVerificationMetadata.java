@@ -122,6 +122,9 @@ public class AttachmentVerificationMetadata {
                     break;
                 } else if (readLine.startsWith(SIGNATURE_REFERENCE)) {
                     currentSignature = signatures.get(Integer.parseInt(readLine.substring(1)));
+                    if (previousLevel > currentLevel) {
+                        dependenciesByLevel.subList(currentLevel + 1, dependenciesByLevel.size()).clear();
+                    }
                 } else {
                     List<FileVerificationMetadata> currentBeforeFiles = new ArrayList<FileVerificationMetadata>();
                     List<FileVerificationMetadata> currentAfterFiles = new ArrayList<FileVerificationMetadata>();
@@ -144,11 +147,12 @@ public class AttachmentVerificationMetadata {
                     }
                     List<AttachmentVerificationMetadata> currentDependencySignatures = new ArrayList<AttachmentVerificationMetadata>();
                     if (previousLevel == currentLevel) {
-                        dependenciesByLevel.set(previousLevel, currentDependencySignatures);
+                        dependenciesByLevel.set(currentLevel, currentDependencySignatures);
                     } else if (previousLevel < currentLevel) {
                         dependenciesByLevel.add(currentDependencySignatures);
                     } else {
-                        dependenciesByLevel.subList(currentLevel, previousLevel).clear();
+                        dependenciesByLevel.set(currentLevel, currentDependencySignatures);
+                        dependenciesByLevel.subList(currentLevel + 1, dependenciesByLevel.size()).clear();
                     }
                     currentSignature = new AttachmentVerificationMetadata(currentDependencySignatures, currentBeforeFiles, currentAfterFiles);
                     signatures.add(currentSignature);
