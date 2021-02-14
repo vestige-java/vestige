@@ -34,11 +34,11 @@ import java.util.List;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 /**
- * This file is not protected against changes. After creating a {@link fr.gaellalire.vestige.core.resource.SecureJarFile} with {@link #file},
- * {@link fr.gaellalire.vestige.core.resource.SecureJarFile#getInputStream()} can be used to check {@link #size}, {@link #sha1} or {@link #sha512}.
+ * This file is not protected against changes. After creating a {@link fr.gaellalire.vestige.core.resource.SecureFile} with {@link #file},
+ * {@link fr.gaellalire.vestige.core.resource.SecureFile#getInputStream()} can be used to check {@link #size}, {@link #sha1} or {@link #sha512}.
  * @author Gael Lalire
  */
-public class SecureFile implements Serializable {
+public class FileWithMetadata implements Serializable {
 
     private static final long serialVersionUID = 4455054515626455519L;
 
@@ -52,7 +52,7 @@ public class SecureFile implements Serializable {
 
     private URL codeBase;
 
-    // private SecureFile patch;
+    // private FileWithMetadata patch;
 
     public static String toHexString(final byte[] bytes) {
         if (bytes == null) {
@@ -72,7 +72,7 @@ public class SecureFile implements Serializable {
         return buffer.toString();
     }
 
-    public SecureFile(final File file, final URL codeBase, final String sha1) {
+    public FileWithMetadata(final File file, final URL codeBase, final String sha1) {
         this.file = file;
         this.codeBase = codeBase;
         this.sha1 = sha1;
@@ -156,7 +156,7 @@ public class SecureFile implements Serializable {
         InputStream inputStream = new FileInputStream(file);
         try {
             try {
-                List<String> checksums = SecureFile.createChecksum(inputStream, Arrays.asList("SHA-512"), null);
+                List<String> checksums = FileWithMetadata.createChecksum(inputStream, Arrays.asList("SHA-512"), null);
                 return checksums.get(0);
             } catch (NoSuchAlgorithmException e) {
                 throw new IOException("Cannot verify checkum", e);

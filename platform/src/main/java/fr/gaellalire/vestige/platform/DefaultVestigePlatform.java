@@ -54,8 +54,8 @@ import fr.gaellalire.vestige.core.parser.NoStateStringParser;
 import fr.gaellalire.vestige.core.parser.ResourceEncapsulationEnforcer;
 import fr.gaellalire.vestige.core.parser.StringParser;
 import fr.gaellalire.vestige.core.resource.JarFileResourceLocator;
-import fr.gaellalire.vestige.core.resource.SecureJarFile;
-import fr.gaellalire.vestige.core.resource.SecureJarFile.Mode;
+import fr.gaellalire.vestige.core.resource.SecureFile;
+import fr.gaellalire.vestige.core.resource.SecureFile.Mode;
 import fr.gaellalire.vestige.core.resource.SecureJarFileResourceLocator;
 import fr.gaellalire.vestige.core.resource.VestigeResourceLocator;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandler;
@@ -391,17 +391,17 @@ public class DefaultVestigePlatform implements VestigePlatform {
         return data;
     }
 
-    public VestigeResourceLocator verifyJar(final SecureFile secureFile, final FileVerificationMetadata signedFileMetadata) throws IOException {
+    public VestigeResourceLocator verifyJar(final FileWithMetadata secureFile, final FileVerificationMetadata signedFileMetadata) throws IOException {
         if (signedFileMetadata == null) {
             return new JarFileResourceLocator(secureFile.getFile(), secureFile.getCodeBase());
         }
-        SecureJarFile secureJarFile = new SecureJarFile(secureFile.getFile(), Mode.PRIVATE_MAP);
+        SecureFile secureJarFile = new SecureFile(secureFile.getFile(), Mode.PRIVATE_MAP);
         long[] sizeHolder = new long[1];
         String sha512;
         InputStream inputStream = secureJarFile.getInputStream();
         try {
             try {
-                List<String> checksums = SecureFile.createChecksum(inputStream, Arrays.asList("SHA-512"), sizeHolder);
+                List<String> checksums = FileWithMetadata.createChecksum(inputStream, Arrays.asList("SHA-512"), sizeHolder);
                 sha512 = checksums.get(0);
             } catch (NoSuchAlgorithmException e) {
                 throw new IOException("Cannot verify checkum", e);
@@ -470,8 +470,8 @@ public class DefaultVestigePlatform implements VestigePlatform {
         if (vestigeClassLoader == null) {
             // search inside jar after dependencies
             // classLoaderDependencies.add(null);
-            List<SecureFile> afterUrls = classLoaderConfiguration.getAfterUrls();
-            List<SecureFile> beforeUrls = classLoaderConfiguration.getBeforeUrls();
+            List<FileWithMetadata> afterUrls = classLoaderConfiguration.getAfterUrls();
+            List<FileWithMetadata> beforeUrls = classLoaderConfiguration.getBeforeUrls();
             VestigeResourceLocator[] urls = new VestigeResourceLocator[beforeUrls.size() + afterUrls.size()];
             Iterator<FileVerificationMetadata> iterator = null;
             if (verificationMetadata != null) {
@@ -528,11 +528,11 @@ public class DefaultVestigePlatform implements VestigePlatform {
             JPMSInRepositoryConfiguration<VestigeClassLoader<AttachedVestigeClassLoader>> configuration = null;
             if (selfNeedModuleDefine) {
                 List<File> beforeFiles = new ArrayList<File>(beforeUrls.size());
-                for (SecureFile secureFile : beforeUrls) {
+                for (FileWithMetadata secureFile : beforeUrls) {
                     beforeFiles.add(secureFile.getFile());
                 }
                 List<File> afterFiles = new ArrayList<File>(afterUrls.size());
-                for (SecureFile secureFile : afterUrls) {
+                for (FileWithMetadata secureFile : afterUrls) {
                     afterFiles.add(secureFile.getFile());
                 }
                 configuration = moduleLayerList.createConfiguration(beforeFiles, afterFiles, null, this);

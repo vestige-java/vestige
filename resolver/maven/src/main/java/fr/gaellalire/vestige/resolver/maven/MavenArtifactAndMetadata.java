@@ -17,7 +17,7 @@
 
 package fr.gaellalire.vestige.resolver.maven;
 
-import fr.gaellalire.vestige.platform.SecureFile;
+import fr.gaellalire.vestige.platform.FileWithMetadata;
 
 /**
  * @author Gael Lalire
@@ -26,9 +26,9 @@ public class MavenArtifactAndMetadata {
 
     private MavenArtifact mavenArtifact;
 
-    private SecureFile secureFile;
+    private FileWithMetadata secureFile;
 
-    public MavenArtifactAndMetadata(final MavenArtifact mavenArtifact, final SecureFile secureFile) {
+    public MavenArtifactAndMetadata(final MavenArtifact mavenArtifact, final FileWithMetadata secureFile) {
         this.mavenArtifact = mavenArtifact;
         this.secureFile = secureFile;
     }
@@ -37,7 +37,7 @@ public class MavenArtifactAndMetadata {
         return mavenArtifact;
     }
 
-    public SecureFile getSecureFile() {
+    public FileWithMetadata getSecureFile() {
         return secureFile;
     }
 

@@ -29,7 +29,7 @@ import fr.gaellalire.vestige.jpms.NamedModuleUtils;
 import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
 import fr.gaellalire.vestige.platform.ModuleConfiguration;
-import fr.gaellalire.vestige.platform.SecureFile;
+import fr.gaellalire.vestige.platform.FileWithMetadata;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.Scope;
 
@@ -42,7 +42,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
     private Map<List<MavenArtifact>, ClassLoaderConfigurationFactory> cachedClassLoaderConfigurationFactory;
 
-    private Map<MavenArtifact, SecureFile> urlByKey;
+    private Map<MavenArtifact, FileWithMetadata> urlByKey;
 
     private Map<String, Map<String, MavenArtifact>> runtimeDependencies;
 
@@ -58,7 +58,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
     private DependencyReader dependencyReader;
 
-    public ClassLoaderConfigurationGraphHelper(final String appName, final Map<MavenArtifact, SecureFile> urlByKey, final DependencyReader dependencyReader,
+    public ClassLoaderConfigurationGraphHelper(final String appName, final Map<MavenArtifact, FileWithMetadata> urlByKey, final DependencyReader dependencyReader,
             final BeforeParentController beforeParentController, final DefaultJPMSConfiguration jpmsConfiguration,
             final Map<String, Map<String, MavenArtifact>> runtimeDependencies, final Scope scope, final ScopeModifier scopeModifier,
             final JPMSNamedModulesConfiguration namedModulesConfiguration) {
@@ -129,8 +129,8 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
         ClassLoaderConfigurationFactory classLoaderConfigurationFactory = cachedClassLoaderConfigurationFactory.get(key.getArtifacts());
         // if artifacts are the same, dependencies too. With same artifacts dependencies can differ if they have different mavenConfig (not same application)
         if (classLoaderConfigurationFactory == null) {
-            List<SecureFile> beforeUrls = new ArrayList<SecureFile>();
-            List<SecureFile> afterUrls = new ArrayList<SecureFile>();
+            List<FileWithMetadata> beforeUrls = new ArrayList<FileWithMetadata>();
+            List<FileWithMetadata> afterUrls = new ArrayList<FileWithMetadata>();
             Scope scope = this.scope;
             i = 0;
             for (MavenArtifact artifact : nodes) {
@@ -138,7 +138,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
                     scope = scopeModifier.modify(scope, artifact.getGroupId(), artifact.getArtifactId());
                 }
 
-                List<SecureFile> urls;
+                List<FileWithMetadata> urls;
                 if (beforeParents != null && beforeParents[i]) {
                     urls = beforeUrls;
                 } else {

@@ -98,7 +98,7 @@ import fr.gaellalire.vestige.core.executor.VestigeWorker;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandler;
 import fr.gaellalire.vestige.core.url.VestigeURLStreamHandler;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
-import fr.gaellalire.vestige.platform.SecureFile;
+import fr.gaellalire.vestige.platform.FileWithMetadata;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.platform.VestigeURLStreamHandlerFactory;
 import fr.gaellalire.vestige.resolver.common.DefaultResolvedClassLoaderConfiguration;
@@ -351,7 +351,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
         try {
             FileInputStream inputStream = new FileInputStream(file);
             try {
-                String createChecksum = SecureFile.createChecksum(inputStream, Collections.singletonList("SHA-1"), null).get(0);
+                String createChecksum = FileWithMetadata.createChecksum(inputStream, Collections.singletonList("SHA-1"), null).get(0);
                 if (!sha1.equals(createChecksum)) {
                     if (!firstTry) {
                         throw new ResolverException("SHA-1 did not match for " + artifact + ". Expected " + sha1 + " got " + createChecksum);
@@ -459,9 +459,9 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
                 }
                 MavenArtifact mavenArtifact = new MavenArtifact(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion(), artifact.getExtension());
                 File file = artifact.getFile();
-                SecureFile secureFile;
+                FileWithMetadata secureFile;
                 try {
-                    secureFile = new SecureFile(file, new URL(mavenArtifact.toString()), sha1);
+                    secureFile = new FileWithMetadata(file, new URL(mavenArtifact.toString()), sha1);
                 } catch (MalformedURLException e) {
                     throw new ResolverException("Unable to create Maven URL" + logAppend, e);
                 }

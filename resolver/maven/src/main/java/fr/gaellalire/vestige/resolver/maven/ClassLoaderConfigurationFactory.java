@@ -45,7 +45,7 @@ import fr.gaellalire.vestige.platform.AddAccessibility;
 import fr.gaellalire.vestige.platform.AddReads;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
-import fr.gaellalire.vestige.platform.SecureFile;
+import fr.gaellalire.vestige.platform.FileWithMetadata;
 import fr.gaellalire.vestige.platform.StringParserFactory;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.Scope;
@@ -65,9 +65,9 @@ public class ClassLoaderConfigurationFactory {
 
     private String appName;
 
-    private List<SecureFile> beforeUrls;
+    private List<FileWithMetadata> beforeUrls;
 
-    private List<SecureFile> afterUrls;
+    private List<FileWithMetadata> afterUrls;
 
     private List<Integer> paths;
 
@@ -105,11 +105,11 @@ public class ClassLoaderConfigurationFactory {
         return classLoaderConfigurationKey;
     }
 
-    public List<SecureFile> getBeforeUrls() {
+    public List<FileWithMetadata> getBeforeUrls() {
         return beforeUrls;
     }
 
-    public List<SecureFile> getAfterUrls() {
+    public List<FileWithMetadata> getAfterUrls() {
         return afterUrls;
     }
 
@@ -182,7 +182,7 @@ public class ClassLoaderConfigurationFactory {
     }
 
     public ClassLoaderConfigurationFactory(final String appName, final MavenClassLoaderConfigurationKey classLoaderConfigurationKey, final Scope scope,
-            final List<SecureFile> beforeUrls, final List<SecureFile> afterUrls, final List<ClassLoaderConfigurationFactory> dependencies, final boolean encapsulationActivated)
+            final List<FileWithMetadata> beforeUrls, final List<FileWithMetadata> afterUrls, final List<ClassLoaderConfigurationFactory> dependencies, final boolean encapsulationActivated)
             throws ResolverException {
         TreeMap<String, List<Integer>> pathsByResourceName = new TreeMap<String, List<Integer>>();
         TreeMap<String, List<Integer>> exportedPathsByResourceName = null;
@@ -203,7 +203,7 @@ public class ClassLoaderConfigurationFactory {
         paths = new ArrayList<Integer>();
 
         try {
-            ListIterator<SecureFile> listIterator = afterUrls.listIterator(afterUrls.size());
+            ListIterator<FileWithMetadata> listIterator = afterUrls.listIterator(afterUrls.size());
             while (listIterator.hasPrevious()) {
                 readJar(pathsByResourceName, exportedPathsByResourceName, exportedPathsByClassName, moduleNames, listIterator.previous().getFile());
             }
@@ -268,7 +268,7 @@ public class ClassLoaderConfigurationFactory {
         }
 
         try {
-            ListIterator<SecureFile> listIterator = beforeUrls.listIterator(beforeUrls.size());
+            ListIterator<FileWithMetadata> listIterator = beforeUrls.listIterator(beforeUrls.size());
             while (listIterator.hasPrevious()) {
                 readJar(pathsByResourceName, exportedPathsByResourceName, exportedPathsByClassName, moduleNames, listIterator.previous().getFile());
             }
@@ -454,7 +454,7 @@ public class ClassLoaderConfigurationFactory {
     }
 
     public boolean removeFile(final File fileExcluded) {
-        Iterator<SecureFile> iterator = afterUrls.iterator();
+        Iterator<FileWithMetadata> iterator = afterUrls.iterator();
         while (iterator.hasNext()) {
             if (fileExcluded.equals(iterator.next().getFile())) {
                 iterator.remove();

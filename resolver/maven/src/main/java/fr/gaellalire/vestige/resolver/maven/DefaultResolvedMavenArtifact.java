@@ -40,7 +40,7 @@ import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
 import fr.gaellalire.vestige.platform.MinimalStringParserFactory;
 import fr.gaellalire.vestige.platform.ModuleConfiguration;
-import fr.gaellalire.vestige.platform.SecureFile;
+import fr.gaellalire.vestige.platform.FileWithMetadata;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.resolver.common.DefaultResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.resolver.common.DefaultVestigeJar;
@@ -64,7 +64,7 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
 
     private Artifact artifact;
 
-    private SecureFile secureFile;
+    private FileWithMetadata secureFile;
 
     private DependencyReader dependencyReader;
 
@@ -157,7 +157,7 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
 
         if (createClassLoaderConfigurationParameters.isManyLoaders()) {
             Map<String, Map<String, MavenArtifact>> runtimeDependencies = new HashMap<String, Map<String, MavenArtifact>>();
-            Map<MavenArtifact, SecureFile> urlByKey = new HashMap<MavenArtifact, SecureFile>();
+            Map<MavenArtifact, FileWithMetadata> urlByKey = new HashMap<MavenArtifact, FileWithMetadata>();
             for (MavenArtifactAndMetadata artifact : artifacts) {
                 MavenArtifact mavenArtifact = artifact.getMavenArtifact();
                 Map<String, MavenArtifact> map = runtimeDependencies.get(mavenArtifact.getGroupId());
@@ -185,8 +185,8 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
             }
             classLoaderConfiguration = removeCycle.create(new MinimalStringParserFactory());
         } else {
-            List<SecureFile> beforeUrls = new ArrayList<SecureFile>();
-            List<SecureFile> afterUrls = new ArrayList<SecureFile>();
+            List<FileWithMetadata> beforeUrls = new ArrayList<FileWithMetadata>();
+            List<FileWithMetadata> afterUrls = new ArrayList<FileWithMetadata>();
             List<MavenArtifact> mavenArtifacts = new ArrayList<MavenArtifact>();
             JPMSClassLoaderConfiguration moduleConfiguration = JPMSClassLoaderConfiguration.EMPTY_INSTANCE;
 
@@ -210,7 +210,7 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
                     mdcIncluded = true;
                 }
                 mavenArtifacts.add(mavenArtifact);
-                List<SecureFile> urls;
+                List<FileWithMetadata> urls;
                 if (beforeParentController.isBeforeParent(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId())) {
                     urls = beforeUrls;
                     if (beforeParents == null) {

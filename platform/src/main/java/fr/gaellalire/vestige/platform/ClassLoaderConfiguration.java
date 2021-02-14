@@ -39,9 +39,9 @@ public class ClassLoaderConfiguration implements Serializable {
 
     private Serializable key;
 
-    private List<SecureFile> beforeUrls;
+    private List<FileWithMetadata> beforeUrls;
 
-    private List<SecureFile> afterUrls;
+    private List<FileWithMetadata> afterUrls;
 
     private List<ClassLoaderConfiguration> dependencies;
 
@@ -65,7 +65,7 @@ public class ClassLoaderConfiguration implements Serializable {
 
     private boolean mdcIncluded;
 
-    public ClassLoaderConfiguration(final Serializable key, final String name, final boolean attachmentScoped, final List<SecureFile> beforeUrls, final List<SecureFile> afterUrls,
+    public ClassLoaderConfiguration(final Serializable key, final String name, final boolean attachmentScoped, final List<FileWithMetadata> beforeUrls, final List<FileWithMetadata> afterUrls,
             final List<ClassLoaderConfiguration> dependencies, final List<Integer> paths, final List<List<Integer>> pathIdsList, final StringParser pathIdsPositionByResourceName,
             final StringParser pathIdsPositionByClassName, final JPMSClassLoaderConfiguration moduleConfiguration, final JPMSNamedModulesConfiguration namedModulesConfiguration,
             final boolean mdcIncluded) {
@@ -80,10 +80,10 @@ public class ClassLoaderConfiguration implements Serializable {
         this.pathIdsPositionByResourceName = pathIdsPositionByResourceName;
         this.pathIdsPositionByClassName = pathIdsPositionByClassName;
         this.permissions = new HashSet<Permission>();
-        for (SecureFile url : beforeUrls) {
+        for (FileWithMetadata url : beforeUrls) {
             this.permissions.add(new FilePermission(url.getFile().getPath(), "read"));
         }
-        for (SecureFile url : afterUrls) {
+        for (FileWithMetadata url : afterUrls) {
             this.permissions.add(new FilePermission(url.getFile().getPath(), "read"));
         }
         for (ClassLoaderConfiguration dependency : dependencies) {
@@ -114,11 +114,11 @@ public class ClassLoaderConfiguration implements Serializable {
         return name;
     }
 
-    public List<SecureFile> getBeforeUrls() {
+    public List<FileWithMetadata> getBeforeUrls() {
         return beforeUrls;
     }
 
-    public List<SecureFile> getAfterUrls() {
+    public List<FileWithMetadata> getAfterUrls() {
         return afterUrls;
     }
 
@@ -174,12 +174,12 @@ public class ClassLoaderConfiguration implements Serializable {
 
     public boolean verify() {
         boolean result = true;
-        for (SecureFile url : beforeUrls) {
+        for (FileWithMetadata url : beforeUrls) {
             if (!url.verify()) {
                 result = false;
             }
         }
-        for (SecureFile url : afterUrls) {
+        for (FileWithMetadata url : afterUrls) {
             if (!url.verify()) {
                 result = false;
             }
@@ -202,11 +202,11 @@ public class ClassLoaderConfiguration implements Serializable {
             return signature;
         }
         List<FileVerificationMetadata> beforeFiles = new ArrayList<FileVerificationMetadata>();
-        for (SecureFile url : beforeUrls) {
+        for (FileWithMetadata url : beforeUrls) {
             beforeFiles.add(new FileVerificationMetadata(url.getFile().length(), url.createSha512()));
         }
         List<FileVerificationMetadata> afterFiles = new ArrayList<FileVerificationMetadata>();
-        for (SecureFile url : afterUrls) {
+        for (FileWithMetadata url : afterUrls) {
             afterFiles.add(new FileVerificationMetadata(url.getFile().length(), url.createSha512()));
         }
         List<AttachmentVerificationMetadata> dependencySignatures = new ArrayList<AttachmentVerificationMetadata>();

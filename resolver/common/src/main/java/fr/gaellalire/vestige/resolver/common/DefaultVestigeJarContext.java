@@ -23,7 +23,7 @@ import java.util.NoSuchElementException;
 import java.util.Stack;
 
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
-import fr.gaellalire.vestige.platform.SecureFile;
+import fr.gaellalire.vestige.platform.FileWithMetadata;
 
 /**
  * @author Gael Lalire
@@ -32,9 +32,9 @@ public class DefaultVestigeJarContext {
 
     private IdentityHashMap<ClassLoaderConfiguration, Boolean> map;
 
-    private Iterator<SecureFile> beforeSecureFiles;
+    private Iterator<FileWithMetadata> beforeSecureFiles;
 
-    private Iterator<SecureFile> afterSecureFiles;
+    private Iterator<FileWithMetadata> afterSecureFiles;
 
     private Stack<Iterator<ClassLoaderConfiguration>> dependenciesStack;
 
@@ -52,7 +52,7 @@ public class DefaultVestigeJarContext {
         this.firstBeforeParent = firstBeforeParent;
     }
 
-    private SecureFile calculatedNext;
+    private FileWithMetadata calculatedNext;
 
     public boolean hasNext() {
         if (calculatedNext == null) {
@@ -64,8 +64,8 @@ public class DefaultVestigeJarContext {
         return true;
     }
 
-    public SecureFile next() {
-        SecureFile result;
+    public FileWithMetadata next() {
+        FileWithMetadata result;
         if (hasNext()) {
             result = calculatedNext;
             calculatedNext = null;
@@ -74,8 +74,8 @@ public class DefaultVestigeJarContext {
         throw new NoSuchElementException();
     }
 
-    public SecureFile calculateNext() {
-        SecureFile nextSecureFile = null;
+    public FileWithMetadata calculateNext() {
+        FileWithMetadata nextSecureFile = null;
         if (!firstBeforeParent) {
             // change the first jar
             if (afterSecureFiles.hasNext()) {

@@ -32,7 +32,7 @@ import fr.gaellalire.vestige.core.executor.VestigeWorker;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.ModuleConfiguration;
-import fr.gaellalire.vestige.platform.SecureFile;
+import fr.gaellalire.vestige.platform.FileWithMetadata;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.resolver.common.DefaultResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.job.JobHelper;
@@ -69,12 +69,12 @@ public class DefaultVestigeURLListResolver implements VestigeURLListResolver {
             public ResolvedClassLoaderConfiguration execute(final JobHelper jobHelper) throws ResolverException {
                 URLClassLoaderConfigurationKey key;
                 String name;
-                List<SecureFile> files = new ArrayList<SecureFile>();
+                List<FileWithMetadata> files = new ArrayList<FileWithMetadata>();
                 // FIXME copy url content in a dir
                 for (URL url : urls) {
                     try {
                         // FIXME url permission ??
-                        files.add(new SecureFile(new File(url.toURI()), url, null));
+                        files.add(new FileWithMetadata(new File(url.toURI()), url, null));
                     } catch (URISyntaxException e) {
                         throw new ResolverException("Unable to get URL", e);
                     }
@@ -88,7 +88,7 @@ public class DefaultVestigeURLListResolver implements VestigeURLListResolver {
                     name = configurationName;
                 }
                 return new DefaultResolvedClassLoaderConfiguration(vestigePlatform, vestigeWorker[0],
-                        new ClassLoaderConfiguration(key, name, scope == Scope.ATTACHMENT, Collections.<SecureFile> emptyList(), files,
+                        new ClassLoaderConfiguration(key, name, scope == Scope.ATTACHMENT, Collections.<FileWithMetadata> emptyList(), files,
                                 Collections.<ClassLoaderConfiguration> emptyList(), null, null, null, null, JPMSClassLoaderConfiguration.EMPTY_INSTANCE.merge(moduleConfigurations),
                                 null, false),
                         true);
