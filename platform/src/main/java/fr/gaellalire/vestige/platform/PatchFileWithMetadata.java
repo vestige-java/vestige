@@ -17,20 +17,18 @@
 
 package fr.gaellalire.vestige.platform;
 
+import java.io.File;
+import java.net.URL;
+
 /**
  * @author Gael Lalire
  */
-public class FileVerificationMetadata extends AbstractFileVerificationMetadata {
+public class PatchFileWithMetadata extends AbstractFileWithMetadata {
 
-    private PatchFileVerificationMetadata patchFileVerificationMetadata;
+    private static final long serialVersionUID = -5840475690242387050L;
 
-    public FileVerificationMetadata(final long size, final String sha512, final PatchFileVerificationMetadata patchFileVerificationMetadata) {
-        super(size, sha512);
-        this.patchFileVerificationMetadata = patchFileVerificationMetadata;
-    }
-
-    public PatchFileVerificationMetadata getPatchFileVerificationMetadata() {
-        return patchFileVerificationMetadata;
+    public PatchFileWithMetadata(final File file, final URL codeBase, final String sha1) {
+        super(file, codeBase, sha1);
     }
 
 }

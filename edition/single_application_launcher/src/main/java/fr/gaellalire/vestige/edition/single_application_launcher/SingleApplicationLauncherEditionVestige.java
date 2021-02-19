@@ -66,6 +66,7 @@ import fr.gaellalire.vestige.core.executor.VestigeExecutor;
 import fr.gaellalire.vestige.core.executor.VestigeWorker;
 import fr.gaellalire.vestige.core.function.Function;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandlerFactory;
+import fr.gaellalire.vestige.core.weak.VestigeReaper;
 import fr.gaellalire.vestige.job.DefaultJobManager;
 import fr.gaellalire.vestige.job.JobController;
 import fr.gaellalire.vestige.job.JobListener;
@@ -105,6 +106,8 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SingleApplicationLauncherEditionVestige.class);
 
+    private VestigeReaper vestigeReaper;
+
     private VestigePlatform vestigePlatform;
 
     private DefaultApplicationManager defaultApplicationManager;
@@ -137,6 +140,10 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
 
     public void setVestigeExecutor(final VestigeExecutor vestigeExecutor) {
         this.vestigeExecutor = vestigeExecutor;
+    }
+
+    public void setVestigeReaper(final VestigeReaper vestigeReaper) {
+        this.vestigeReaper = vestigeReaper;
     }
 
     public void setVestigePlatform(final VestigePlatform vestigePlatform) {
@@ -183,7 +190,13 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
                 if (jpmsAccessor != null) {
                     moduleLayerRepository = jpmsAccessor.createModuleLayerRepository();
                 }
-                vestigePlatform = new DefaultVestigePlatform(moduleLayerRepository);
+                if (vestigeReaper == null) {
+                    vestigeReaper = new VestigeReaper();
+                    Thread workerCreatorReaperThread = new Thread(vestigeReaper, "vestige-sal-reaper");
+                    workerCreatorReaperThread.setDaemon(true);
+                    workerCreatorReaperThread.start();
+                }
+                vestigePlatform = new DefaultVestigePlatform(new VestigeReaper(), moduleLayerRepository);
             }
         }
         if (trustSystemAccessor == null) {
@@ -616,6 +629,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
                     final SingleApplicationLauncherEditionVestige singleApplicationLauncherVestige = new SingleApplicationLauncherEditionVestige(configFile, dataFile, cacheFile);
                     singleApplicationLauncherVestige.setPrivilegedClassloaders(privilegedClassloaders);
                     singleApplicationLauncherVestige.setVestigeExecutor(vestigeCoreContext.getVestigeExecutor());
+                    singleApplicationLauncherVestige.setVestigeReaper(vestigeCoreContext.getVestigeReaper());
                     singleApplicationLauncherVestige.setVestigePlatform(vestigePlatform);
                     singleApplicationLauncherVestige.setVestigeSystem(vestigeSystem);
                     singleApplicationLauncherVestige.setAppURL(appURL);
@@ -666,7 +680,7 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
             moduleLayerRepository = jpmsAccessor.createModuleLayerRepository();
         }
 
-        VestigePlatform vestigePlatform = new DefaultVestigePlatform(moduleLayerRepository);
+        VestigePlatform vestigePlatform = new DefaultVestigePlatform(vestigeCoreContext.getVestigeReaper(), moduleLayerRepository);
 
         File mavenSettingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
         if (!mavenSettingsFile.isFile()) {

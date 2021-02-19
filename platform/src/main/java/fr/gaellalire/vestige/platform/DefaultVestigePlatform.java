@@ -54,12 +54,15 @@ import fr.gaellalire.vestige.core.parser.NoStateStringParser;
 import fr.gaellalire.vestige.core.parser.ResourceEncapsulationEnforcer;
 import fr.gaellalire.vestige.core.parser.StringParser;
 import fr.gaellalire.vestige.core.resource.JarFileResourceLocator;
+import fr.gaellalire.vestige.core.resource.PatchedVestigeResourceLocator;
 import fr.gaellalire.vestige.core.resource.SecureFile;
 import fr.gaellalire.vestige.core.resource.SecureFile.Mode;
 import fr.gaellalire.vestige.core.resource.SecureJarFileResourceLocator;
 import fr.gaellalire.vestige.core.resource.VestigeResourceLocator;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandler;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandlerFactory;
+import fr.gaellalire.vestige.core.weak.CloseableReaperHelper;
+import fr.gaellalire.vestige.core.weak.VestigeReaper;
 import fr.gaellalire.vestige.jpms.JPMSAccessorLoader;
 import fr.gaellalire.vestige.jpms.JPMSInRepositoryConfiguration;
 import fr.gaellalire.vestige.jpms.JPMSInRepositoryModuleLayerAccessor;
@@ -160,7 +163,10 @@ public class DefaultVestigePlatform implements VestigePlatform {
 
     private JPMSModuleLayerRepository moduleLayerRepository;
 
-    public DefaultVestigePlatform(final JPMSModuleLayerRepository moduleLayerRepository) {
+    private VestigeReaper vestigeReaper;
+
+    public DefaultVestigePlatform(final VestigeReaper vestigeReaper, final JPMSModuleLayerRepository moduleLayerRepository) {
+        this.vestigeReaper = vestigeReaper;
         this.moduleLayerRepository = moduleLayerRepository;
     }
 
@@ -391,8 +397,8 @@ public class DefaultVestigePlatform implements VestigePlatform {
         return data;
     }
 
-    public VestigeResourceLocator verifyJar(final FileWithMetadata secureFile, final FileVerificationMetadata signedFileMetadata) throws IOException {
-        if (signedFileMetadata == null) {
+    public VestigeResourceLocator verifyAbstractJar(final AbstractFileWithMetadata secureFile, final AbstractFileVerificationMetadata fileMetadata) throws IOException {
+        if (fileMetadata == null) {
             return new JarFileResourceLocator(secureFile.getFile(), secureFile.getCodeBase());
         }
         SecureFile secureJarFile = new SecureFile(secureFile.getFile(), Mode.PRIVATE_MAP);
@@ -412,10 +418,26 @@ public class DefaultVestigePlatform implements VestigePlatform {
         } finally {
             inputStream.close();
         }
-        if (!sha512.equals(signedFileMetadata.getSha512()) || sizeHolder[0] != signedFileMetadata.getSize()) {
+        vestigeReaper.addReapable(secureJarFile, new CloseableReaperHelper(secureJarFile.getCloseable()));
+
+        if (!sha512.equals(fileMetadata.getSha512()) || sizeHolder[0] != fileMetadata.getSize()) {
             throw new IOException("Detected corruption of file " + secureFile.getFile());
         }
         return new SecureJarFileResourceLocator(secureJarFile, secureFile.getCodeBase());
+    }
+
+    public VestigeResourceLocator verifyJar(final FileWithMetadata secureFile, final FileVerificationMetadata fileMetadata) throws IOException {
+        PatchFileWithMetadata patch = secureFile.getPatch();
+        if (patch != null) {
+            VestigeResourceLocator verifyJar = verifyAbstractJar(secureFile, fileMetadata);
+            PatchFileVerificationMetadata patchFileVerificationMetadata = null;
+            if (fileMetadata != null) {
+                patchFileVerificationMetadata = fileMetadata.getPatchFileVerificationMetadata();
+            }
+            VestigeResourceLocator verifyPatchJar = verifyAbstractJar(patch, patchFileVerificationMetadata);
+            return new PatchedVestigeResourceLocator(verifyJar, verifyPatchJar, false);
+        }
+        return verifyAbstractJar(secureFile, fileMetadata);
     }
 
     private AttachedVestigeClassLoader attachDependencies(final Map<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>> attachmentMap,
@@ -702,6 +724,10 @@ public class DefaultVestigePlatform implements VestigePlatform {
     @Override
     public void link(final JPMSInRepositoryModuleLayerAccessor moduleLayer, final VestigeClassLoader<AttachedVestigeClassLoader> classLoader) {
         classLoader.getData(this).setModuleLayer(moduleLayer);
+    }
+
+    public VestigeReaper getVestigeReaper() {
+        return vestigeReaper;
     }
 
     public JPMSModuleLayerRepository getModuleLayerRepository() {

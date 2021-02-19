@@ -15,22 +15,15 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.platform;
+package fr.gaellalire.vestige.resolver.maven;
+
+import org.eclipse.aether.artifact.Artifact;
 
 /**
  * @author Gael Lalire
  */
-public class FileVerificationMetadata extends AbstractFileVerificationMetadata {
+public interface ArtifactPatcher {
 
-    private PatchFileVerificationMetadata patchFileVerificationMetadata;
-
-    public FileVerificationMetadata(final long size, final String sha512, final PatchFileVerificationMetadata patchFileVerificationMetadata) {
-        super(size, sha512);
-        this.patchFileVerificationMetadata = patchFileVerificationMetadata;
-    }
-
-    public PatchFileVerificationMetadata getPatchFileVerificationMetadata() {
-        return patchFileVerificationMetadata;
-    }
+    Artifact patch(Artifact mavenArtifact);
 
 }

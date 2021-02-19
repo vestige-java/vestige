@@ -33,6 +33,7 @@ import java.util.Set;
 
 import fr.gaellalire.vestige.core.VestigeClassLoader;
 import fr.gaellalire.vestige.core.resource.VestigeResourceLocator;
+import fr.gaellalire.vestige.core.weak.VestigeReaper;
 import fr.gaellalire.vestige.jpms.JPMSInRepositoryModuleLayerAccessor;
 import fr.gaellalire.vestige.jpms.JPMSModuleLayerRepository;
 
@@ -137,9 +138,10 @@ public final class VestigePlatformConverter {
         Map<Object, JPMSInRepositoryModuleLayerAccessor> loadedModuleLayers = new IdentityHashMap<Object, JPMSInRepositoryModuleLayerAccessor>();
 
         Object oldModuleLayerRepository = oldVestigePlatform.getClass().getMethod("getModuleLayerRepository").invoke(oldVestigePlatform);
+        VestigeReaper vestigeReaper = (VestigeReaper) oldVestigePlatform.getClass().getMethod("getVestigeReaper").invoke(oldVestigePlatform);
         JPMSModuleLayerRepository moduleLayerRepository = convertModuleRepository(oldModuleLayerRepository, loadedModuleLayers);
 
-        DefaultVestigePlatform loadedVestigePlatform = new DefaultVestigePlatform(moduleLayerRepository);
+        DefaultVestigePlatform loadedVestigePlatform = new DefaultVestigePlatform(vestigeReaper, moduleLayerRepository);
 
         // fetch fields
         List<AttachedVestigeClassLoader> attached = loadedVestigePlatform.getAttached();

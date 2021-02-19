@@ -203,6 +203,7 @@
 
   <xs:complexType name="ModifyDependency">
     <xs:sequence>
+      <xs:element name="patch" type="AddDependency" minOccurs="0" />
       <xs:element name="addDependency" type="AddDependency" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
     <xs:attribute name="groupId" type="xs:string" use="required" />

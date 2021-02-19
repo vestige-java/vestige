@@ -243,12 +243,16 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
 
     public MavenContext resolveMavenConfig(final MavenConfig mavenConfig, final VestigeMavenResolver vestigeMavenResolver) {
         MavenContextBuilder mavenResolverRequestContext = vestigeMavenResolver.createMavenContextBuilder();
-
         for (Object object : mavenConfig.getModifyDependencyOrReplaceDependencyOrAdditionalRepository()) {
             if (object instanceof ModifyDependency) {
                 ModifyDependency modifyDependency = (ModifyDependency) object;
                 ModifyDependencyRequest modifyDependencyRequest = mavenResolverRequestContext.addModifyDependency(
                         SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()), SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()));
+                AddDependency patch = modifyDependency.getPatch();
+                if (patch != null) {
+                    modifyDependencyRequest.setPatch(SimpleValueGetter.INSTANCE.getValue(patch.getGroupId()), SimpleValueGetter.INSTANCE.getValue(patch.getArtifactId()),
+                            SimpleValueGetter.INSTANCE.getValue(patch.getVersion()));
+                }
                 List<AddDependency> addDependencies = modifyDependency.getAddDependency();
                 for (AddDependency addDependency : addDependencies) {
                     modifyDependencyRequest.addDependency(SimpleValueGetter.INSTANCE.getValue(addDependency.getGroupId()),

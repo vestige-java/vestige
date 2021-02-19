@@ -38,6 +38,8 @@ public class ResolveParameters {
 
     private DependencyModifier dependencyModifier;
 
+    private ArtifactPatcher artifactPatcher;
+
     private boolean superPomRepositoriesIgnored;
 
     private boolean pomRepositoriesIgnored;
@@ -114,6 +116,14 @@ public class ResolveParameters {
 
     public void setChecksumVerified(final boolean checksumVerified) {
         this.checksumVerified = checksumVerified;
+    }
+
+    public ArtifactPatcher getArtifactPatcher() {
+        return artifactPatcher;
+    }
+
+    public void setArtifactPatcher(final ArtifactPatcher artifactPatcher) {
+        this.artifactPatcher = artifactPatcher;
     }
 
 }

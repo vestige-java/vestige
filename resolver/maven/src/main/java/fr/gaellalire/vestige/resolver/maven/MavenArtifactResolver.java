@@ -83,6 +83,9 @@ import org.eclipse.aether.repository.LocalRepository;
 import org.eclipse.aether.repository.NoLocalRepositoryManagerException;
 import org.eclipse.aether.repository.Proxy;
 import org.eclipse.aether.repository.RemoteRepository;
+import org.eclipse.aether.resolution.ArtifactRequest;
+import org.eclipse.aether.resolution.ArtifactResolutionException;
+import org.eclipse.aether.resolution.ArtifactResult;
 import org.eclipse.aether.resolution.DependencyRequest;
 import org.eclipse.aether.resolution.DependencyResolutionException;
 import org.eclipse.aether.spi.connector.RepositoryConnectorFactory;
@@ -97,8 +100,10 @@ import org.slf4j.LoggerFactory;
 import fr.gaellalire.vestige.core.executor.VestigeWorker;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandler;
 import fr.gaellalire.vestige.core.url.VestigeURLStreamHandler;
+import fr.gaellalire.vestige.platform.AbstractFileWithMetadata;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.FileWithMetadata;
+import fr.gaellalire.vestige.platform.PatchFileWithMetadata;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.platform.VestigeURLStreamHandlerFactory;
 import fr.gaellalire.vestige.resolver.common.DefaultResolvedClassLoaderConfiguration;
@@ -351,7 +356,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
         try {
             FileInputStream inputStream = new FileInputStream(file);
             try {
-                String createChecksum = FileWithMetadata.createChecksum(inputStream, Collections.singletonList("SHA-1"), null).get(0);
+                String createChecksum = AbstractFileWithMetadata.createChecksum(inputStream, Collections.singletonList("SHA-1"), null).get(0);
                 if (!sha1.equals(createChecksum)) {
                     if (!firstTry) {
                         throw new ResolverException("SHA-1 did not match for " + artifact + ". Expected " + sha1 + " got " + createChecksum);
@@ -384,6 +389,8 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
     };
 
     public DefaultResolvedMavenArtifact resolve(final ResolveParameters resolveRequest, final JobHelper actionHelper) throws ResolverException {
+
+        ArtifactPatcher artifactPatcher = resolveRequest.getArtifactPatcher();
 
         Dependency dependency = new Dependency(
                 new DefaultArtifact(resolveRequest.getGroupId(), resolveRequest.getArtifactId(), resolveRequest.getExtension(), resolveRequest.getVersion()), "runtime");
@@ -457,11 +464,42 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
                         continue;
                     }
                 }
-                MavenArtifact mavenArtifact = new MavenArtifact(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion(), artifact.getExtension());
+
+                MavenArtifact mavenArtifactPatch = null;
+
+                PatchFileWithMetadata patchFileWithMetadata = null;
+                if (artifactPatcher != null) {
+                    Artifact patch = artifactPatcher.patch(artifact);
+                    if (patch != null) {
+                        ArtifactResult resolveArtifact;
+                        try {
+                            resolveArtifact = repoSystem.resolveArtifact(session, new ArtifactRequest(patch, collectRequest.getRepositories(), null));
+                        } catch (ArtifactResolutionException e) {
+                            throw new ResolverException("Patch resolving failed" + logAppend, e);
+                        }
+
+                        String sha1Patch = null;
+                        if (resolveRequest.isChecksumVerified()) {
+                            sha1Patch = getSha1(patch, firstTry);
+                        }
+
+                        mavenArtifactPatch = new MavenArtifact(patch.getGroupId(), patch.getArtifactId(), patch.getVersion(), patch.getExtension(), null);
+
+                        try {
+                            patchFileWithMetadata = new PatchFileWithMetadata(resolveArtifact.getArtifact().getFile(), new URL(mavenArtifactPatch.toString()), sha1Patch);
+                        } catch (MalformedURLException e) {
+                            throw new ResolverException("Unable to create Maven URL" + logAppend, e);
+                        }
+                    }
+                }
+
+                MavenArtifact mavenArtifact = new MavenArtifact(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion(), artifact.getExtension(),
+                        mavenArtifactPatch);
+
                 File file = artifact.getFile();
                 FileWithMetadata secureFile;
                 try {
-                    secureFile = new FileWithMetadata(file, new URL(mavenArtifact.toString()), sha1);
+                    secureFile = new FileWithMetadata(file, new URL(mavenArtifact.toString()), sha1, patchFileWithMetadata);
                 } catch (MalformedURLException e) {
                     throw new ResolverException("Unable to create Maven URL" + logAppend, e);
                 }

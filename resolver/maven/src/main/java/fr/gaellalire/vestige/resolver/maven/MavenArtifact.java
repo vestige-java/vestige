@@ -38,15 +38,18 @@ public class MavenArtifact implements Serializable {
 
     private boolean virtual;
 
+    private MavenArtifact patch;
+
     public MavenArtifact() {
         virtual = true;
     }
 
-    public MavenArtifact(final String groupId, final String artifactId, final String version, final String extension) {
+    public MavenArtifact(final String groupId, final String artifactId, final String version, final String extension, final MavenArtifact patch) {
         this.groupId = groupId;
         this.artifactId = artifactId;
         this.version = version;
         this.extension = extension;
+        this.patch = patch;
         if (version == null) {
             hashCode = groupId.hashCode() + artifactId.hashCode();
         } else {
@@ -114,6 +117,13 @@ public class MavenArtifact implements Serializable {
         } else if (!extension.equals(other.extension)) {
             return false;
         }
+        if (patch == null) {
+            if (other.patch != null) {
+                return false;
+            }
+        } else if (!patch.equals(other.patch)) {
+            return false;
+        }
         return true;
     }
 
@@ -122,10 +132,14 @@ public class MavenArtifact implements Serializable {
         if (virtual) {
             return "virtual";
         }
-        if (!"jar".equals(extension)) {
-            return "mvn:" + groupId + "/" + artifactId + "/" + version + "/" + extension;
+        String append = "";
+        if (patch != null) {
+            append = " (" + patch.toString() + ")";
         }
-        return "mvn:" + groupId + "/" + artifactId + "/" + version;
+        if (!"jar".equals(extension)) {
+            return "mvn:" + groupId + "/" + artifactId + "/" + version + "/" + extension + append;
+        }
+        return "mvn:" + groupId + "/" + artifactId + "/" + version + append;
     }
 
 }

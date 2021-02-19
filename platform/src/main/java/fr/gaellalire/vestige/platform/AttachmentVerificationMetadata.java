@@ -36,6 +36,8 @@ public class AttachmentVerificationMetadata {
 
     public static final String FILE_TERMINATOR = ";";
 
+    public static final String PATCH_SEPARATOR = "!";
+
     public static final String SIGNATURE_REFERENCE = "@";
 
     public static final String ATTACHMENT_TERMINATOR = "$";
@@ -65,6 +67,12 @@ public class AttachmentVerificationMetadata {
         return dependencySignatures;
     }
 
+    public void append(final AbstractFileVerificationMetadata abstractFileVerificationMetadata, final StringBuilder stringBuilder) {
+        stringBuilder.append(abstractFileVerificationMetadata.getSize());
+        stringBuilder.append(METADATA_SEPARATOR);
+        stringBuilder.append(abstractFileVerificationMetadata.getSha512());
+    }
+
     public void append(final int depth, final List<AttachmentVerificationMetadata> verificationMetadatas, final StringBuilder stringBuilder) {
         int indexOf = verificationMetadatas.indexOf(this);
         for (int i = 0; i < depth; i++) {
@@ -78,16 +86,22 @@ public class AttachmentVerificationMetadata {
         } else {
             verificationMetadatas.add(this);
             for (FileVerificationMetadata url : beforeFiles) {
-                stringBuilder.append(url.getSize());
-                stringBuilder.append(METADATA_SEPARATOR);
-                stringBuilder.append(url.getSha512());
+                append(url, stringBuilder);
+                PatchFileVerificationMetadata patchFileVerificationMetadata = url.getPatchFileVerificationMetadata();
+                if (patchFileVerificationMetadata != null) {
+                    stringBuilder.append(PATCH_SEPARATOR);
+                    append(patchFileVerificationMetadata, stringBuilder);
+                }
                 stringBuilder.append(FILE_TERMINATOR);
             }
             stringBuilder.append(FILE_LIST_TERMINATOR);
             for (FileVerificationMetadata url : afterFiles) {
-                stringBuilder.append(url.getSize());
-                stringBuilder.append(METADATA_SEPARATOR);
-                stringBuilder.append(url.getSha512());
+                append(url, stringBuilder);
+                PatchFileVerificationMetadata patchFileVerificationMetadata = url.getPatchFileVerificationMetadata();
+                if (patchFileVerificationMetadata != null) {
+                    stringBuilder.append(PATCH_SEPARATOR);
+                    append(patchFileVerificationMetadata, stringBuilder);
+                }
                 stringBuilder.append(FILE_TERMINATOR);
             }
             stringBuilder.append(SIGNATURE_TERMINATOR);
@@ -102,6 +116,26 @@ public class AttachmentVerificationMetadata {
         append(0, new ArrayList<AttachmentVerificationMetadata>(), stringBuilder);
         stringBuilder.append(ATTACHMENT_TERMINATOR);
         return stringBuilder.toString();
+    }
+
+    public static void parseFileVerificationMetadataList(final String s, final List<FileVerificationMetadata> fileVerificationMetadatas) {
+        for (String beforeFile : s.split(FILE_TERMINATOR)) {
+            if (beforeFile.length() == 0) {
+                continue;
+            }
+            String[] split = beforeFile.split(PATCH_SEPARATOR);
+            PatchFileVerificationMetadata patchFileVerificationMetadata = null;
+            if (split.length > 1) {
+                String patchMetadataString = split[1];
+                int separatorIndex = patchMetadataString.indexOf(METADATA_SEPARATOR);
+                patchFileVerificationMetadata = new PatchFileVerificationMetadata(Long.parseLong(patchMetadataString.substring(0, separatorIndex)),
+                        patchMetadataString.substring(separatorIndex + 1));
+            }
+            String fileMetadataString = split[0];
+            int separatorIndex = fileMetadataString.indexOf(METADATA_SEPARATOR);
+            fileVerificationMetadatas.add(new FileVerificationMetadata(Long.parseLong(fileMetadataString.substring(0, separatorIndex)),
+                    fileMetadataString.substring(separatorIndex + 1), patchFileVerificationMetadata));
+        }
     }
 
     public static AttachmentVerificationMetadata fromString(final String s) {
@@ -129,22 +163,9 @@ public class AttachmentVerificationMetadata {
                     List<FileVerificationMetadata> currentBeforeFiles = new ArrayList<FileVerificationMetadata>();
                     List<FileVerificationMetadata> currentAfterFiles = new ArrayList<FileVerificationMetadata>();
                     String[] split = readLine.split(FILE_LIST_TERMINATOR);
-                    String before = split[0];
-                    for (String beforeFile : before.split(FILE_TERMINATOR)) {
-                        if (beforeFile.length() == 0) {
-                            continue;
-                        }
-                        int separatorIndex = beforeFile.indexOf(METADATA_SEPARATOR);
-                        currentBeforeFiles.add(new FileVerificationMetadata(Long.parseLong(beforeFile.substring(0, separatorIndex)), beforeFile.substring(separatorIndex + 1)));
-                    }
-                    String after = split[1];
-                    for (String afterFile : after.split(FILE_TERMINATOR)) {
-                        if (afterFile.length() == 0) {
-                            continue;
-                        }
-                        int separatorIndex = afterFile.indexOf(METADATA_SEPARATOR);
-                        currentAfterFiles.add(new FileVerificationMetadata(Long.parseLong(afterFile.substring(0, separatorIndex)), afterFile.substring(separatorIndex + 1)));
-                    }
+                    parseFileVerificationMetadataList(split[0], currentBeforeFiles);
+                    parseFileVerificationMetadataList(split[1], currentAfterFiles);
+
                     List<AttachmentVerificationMetadata> currentDependencySignatures = new ArrayList<AttachmentVerificationMetadata>();
                     if (previousLevel == currentLevel) {
                         dependenciesByLevel.set(currentLevel, currentDependencySignatures);

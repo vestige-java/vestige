@@ -32,13 +32,15 @@ import org.eclipse.aether.impl.DependencyModifier;
 /**
  * @author Gael Lalire
  */
-public class DefaultDependencyModifier implements BeforeParentController, DependencyModifier {
+public class DefaultDependencyModifier implements BeforeParentController, DependencyModifier, ArtifactPatcher {
 
     private Map<String, Map<String, ReplacementRule>> replacementRules = new HashMap<String, Map<String, ReplacementRule>>();
 
     private Map<String, Map<String, List<Dependency>>> addRules = new HashMap<String, Map<String, List<Dependency>>>();
 
     private Map<String, Map<String, List<MavenArtifactKey>>> removeRules = new HashMap<String, Map<String, List<MavenArtifactKey>>>();
+
+    private Map<String, Map<String, Artifact>> patches = new HashMap<String, Map<String, Artifact>>();
 
     private Map<String, Set<String>> beforeParents = new HashMap<String, Set<String>>();
 
@@ -145,6 +147,24 @@ public class DefaultDependencyModifier implements BeforeParentController, Depend
             }
         }
         return children;
+    }
+
+    public void setPatch(final String groupId, final String artifactId, final Artifact patch) {
+        Map<String, Artifact> map = patches.get(groupId);
+        if (map == null) {
+            map = new HashMap<String, Artifact>();
+            patches.put(groupId, map);
+        }
+        map.put(artifactId, patch);
+    }
+
+    @Override
+    public Artifact patch(final Artifact mavenArtifact) {
+        Map<String, Artifact> map = patches.get(mavenArtifact.getGroupId());
+        if (map == null) {
+            return null;
+        }
+        return map.get(mavenArtifact.getArtifactId());
     }
 
 }

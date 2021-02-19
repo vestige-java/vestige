@@ -65,10 +65,10 @@ public class ClassLoaderConfiguration implements Serializable {
 
     private boolean mdcIncluded;
 
-    public ClassLoaderConfiguration(final Serializable key, final String name, final boolean attachmentScoped, final List<FileWithMetadata> beforeUrls, final List<FileWithMetadata> afterUrls,
-            final List<ClassLoaderConfiguration> dependencies, final List<Integer> paths, final List<List<Integer>> pathIdsList, final StringParser pathIdsPositionByResourceName,
-            final StringParser pathIdsPositionByClassName, final JPMSClassLoaderConfiguration moduleConfiguration, final JPMSNamedModulesConfiguration namedModulesConfiguration,
-            final boolean mdcIncluded) {
+    public ClassLoaderConfiguration(final Serializable key, final String name, final boolean attachmentScoped, final List<FileWithMetadata> beforeUrls,
+            final List<FileWithMetadata> afterUrls, final List<ClassLoaderConfiguration> dependencies, final List<Integer> paths, final List<List<Integer>> pathIdsList,
+            final StringParser pathIdsPositionByResourceName, final StringParser pathIdsPositionByClassName, final JPMSClassLoaderConfiguration moduleConfiguration,
+            final JPMSNamedModulesConfiguration namedModulesConfiguration, final boolean mdcIncluded) {
         this.key = key;
         this.name = name;
         this.attachmentScoped = attachmentScoped;
@@ -196,30 +196,40 @@ public class ClassLoaderConfiguration implements Serializable {
         return mdcIncluded;
     }
 
-    public AttachmentVerificationMetadata createSignature(final Map<ClassLoaderConfiguration, AttachmentVerificationMetadata> signatureByClassLoaderConfigurations) throws IOException {
-        AttachmentVerificationMetadata signature = signatureByClassLoaderConfigurations.get(this);
-        if (signature != null) {
-            return signature;
+    public FileVerificationMetadata createFileVerificationMetadata(final FileWithMetadata fileWithMetadata) throws IOException {
+        PatchFileWithMetadata patch = fileWithMetadata.getPatch();
+        PatchFileVerificationMetadata patchFileVerificationMetadata = null;
+        if (patch != null) {
+            patchFileVerificationMetadata = new PatchFileVerificationMetadata(patch.getFile().length(), patch.createSha512());
+        }
+        return new FileVerificationMetadata(fileWithMetadata.getFile().length(), fileWithMetadata.createSha512(), patchFileVerificationMetadata);
+    }
+
+    public AttachmentVerificationMetadata createVerificationMetadata(final Map<ClassLoaderConfiguration, AttachmentVerificationMetadata> verificationMetadataByClassLoaderConfigurations)
+            throws IOException {
+        AttachmentVerificationMetadata verificationMetadata = verificationMetadataByClassLoaderConfigurations.get(this);
+        if (verificationMetadata != null) {
+            return verificationMetadata;
         }
         List<FileVerificationMetadata> beforeFiles = new ArrayList<FileVerificationMetadata>();
         for (FileWithMetadata url : beforeUrls) {
-            beforeFiles.add(new FileVerificationMetadata(url.getFile().length(), url.createSha512()));
+            beforeFiles.add(createFileVerificationMetadata(url));
         }
         List<FileVerificationMetadata> afterFiles = new ArrayList<FileVerificationMetadata>();
         for (FileWithMetadata url : afterUrls) {
-            afterFiles.add(new FileVerificationMetadata(url.getFile().length(), url.createSha512()));
+            afterFiles.add(createFileVerificationMetadata(url));
         }
-        List<AttachmentVerificationMetadata> dependencySignatures = new ArrayList<AttachmentVerificationMetadata>();
+        List<AttachmentVerificationMetadata> dependencyVerificationMetadatas = new ArrayList<AttachmentVerificationMetadata>();
         for (ClassLoaderConfiguration dependency : dependencies) {
-            dependencySignatures.add(dependency.createSignature(signatureByClassLoaderConfigurations));
+            dependencyVerificationMetadatas.add(dependency.createVerificationMetadata(verificationMetadataByClassLoaderConfigurations));
         }
-        signature = new AttachmentVerificationMetadata(dependencySignatures, beforeFiles, afterFiles);
-        signatureByClassLoaderConfigurations.put(this, signature);
-        return signature;
+        verificationMetadata = new AttachmentVerificationMetadata(dependencyVerificationMetadatas, beforeFiles, afterFiles);
+        verificationMetadataByClassLoaderConfigurations.put(this, verificationMetadata);
+        return verificationMetadata;
     }
 
-    public AttachmentVerificationMetadata createSignature() throws IOException {
-        return createSignature(new HashMap<ClassLoaderConfiguration, AttachmentVerificationMetadata>());
+    public AttachmentVerificationMetadata createVerificationMetadata() throws IOException {
+        return createVerificationMetadata(new HashMap<ClassLoaderConfiguration, AttachmentVerificationMetadata>());
     }
 
 }

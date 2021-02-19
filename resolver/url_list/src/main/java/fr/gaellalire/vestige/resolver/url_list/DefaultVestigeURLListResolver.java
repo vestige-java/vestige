@@ -30,9 +30,9 @@ import java.util.List;
 
 import fr.gaellalire.vestige.core.executor.VestigeWorker;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
+import fr.gaellalire.vestige.platform.FileWithMetadata;
 import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.ModuleConfiguration;
-import fr.gaellalire.vestige.platform.FileWithMetadata;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.resolver.common.DefaultResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.job.JobHelper;
@@ -74,7 +74,7 @@ public class DefaultVestigeURLListResolver implements VestigeURLListResolver {
                 for (URL url : urls) {
                     try {
                         // FIXME url permission ??
-                        files.add(new FileWithMetadata(new File(url.toURI()), url, null));
+                        files.add(new FileWithMetadata(new File(url.toURI()), url, null, null));
                     } catch (URISyntaxException e) {
                         throw new ResolverException("Unable to get URL", e);
                     }

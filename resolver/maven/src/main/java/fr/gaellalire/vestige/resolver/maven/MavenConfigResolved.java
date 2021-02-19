@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.aether.artifact.Artifact;
 import org.eclipse.aether.artifact.DefaultArtifact;
 import org.eclipse.aether.graph.Dependency;
 
@@ -95,6 +96,12 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
 
             private List<MavenArtifactKey> removedDependencies = new ArrayList<MavenArtifactKey>();
 
+            private Artifact patch;
+
+            public void setPatch(final String groupId, final String artifactId, final String version) {
+                patch = new DefaultArtifact(groupId, artifactId, "jar", version);
+            }
+
             @Override
             public void addDependency(final String groupId, final String artifactId, final String version) {
                 addDependency(groupId, artifactId, version, "jar");
@@ -103,6 +110,7 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
             @Override
             public void execute() {
                 checkBuild();
+                defaultDependencyModifier.setPatch(groupId, artifactId, patch);
                 defaultDependencyModifier.add(groupId, artifactId, dependencies);
                 defaultDependencyModifier.remove(groupId, artifactId, removedDependencies);
             }
@@ -194,6 +202,7 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
                 resolveRequest.setSuperPomRepositoriesIgnored(superPomRepositoriesIgnored);
                 resolveRequest.setPomRepositoriesIgnored(pomRepositoriesIgnored);
                 resolveRequest.setExtension(extension);
+                resolveRequest.setArtifactPatcher(defaultDependencyModifier);
 
                 return mavenArtifactResolver.resolve(resolveRequest, jobHelper);
             }

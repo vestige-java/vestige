@@ -26,10 +26,10 @@ import java.util.Map;
 import org.eclipse.aether.artifact.Artifact;
 
 import fr.gaellalire.vestige.jpms.NamedModuleUtils;
+import fr.gaellalire.vestige.platform.FileWithMetadata;
 import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
 import fr.gaellalire.vestige.platform.ModuleConfiguration;
-import fr.gaellalire.vestige.platform.FileWithMetadata;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.Scope;
 

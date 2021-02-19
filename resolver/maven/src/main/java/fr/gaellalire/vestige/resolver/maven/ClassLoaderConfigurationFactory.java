@@ -44,8 +44,8 @@ import fr.gaellalire.vestige.jpms.NamedModuleUtils;
 import fr.gaellalire.vestige.platform.AddAccessibility;
 import fr.gaellalire.vestige.platform.AddReads;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
-import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
 import fr.gaellalire.vestige.platform.FileWithMetadata;
+import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
 import fr.gaellalire.vestige.platform.StringParserFactory;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.Scope;
@@ -182,8 +182,8 @@ public class ClassLoaderConfigurationFactory {
     }
 
     public ClassLoaderConfigurationFactory(final String appName, final MavenClassLoaderConfigurationKey classLoaderConfigurationKey, final Scope scope,
-            final List<FileWithMetadata> beforeUrls, final List<FileWithMetadata> afterUrls, final List<ClassLoaderConfigurationFactory> dependencies, final boolean encapsulationActivated)
-            throws ResolverException {
+            final List<FileWithMetadata> beforeUrls, final List<FileWithMetadata> afterUrls, final List<ClassLoaderConfigurationFactory> dependencies,
+            final boolean encapsulationActivated) throws ResolverException {
         TreeMap<String, List<Integer>> pathsByResourceName = new TreeMap<String, List<Integer>>();
         TreeMap<String, List<Integer>> exportedPathsByResourceName = null;
         TreeMap<String, List<Integer>> exportedPathsByClassName = null;

@@ -159,7 +159,7 @@ public class MicroEditionVestige {
             System.setProperties(vestigeProperties);
 
             VestigeExecutor vestigeExecutor = new VestigeExecutor();
-            VestigePlatform vestigePlatform = new DefaultVestigePlatform(null);
+            VestigePlatform vestigePlatform = new DefaultVestigePlatform(null, null);
             File baseFile = new File(args[0]);
             File dataFile = new File(args[1]);
             if (!baseFile.isDirectory()) {

@@ -129,13 +129,13 @@ public class DefaultResolvedClassLoaderConfiguration implements ResolvedClassLoa
 
     @Override
     public String createVerificationMetadata() throws ResolverException {
-        String signature;
+        String verificationMetadata;
         try {
-            signature = /* sign with key */ classLoaderConfiguration.createSignature().toString();
+            verificationMetadata = classLoaderConfiguration.createVerificationMetadata().toString();
         } catch (IOException e) {
             throw new ResolverException(e);
         }
-        return signature;
+        return verificationMetadata;
     }
 
 }

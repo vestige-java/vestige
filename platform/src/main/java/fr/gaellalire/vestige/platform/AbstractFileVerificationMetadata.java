@@ -20,17 +20,23 @@ package fr.gaellalire.vestige.platform;
 /**
  * @author Gael Lalire
  */
-public class FileVerificationMetadata extends AbstractFileVerificationMetadata {
+public abstract class AbstractFileVerificationMetadata {
 
-    private PatchFileVerificationMetadata patchFileVerificationMetadata;
+    private long size;
 
-    public FileVerificationMetadata(final long size, final String sha512, final PatchFileVerificationMetadata patchFileVerificationMetadata) {
-        super(size, sha512);
-        this.patchFileVerificationMetadata = patchFileVerificationMetadata;
+    private String sha512;
+
+    public AbstractFileVerificationMetadata(final long size, final String sha512) {
+        this.size = size;
+        this.sha512 = sha512;
     }
 
-    public PatchFileVerificationMetadata getPatchFileVerificationMetadata() {
-        return patchFileVerificationMetadata;
+    public long getSize() {
+        return size;
+    }
+
+    public String getSha512() {
+        return sha512;
     }
 
 }

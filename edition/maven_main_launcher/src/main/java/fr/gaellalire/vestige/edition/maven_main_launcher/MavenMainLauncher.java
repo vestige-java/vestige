@@ -216,7 +216,7 @@ public final class MavenMainLauncher {
             final List<? extends ClassLoader> privilegedClassloaders, final JPMSModuleLayerRepository repository, final String[] dargs) throws Exception {
         VestigeExecutor vestigeExecutor = vestigeCoreContext.getVestigeExecutor();
         VestigeWorker vestigeWorker = vestigeExecutor.createWorker("resolver-maven-worker", true, 0);
-        VestigePlatform vestigePlatform = new DefaultVestigePlatform(repository);
+        VestigePlatform vestigePlatform = new DefaultVestigePlatform(vestigeCoreContext.getVestigeReaper(), repository);
         // if (JPMSAccessorLoader.INSTANCE != null) {
         // JPMSAccessorLoader.INSTANCE.getModule(VestigePlatform.class).addOpens("fr.gaellalire.vestige.platform", MavenMainLauncher.class);
         // }
