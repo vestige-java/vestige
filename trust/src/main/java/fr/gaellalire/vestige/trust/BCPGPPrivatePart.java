@@ -26,6 +26,7 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.ListIterator;
 
 import org.bouncycastle.bcpg.HashAlgorithmTags;
 import org.bouncycastle.gpg.SExprParser;
@@ -38,13 +39,17 @@ import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyEncryptedData;
 import org.bouncycastle.openpgp.PGPSecretKey;
+import org.bouncycastle.openpgp.PGPSecretKeyRing;
+import org.bouncycastle.openpgp.PGPSecretKeyRingCollection;
 import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureGenerator;
+import org.bouncycastle.openpgp.PGPUtil;
 import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator;
 import org.bouncycastle.openpgp.operator.bc.BcPBESecretKeyDecryptorBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPGPDigestCalculatorProvider;
 import org.bouncycastle.openpgp.operator.bc.BcPublicKeyDataDecryptorFactory;
+import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,33 +70,125 @@ public class BCPGPPrivatePart implements PGPPrivatePart {
 
     private BCPGPPublicPart bcpgpPublicPart;
 
-    private List<PGPPrivateKey> encryptPrivateKeys = new ArrayList<PGPPrivateKey>();
+    private List<PGPPrivateKey> signPrivateKeys;
 
-    private List<PGPPrivateKey> signPrivateKeys = new ArrayList<PGPPrivateKey>();
+    private List<PGPPrivateKey> encryptPrivateKeys;
 
-    public BCPGPPrivatePart(final BCPGPPublicPart bcpgpPublicPart) throws TrustException {
-        this.bcpgpPublicPart = bcpgpPublicPart;
-
-        if (USER_SECRET_KEY_DIR.isDirectory()) {
-
-            try {
+    public static BCPGPPrivatePart findBCPGPPrivatePart(final BCPGPPublicPart bcpgpPublicPart) throws TrustException {
+        try {
+            List<PGPPrivateKey> encryptPrivateKeys = new ArrayList<PGPPrivateKey>();
+            List<PGPPrivateKey> signPrivateKeys = new ArrayList<PGPPrivateKey>();
+            List<String> missingEncryptKeys = new ArrayList<String>();
+            List<String> missingSignKeys = new ArrayList<String>();
+            if (USER_SECRET_KEY_DIR.isDirectory()) {
                 for (PGPPublicKey pgpPublicKey : bcpgpPublicPart.getEncryptKeys()) {
-                    PGPSecretKey parseSecretKey = new SExprParser(new BcPGPDigestCalculatorProvider()).parseSecretKey(
-                            new BufferedInputStream(new FileInputStream(new File(USER_SECRET_KEY_DIR, TrustUtils.bytesToHex(KeyGrip.getKeyGrip(pgpPublicKey)).concat(".key")))),
-                            null, pgpPublicKey);
-                    encryptPrivateKeys.add(parseSecretKey.extractPrivateKey(new BcPBESecretKeyDecryptorBuilder(new BcPGPDigestCalculatorProvider()).build(null)));
+                    File file = new File(USER_SECRET_KEY_DIR, TrustUtils.bytesToHex(KeyGrip.getKeyGrip(pgpPublicKey)).concat(".key"));
+                    if (file.isFile()) {
+                        BufferedInputStream inputStream = new BufferedInputStream(new FileInputStream(file));
+                        try {
+                            PGPSecretKey parseSecretKey = new SExprParser(new BcPGPDigestCalculatorProvider()).parseSecretKey(inputStream, null, pgpPublicKey);
+                            encryptPrivateKeys.add(parseSecretKey.extractPrivateKey(new BcPBESecretKeyDecryptorBuilder(new BcPGPDigestCalculatorProvider()).build(null)));
+                        } finally {
+                            inputStream.close();
+                        }
+                    } else {
+                        encryptPrivateKeys.add(null);
+                        missingEncryptKeys.add(Hex.toHexString(pgpPublicKey.getFingerprint()).toUpperCase());
+                    }
                 }
                 for (PGPPublicKey pgpPublicKey : bcpgpPublicPart.getSignKeys()) {
-                    PGPSecretKey parseSecretKey = new SExprParser(new BcPGPDigestCalculatorProvider()).parseSecretKey(
-                            new BufferedInputStream(new FileInputStream(new File(USER_SECRET_KEY_DIR, TrustUtils.bytesToHex(KeyGrip.getKeyGrip(pgpPublicKey)).concat(".key")))),
-                            null, pgpPublicKey);
-                    signPrivateKeys.add(parseSecretKey.extractPrivateKey(new BcPBESecretKeyDecryptorBuilder(new BcPGPDigestCalculatorProvider()).build(null)));
+                    File file = new File(USER_SECRET_KEY_DIR, TrustUtils.bytesToHex(KeyGrip.getKeyGrip(pgpPublicKey)).concat(".key"));
+                    if (file.isFile()) {
+                        BufferedInputStream inputStream = new BufferedInputStream(new FileInputStream(file));
+                        try {
+                            PGPSecretKey parseSecretKey = new SExprParser(new BcPGPDigestCalculatorProvider()).parseSecretKey(inputStream, null, pgpPublicKey);
+                            signPrivateKeys.add(parseSecretKey.extractPrivateKey(new BcPBESecretKeyDecryptorBuilder(new BcPGPDigestCalculatorProvider()).build(null)));
+                        } finally {
+                            inputStream.close();
+                        }
+                    } else {
+                        signPrivateKeys.add(null);
+                        missingSignKeys.add(Hex.toHexString(pgpPublicKey.getFingerprint()).toUpperCase());
+                    }
                 }
-            } catch (Exception e) {
-                throw new TrustException(e);
+            } else {
+                for (PGPPublicKey pgpPublicKey : bcpgpPublicPart.getEncryptKeys()) {
+                    encryptPrivateKeys.add(null);
+                    missingEncryptKeys.add(Hex.toHexString(pgpPublicKey.getFingerprint()).toUpperCase());
+                }
+                for (PGPPublicKey pgpPublicKey : bcpgpPublicPart.getSignKeys()) {
+                    signPrivateKeys.add(null);
+                    missingSignKeys.add(Hex.toHexString(pgpPublicKey.getFingerprint()).toUpperCase());
+                }
             }
+            if ((missingEncryptKeys.size() != 0 || missingSignKeys.size() != 0) && USER_PGP_LEGACY_SECRING_FILE.isFile()) {
+                BufferedInputStream in = new BufferedInputStream(new FileInputStream(USER_PGP_LEGACY_SECRING_FILE));
+                try {
+                    PGPSecretKeyRingCollection pgpSec = new PGPSecretKeyRingCollection(PGPUtil.getDecoderStream(in), new BcKeyFingerprintCalculator());
 
+                    Iterator<PGPSecretKeyRing> keyrings = pgpSec.getKeyRings();
+                    while (keyrings.hasNext()) {
+                        PGPSecretKeyRing keyRing = keyrings.next();
+                        Iterator<PGPSecretKey> keys = keyRing.getSecretKeys();
+                        while (keys.hasNext()) {
+                            PGPSecretKey key = keys.next();
+                            String fingerprint = Hex.toHexString(key.getPublicKey().getFingerprint()).toUpperCase();
+                            int indexOf = missingEncryptKeys.indexOf(fingerprint);
+                            if (indexOf != -1) {
+                                ListIterator<PGPPrivateKey> pgpPrivateKeyIterator = encryptPrivateKeys.listIterator();
+                                int i = indexOf;
+                                while (pgpPrivateKeyIterator.hasNext()) {
+                                    if (pgpPrivateKeyIterator.next() == null) {
+                                        if (i == 0) {
+                                            pgpPrivateKeyIterator.set(key.extractPrivateKey(new BcPBESecretKeyDecryptorBuilder(new BcPGPDigestCalculatorProvider()).build(null)));
+                                            missingEncryptKeys.remove(indexOf);
+                                            break;
+                                        }
+                                        i--;
+                                    }
+                                }
+
+                            }
+                            indexOf = missingSignKeys.indexOf(fingerprint);
+                            if (indexOf != -1) {
+                                ListIterator<PGPPrivateKey> pgpPrivateKeyIterator = signPrivateKeys.listIterator();
+                                int i = indexOf;
+                                while (pgpPrivateKeyIterator.hasNext()) {
+                                    if (pgpPrivateKeyIterator.next() == null) {
+                                        if (i == 0) {
+                                            pgpPrivateKeyIterator.set(key.extractPrivateKey(new BcPBESecretKeyDecryptorBuilder(new BcPGPDigestCalculatorProvider()).build(null)));
+                                            missingSignKeys.remove(indexOf);
+                                            break;
+                                        }
+                                        i--;
+                                    }
+                                }
+
+                            }
+                        }
+                    }
+                } finally {
+                    in.close();
+                }
+
+            }
+            if (missingEncryptKeys.size() != encryptPrivateKeys.size() || missingSignKeys.size() != signPrivateKeys.size()) {
+                // found at least one private key ...
+                return new BCPGPPrivatePart(bcpgpPublicPart, signPrivateKeys, encryptPrivateKeys);
+            }
+            return null;
+        } catch (PGPException e) {
+            throw new TrustException(e);
+        } catch (IOException e) {
+            throw new TrustException(e);
         }
+
+    }
+
+    public BCPGPPrivatePart(final BCPGPPublicPart bcpgpPublicPart, final List<PGPPrivateKey> signPrivateKeys, final List<PGPPrivateKey> encryptPrivateKeys) throws TrustException {
+        this.bcpgpPublicPart = bcpgpPublicPart;
+        this.signPrivateKeys = signPrivateKeys;
+        this.encryptPrivateKeys = encryptPrivateKeys;
     }
 
     @Override

@@ -17,29 +17,43 @@
 
 package fr.gaellalire.vestige.trust;
 
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 
 import org.bouncycastle.bcpg.HashAlgorithmTags;
+import org.bouncycastle.gpg.keybox.KeyBlob;
+import org.bouncycastle.gpg.keybox.KeyInformation;
+import org.bouncycastle.gpg.keybox.PublicKeyRingBlob;
+import org.bouncycastle.gpg.keybox.bc.BcKeyBox;
 import org.bouncycastle.openpgp.PGPCompressedData;
 import org.bouncycastle.openpgp.PGPCompressedDataGenerator;
 import org.bouncycastle.openpgp.PGPEncryptedData;
 import org.bouncycastle.openpgp.PGPEncryptedDataGenerator;
 import org.bouncycastle.openpgp.PGPException;
+import org.bouncycastle.openpgp.PGPKeyFlags;
 import org.bouncycastle.openpgp.PGPLiteralData;
 import org.bouncycastle.openpgp.PGPLiteralDataGenerator;
 import org.bouncycastle.openpgp.PGPObjectFactory;
 import org.bouncycastle.openpgp.PGPPublicKey;
+import org.bouncycastle.openpgp.PGPPublicKeyRing;
+import org.bouncycastle.openpgp.PGPPublicKeyRingCollection;
 import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureList;
+import org.bouncycastle.openpgp.PGPSignatureSubpacketVector;
 import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
 import org.bouncycastle.openpgp.operator.bc.BcPGPDataEncryptorBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPublicKeyKeyEncryptionMethodGenerator;
+import org.bouncycastle.util.encoders.Hex;
 
 import fr.gaellalire.vestige.spi.trust.PGPPublicPart;
 import fr.gaellalire.vestige.spi.trust.TrustException;
@@ -49,11 +63,119 @@ import fr.gaellalire.vestige.spi.trust.TrustException;
  */
 public class BCPGPPublicPart implements PGPPublicPart {
 
+    public static final File USER_KEYBOX_PATH = new File(BCPGPTrustSystem.GPG_DIRECTORY, "pubring.kbx");
+
+    public static final File USER_PGP_PUBRING_FILE = new File(BCPGPTrustSystem.GPG_DIRECTORY, "pubring.gpg");
+
     private List<PGPPublicKey> signKeys;
 
     private List<PGPPublicKey> encryptKeys;
 
     private String fingerprint;
+
+    public static int getKeyFlags(final PGPPublicKey key) {
+        @SuppressWarnings("unchecked")
+        Iterator<org.bouncycastle.openpgp.PGPSignature> sigs = key.getSignatures();
+        while (sigs.hasNext()) {
+            org.bouncycastle.openpgp.PGPSignature sig = sigs.next();
+            PGPSignatureSubpacketVector subpackets = sig.getHashedSubPackets();
+            if (subpackets != null) {
+                return subpackets.getKeyFlags();
+            }
+        }
+        return 0;
+    }
+
+    public static BCPGPPublicPart findBCPGPPublicPart(final String pgpKey) throws TrustException {
+        String pgpUpperCase = pgpKey.toUpperCase();
+        BcKeyBox bcKeyBox;
+        try {
+            if (USER_KEYBOX_PATH.isFile()) {
+                FileInputStream input = new FileInputStream(USER_KEYBOX_PATH);
+                try {
+                    bcKeyBox = new BcKeyBox(input);
+                    List<KeyBlob> keyBlobs = bcKeyBox.getKeyBlobs();
+                    for (KeyBlob keyBlob : keyBlobs) {
+                        for (KeyInformation keyInfo : keyBlob.getKeyInformation()) {
+                            String fingerprint = Hex.toHexString(keyInfo.getFingerprint()).toUpperCase();
+                            if (fingerprint.endsWith(pgpUpperCase)) {
+                                List<PGPPublicKey> signKeys = new ArrayList<PGPPublicKey>();
+                                List<PGPPublicKey> encryptKeys = new ArrayList<PGPPublicKey>();
+
+                                String masterFingerprint = null;
+
+                                PGPPublicKeyRing pgpPublicKeyRing = ((PublicKeyRingBlob) keyBlob).getPGPPublicKeyRing();
+                                Iterator<PGPPublicKey> publicKeys = pgpPublicKeyRing.getPublicKeys();
+                                while (publicKeys.hasNext()) {
+                                    PGPPublicKey publicKey = publicKeys.next();
+
+                                    int keyFlags = getKeyFlags(publicKey);
+                                    if ((keyFlags & PGPKeyFlags.CAN_SIGN) != 0) {
+                                        signKeys.add(publicKey);
+                                    }
+                                    if ((keyFlags & PGPKeyFlags.CAN_ENCRYPT_COMMS) != 0 || (keyFlags & PGPKeyFlags.CAN_ENCRYPT_STORAGE) != 0) {
+                                        encryptKeys.add(publicKey);
+                                    }
+                                    if (publicKey.isMasterKey()) {
+                                        masterFingerprint = Hex.toHexString(publicKey.getFingerprint()).toUpperCase();
+                                    }
+                                }
+                                return new BCPGPPublicPart(masterFingerprint, signKeys, encryptKeys);
+                            }
+                        }
+                    }
+                } finally {
+                    input.close();
+                }
+            }
+            if (USER_PGP_PUBRING_FILE.isFile()) {
+                BufferedInputStream in = new BufferedInputStream(new FileInputStream(USER_PGP_PUBRING_FILE));
+                try {
+                    PGPPublicKeyRingCollection pgpPub = new PGPPublicKeyRingCollection(in, new BcKeyFingerprintCalculator());
+
+                    Iterator<PGPPublicKeyRing> keyrings = pgpPub.getKeyRings();
+                    while (keyrings.hasNext()) {
+                        PGPPublicKeyRing keyRing = keyrings.next();
+                        List<PGPPublicKey> signKeys = new ArrayList<PGPPublicKey>();
+                        List<PGPPublicKey> encryptKeys = new ArrayList<PGPPublicKey>();
+
+                        boolean fingerprintMatched = false;
+                        String masterFingerprint = null;
+
+                        Iterator<PGPPublicKey> keys = keyRing.getPublicKeys();
+                        while (keys.hasNext()) {
+                            PGPPublicKey key = keys.next();
+                            String fingerprint = Hex.toHexString(key.getFingerprint()).toUpperCase();
+                            if (fingerprint.endsWith(pgpUpperCase)) {
+                                fingerprintMatched = true;
+                            }
+                            int keyFlags = getKeyFlags(key);
+                            if ((keyFlags & PGPKeyFlags.CAN_SIGN) != 0) {
+                                signKeys.add(key);
+                            }
+                            if ((keyFlags & PGPKeyFlags.CAN_ENCRYPT_COMMS) != 0 || (keyFlags & PGPKeyFlags.CAN_ENCRYPT_STORAGE) != 0) {
+                                encryptKeys.add(key);
+                            }
+                            if (key.isMasterKey()) {
+                                masterFingerprint = Hex.toHexString(key.getFingerprint()).toUpperCase();
+                            }
+                        }
+                        if (fingerprintMatched) {
+                            return new BCPGPPublicPart(masterFingerprint, signKeys, encryptKeys);
+                        }
+                    }
+                } finally {
+                    in.close();
+                }
+            }
+        } catch (PGPException e) {
+            throw new TrustException(e);
+        } catch (IOException e) {
+            throw new TrustException(e);
+        }
+
+        return null;
+    }
 
     public BCPGPPublicPart(final String fingerprint, final List<PGPPublicKey> signKeys, final List<PGPPublicKey> encryptKeys) {
         this.fingerprint = fingerprint;
