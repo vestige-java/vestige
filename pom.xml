@@ -153,16 +153,16 @@
     <at>@</at>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <slf4j.version>1.7.25</slf4j.version>
-    <vestige.core.version>10-SNAPSHOT</vestige.core.version>
+    <vestige.core.version>10</vestige.core.version>
     <vestige.jpms.version>2.0</vestige.jpms.version>
     <vestige.jvm_enhancer.version>4.2</vestige.jvm_enhancer.version>
     <vestige.logback_enhancer.version>1.1</vestige.logback_enhancer.version>
     <vestige.spi.system.version>1.1</vestige.spi.system.version>
     <vestige.spi.job.version>1.1</vestige.spi.job.version>
-    <vestige.spi.resolver.version>2.1-SNAPSHOT</vestige.spi.resolver.version>
+    <vestige.spi.resolver.version>2.1</vestige.spi.resolver.version>
     <vestige.spi.resolver.url_list.version>2.0</vestige.spi.resolver.url_list.version>
-    <vestige.spi.resolver.maven.version>2.1-SNAPSHOT</vestige.spi.resolver.maven.version>
-    <vestige.spi.trust.version>1.0-SNAPSHOT</vestige.spi.trust.version>
+    <vestige.spi.resolver.maven.version>2.1</vestige.spi.resolver.maven.version>
+    <vestige.spi.trust.version>1.0</vestige.spi.trust.version>
     <vestige.maven.version>java6-3</vestige.maven.version>
     <logback.version>1.2.3</logback.version>
     <logstash.logback.encoder.version>4.11</logstash.logback.encoder.version>
