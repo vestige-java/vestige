@@ -1,7 +1,9 @@
 #define _WIN32_WINNT _WIN32_WINNT_WINXP
 
 #ifdef UNICODE
+#ifndef _UNICODE
 #define _UNICODE
+#endif
 #endif
 
 #include <TCHAR.H>
@@ -529,7 +531,7 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             bufferSizeBytes = 0;
 
 #ifdef UNICODE
-            TCHAR command[bufferSize * 2];
+            TCHAR * command = (TCHAR *) malloc(bufferSize * 2);
             int mbRet = MultiByteToWideChar(CP_UTF8, 0, &buffer[0], bufferSize, command, 1024);
             command[mbRet] = 0;
 #else
@@ -562,6 +564,11 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             } else if (_tcslen(command) > clientP12Len && _tcsncmp(command, TEXT("ClientP12 "), clientP12Len) == 0) {
                 addP12(&command[clientP12Len]);
             }
+
+#ifdef UNICODE
+			free(command);
+#endif
+
 
             return 0;
 
