@@ -433,6 +433,9 @@ public class DefaultVestigePlatform implements VestigePlatform {
             PatchFileVerificationMetadata patchFileVerificationMetadata = null;
             if (fileMetadata != null) {
                 patchFileVerificationMetadata = fileMetadata.getPatchFileVerificationMetadata();
+                if (patchFileVerificationMetadata == null) {
+                    throw new IOException("Detected missing patch file " + patch.getFile());
+                }
             }
             VestigeResourceLocator verifyPatchJar = verifyAbstractJar(patch, patchFileVerificationMetadata);
             return new PatchedVestigeResourceLocator(verifyJar, verifyPatchJar, false);
