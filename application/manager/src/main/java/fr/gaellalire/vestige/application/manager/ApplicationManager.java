@@ -50,7 +50,9 @@ public interface ApplicationManager extends ApplicationManagerState {
 
     void discard(String installName) throws ApplicationException;
 
-    ApplicationVerificationMetadataSigned pgpSign(String installName, String key) throws ApplicationException;
+    ApplicationVerificationMetadata generateApplicationVerificationMetadata(String application) throws ApplicationException;
+
+    ApplicationVerificationMetadataPGPSigned pgpSign(String installName, String key) throws ApplicationException;
 
     JobController stop(String installName, JobListener jobListener) throws ApplicationException;
 

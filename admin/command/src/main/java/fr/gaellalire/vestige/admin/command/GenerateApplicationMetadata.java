@@ -24,29 +24,29 @@ import fr.gaellalire.vestige.admin.command.argument.Argument;
 import fr.gaellalire.vestige.admin.command.argument.LocalApplicationNameArgument;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
-import fr.gaellalire.vestige.application.manager.ApplicationVerificationMetadataPGPSigned;
+import fr.gaellalire.vestige.application.manager.ApplicationVerificationMetadata;
 import fr.gaellalire.vestige.job.JobController;
 
 /**
  * @author Gael Lalire
  */
-public class PGPDefaultSign implements Command {
+public class GenerateApplicationMetadata implements Command {
 
     private ApplicationManager applicationManager;
 
     private LocalApplicationNameArgument applicationArgument;
 
-    public PGPDefaultSign(final ApplicationManager applicationManager) {
+    public GenerateApplicationMetadata(final ApplicationManager applicationManager) {
         this.applicationManager = applicationManager;
         applicationArgument = new LocalApplicationNameArgument(applicationManager);
     }
 
     public String getName() {
-        return "pgp-default-sign";
+        return "generate-application-metadata";
     }
 
     public String getDesc() {
-        return "Sign application attachments with PGP using default key";
+        return "Generate metadata for attachments of the application";
     }
 
     public List<? extends Argument> getArguments() {
@@ -55,8 +55,8 @@ public class PGPDefaultSign implements Command {
 
     public JobController execute(final CommandContext commandContext) {
         try {
-            ApplicationVerificationMetadataPGPSigned applicationSignature = applicationManager.pgpSign(applicationArgument.getApplication(), null);
-            commandContext.getOut().println(applicationSignature);
+            ApplicationVerificationMetadata applicationMetadata = applicationManager.generateApplicationVerificationMetadata(applicationArgument.getApplication());
+            commandContext.getOut().println(applicationMetadata);
         } catch (ApplicationException e) {
             e.printStackTrace(commandContext.getOut());
         }

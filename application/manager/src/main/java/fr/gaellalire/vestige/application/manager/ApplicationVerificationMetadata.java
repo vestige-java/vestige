@@ -23,37 +23,34 @@ import java.io.StringWriter;
 /**
  * @author Gael Lalire
  */
-public class ApplicationVerificationMetadataSigned {
+public class ApplicationVerificationMetadata {
 
     private String launcherVerificationMetadata;
 
-    private String launcherBase64Signature;
-
     private String installerVerificationMetadata;
 
-    private String installerBase64Signature;
-
-    public ApplicationVerificationMetadataSigned(final String launcherVerificationMetadata, final String launcherBase64Signature, final String installerVerificationMetadata,
-            final String installerBase64Signature) {
+    public ApplicationVerificationMetadata(final String launcherVerificationMetadata, final String installerVerificationMetadata) {
         this.launcherVerificationMetadata = launcherVerificationMetadata;
-        this.launcherBase64Signature = launcherBase64Signature;
         this.installerVerificationMetadata = installerVerificationMetadata;
-        this.installerBase64Signature = installerBase64Signature;
+    }
+
+    public void printLauncherSignature(final PrintWriter stringBuilder) {
+    }
+
+    public void printInstallerSignature(final PrintWriter stringBuilder) {
     }
 
     @Override
     public String toString() {
         StringWriter out = new StringWriter();
-        PrintWriter stringBuilder = new PrintWriter(out);
-        stringBuilder.println("-- launcher verification metadata --");
-        stringBuilder.println(launcherVerificationMetadata);
-        stringBuilder.println("-- launcher pgp base64 signature  --");
-        stringBuilder.println(launcherBase64Signature);
+        PrintWriter printWriter = new PrintWriter(out);
+        printWriter.println("-- launcher verification metadata --");
+        printWriter.println(launcherVerificationMetadata);
+        printLauncherSignature(printWriter);
 
-        stringBuilder.println("-- installer verification metadata --");
-        stringBuilder.println(installerVerificationMetadata);
-        stringBuilder.println("-- installer pgp base64 signature  --");
-        stringBuilder.println(installerBase64Signature);
+        printWriter.println("-- installer verification metadata --");
+        printWriter.println(installerVerificationMetadata);
+        printInstallerSignature(printWriter);
         return out.toString();
     }
 

@@ -1338,7 +1338,27 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
     }
 
     @Override
-    public ApplicationVerificationMetadataSigned pgpSign(final String installName, final String key) throws ApplicationException {
+    public ApplicationVerificationMetadata generateApplicationVerificationMetadata(final String installName) throws ApplicationException {
+        ApplicationContext applicationContext;
+        synchronized (state) {
+            applicationContext = state.getApplicationContext(installName);
+        }
+        try {
+            AttachmentContext<?> installerAttachmentContext = applicationContext.getInstallerAttachmentContext();
+
+            String installerVerificationMetadata = null;
+            if (installerAttachmentContext != null) {
+                installerVerificationMetadata = installerAttachmentContext.getResolve().createVerificationMetadata();
+            }
+            String launcherVerificationMetadata = applicationContext.getLauncherAttachmentContext().getResolve().createVerificationMetadata();
+            return new ApplicationVerificationMetadata(launcherVerificationMetadata, installerVerificationMetadata);
+        } catch (ResolverException e) {
+            throw new ApplicationException("Unable to generate verification metadata", e);
+        }
+    }
+
+    @Override
+    public ApplicationVerificationMetadataPGPSigned pgpSign(final String installName, final String key) throws ApplicationException {
         ApplicationContext applicationContext;
         synchronized (state) {
             applicationContext = state.getApplicationContext(installName);
@@ -1365,7 +1385,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             }
             String launcherVerificationMetadata = applicationContext.getLauncherAttachmentContext().getResolve().createVerificationMetadata();
             String launcherBase64Signature = base64Sign(privatePart, launcherVerificationMetadata);
-            return new ApplicationVerificationMetadataSigned(launcherVerificationMetadata, launcherBase64Signature, installerVerificationMetadata, installerBase64Signature);
+            return new ApplicationVerificationMetadataPGPSigned(launcherVerificationMetadata, launcherBase64Signature, installerVerificationMetadata, installerBase64Signature);
         } catch (TrustException e) {
             throw new ApplicationException("Unable to sign", e);
         } catch (ResolverException e) {

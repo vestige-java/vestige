@@ -25,7 +25,7 @@ import fr.gaellalire.vestige.admin.command.argument.KeyArgument;
 import fr.gaellalire.vestige.admin.command.argument.LocalApplicationNameArgument;
 import fr.gaellalire.vestige.application.manager.ApplicationException;
 import fr.gaellalire.vestige.application.manager.ApplicationManager;
-import fr.gaellalire.vestige.application.manager.ApplicationVerificationMetadataSigned;
+import fr.gaellalire.vestige.application.manager.ApplicationVerificationMetadataPGPSigned;
 import fr.gaellalire.vestige.job.JobController;
 
 /**
@@ -59,7 +59,7 @@ public class PGPSign implements Command {
 
     public JobController execute(final CommandContext commandContext) {
         try {
-            ApplicationVerificationMetadataSigned applicationSignature = applicationManager.pgpSign(applicationArgument.getApplication(), keyArgument.getValue());
+            ApplicationVerificationMetadataPGPSigned applicationSignature = applicationManager.pgpSign(applicationArgument.getApplication(), keyArgument.getValue());
             commandContext.getOut().println(applicationSignature);
         } catch (ApplicationException e) {
             e.printStackTrace(commandContext.getOut());
