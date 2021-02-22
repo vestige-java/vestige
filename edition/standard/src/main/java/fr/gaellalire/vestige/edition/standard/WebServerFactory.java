@@ -433,7 +433,7 @@ public class WebServerFactory implements Callable<VestigeServer> {
                     names.add("localhost");
                     for (final Bind bind : binds) {
                         String host = SimpleValueGetter.INSTANCE.getValue(bind.getHost());
-                        if (host == null) {
+                        if (host == null || "*".equals(host)) {
                             Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
                             while (e.hasMoreElements()) {
                                 NetworkInterface n = e.nextElement();
@@ -519,7 +519,7 @@ public class WebServerFactory implements Callable<VestigeServer> {
                     super.open();
                     final String host = SimpleValueGetter.INSTANCE.getValue(bind.getHost());
                     int localPort = getLocalPort();
-                    if (host == null) {
+                    if (host == null || "*".equals(host)) {
                         localHostBind.host = "localhost";
                         localHostBind.port = localPort;
                         localHostBind.level = 3;
@@ -557,7 +557,12 @@ public class WebServerFactory implements Callable<VestigeServer> {
                 }
             };
             connector.setPort(SimpleValueGetter.INSTANCE.getValue(bind.getPort()));
-            connector.setHost(SimpleValueGetter.INSTANCE.getValue(bind.getHost()));
+            String host = SimpleValueGetter.INSTANCE.getValue(bind.getHost());
+            if ("*".equals(host)) {
+                connector.setHost(null);
+            } else {
+                connector.setHost(host);
+            }
             connectors.add(connector);
         }
         webServer.setConnectors(connectors.toArray(new Connector[connectors.size()]));

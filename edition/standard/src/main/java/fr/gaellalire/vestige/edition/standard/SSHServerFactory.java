@@ -217,7 +217,11 @@ public class SSHServerFactory implements Callable<VestigeServer> {
         sshServer.setFileSystemFactory(new RootedFileSystemFactory(appHomeFile, "vestige"));
         sshServer.setIoServiceFactoryFactory(new MinaServiceFactoryFactory());
         final String host = SimpleValueGetter.INSTANCE.getValue(bind.getHost());
-        sshServer.setHost(host);
+        if ("*".equals(host)) {
+            sshServer.setHost(null);
+        } else {
+            sshServer.setHost(host);
+        }
         sshServer.setPort(SimpleValueGetter.INSTANCE.getValue(bind.getPort()));
         sshServer.setCommandFactory(new ScpCommandFactory(new CommandFactory() {
 
