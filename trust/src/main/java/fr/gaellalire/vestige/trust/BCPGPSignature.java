@@ -24,7 +24,6 @@ import org.bouncycastle.bcpg.HashAlgorithmTags;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
 
-import fr.gaellalire.vestige.spi.trust.PGPPublicPart;
 import fr.gaellalire.vestige.spi.trust.PGPSignature;
 import fr.gaellalire.vestige.spi.trust.TrustException;
 
@@ -35,16 +34,19 @@ public class BCPGPSignature implements PGPSignature {
 
     private org.bouncycastle.openpgp.PGPSignature signature;
 
+    private String publicFingerprint;
+
     private BCPGPPublicPart pgpPublicPart;
 
-    public BCPGPSignature(final org.bouncycastle.openpgp.PGPSignature signature, final BCPGPPublicPart pgpPublicPart) {
+    public BCPGPSignature(final org.bouncycastle.openpgp.PGPSignature signature, final String publicFingerprint) {
         this.signature = signature;
-        this.pgpPublicPart = pgpPublicPart;
+        this.publicFingerprint = publicFingerprint;
     }
 
     @Override
     public boolean verify(final InputStream inputStream) throws TrustException {
         try {
+            BCPGPPublicPart pgpPublicPart = getPublicPart();
             signature.init(new BcPGPContentVerifierBuilderProvider(), pgpPublicPart.getSignKeys().get(0));
 
             byte[] buf = new byte[BCPGPTrustSystem.BUFFER_SIZE];
@@ -65,7 +67,14 @@ public class BCPGPSignature implements PGPSignature {
     }
 
     @Override
-    public PGPPublicPart getPublicKey() {
+    public BCPGPPublicPart getPublicPart() throws TrustException {
+        if (pgpPublicPart != null) {
+            return pgpPublicPart;
+        }
+        pgpPublicPart = BCPGPPublicPart.findBCPGPPublicPart(publicFingerprint);
+        if (pgpPublicPart == null) {
+            throw new TrustException("Public part not found for " + publicFingerprint);
+        }
         return pgpPublicPart;
     }
 

@@ -77,9 +77,8 @@ public class BCPGPTrustSystem implements PGPTrustSystem {
                 o = pgpFactory.nextObject(); // nullable
             }
             org.bouncycastle.openpgp.PGPSignature signature = ((PGPSignatureList) o).get(0);
-            BCPGPPublicPart publicPart = getPublicPart(Long.toHexString(signature.getKeyID()));
 
-            return new BCPGPSignature(signature, publicPart);
+            return new BCPGPSignature(signature, Long.toHexString(signature.getKeyID()));
         } catch (IOException e) {
             throw new TrustException(e);
         }
