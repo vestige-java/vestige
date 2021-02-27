@@ -56,7 +56,7 @@ fi
 
 # VESTIGE_OPTS=("-Doption=value" "-Xmx1024m")
 # export DECLARE_VESTIGE_OPTS=$(declare -p VESTIGE_OPTS)
-DECLARE_VESTIGE_OPTS=$(echo "$DECLARE_VESTIGE_OPTS" | grep "^declare -a VESTIGE_OPTS=")
+DECLARE_VESTIGE_OPTS=$(echo "$DECLARE_VESTIGE_OPTS" | grep "^\(declare\|typeset\) -a VESTIGE_OPTS=")
 if [ "${#DECLARE_VESTIGE_OPTS}" -ne 0 ]; then
   eval "$DECLARE_VESTIGE_OPTS" >/dev/null 2>&1 || VESTIGE_OPTS=($JAVA_OPTS)
 else
