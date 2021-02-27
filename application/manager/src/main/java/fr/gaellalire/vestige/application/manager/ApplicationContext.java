@@ -248,7 +248,9 @@ public class ApplicationContext implements Serializable, Cloneable {
         try {
             ApplicationContext clone = (ApplicationContext) clone();
             clone.launcherAttachmentContext = clone.launcherAttachmentContext.copy();
-            clone.installerAttachmentContext = clone.installerAttachmentContext.copy();
+            if (clone.installerAttachmentContext != null) {
+                clone.installerAttachmentContext = clone.installerAttachmentContext.copy();
+            }
             return clone;
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException(e);
