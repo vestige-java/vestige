@@ -17,12 +17,15 @@
 
 package fr.gaellalire.vestige.application.manager;
 
+import java.io.Serializable;
 import java.net.URL;
 
 /**
  * @author Gael Lalire
  */
-public class RepositoryOverride {
+public class RepositoryOverride implements Serializable {
+
+    private static final long serialVersionUID = -4154150743881466566L;
 
     private URL application;
 
