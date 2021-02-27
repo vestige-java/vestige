@@ -655,12 +655,16 @@ public class StandardEditionVestige implements Runnable {
                                 while (!jobController.isDone()) {
                                     wait();
                                 }
-                                defaultApplicationManager.setAutoStarted(installLocalName, true);
                             } catch (InterruptedException e) {
                                 LOGGER.trace("Vestige SE interrupted while auto installing", e);
                                 jobController.interrupt();
                                 interrupted = true;
                             }
+                            Exception exception = jobController.getException();
+                            if (exception != null) {
+                                throw exception;
+                            }
+                            defaultApplicationManager.setAutoStarted(installLocalName, true);
                         }
                     }
                 } catch (Exception e) {
