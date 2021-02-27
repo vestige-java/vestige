@@ -29,8 +29,19 @@ public class SLF4JPrintStream extends PrintStream implements StackedHandler<Prin
 
     private PrintStream nextHandler;
 
+    private SLF4JOutputStream slf4jOutputStream;
+
+    public static SLF4JOutputStream createSLF4JOutputStream(final VestigeSystem privilegedVestigeSystem, final boolean info) {
+        return new SLF4JOutputStream(privilegedVestigeSystem, info);
+    }
+
     public SLF4JPrintStream(final VestigeSystem privilegedVestigeSystem, final boolean info, final PrintStream nextHandler) {
-        super(new SLF4JOutputStream(privilegedVestigeSystem, info));
+        this(createSLF4JOutputStream(privilegedVestigeSystem, info), nextHandler);
+    }
+
+    public SLF4JPrintStream(final SLF4JOutputStream slf4jOutputStream, final PrintStream nextHandler) {
+        super(slf4jOutputStream);
+        this.slf4jOutputStream = slf4jOutputStream;
         this.nextHandler = nextHandler;
     }
 
@@ -40,6 +51,10 @@ public class SLF4JPrintStream extends PrintStream implements StackedHandler<Prin
 
     public void setNextHandler(final PrintStream nextHandler) {
         this.nextHandler = nextHandler;
+    }
+
+    public void cleanCurrentThreadLocal() {
+        slf4jOutputStream.cleanCurrentThreadLocal();
     }
 
 }

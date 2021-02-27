@@ -86,12 +86,17 @@ public class SLF4JOutputStream extends OutputStream {
         outputStream.reset();
     }
 
+    public void cleanCurrentThreadLocal() {
+        threadLocal.remove();
+    }
+
     @Override
     public void write(final int b) throws IOException {
         OutputStreamState outputStreamState = threadLocal.get();
         String callingClassName = getCallingClassName();
         if (outputStreamState == null) {
             outputStreamState = new OutputStreamState(new ByteArrayOutputStream(), LoggerFactory.getLogger(callingClassName));
+            // the threadLocal is only clean when the thread is GC, or when cleanCurrentThreadLocal is called
             threadLocal.set(outputStreamState);
         }
 
@@ -100,7 +105,9 @@ public class SLF4JOutputStream extends OutputStream {
         Logger logger = outputStreamState.getLogger();
 
         if (!callingClassName.equals(logger.getName())) {
-            log(logger, outputStream);
+            if (outputStream.size() != 0) {
+                log(logger, outputStream);
+            }
             logger = LoggerFactory.getLogger(callingClassName);
             crRead = false;
             outputStreamState.setLogger(logger);
@@ -130,7 +137,6 @@ public class SLF4JOutputStream extends OutputStream {
         outputStreamState.setCrRead(crRead);
         if (lineReaded) {
             log(logger, outputStream);
-            threadLocal.remove();
         }
     }
 }
