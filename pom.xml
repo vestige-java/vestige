@@ -159,7 +159,7 @@
     <vestige.logback_enhancer.version>1.1</vestige.logback_enhancer.version>
     <vestige.spi.system.version>1.1</vestige.spi.system.version>
     <vestige.spi.job.version>1.1</vestige.spi.job.version>
-    <vestige.spi.resolver.version>2.1</vestige.spi.resolver.version>
+    <vestige.spi.resolver.version>2.2</vestige.spi.resolver.version>
     <vestige.spi.resolver.url_list.version>2.0</vestige.spi.resolver.url_list.version>
     <vestige.spi.resolver.maven.version>2.1</vestige.spi.resolver.maven.version>
     <vestige.spi.trust.version>2.0</vestige.spi.trust.version>

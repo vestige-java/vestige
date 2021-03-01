@@ -16,10 +16,13 @@
 
 package fr.gaellalire.vestige.resolver.common;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.net.URL;
 import java.util.Enumeration;
 import java.util.jar.JarEntry;
@@ -33,13 +36,15 @@ import fr.gaellalire.vestige.spi.resolver.VestigeJarEntry;
 /**
  * @author Gael Lalire
  */
-public class DefaultVestigeJar implements VestigeJar {
+public class DefaultVestigeJar implements VestigeJar, Serializable {
+
+    private static final long serialVersionUID = -5569156262085550405L;
 
     private URL codeBase;
 
     private File file;
 
-    private JarFile jarFile;
+    private transient JarFile jarFile;
 
     public DefaultVestigeJar(final FileWithMetadata secureFile) {
         this.file = secureFile.getFile();
@@ -113,6 +118,20 @@ public class DefaultVestigeJar implements VestigeJar {
             return null;
         }
         return new DefaultVestigeJarEntry(jarFile, jarEntry);
+    }
+
+    @Override
+    public void save(final ObjectOutputStream objectOutputStream) throws IOException {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        ObjectOutputStream internObjectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+        try {
+            internObjectOutputStream.writeObject(this);
+        } finally {
+            internObjectOutputStream.close();
+        }
+        byte[] byteArray = byteArrayOutputStream.toByteArray();
+        objectOutputStream.writeInt(byteArray.length);
+        objectOutputStream.write(byteArray, 0, byteArray.length);
     }
 
 }

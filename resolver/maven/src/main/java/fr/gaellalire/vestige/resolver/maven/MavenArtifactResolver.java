@@ -110,6 +110,7 @@ import fr.gaellalire.vestige.resolver.common.DefaultResolvedClassLoaderConfigura
 import fr.gaellalire.vestige.spi.job.JobHelper;
 import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
+import fr.gaellalire.vestige.spi.resolver.VestigeJar;
 import fr.gaellalire.vestige.spi.resolver.maven.MavenContextBuilder;
 import fr.gaellalire.vestige.spi.resolver.maven.VestigeMavenResolver;
 
@@ -536,6 +537,25 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
             boolean firstBeforeParent = internObjectInputStream.readBoolean();
             ClassLoaderConfiguration classLoaderConfiguration = (ClassLoaderConfiguration) internObjectInputStream.readObject();
             return new DefaultResolvedClassLoaderConfiguration(vestigePlatform, vestigeWorker[0], classLoaderConfiguration, firstBeforeParent);
+        } catch (ClassNotFoundException e) {
+            throw new IOException("ClassNotFoundException", e);
+        }
+    }
+
+    @Override
+    public VestigeJar restoreSavedVestigeJar(final ObjectInputStream objectInputStream) throws IOException {
+        int size = objectInputStream.readInt();
+        byte[] array = new byte[size];
+        objectInputStream.readFully(array);
+        try {
+            ObjectInputStream internObjectInputStream = new ObjectInputStream(new ByteArrayInputStream(array)) {
+
+                protected Class<?> resolveClass(final ObjectStreamClass desc) throws IOException, ClassNotFoundException {
+                    return Class.forName(desc.getName(), false, MavenArtifactResolver.class.getClassLoader());
+                }
+
+            };
+            return (VestigeJar) internObjectInputStream.readObject();
         } catch (ClassNotFoundException e) {
             throw new IOException("ClassNotFoundException", e);
         }

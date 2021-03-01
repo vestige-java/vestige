@@ -20,6 +20,7 @@ package fr.gaellalire.vestige.resolver.common.secure;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectOutputStream;
 import java.net.URL;
 import java.util.Enumeration;
 import java.util.jar.Manifest;
@@ -126,6 +127,11 @@ public class SecureVestigeJar implements VestigeJar {
         } finally {
             vestigeSystem.setCurrentSystem();
         }
+    }
+
+    @Override
+    public void save(final ObjectOutputStream objectOutputStream) throws IOException {
+        delegate.save(objectOutputStream);
     }
 
 }
