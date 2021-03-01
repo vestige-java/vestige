@@ -54,12 +54,11 @@ public class Start implements Command {
 
     public JobController execute(final CommandContext commandContext) {
         try {
-            applicationManager.start(applicationArgument.getApplication());
+            applicationManager.start(applicationArgument.getApplication(), false);
         } catch (ApplicationException e) {
             e.printStackTrace(commandContext.getOut());
         }
         return null;
     }
-
 
 }

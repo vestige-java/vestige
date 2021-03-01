@@ -44,7 +44,7 @@ public interface ApplicationManager extends ApplicationManagerState {
 
     JobController migrate(String installName, List<Integer> toVersion, JobListener jobListener) throws ApplicationException;
 
-    void start(String installName) throws ApplicationException;
+    void start(String installName, boolean interrupted) throws ApplicationException;
 
     void run(String installName) throws ApplicationException;
 
@@ -55,6 +55,8 @@ public interface ApplicationManager extends ApplicationManagerState {
     ApplicationVerificationMetadataPGPSigned pgpSign(String installName, String key) throws ApplicationException;
 
     JobController stop(String installName, JobListener jobListener) throws ApplicationException;
+
+    JobController wait(String installName, JobListener jobListener) throws ApplicationException;
 
     void setAutoMigrateLevel(String installName, int level) throws ApplicationException;
 

@@ -626,30 +626,31 @@ public class StandardEditionVestige implements Runnable {
                 try {
                     final String installLocalName = System.getenv("VESTIGE_INSTALL_LOCAL_NAME");
                     if (installLocalName != null) {
-                        final JobController jobController = defaultApplicationManager.install(new RepositoryOverride(vestigeInstallURL), null, null, null, installLocalName, false,
-                                new JobListener() {
+                        JobListener jobListener = new JobListener() {
+
+                            @Override
+                            public TaskListener taskAdded(final String description) {
+                                return new TaskListener() {
 
                                     @Override
-                                    public TaskListener taskAdded(final String description) {
-                                        return new TaskListener() {
-
-                                            @Override
-                                            public void taskDone() {
-                                            }
-
-                                            @Override
-                                            public void progressChanged(final float progress) {
-                                            }
-                                        };
+                                    public void taskDone() {
                                     }
 
                                     @Override
-                                    public void jobDone() {
-                                        synchronized (StandardEditionVestige.this) {
-                                            StandardEditionVestige.this.notify();
-                                        }
+                                    public void progressChanged(final float progress) {
                                     }
-                                });
+                                };
+                            }
+
+                            @Override
+                            public void jobDone() {
+                                synchronized (StandardEditionVestige.this) {
+                                    StandardEditionVestige.this.notify();
+                                }
+                            }
+                        };
+                        JobController jobController = defaultApplicationManager.install(new RepositoryOverride(vestigeInstallURL), null, null, null, installLocalName, false,
+                                jobListener);
                         synchronized (this) {
                             try {
                                 while (!jobController.isDone()) {
@@ -660,12 +661,34 @@ public class StandardEditionVestige implements Runnable {
                                 jobController.interrupt();
                                 interrupted = true;
                             }
+                        }
+                        if (!interrupted) {
                             Exception exception = jobController.getException();
                             if (exception != null) {
                                 throw exception;
                             }
                             defaultApplicationManager.setAutoStarted(installLocalName, true);
+
+                            String startInterrupted = System.getenv("VESTIGE_START_INTERRUPTED");
+                            if (startInterrupted != null && Boolean.parseBoolean(startInterrupted)) {
+                                defaultApplicationManager.start(installLocalName, true);
+                                jobController = defaultApplicationManager.wait(installLocalName, jobListener);
+                                if (jobController != null) {
+                                    synchronized (this) {
+                                        try {
+                                            while (!jobController.isDone()) {
+                                                wait();
+                                            }
+                                        } catch (InterruptedException e) {
+                                            LOGGER.trace("Vestige SE interrupted while auto installing", e);
+                                            jobController.interrupt();
+                                            interrupted = true;
+                                        }
+                                    }
+                                }
+                            }
                         }
+
                     }
                 } catch (Exception e) {
                     LOGGER.warn("Vestige SE auto installing failed", e);

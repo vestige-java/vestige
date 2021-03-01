@@ -89,10 +89,6 @@
       <artifactId>vestige.edition.maven_main_launcher</artifactId>
       <version>${project.version}</version>
       <exclusions>
-<!--         <exclusion> -->
-<!--           <groupId>org.bouncycastle</groupId> -->
-<!--           <artifactId>bcpg-jdk15on</artifactId> -->
-<!--         </exclusion> -->
         <exclusion>
           <groupId>org.bouncycastle</groupId>
           <artifactId>bcpkix-jdk15on</artifactId>

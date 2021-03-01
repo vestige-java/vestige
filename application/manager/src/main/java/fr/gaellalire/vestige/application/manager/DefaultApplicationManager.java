@@ -983,7 +983,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                         } else {
                             toRuntimeApplicationContext.setRunAllowed(false);
                         }
-                        start(toApplicationContext, runMutex, constructorMutex, installName, false);
+                        start(toApplicationContext, runMutex, constructorMutex, installName, false, false);
                         if (constructorMutex != null) {
                             synchronized (constructorMutex) {
                                 toRuntimeApplicationContext = toApplicationContext.getLauncherAttachmentContext().getRuntimeApplicationContext();
@@ -1291,13 +1291,13 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         }
     }
 
-    public void start(final String installName) throws ApplicationException {
+    public void start(final String installName, final boolean interrupted) throws ApplicationException {
         synchronized (state) {
             final ApplicationContext applicationContext = state.getUnlockedApplicationContext(installName);
             if (applicationContext.isStarted()) {
                 throw new ApplicationException("already started");
             }
-            start(applicationContext, installName, false);
+            start(applicationContext, installName, false, interrupted);
         }
         LOGGER.info("Application {} started", installName);
     }
@@ -1310,7 +1310,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 throw new ApplicationException("Already started");
             }
             LOGGER.info("Application {} started", installName);
-            start(applicationContext, installName, true);
+            start(applicationContext, installName, true, false);
         }
     }
 
@@ -1422,12 +1422,40 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         }, jobListener);
     }
 
-    public void start(final ApplicationContext applicationContext, final String installName, final boolean selfThread) throws ApplicationException {
+    @Override
+    public JobController wait(final String installName, final JobListener jobListener) throws ApplicationException {
+        ApplicationContext applicationContext;
+        synchronized (state) {
+            applicationContext = state.getUnlockedApplicationContext(installName);
+        }
+        final VestigeSecureExecution<Void> vestigeSecureExecution = applicationContext.getVestigeSecureExecution();
+        if (vestigeSecureExecution == null) {
+            // already stopped
+            return null;
+        }
+        return jobManager.submitJob("stop", "Wait application", new Job() {
+
+            @Override
+            public void run(final JobHelper jobHelper) throws Exception {
+                TaskHelper task = jobHelper.addTask("Waiting for application to end");
+                try {
+                    vestigeSecureExecution.join();
+                } catch (InterruptedException e) {
+                    throw new ApplicationException("Unable to wait", e);
+                } finally {
+                    task.setDone();
+                }
+                LOGGER.info("Application {} ended", installName);
+            }
+        }, jobListener);
+    }
+
+    public void start(final ApplicationContext applicationContext, final String installName, final boolean selfThread, final boolean interrupted) throws ApplicationException {
         if (applicationContext.getVestigeSecureExecution() != null) {
             // already started
             return;
         }
-        start(applicationContext, null, null, installName, selfThread);
+        start(applicationContext, null, null, installName, selfThread, interrupted);
     }
 
     public static Class<?> superSearch(final String className, final Class<?> cl) {
@@ -1540,8 +1568,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
     }
 
-    public void start(final ApplicationContext applicationContext, final Object runMutex, final Object constructorMutex, final String installName, final boolean selfThread)
-            throws ApplicationException {
+    public void start(final ApplicationContext applicationContext, final Object runMutex, final Object constructorMutex, final String installName, final boolean selfThread,
+            final boolean interrupted) throws ApplicationException {
         try {
             final AttachedClassLoader attach;
             final VestigeSystem vestigeSystem;
@@ -1664,7 +1692,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                 }
                             }
                         }
-                    }, selfThread);
+                    }, selfThread, interrupted);
             applicationContext.setVestigeSecureExecution(vestigeSecureExecution);
             applicationContext.setStarted(true);
             applicationContext.setException(null);
@@ -1719,7 +1747,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             }
             if (applicationContext.isAutoStarted()) {
                 try {
-                    start(applicationContext, installName, false);
+                    start(applicationContext, installName, false, false);
                 } catch (ApplicationException e) {
                     LOGGER.error("Unable to start", e);
                 }

@@ -108,11 +108,12 @@ public class VestigeSecureExecutor {
 
     public <E> VestigeSecureExecution<E> execute(final ClassLoader contextClassLoader, final Set<Permission> additionnalPermissions, final List<ThreadGroup> threadGroups,
             final String name, final VestigeSystem appVestigeSystem, final VestigeSecureCallable<E> callable, final FutureDoneHandler<E> doneHandler) {
-        return execute(contextClassLoader, additionnalPermissions, threadGroups, name, appVestigeSystem, callable, doneHandler, false);
+        return execute(contextClassLoader, additionnalPermissions, threadGroups, name, appVestigeSystem, callable, doneHandler, false, false);
     }
 
     public <E> VestigeSecureExecution<E> execute(final ClassLoader contextClassLoader, final Set<Permission> additionnalPermissions, final List<ThreadGroup> threadGroups,
-            final String name, final VestigeSystem appVestigeSystem, final VestigeSecureCallable<E> callable, final FutureDoneHandler<E> doneHandler, final boolean selfThread) {
+            final String name, final VestigeSystem appVestigeSystem, final VestigeSecureCallable<E> callable, final FutureDoneHandler<E> doneHandler, final boolean selfThread,
+            final boolean interrupted) {
         final ThreadGroup threadGroup;
         if (selfThread) {
             threadGroup = null;
@@ -201,6 +202,9 @@ public class VestigeSecureExecutor {
                                     appVestigeSystem.setCurrentSystem();
                                     VestigeSystemCache vestigeSystemCache = appVestigeSystem.pushVestigeSystemCache();
                                     try {
+                                        if (interrupted) {
+                                            Thread.currentThread().interrupt();
+                                        }
                                         return callable.call(privilegedExecutor);
                                     } finally {
                                         vestigeSystemCache.clearCache();
@@ -214,6 +218,9 @@ public class VestigeSecureExecutor {
                         appVestigeSystem.setCurrentSystem();
                         VestigeSystemCache vestigeSystemCache = appVestigeSystem.pushVestigeSystemCache();
                         try {
+                            if (interrupted) {
+                                Thread.currentThread().interrupt();
+                            }
                             return callable.call(privilegedExecutor);
                         } finally {
                             vestigeSystemCache.clearCache();

@@ -26,7 +26,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
-import fr.gaellalire.vestige.platform.AbstractFileWithMetadata;
+import fr.gaellalire.vestige.platform.FileWithMetadata;
 import fr.gaellalire.vestige.spi.resolver.VestigeJar;
 import fr.gaellalire.vestige.spi.resolver.VestigeJarEntry;
 
@@ -39,19 +39,11 @@ public class DefaultVestigeJar implements VestigeJar {
 
     private File file;
 
-    // private RandomAccessFile randomAccessFile;
-
     private JarFile jarFile;
 
-    // private DefaultVestigeJarContext context;
-
-    public DefaultVestigeJar(final AbstractFileWithMetadata secureFile /* , final DefaultVestigeJarContext context */) {
-        // randomAccessFile.getChannel().lock();
-        // checksum / signature
+    public DefaultVestigeJar(final FileWithMetadata secureFile) {
         this.file = secureFile.getFile();
         this.codeBase = secureFile.getCodeBase();
-        // this.context = context;
-
     }
 
     public JarFile getJarFile() throws IOException {

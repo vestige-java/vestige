@@ -125,7 +125,7 @@ public class VestigeServlet extends WebSocketServlet {
 
             @Override
             public JobController execute(final JSONObject jsonObject, final JobListener jobListener) throws Exception {
-                applicationManager.start((String) jsonObject.get("name"));
+                applicationManager.start((String) jsonObject.get("name"), false);
                 return null;
             }
         });
