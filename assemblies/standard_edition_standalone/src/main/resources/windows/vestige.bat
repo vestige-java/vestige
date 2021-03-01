@@ -50,8 +50,9 @@ if not defined VESTIGE_OPTS set VESTIGE_OPTS=%JAVA_OPTS%
 
 if defined VESTIGE_DEBUG (
   if not defined VESTIGE_DEBUG_SUSPEND set VESTIGE_DEBUG_SUSPEND=n
+  if not defined VESTIGE_DEBUG_HOST set VESTIGE_DEBUG_HOST=127.0.0.1
   if not defined VESTIGE_DEBUG_PORT set VESTIGE_DEBUG_PORT=8000
-  set "VESTIGE_OPTS=%VESTIGE_OPTS% -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=!VESTIGE_DEBUG_SUSPEND!,address=!VESTIGE_DEBUG_PORT!"
+  set "VESTIGE_OPTS=%VESTIGE_OPTS% -agentlib:jdwp=transport=dt_socket,server=y,suspend=!VESTIGE_DEBUG_SUSPEND!,address=!VESTIGE_DEBUG_HOST!:!VESTIGE_DEBUG_PORT!"
 )
 
 if defined VESTIGE_CONSOLE_ENCODING (
