@@ -46,7 +46,193 @@ int bufferSizeBytes;
 
 TCHAR * url, *base;
 
-LRESULT CALLBACK MainWndProc( HWND, UINT, WPARAM, LPARAM);
+enum PreferredAppMode
+{
+	Default,
+	AllowDark,
+	ForceDark,
+	ForceLight,
+	Max
+};
+
+enum WINDOWCOMPOSITIONATTRIB {
+	WCA_UNDEFINED = 0,
+	WCA_NCRENDERING_ENABLED = 1,
+	WCA_NCRENDERING_POLICY = 2,
+	WCA_TRANSITIONS_FORCEDISABLED = 3,
+	WCA_ALLOW_NCPAINT = 4,
+	WCA_CAPTION_BUTTON_BOUNDS = 5,
+	WCA_NONCLIENT_RTL_LAYOUT = 6,
+	WCA_FORCE_ICONIC_REPRESENTATION = 7,
+	WCA_EXTENDED_FRAME_BOUNDS = 8,
+	WCA_HAS_ICONIC_BITMAP = 9,
+	WCA_THEME_ATTRIBUTES = 10,
+	WCA_NCRENDERING_EXILED = 11,
+	WCA_NCADORNMENTINFO = 12,
+	WCA_EXCLUDED_FROM_LIVEPREVIEW = 13,
+	WCA_VIDEO_OVERLAY_ACTIVE = 14,
+	WCA_FORCE_ACTIVEWINDOW_APPEARANCE = 15,
+	WCA_DISALLOW_PEEK = 16,
+	WCA_CLOAK = 17,
+	WCA_CLOAKED = 18,
+	WCA_ACCENT_POLICY = 19,
+	WCA_FREEZE_REPRESENTATION = 20,
+	WCA_EVER_UNCLOAKED = 21,
+	WCA_VISUAL_OWNER = 22,
+	WCA_HOLOGRAPHIC = 23,
+	WCA_EXCLUDED_FROM_DDA = 24,
+	WCA_PASSIVEUPDATEMODE = 25,
+	WCA_USEDARKMODECOLORS = 26,
+	WCA_LAST = 27
+};
+
+
+
+struct WINDOWCOMPOSITIONATTRIBDATA
+{
+	enum WINDOWCOMPOSITIONATTRIB Attrib;
+	PVOID pvData;
+	SIZE_T cbData;
+};
+
+HRESULT (WINAPI * fnSetWindowTheme)(HWND ,LPCWSTR, LPCWSTR) = 0;
+COLORREF(WINAPI * fnSetTextColor)(HDC, COLORREF) = 0;
+COLORREF(WINAPI * fnSetBkColor)(HDC, COLORREF) = 0;
+HGDIOBJ (WINAPI * fnGetStockObject)(int) = 0;
+
+void (WINAPI * fnRtlGetNtVersionNumbers)(LPDWORD, LPDWORD, LPDWORD) = 0;
+BOOL (WINAPI * fnSetWindowCompositionAttribute)(HWND, struct WINDOWCOMPOSITIONATTRIBDATA *) = 0;
+// 1809 17763
+BOOL (WINAPI *fnShouldAppsUseDarkMode)() = 0; // ordinal 132
+BOOL (WINAPI *fnAllowDarkModeForWindow)(HWND, BOOL) = 0; // ordinal 133
+BOOL (WINAPI *fnAllowDarkModeForApp)(BOOL) = 0; // ordinal 135, in 1809
+void (WINAPI *fnRefreshImmersiveColorPolicyState)() = 0; // ordinal 104
+BOOL (WINAPI *fnIsDarkModeAllowedForWindow)(HWND) = 0; // ordinal 137
+
+enum PreferredAppMode (WINAPI *fnSetPreferredAppMode)(enum PreferredAppMode) = 0; // ordinal 135, in 1903
+BOOL (WINAPI *fnIsDarkModeAllowedForApp)() = 0; // ordinal 139
+
+DWORD g_buildNumber = 0;
+
+BOOL g_darkModeSupported = FALSE;
+BOOL g_darkModeEnabled = FALSE;
+
+
+
+void InitDarkMode()
+{
+	fnRtlGetNtVersionNumbers = (void (WINAPI *)(LPDWORD, LPDWORD, LPDWORD)) GetProcAddress(GetModuleHandle(TEXT("ntdll.dll")), "RtlGetNtVersionNumbers");
+	if (fnRtlGetNtVersionNumbers)
+	{
+		DWORD major, minor;
+		(*fnRtlGetNtVersionNumbers)(&major, &minor, &g_buildNumber);
+		g_buildNumber &= ~0xF0000000;
+		if (major == 10)
+		{
+			HMODULE hUxtheme = LoadLibraryEx(TEXT("uxtheme.dll"), 0, 0);
+			
+			if (hUxtheme)
+			{
+				fnSetWindowTheme = (HRESULT(WINAPI *)(HWND, LPCWSTR, LPCWSTR)) GetProcAddress(hUxtheme, "SetWindowTheme");
+				fnRefreshImmersiveColorPolicyState = (void (WINAPI *)()) GetProcAddress(hUxtheme, MAKEINTRESOURCEA(104));
+				fnShouldAppsUseDarkMode = (BOOL(WINAPI *)()) GetProcAddress(hUxtheme, MAKEINTRESOURCEA(132));
+				fnAllowDarkModeForWindow = (BOOL(WINAPI *)(HWND, BOOL)) GetProcAddress(hUxtheme, MAKEINTRESOURCEA(133));
+
+				void * ord135 = GetProcAddress(hUxtheme, MAKEINTRESOURCEA(135));
+				if (g_buildNumber < 18362)
+					fnAllowDarkModeForApp = ord135;
+				else {
+					fnSetPreferredAppMode = ord135;
+				}
+
+				fnIsDarkModeAllowedForWindow = (BOOL(WINAPI *)(HWND)) GetProcAddress(hUxtheme, MAKEINTRESOURCEA(137));
+
+				fnSetWindowCompositionAttribute = (BOOL(WINAPI *)(HWND, struct WINDOWCOMPOSITIONATTRIBDATA *)) GetProcAddress(GetModuleHandle(TEXT("user32.dll")), "SetWindowCompositionAttribute");
+				HMODULE gdi = LoadLibraryEx(TEXT("gdi32.dll"), 0, 0);
+				if (gdi) {
+					fnSetTextColor = (COLORREF(WINAPI *)(HDC, COLORREF)) GetProcAddress(gdi, "SetTextColor");
+					fnSetBkColor = (COLORREF(WINAPI *)(HDC, COLORREF)) GetProcAddress(gdi, "SetBkColor");
+					fnGetStockObject = (HGDIOBJ(WINAPI *)(int)) GetProcAddress(gdi, "GetStockObject");
+				}
+
+				if (fnRefreshImmersiveColorPolicyState &&
+					fnShouldAppsUseDarkMode &&
+					fnAllowDarkModeForWindow &&
+					(fnAllowDarkModeForApp || fnSetPreferredAppMode) &&
+					fnIsDarkModeAllowedForWindow && fnSetTextColor && fnSetBkColor && fnGetStockObject)
+				{
+					g_darkModeSupported = TRUE;
+
+					if (fnAllowDarkModeForApp) {
+						(*fnAllowDarkModeForApp)(TRUE);
+					} else {
+						(*fnSetPreferredAppMode)(AllowDark);
+					}
+					(*fnRefreshImmersiveColorPolicyState)();
+
+					g_darkModeEnabled = (*fnShouldAppsUseDarkMode)();
+				}
+			}
+		}
+	}
+}
+
+BOOL editDark = FALSE;
+
+void RefreshEditThemeColor(HWND hWnd)
+{
+	BOOL dark = FALSE;
+	BOOL allowed = (*fnIsDarkModeAllowedForWindow)(hWnd) & 0xFF;
+	BOOL appsDark = (*fnShouldAppsUseDarkMode)() & 0xFF;
+	if (allowed && appsDark)
+	{
+		if (editDark) {
+			return;
+		}
+		(*fnSetWindowTheme)(hEditIn, L"DarkMode_Explorer", 0);
+		editDark = TRUE;
+	}
+	else {
+		(*fnSetWindowTheme)(hEditIn, L"Explorer", 0);
+		if (!editDark) {
+			return;
+		}
+		editDark = FALSE;
+	}
+	InvalidateRect(hWnd, NULL, TRUE);
+}
+
+BOOL titleDark = FALSE;
+
+void RefreshTitleBarThemeColor(HWND hWnd)
+{
+	BOOL dark = FALSE;
+	BOOL allowed = (*fnIsDarkModeAllowedForWindow)(hWnd) & 0xFF;
+	BOOL appsDark = (*fnShouldAppsUseDarkMode)() & 0xFF;
+	if (allowed && appsDark)
+	{
+		if (titleDark) {
+			return;
+		}
+		titleDark = TRUE;
+		dark = TRUE;
+	}
+	else {
+		if (!titleDark) {
+			return;
+		}
+		titleDark = FALSE;
+	}
+	if (g_buildNumber < 18362)
+		SetProp(hWnd, TEXT("UseImmersiveDarkModeColors"), &dark);
+	else if (fnSetWindowCompositionAttribute)
+	{
+		struct WINDOWCOMPOSITIONATTRIBDATA data = { WCA_USEDARKMODECOLORS, &dark, sizeof(dark) };
+		(*fnSetWindowCompositionAttribute)(hWnd, &data);
+	}
+
+}
+
 
 int loadFile(TCHAR * path, BYTE ** bufferPointer) {
     FILE *fIn;
@@ -191,7 +377,7 @@ DWORD WINAPI WaitForBatCommand(void * param) {
     TCHAR chBuf[1024];
     DWORD dwRead;
     DWORD nextBytes = 0;
-    TCHAR previous;
+    TCHAR previous = 0;
 
     while (ReadFile(g_hChildStd_OUT_Rd, ((BYTE *) chBuf) + nextBytes, sizeof(chBuf) - sizeof(TCHAR) - nextBytes, &dwRead, NULL)) {
         nextBytes = dwRead % sizeof(TCHAR);
@@ -254,6 +440,198 @@ void toggleStartAtLogin() {
     }
 }
 
+
+
+
+LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+	RECT rc;
+	TCHAR cbuf[1024];
+	switch (uMsg) {
+	case WM_CREATE:
+		if (g_darkModeSupported) {
+			(*fnAllowDarkModeForWindow)(hWnd, TRUE);
+			RefreshTitleBarThemeColor(hWnd);
+		}
+		return 0;
+		break;
+	case WM_SIZE:
+	case WM_SIZING:
+		GetClientRect(hWnd, &rc);
+		MoveWindow(hEditIn, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, TRUE);
+		break;
+		
+	case WM_CLOSE:
+		if (procState == 5) {
+			DestroyWindow(hWnd);
+		} else {
+			consoleWinShown = FALSE;
+			ShowWindow(hWnd, SW_HIDE);
+		}
+		return 0;
+		
+	case WM_SETTINGCHANGE: {
+		if (g_darkModeSupported) {
+			g_darkModeEnabled = (*fnShouldAppsUseDarkMode)();
+			RefreshTitleBarThemeColor(hWnd);
+			RefreshEditThemeColor(hWnd);
+		}
+		break;
+	}
+	case WM_CTLCOLORSTATIC: {
+		HDC hdcStatic = (HDC)wParam;
+		if (g_darkModeEnabled) {
+			// TODO maybe extract the color from a Theme
+			(*fnSetTextColor)(hdcStatic, RGB(255, 255, 255));
+			(*fnSetBkColor)(hdcStatic, RGB(0, 0, 0));
+		    return (LRESULT) (*fnGetStockObject)(BLACK_BRUSH);
+		}
+		break;
+	}
+	case MY_WM_NOTIFYICON:
+		if (lParam == WM_LBUTTONUP || lParam == WM_RBUTTONUP) {
+			HMENU hpopup;
+			POINT pos;
+			GetCursorPos(&pos);
+			hpopup = GetSubMenu(hmenu, 0);
+			SetForegroundWindow(hWnd);
+			TrackPopupMenuEx(hpopup, 0, pos.x, pos.y, hWnd, NULL);
+		}
+		return 0;
+	case WM_COMMAND:
+		switch (LOWORD(wParam)) {
+		case IDM_STOP:
+			if (forceStop) {
+				TerminateJobObject(hjob, 0);
+			} else {
+				int numProcs = 10;
+				PJOBOBJECT_BASIC_PROCESS_ID_LIST procList = (PJOBOBJECT_BASIC_PROCESS_ID_LIST)LocalAlloc(LPTR,
+					sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST) + numProcs * sizeof(ULONG_PTR));
+				while (QueryInformationJobObject(hjob, JobObjectBasicProcessIdList, procList, sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST) + numProcs * sizeof(ULONG_PTR), NULL) == 0) {
+					numProcs = procList->NumberOfAssignedProcesses;
+					LocalFree(procList);
+					procList = (PJOBOBJECT_BASIC_PROCESS_ID_LIST)LocalAlloc(LPTR, sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST) + numProcs * sizeof(ULONG_PTR));
+				}
+				EnumWindows((WNDENUMPROC)PostCloseEnum, (LPARAM)procList);
+
+				MENUITEMINFO info;
+				info.cbSize = sizeof(MENUITEMINFO);
+				info.fMask = MIIM_ID;
+				HMENU hpopup = GetSubMenu(hmenu, 0);
+				GetMenuItemInfo(hpopup, 5, TRUE, &info);
+				ModifyMenu(hpopup, info.wID, MF_BYCOMMAND | MF_STRING, info.wID, TEXT("Force stop"));
+				forceStop = 1;
+			}
+			break;
+		case IDM_OPEN_WEB:
+			_sntprintf(cbuf, 1024, TEXT("url.dll,FileProtocolHandler %s"), url);
+			ShellExecute(NULL, TEXT("open"), TEXT("rundll32.exe"), cbuf, NULL, SW_SHOWNORMAL);
+			break;
+		case IDM_OPEN_BASE:
+			ShellExecute(NULL, TEXT("open"), base, NULL, NULL, SW_SHOWNORMAL);
+			break;
+		case IDM_SHOW_CONSOLE:
+			consoleWinShown = TRUE;
+			ShowWindow(hWnd, SW_SHOWNORMAL);
+			SetForegroundWindow(hWnd);
+			break;
+		case IDM_START_LOGIN:
+			toggleStartAtLogin();
+			break;
+		case IDM_SELECT_ALL:
+			SetFocus(hEditIn);
+			SendMessage(hEditIn, EM_SETSEL, 0, -1);
+			break;
+		}
+		return 0;
+
+	case WM_DESTROY:
+		Shell_NotifyIcon(NIM_DELETE, &TrayIcon);
+		PostQuitMessage(0);
+		return 0;
+
+	case WM_SOCKET: {
+		switch (WSAGETSELECTEVENT(lParam)) {
+		case FD_READ: {
+
+			if (bufferSizeBytes != 4) {
+				bufferSizeBytes += recv(csocket, ((char *)&bufferSize) + bufferSizeBytes, 4 - bufferSizeBytes, 0);
+				if (bufferSizeBytes != 4) {
+					return 0;
+				}
+				bufferSize = ntohl(bufferSize);
+				bufferRemain = bufferSize;
+				return 0;
+			}
+
+			bufferRemain -= recv(csocket, buffer + (bufferSize - bufferRemain), bufferRemain, 0);
+			if (bufferRemain != 0) {
+				return 0;
+			}
+			bufferSizeBytes = 0;
+
+#ifdef UNICODE
+			TCHAR * command = (TCHAR *)malloc(bufferSize * 2);
+			int mbRet = MultiByteToWideChar(CP_UTF8, 0, &buffer[0], bufferSize, command, 1024);
+			command[mbRet] = 0;
+#else
+			TCHAR * command = (TCHAR  *)&buffer[0];
+			command[bufferSize] = 0;
+#endif
+
+			int webLen = _tcslen(TEXT("Web "));
+			int baseLen = _tcslen(TEXT("Config "));
+			int caLen = _tcslen(TEXT("CA "));
+			int clientP12Len = _tcslen(TEXT("ClientP12 "));
+			if (_tcslen(command) > webLen && _tcsncmp(command, TEXT("Web "), webLen) == 0) {
+				url = (TCHAR *)malloc((_tcslen(&command[webLen]) + 1) * sizeof(TCHAR));
+				_tcscpy(url, &command[webLen]);
+				EnableMenuItem(hmenu, IDM_OPEN_WEB, MF_ENABLED);
+			}
+			else if (_tcslen(command) > baseLen && _tcsncmp(command, TEXT("Config "), baseLen) == 0) {
+				base = (TCHAR *)malloc((_tcslen(&command[baseLen]) + 1) * sizeof(TCHAR));
+				_tcscpy(base, &command[baseLen]);
+				EnableMenuItem(hmenu, IDM_OPEN_BASE, MF_ENABLED);
+			}
+			else if (_tcscmp(command, TEXT("Starting")) == 0) {
+				procState = 1;
+			}
+			else if (_tcscmp(command, TEXT("Started")) == 0) {
+				procState = 2;
+			}
+			else if (_tcscmp(command, TEXT("Stopping")) == 0) {
+				procState = 3;
+			}
+			else if (_tcscmp(command, TEXT("Stopped")) == 0) {
+				procState = 4;
+			}
+			else if (_tcslen(command) > caLen && _tcsncmp(command, TEXT("CA "), caLen) == 0) {
+				addCA(&command[caLen]);
+			}
+			else if (_tcslen(command) > clientP12Len && _tcsncmp(command, TEXT("ClientP12 "), clientP12Len) == 0) {
+				addP12(&command[clientP12Len]);
+			}
+
+#ifdef UNICODE
+			free(command);
+#endif
+			return 0;
+			}
+			break;
+		case FD_ACCEPT: {
+			csocket = accept(ssocket, 0, 0);
+			WSAAsyncSelect(csocket, hWnd, WM_SOCKET, FD_READ);
+			closesocket(ssocket);
+			}
+			break;
+		}
+	}
+
+	default:
+		break;
+	}
+	return DefWindowProc(hWnd, uMsg, wParam, lParam);
+}
+
 int APIENTRY _tWinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
         LPTSTR lpCmdLine, int nCmdShow) {
     MSG msg;
@@ -276,6 +654,8 @@ int APIENTRY _tWinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
         }
         return 0;
     }
+
+	InitDarkMode();
 
     forceStop = 0;
     GetModuleFileName(NULL, szPath, MAX_PATH);
@@ -311,9 +691,12 @@ int APIENTRY _tWinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
 
     if(!RegisterClass(&wc)) return FALSE;
 
+
     hWnd = CreateWindow(wc.lpszClassName, TEXT("Vestige: command line output"), WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT, CW_USEDEFAULT, 700, 500,
             NULL, NULL, hinstance, NULL);
+
+	if (!hWnd) return FALSE;
 
     hmenu = LoadMenu(hinst, TEXT("VESTIGE_MENU"));
 
@@ -360,10 +743,11 @@ int APIENTRY _tWinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
 
     GetClientRect(hWnd, &rc);
 
+	
     hEditIn=CreateWindowEx(WS_EX_CLIENTEDGE,
             TEXT("EDIT"),
             TEXT(""),
-            WS_CHILD|WS_VISIBLE|ES_MULTILINE|
+            WS_CHILD|WS_VISIBLE |  ES_MULTILINE  |
             ES_AUTOVSCROLL|ES_AUTOHSCROLL |
             WS_HSCROLL | WS_VSCROLL | ES_READONLY,
             rc.left,
@@ -375,7 +759,11 @@ int APIENTRY _tWinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
             GetModuleHandle(NULL),
             NULL);
 
-    if (!hWnd) return FALSE;
+	if (!hEditIn) return FALSE;
+
+	if (g_darkModeSupported) {
+		RefreshEditThemeColor(hWnd);
+	}
 
     ShowWindow(hWnd, SW_HIDE);
 
@@ -425,165 +813,3 @@ int APIENTRY _tWinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
     return msg.wParam;
 }
 
-
-/******************************************************************************/
-
-LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    RECT rc;
-    TCHAR cbuf[1024];
-    switch (uMsg) {
-    case WM_CREATE:
-    case WM_SIZE:
-    case WM_SIZING:
-        GetClientRect(hWnd, &rc);
-        MoveWindow(hEditIn, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, TRUE);
-        return 0;
-    case WM_CLOSE:
-        if (procState == 5) {
-            DestroyWindow(hWnd);
-        } else {
-            consoleWinShown = FALSE;
-            ShowWindow(hWnd, SW_HIDE);
-        }
-        return 0;
-
-    case MY_WM_NOTIFYICON:
-        if (lParam == WM_LBUTTONUP || lParam == WM_RBUTTONUP) {
-            HMENU hpopup;
-            POINT pos;
-            GetCursorPos(&pos);
-            hpopup = GetSubMenu(hmenu, 0);
-            SetForegroundWindow(hWnd);
-            TrackPopupMenuEx(hpopup, 0, pos.x, pos.y, hWnd, NULL);
-        }
-        return 0;
-
-    case WM_COMMAND:
-        switch (LOWORD(wParam)) {
-        case IDM_STOP:
-            if (forceStop) {
-                TerminateJobObject(hjob, 0);
-            } else {
-                int numProcs = 10;
-                PJOBOBJECT_BASIC_PROCESS_ID_LIST procList = (PJOBOBJECT_BASIC_PROCESS_ID_LIST) LocalAlloc(LPTR,
-                        sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST) + numProcs * sizeof(ULONG_PTR));
-                while (QueryInformationJobObject(hjob, JobObjectBasicProcessIdList, procList, sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST) + numProcs * sizeof(ULONG_PTR), NULL) == 0) {
-                    numProcs = procList->NumberOfAssignedProcesses;
-                    LocalFree(procList);
-                    procList = (PJOBOBJECT_BASIC_PROCESS_ID_LIST) LocalAlloc(LPTR, sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST) + numProcs * sizeof(ULONG_PTR));
-                }
-                EnumWindows((WNDENUMPROC) PostCloseEnum, (LPARAM) procList);
-
-                MENUITEMINFO info;
-                info.cbSize = sizeof(MENUITEMINFO);
-                info.fMask = MIIM_ID;
-                HMENU hpopup = GetSubMenu(hmenu, 0);
-                GetMenuItemInfo(hpopup, 5, TRUE, &info);
-                ModifyMenu(hpopup, info.wID, MF_BYCOMMAND | MF_STRING, info.wID, TEXT("Force stop"));
-                forceStop = 1;
-            }
-            break;
-        case IDM_OPEN_WEB:
-            _sntprintf(cbuf, 1024, TEXT("url.dll,FileProtocolHandler %s"), url);
-            ShellExecute(NULL, TEXT("open"), TEXT("rundll32.exe"), cbuf, NULL, SW_SHOWNORMAL);
-            break;
-        case IDM_OPEN_BASE:
-            ShellExecute(NULL, TEXT("open"), base, NULL, NULL, SW_SHOWNORMAL);
-            break;
-        case IDM_SHOW_CONSOLE:
-            consoleWinShown = TRUE;
-            ShowWindow(hWnd, SW_SHOWNORMAL);
-            SetForegroundWindow(hWnd);
-            break;
-        case IDM_START_LOGIN:
-            toggleStartAtLogin();
-            break;
-        case IDM_SELECT_ALL:
-            SetFocus(hEditIn);
-            SendMessage(hEditIn, EM_SETSEL, 0, -1) ;
-            break;
-        }
-        return 0;
-
-    case WM_DESTROY:
-        Shell_NotifyIcon(NIM_DELETE, &TrayIcon);
-        PostQuitMessage(0);
-        return 0;
-
-    case WM_SOCKET: {
-        switch (WSAGETSELECTEVENT(lParam)) {
-        case FD_READ: {
-
-            if (bufferSizeBytes != 4) {
-                bufferSizeBytes += recv(csocket, ((char *)&bufferSize)+bufferSizeBytes, 4 - bufferSizeBytes, 0);
-                if (bufferSizeBytes != 4) {
-                    return 0;
-                }
-                bufferSize = ntohl(bufferSize);
-                bufferRemain = bufferSize;
-                return 0;
-            }
-
-            bufferRemain -= recv(csocket, buffer + (bufferSize - bufferRemain), bufferRemain, 0);
-            if (bufferRemain != 0) {
-                return 0;
-            }
-            bufferSizeBytes = 0;
-
-#ifdef UNICODE
-            TCHAR * command = (TCHAR *) malloc(bufferSize * 2);
-            int mbRet = MultiByteToWideChar(CP_UTF8, 0, &buffer[0], bufferSize, command, 1024);
-            command[mbRet] = 0;
-#else
-            TCHAR * command = (TCHAR  *) &buffer[0];
-            command[bufferSize] = 0;
-#endif
-
-            int webLen = _tcslen(TEXT("Web "));
-            int baseLen = _tcslen(TEXT("Config "));
-            int caLen = _tcslen(TEXT("CA "));
-            int clientP12Len = _tcslen(TEXT("ClientP12 "));
-            if (_tcslen(command) > webLen && _tcsncmp(command, TEXT("Web "), webLen) == 0) {
-                url = (TCHAR *) malloc((_tcslen(&command[webLen]) + 1) * sizeof(TCHAR));
-                _tcscpy(url, &command[webLen]);
-                EnableMenuItem(hmenu, IDM_OPEN_WEB, MF_ENABLED);
-            } else if (_tcslen(command) > baseLen && _tcsncmp(command, TEXT("Config "), baseLen) == 0) {
-                base = (TCHAR *) malloc((_tcslen(&command[baseLen]) + 1) * sizeof(TCHAR));
-                _tcscpy(base, &command[baseLen]);
-                EnableMenuItem(hmenu, IDM_OPEN_BASE, MF_ENABLED);
-            } else if (_tcscmp(command, TEXT("Starting")) == 0) {
-                procState = 1;
-            } else if (_tcscmp(command, TEXT("Started")) == 0) {
-                procState = 2;
-            } else if (_tcscmp(command, TEXT("Stopping")) == 0) {
-                procState = 3;
-            } else if (_tcscmp(command, TEXT("Stopped")) == 0) {
-                procState = 4;
-            } else if (_tcslen(command) > caLen && _tcsncmp(command, TEXT("CA "), caLen) == 0) {
-                addCA(&command[caLen]);
-            } else if (_tcslen(command) > clientP12Len && _tcsncmp(command, TEXT("ClientP12 "), clientP12Len) == 0) {
-                addP12(&command[clientP12Len]);
-            }
-
-#ifdef UNICODE
-			free(command);
-#endif
-
-
-            return 0;
-
-        }
-            break;
-        case FD_ACCEPT: {
-            csocket = accept(ssocket, 0, 0);
-            WSAAsyncSelect(csocket, hWnd, WM_SOCKET, FD_READ);
-            closesocket(ssocket);
-        }
-            break;
-        }
-    }
-
-    default:
-        return DefWindowProc(hWnd, uMsg, wParam, lParam);
-    }
-}

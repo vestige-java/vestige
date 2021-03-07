@@ -3,3 +3,6 @@
 *.rc text eol=crlf
 *.c text eol=crlf
 *.iss text eol=crlf
+*.sln text eol=crlf
+*.filters text eol=crlf
+*.user text eol=crlf
