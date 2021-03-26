@@ -13,6 +13,13 @@
 #include "resources.h"
 #include <stdio.h>
 #include <string.h>
+#include <uxtheme.h>
+
+#define USER_DEFAULT_SCREEN_DPI 96
+#define WM_DPICHANGED                   0x02E0
+#define WM_DWMCOMPOSITIONCHANGED        0x031E
+#define TMT_MSGBOXFONT	805
+
 
 #define MY_WM_NOTIFYICON WM_USER+1
 #define WM_SOCKET WM_USER+2
@@ -99,6 +106,11 @@ HRESULT (WINAPI * fnSetWindowTheme)(HWND ,LPCWSTR, LPCWSTR) = 0;
 COLORREF(WINAPI * fnSetTextColor)(HDC, COLORREF) = 0;
 COLORREF(WINAPI * fnSetBkColor)(HDC, COLORREF) = 0;
 HGDIOBJ (WINAPI * fnGetStockObject)(int) = 0;
+HFONT (WINAPI *fnCreateFontIndirect)(const LOGFONT *) = 0;
+int (WINAPI *fnGetDeviceCaps)(HDC , int ) = 0;
+BOOL (WINAPI *fnDeleteObject)(HGDIOBJ) = 0;
+int (WINAPI *fnGetObject)(HANDLE,int,LPVOID pv) = 0;
+
 
 void (WINAPI * fnRtlGetNtVersionNumbers)(LPDWORD, LPDWORD, LPDWORD) = 0;
 BOOL (WINAPI * fnSetWindowCompositionAttribute)(HWND, struct WINDOWCOMPOSITIONATTRIBDATA *) = 0;
@@ -116,18 +128,284 @@ DWORD g_buildNumber = 0;
 
 BOOL g_darkModeSupported = FALSE;
 BOOL g_darkModeEnabled = FALSE;
+BOOL g_highDPISupported = FALSE;
 
+
+typedef enum PROCESS_DPI_AWARENESS {
+	PROCESS_DPI_UNAWARE,
+	PROCESS_SYSTEM_DPI_AWARE,
+	PROCESS_PER_MONITOR_DPI_AWARE
+} PROCESS_DPI_AWARENESS;
+
+DECLARE_HANDLE(DPI_AWARENESS_CONTEXT);
+
+typedef enum DPI_AWARENESS {
+	DPI_AWARENESS_INVALID = -1,
+	DPI_AWARENESS_UNAWARE = 0,
+	DPI_AWARENESS_SYSTEM_AWARE = 1,
+	DPI_AWARENESS_PER_MONITOR_AWARE = 2
+} DPI_AWARENESS;
+
+#define DPI_AWARENESS_CONTEXT_UNAWARE               ((DPI_AWARENESS_CONTEXT)-1)
+#define DPI_AWARENESS_CONTEXT_SYSTEM_AWARE          ((DPI_AWARENESS_CONTEXT)-2)
+#define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE     ((DPI_AWARENESS_CONTEXT)-3)
+#define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2  ((DPI_AWARENESS_CONTEXT)-4)
+#define DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED     ((DPI_AWARENESS_CONTEXT)-5)
+
+
+
+BOOL (WINAPI *fnSetProcessDPIAware)() = 0;
+BOOL (WINAPI *fnSetProcessDpiAwareness)(PROCESS_DPI_AWARENESS value) = 0;
+BOOL (WINAPI *fnSetProcessDpiAwarenessContext)(DPI_AWARENESS_CONTEXT value) = 0;
+
+int (WINAPI * fnGetSystemMetricsForDpi) (int, UINT) = NULL;
+
+UINT (WINAPI * fnGetDpiForSystem)() = NULL;
+UINT (WINAPI * fnGetDpiForWindow)(HWND) = NULL;
+
+HTHEME (WINAPI * fnOpenThemeData)(HWND, LPCWSTR) = NULL;
+HRESULT (WINAPI *fnGetThemeSysFont)(HTHEME ,int ,LOGFONTW *) = NULL;
+
+
+enum IconSize {
+	SmallIconSize = 0,
+	StartIconSize,
+	LargeIconSize,
+	ShellIconSize,
+	JumboIconSize,
+	IconSizesCount
+};
+
+int metrics[SM_CMETRICS] = { 0 };
+
+UINT dpiWindow;
+
+HICON icons[IconSizesCount] = { NULL };
+
+HFONT hFont = 0;
+
+DWORD major, minor;
+
+
+
+void InitHighDPI() {
+
+	HMODULE hUxtheme = LoadLibraryEx(TEXT("uxtheme.dll"), 0, 0);
+
+	if (hUxtheme)
+	{
+		fnOpenThemeData = (HTHEME(WINAPI *)(HWND, LPCWSTR)) GetProcAddress(hUxtheme, "OpenThemeData");
+#ifdef UNICODE
+		fnGetThemeSysFont = (HRESULT(WINAPI*)(HTHEME, int, LOGFONTW *))GetProcAddress(hUxtheme, "GetThemeSysFont");
+#endif
+	}
+
+	HMODULE gdi = LoadLibraryEx(TEXT("gdi32.dll"), 0, 0);
+	if (gdi) {
+		fnGetStockObject = (HGDIOBJ(WINAPI *)(int)) GetProcAddress(gdi, "GetStockObject");
+#ifdef UNICODE
+		fnCreateFontIndirect = (HFONT(WINAPI*)(const LOGFONT *)) GetProcAddress(gdi, "CreateFontIndirectW");
+		fnGetObject = (int(WINAPI*)(HANDLE, int, LPVOID pv)) GetProcAddress(gdi, "GetObjectW");
+#else
+		fnCreateFontIndirect = (HFONT(WINAPI*)(const LOGFONT *)) GetProcAddress(gdi, "CreateFontIndirectA");
+		fnGetObject = (int(WINAPI*)(HANDLE, int, LPVOID pv)) GetProcAddress(gdi, "GetObjectA");
+#endif
+		fnDeleteObject = (BOOL(WINAPI*)(HGDIOBJ)) GetProcAddress(gdi, "DeleteObject");
+		fnGetDeviceCaps = (int(WINAPI*)(HDC, int)) GetProcAddress(gdi, "GetDeviceCaps");
+	}
+
+
+	HMODULE user32 = GetModuleHandle(TEXT("user32.dll"));
+
+	fnGetDpiForSystem = (UINT(WINAPI *)()) GetProcAddress(user32, "GetDpiForSystem");
+	fnGetDpiForWindow = (UINT(WINAPI *)(HWND)) GetProcAddress(user32, "GetDpiForWindow");
+	fnGetSystemMetricsForDpi = (int (WINAPI *) (int, UINT)) GetProcAddress(user32, "GetSystemMetricsForDpi");
+
+	fnSetProcessDpiAwarenessContext = (BOOL(WINAPI *)()) GetProcAddress(user32, "SetProcessDpiAwarenessContext");
+
+	if (fnOpenThemeData &&
+		fnGetDeviceCaps &&
+		fnGetObject && fnDeleteObject && fnCreateFontIndirect && fnGetStockObject) {
+		g_highDPISupported = TRUE;
+	}
+
+	if (fnSetProcessDpiAwarenessContext) {
+		(*fnSetProcessDpiAwarenessContext)(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+		return;
+	}
+
+	fnSetProcessDpiAwareness = (BOOL(WINAPI *)()) GetProcAddress(user32, "SetProcessDpiAwareness");
+	if (fnSetProcessDpiAwareness) {
+		(*fnSetProcessDpiAwareness)(PROCESS_PER_MONITOR_DPI_AWARE);
+		return;
+	}
+
+	fnSetProcessDPIAware = (BOOL(WINAPI *)()) GetProcAddress(user32, "SetProcessDPIAware");
+	if (fnSetProcessDPIAware) {
+		(*fnSetProcessDPIAware)();
+		return;
+	}
+}
+
+
+
+UINT GetDPI(HWND hWnd) {
+	if (hWnd != NULL) {
+		if (fnGetDpiForWindow)
+			return (*fnGetDpiForWindow)(hWnd);
+	}
+	else {
+		if (fnGetDpiForSystem)
+			return (*fnGetDpiForSystem)();
+	}
+	HDC hDC;
+	if (hDC = GetDC(hWnd)) {
+		int dpi = (*fnGetDeviceCaps)(hDC, LOGPIXELSX);
+		ReleaseDC(hWnd, hDC);
+		return dpi;
+	}
+	else
+		return USER_DEFAULT_SCREEN_DPI;
+}
+
+LRESULT RefreshVisualMetrics(UINT dpiSystem) {
+	if (fnGetSystemMetricsForDpi) {
+		for (int i = 0; i != sizeof metrics / sizeof metrics[0]; ++i) {
+			metrics[i] = (*fnGetSystemMetricsForDpi)(i, dpiWindow);
+		}
+	}
+	else {
+		for (int i = 0; i != sizeof metrics / sizeof metrics[0]; ++i) {
+			metrics[i] = dpiWindow * GetSystemMetrics(i) / dpiSystem;
+		}
+	}
+	return 0;
+}
+
+HICON LoadBestIcon(SIZE size) {
+	HICON hNewIcon = NULL;
+	if (size.cx > 256) size.cx = 256;
+	if (size.cy > 256) size.cy = 256;
+
+	return (HICON)LoadImage(hinst, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, size.cx, size.cy, LR_DEFAULTCOLOR);
+}
+
+
+SIZE GetIconMetrics(enum IconSize size, UINT dpiSystem) {
+	switch (size) {
+	case SmallIconSize:
+		return  (SIZE) { metrics[SM_CXSMICON], metrics[SM_CYSMICON] };
+	case StartIconSize:
+		return (SIZE) {
+			(metrics[SM_CXICON] + metrics[SM_CXSMICON]) / 2,
+				(metrics[SM_CYICON] + metrics[SM_CYSMICON]) / 2
+		};
+	case LargeIconSize:
+	default:
+		return (SIZE) { metrics[SM_CXICON], metrics[SM_CYICON] };
+
+	case ShellIconSize:
+	case JumboIconSize:
+        // TODO maybe improve
+		switch (size) {
+		default:
+		case ShellIconSize: return (SIZE) { (long)(48 * dpiWindow / dpiSystem), (long)(48 * dpiWindow / dpiSystem) };
+		case JumboIconSize: return (SIZE) { (long)(256 * dpiWindow / 96), (long)(256 * dpiWindow / 96) };
+		}
+	}
+}
+
+
+
+LRESULT OnVisualEnvironmentChange(HWND hWnd) {
+	UINT dpiSystem = GetDPI(NULL);
+	RefreshVisualMetrics(dpiSystem);
+	HTHEME hTheme = (*fnOpenThemeData)(hWnd, L"TEXTSTYLE");
+
+	LOGFONT lf;
+
+	int height;
+
+#ifdef UNICODE
+	if (fnGetThemeSysFont && (*fnGetThemeSysFont)(hTheme, TMT_MSGBOXFONT, &lf) == S_OK) {
+#else
+	if (FALSE) {
+#endif
+		lf.lfHeight = MulDiv(lf.lfHeight, dpiWindow, dpiSystem);
+		if (lf.lfHeight > 0) {
+			height = lf.lfHeight;
+		}
+		else {
+			height = 96 * -lf.lfHeight / 72;
+		}
+		HFONT hNewFont;
+		if (hNewFont = (*fnCreateFontIndirect)(&lf)) {
+			if (hFont != NULL) {
+				(*fnDeleteObject)(hFont);
+			}
+			hFont = hNewFont;
+		}
+		else {
+			if (hFont == NULL) {
+				hFont = (HFONT)(*fnGetStockObject)(DEFAULT_GUI_FONT);
+			}
+		}
+
+	}
+	else {
+		if ((*fnGetObject)((*fnGetStockObject)(DEFAULT_GUI_FONT), sizeof lf, &lf)) {
+			lf.lfHeight = MulDiv(lf.lfHeight, dpiWindow, dpiSystem);
+		}
+	}
+
+	SendMessage(hEditIn, WM_SETFONT, (WPARAM) hFont, 1);
+
+	for (int i = 0u; i != IconSizesCount; ++i) {
+		HICON icon;
+		if (icon = LoadBestIcon(GetIconMetrics((enum IconSize)i, dpiSystem))) {
+			if (icons[i]) {
+				DestroyIcon(icons[i]);
+			}
+			icons[i] = icon;
+		}
+	}
+
+
+	SendMessage(hWnd, WM_SETICON, ICON_SMALL, (LPARAM)icons[SmallIconSize]);
+	if (fnRtlGetNtVersionNumbers && major >= 10) {
+		SendMessage(hWnd, WM_SETICON, ICON_BIG, (LPARAM)icons[StartIconSize]);
+	}
+	else {
+		SendMessage(hWnd, WM_SETICON, ICON_BIG, (LPARAM)icons[LargeIconSize]);
+	}
+
+}
+
+
+LRESULT OnDpiChange(HWND hWnd, WPARAM dpi, const RECT * r) {
+	dpiWindow = LOWORD(dpi);
+
+	OnVisualEnvironmentChange(hWnd);
+	SetWindowPos(hWnd, NULL, r->left, r->top, r->right - r->left, r->bottom - r->top, 0);
+	return 0;
+}
+
+
+void InitVersion() {
+	fnRtlGetNtVersionNumbers = (void (WINAPI *)(LPDWORD, LPDWORD, LPDWORD)) GetProcAddress(GetModuleHandle(TEXT("ntdll.dll")), "RtlGetNtVersionNumbers");
+	if (fnRtlGetNtVersionNumbers)
+	{
+		(*fnRtlGetNtVersionNumbers)(&major, &minor, &g_buildNumber);
+		g_buildNumber &= ~0xF0000000;
+	}
+}
 
 
 void InitDarkMode()
 {
-	fnRtlGetNtVersionNumbers = (void (WINAPI *)(LPDWORD, LPDWORD, LPDWORD)) GetProcAddress(GetModuleHandle(TEXT("ntdll.dll")), "RtlGetNtVersionNumbers");
 	if (fnRtlGetNtVersionNumbers)
 	{
-		DWORD major, minor;
-		(*fnRtlGetNtVersionNumbers)(&major, &minor, &g_buildNumber);
-		g_buildNumber &= ~0xF0000000;
-		if (major == 10)
+		if (major == 10 && ((minor == 0 && g_buildNumber >= 17763) || minor > 0))
 		{
 			HMODULE hUxtheme = LoadLibraryEx(TEXT("uxtheme.dll"), 0, 0);
 			
@@ -232,6 +510,9 @@ void RefreshTitleBarThemeColor(HWND hWnd)
 	}
 
 }
+
+
+
 
 
 int loadFile(TCHAR * path, BYTE ** bufferPointer) {
@@ -443,10 +724,17 @@ void toggleStartAtLogin() {
 
 
 
+
 LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	RECT rc;
 	TCHAR cbuf[1024];
 	switch (uMsg) {
+	case WM_NCCREATE:
+		if (g_highDPISupported) {
+			dpiWindow = GetDPI(hWnd);
+			RefreshVisualMetrics(GetDPI(NULL));
+		}
+		break;
 	case WM_CREATE:
 		if (g_darkModeSupported) {
 			(*fnAllowDarkModeForWindow)(hWnd, TRUE);
@@ -468,15 +756,28 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			ShowWindow(hWnd, SW_HIDE);
 		}
 		return 0;
-		
-	case WM_SETTINGCHANGE: {
+
+	case WM_DPICHANGED:
+		if (g_highDPISupported) {
+			return OnDpiChange(hWnd, wParam, (const RECT *)(lParam));
+		}
+		return 0;
+
+	case WM_SETTINGCHANGE:
 		if (g_darkModeSupported) {
 			g_darkModeEnabled = (*fnShouldAppsUseDarkMode)();
 			RefreshTitleBarThemeColor(hWnd);
 			RefreshEditThemeColor(hWnd);
 		}
+		// no break here
+	case WM_THEMECHANGED:
+	case WM_DWMCOMPOSITIONCHANGED:
+		if (g_highDPISupported) {
+			OnVisualEnvironmentChange(hWnd);
+		}
+		InvalidateRect(hWnd, NULL, TRUE);
 		break;
-	}
+
 	case WM_CTLCOLORSTATIC: {
 		HDC hdcStatic = (HDC)wParam;
 		if (g_darkModeEnabled) {
@@ -632,6 +933,8 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
+
+
 int APIENTRY _tWinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
         LPTSTR lpCmdLine, int nCmdShow) {
     MSG msg;
@@ -655,6 +958,9 @@ int APIENTRY _tWinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
         return 0;
     }
 
+	InitVersion();
+
+	InitHighDPI();
 	InitDarkMode();
 
     forceStop = 0;
@@ -683,7 +989,8 @@ int APIENTRY _tWinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
     wc.hInstance = hinstance;
-    wc.hIcon = (HICON) LoadImage(hinstance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, 0, 0, LR_SHARED);
+
+	wc.hIcon = (HICON)LoadImage(hinstance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, 0, 0, LR_SHARED);
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)(1 + COLOR_BTNFACE);
     wc.lpszMenuName = NULL;
@@ -691,9 +998,8 @@ int APIENTRY _tWinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
 
     if(!RegisterClass(&wc)) return FALSE;
 
-
     hWnd = CreateWindow(wc.lpszClassName, TEXT("Vestige: command line output"), WS_OVERLAPPEDWINDOW,
-            CW_USEDEFAULT, CW_USEDEFAULT, 700, 500,
+            CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
             NULL, NULL, hinstance, NULL);
 
 	if (!hWnd) return FALSE;
@@ -782,6 +1088,10 @@ int APIENTRY _tWinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance,
     Shell_NotifyIcon(NIM_ADD, &TrayIcon);
 
     UpdateWindow(hWnd);
+
+	if (g_highDPISupported) {
+		OnVisualEnvironmentChange(hWnd);
+	}
 
     DWORD dwThreadID;
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) WaitForBatCommand, 0, // no thread parameters
