@@ -38,9 +38,19 @@ public class BCPGPSignature implements PGPSignature {
 
     private BCPGPPublicPart pgpPublicPart;
 
-    public BCPGPSignature(final org.bouncycastle.openpgp.PGPSignature signature, final String publicFingerprint) {
+    private PGPFingerprintValidator fingerprintValidator;
+
+    public BCPGPSignature(final org.bouncycastle.openpgp.PGPSignature signature, final BCPGPPublicPart pgpPublicPart, final PGPFingerprintValidator fingerprintValidator) {
+        this.signature = signature;
+        this.pgpPublicPart = pgpPublicPart;
+        publicFingerprint = pgpPublicPart.getFingerprint();
+        this.fingerprintValidator = fingerprintValidator;
+    }
+
+    public BCPGPSignature(final org.bouncycastle.openpgp.PGPSignature signature, final String publicFingerprint, final PGPFingerprintValidator fingerprintValidator) {
         this.signature = signature;
         this.publicFingerprint = publicFingerprint;
+        this.fingerprintValidator = fingerprintValidator;
     }
 
     @Override
@@ -71,7 +81,7 @@ public class BCPGPSignature implements PGPSignature {
         if (pgpPublicPart != null) {
             return pgpPublicPart;
         }
-        pgpPublicPart = BCPGPPublicPart.findBCPGPPublicPart(publicFingerprint);
+        pgpPublicPart = BCPGPPublicPart.findBCPGPPublicPart(publicFingerprint, fingerprintValidator);
         if (pgpPublicPart == null) {
             throw new TrustException("Public part not found for " + publicFingerprint);
         }

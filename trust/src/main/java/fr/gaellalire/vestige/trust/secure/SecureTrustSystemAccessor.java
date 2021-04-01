@@ -15,36 +15,34 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.trust;
+package fr.gaellalire.vestige.trust.secure;
 
-import java.io.File;
-import java.io.IOException;
-
+import fr.gaellalire.vestige.spi.system.VestigeSystem;
 import fr.gaellalire.vestige.spi.trust.PGPTrustSystem;
 import fr.gaellalire.vestige.spi.trust.TrustSystemAccessor;
 
 /**
  * @author Gael Lalire
  */
-public class DefaultTrustSystemAccessor implements TrustSystemAccessor {
+public class SecureTrustSystemAccessor implements TrustSystemAccessor {
 
-    private BCPGPTrustSystem bcPGPTrustSystem;
+    private VestigeSystem secureVestigeSystem;
 
-    public DefaultTrustSystemAccessor(final File trustConfigFile) {
-        File trustFile = new File(trustConfigFile, "pgp_trusted.txt");
-        if (!trustFile.isFile()) {
-            try {
-                trustFile.createNewFile();
-            } catch (IOException e) {
-                // ignore
-            }
-        }
-        bcPGPTrustSystem = new BCPGPTrustSystem(trustFile);
+    private TrustSystemAccessor delegate;
+
+    public SecureTrustSystemAccessor(final VestigeSystem secureVestigeSystem, final TrustSystemAccessor delegate) {
+        this.secureVestigeSystem = secureVestigeSystem;
+        this.delegate = delegate;
     }
 
     @Override
     public PGPTrustSystem getPGPTrustSystem() {
-        return bcPGPTrustSystem;
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return new SecurePGPTrustSystem(secureVestigeSystem, delegate.getPGPTrustSystem());
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
     }
 
 }

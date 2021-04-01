@@ -177,6 +177,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                         if (!loadSignature.verify(new ByteArrayInputStream(text.getBytes("UTF-8")))) {
                             throw new ApplicationException("Unable to verify signature");
                         }
+                        if (!loadSignature.getPublicPart().isTrusted()) {
+                            throw new ApplicationException("Signature verified but not trusted");
+                        }
                     } catch (TrustException e) {
                         throw new ApplicationException("Trust exception", e);
                     } catch (UnsupportedEncodingException e) {

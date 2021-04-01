@@ -44,6 +44,12 @@ public class BCPGPTrustSystem implements PGPTrustSystem {
 
     public static final File USER_PGP_CONF = new File(GPG_DIRECTORY, "gpg.conf");
 
+    private PGPFingerprintValidator fingerprintValidator;
+
+    public BCPGPTrustSystem(final File trustFile) {
+        fingerprintValidator = new FilePGPFingerprintValidator(trustFile);
+    }
+
     @Override
     public PGPPrivatePart getDefaultPrivatePart() throws TrustException {
         try {
@@ -78,7 +84,7 @@ public class BCPGPTrustSystem implements PGPTrustSystem {
             }
             org.bouncycastle.openpgp.PGPSignature signature = ((PGPSignatureList) o).get(0);
 
-            return new BCPGPSignature(signature, Long.toHexString(signature.getKeyID()));
+            return new BCPGPSignature(signature, Long.toHexString(signature.getKeyID()), fingerprintValidator);
         } catch (IOException e) {
             throw new TrustException(e);
         }
@@ -95,7 +101,7 @@ public class BCPGPTrustSystem implements PGPTrustSystem {
 
     @Override
     public BCPGPPublicPart getPublicPart(final String pgpKey) throws TrustException {
-        return BCPGPPublicPart.findBCPGPPublicPart(pgpKey);
+        return BCPGPPublicPart.findBCPGPPublicPart(pgpKey, fingerprintValidator);
     }
 
 }

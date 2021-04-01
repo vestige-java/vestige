@@ -54,7 +54,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import fr.gaellalire.vestige.spi.trust.PGPPrivatePart;
-import fr.gaellalire.vestige.spi.trust.PublicPart;
+import fr.gaellalire.vestige.spi.trust.PGPPublicPart;
 import fr.gaellalire.vestige.spi.trust.TrustException;
 
 /**
@@ -192,7 +192,7 @@ public class BCPGPPrivatePart implements PGPPrivatePart {
     }
 
     @Override
-    public PublicPart getPublicPart() {
+    public PGPPublicPart getPublicPart() {
         return bcpgpPublicPart;
     }
 

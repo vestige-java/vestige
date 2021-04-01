@@ -98,6 +98,7 @@ import fr.gaellalire.vestige.system.PrivateWhiteListVestigePolicy;
 import fr.gaellalire.vestige.system.SecureProxySelector;
 import fr.gaellalire.vestige.system.VestigeSystemAction;
 import fr.gaellalire.vestige.trust.DefaultTrustSystemAccessor;
+import fr.gaellalire.vestige.trust.secure.SecureTrustSystemAccessor;
 
 /**
  * @author Gael Lalire
@@ -200,7 +201,11 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
             }
         }
         if (trustSystemAccessor == null) {
-            trustSystemAccessor = new DefaultTrustSystemAccessor();
+            File trustConfigFile = new File(configFile, "trust");
+            if (!trustConfigFile.isDirectory()) {
+                trustConfigFile.mkdirs();
+            }
+            trustSystemAccessor = new DefaultTrustSystemAccessor(trustConfigFile);
         }
 
         if (LOGGER.isInfoEnabled()) {
@@ -387,6 +392,8 @@ public class SingleApplicationLauncherEditionVestige implements Runnable {
         Map<String, Object> injectableByClassName = new HashMap<String, Object>();
         injectableByClassName.put(VestigeMavenResolver.class.getName(),
                 new SecureVestigeMavenResolver(singleApplicationLauncherEditionVestigeSystem, vestigePolicy, vestigeMavenResolver));
+        injectableByClassName.put(TrustSystemAccessor.class.getName(), new SecureTrustSystemAccessor(singleApplicationLauncherEditionVestigeSystem, trustSystemAccessor));
+
         // injectableByClassName.put(VestigeURLListResolver.class.getName(), vestigeURLListResolver);
 
         defaultApplicationManager = new DefaultApplicationManager(actionManager, appConfigFile, appDataFile, appCacheFile, applicationsVestigeSystem,

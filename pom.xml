@@ -162,7 +162,7 @@
     <vestige.spi.resolver.version>2.2</vestige.spi.resolver.version>
     <vestige.spi.resolver.url_list.version>2.0</vestige.spi.resolver.url_list.version>
     <vestige.spi.resolver.maven.version>2.1</vestige.spi.resolver.maven.version>
-    <vestige.spi.trust.version>2.0</vestige.spi.trust.version>
+    <vestige.spi.trust.version>2.1</vestige.spi.trust.version>
     <vestige.maven.version>java6-3</vestige.maven.version>
     <logback.version>1.2.3</logback.version>
     <logstash.logback.encoder.version>4.11</logstash.logback.encoder.version>

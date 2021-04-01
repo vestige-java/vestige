@@ -29,7 +29,6 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
-import org.bouncycastle.bcpg.HashAlgorithmTags;
 import org.bouncycastle.gpg.keybox.KeyBlob;
 import org.bouncycastle.gpg.keybox.KeyInformation;
 import org.bouncycastle.gpg.keybox.PublicKeyRingBlob;
@@ -50,7 +49,6 @@ import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureList;
 import org.bouncycastle.openpgp.PGPSignatureSubpacketVector;
 import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator;
-import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
 import org.bouncycastle.openpgp.operator.bc.BcPGPDataEncryptorBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPublicKeyKeyEncryptionMethodGenerator;
 import org.bouncycastle.util.encoders.Hex;
@@ -73,6 +71,8 @@ public class BCPGPPublicPart implements PGPPublicPart {
 
     private String fingerprint;
 
+    private PGPFingerprintValidator fingerprintValidator;
+
     public static int getKeyFlags(final PGPPublicKey key) {
         @SuppressWarnings("unchecked")
         Iterator<org.bouncycastle.openpgp.PGPSignature> sigs = key.getSignatures();
@@ -86,7 +86,7 @@ public class BCPGPPublicPart implements PGPPublicPart {
         return 0;
     }
 
-    public static BCPGPPublicPart findBCPGPPublicPart(final String pgpKey) throws TrustException {
+    public static BCPGPPublicPart findBCPGPPublicPart(final String pgpKey, final PGPFingerprintValidator fingerprintValidator) throws TrustException {
         String pgpUpperCase = pgpKey.toUpperCase();
         BcKeyBox bcKeyBox;
         try {
@@ -120,7 +120,7 @@ public class BCPGPPublicPart implements PGPPublicPart {
                                         masterFingerprint = Hex.toHexString(publicKey.getFingerprint()).toUpperCase();
                                     }
                                 }
-                                return new BCPGPPublicPart(masterFingerprint, signKeys, encryptKeys);
+                                return new BCPGPPublicPart(masterFingerprint, signKeys, encryptKeys, fingerprintValidator);
                             }
                         }
                     }
@@ -161,7 +161,7 @@ public class BCPGPPublicPart implements PGPPublicPart {
                             }
                         }
                         if (fingerprintMatched) {
-                            return new BCPGPPublicPart(masterFingerprint, signKeys, encryptKeys);
+                            return new BCPGPPublicPart(masterFingerprint, signKeys, encryptKeys, fingerprintValidator);
                         }
                     }
                 } finally {
@@ -177,10 +177,11 @@ public class BCPGPPublicPart implements PGPPublicPart {
         return null;
     }
 
-    public BCPGPPublicPart(final String fingerprint, final List<PGPPublicKey> signKeys, final List<PGPPublicKey> encryptKeys) {
+    public BCPGPPublicPart(final String fingerprint, final List<PGPPublicKey> signKeys, final List<PGPPublicKey> encryptKeys, final PGPFingerprintValidator fingerprintValidator) {
         this.fingerprint = fingerprint;
         this.signKeys = signKeys;
         this.encryptKeys = encryptKeys;
+        this.fingerprintValidator = fingerprintValidator;
     }
 
     public static void encrypt(final InputStream plainInput, final OutputStream encryptedOutput, final PGPPublicKey encKey) throws IOException, PGPException {
@@ -234,21 +235,8 @@ public class BCPGPPublicPart implements PGPPublicPart {
                 o = pgpFactory.nextObject();
             }
             PGPSignature signature = ((PGPSignatureList) o).get(0);
-            signature.init(new BcPGPContentVerifierBuilderProvider(), signKeys.get(0));
 
-            byte[] buf = new byte[BCPGPTrustSystem.BUFFER_SIZE];
-            int len;
-            while ((len = dataInputStream.read(buf)) > 0) {
-                signature.update(buf, 0, len);
-            }
-            int hashAlgorithm = signature.getHashAlgorithm();
-            if (hashAlgorithm != HashAlgorithmTags.SHA512) {
-                return false;
-            }
-            return signature.verify();
-
-        } catch (PGPException e) {
-            throw new TrustException(e);
+            return new BCPGPSignature(signature, this, fingerprintValidator).verify(dataInputStream);
         } catch (IOException e) {
             throw new TrustException(e);
         }
@@ -265,6 +253,11 @@ public class BCPGPPublicPart implements PGPPublicPart {
     @Override
     public String getFingerprint() {
         return fingerprint;
+    }
+
+    @Override
+    public boolean isTrusted() throws TrustException {
+        return fingerprintValidator.validate(fingerprint);
     }
 
 }
