@@ -36,6 +36,10 @@ public class ApplicationContext implements Serializable, Cloneable {
 
     private AttachmentContext<RuntimeApplicationInstallerContext> installerAttachmentContext;
 
+    private String javaSpecificationVersion;
+
+    private String maxJavaSpecificationVersion;
+
     private String name;
 
     private File config;
@@ -291,4 +295,21 @@ public class ApplicationContext implements Serializable, Cloneable {
             attachmentContext.setRuntimeApplicationContext(context);
         }
     }
+
+    public String getJavaSpecificationVersion() {
+        return javaSpecificationVersion;
+    }
+
+    public void setJavaSpecificationVersion(final String javaSpecificationVersion) {
+        this.javaSpecificationVersion = javaSpecificationVersion;
+    }
+
+    public String getMaxJavaSpecificationVersion() {
+        return maxJavaSpecificationVersion;
+    }
+
+    public void setMaxJavaSpecificationVersion(final String maxJavaSpecificationVersion) {
+        this.maxJavaSpecificationVersion = maxJavaSpecificationVersion;
+    }
+
 }

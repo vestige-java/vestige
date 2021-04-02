@@ -24,6 +24,8 @@ public interface ApplicationDescriptor {
 
     String getJavaSpecificationVersion() throws ApplicationException;
 
+    String getMaxJavaSpecificationVersion() throws ApplicationException;
+
     LauncherAttachmentDescriptor getLauncherAttachmentDescriptor() throws ApplicationException;
 
     InstallerAttachmentDescriptor getInstallerAttachmentDescriptor() throws ApplicationException;

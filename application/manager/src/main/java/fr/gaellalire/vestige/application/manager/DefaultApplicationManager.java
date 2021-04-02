@@ -282,14 +282,23 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         }
     }
 
+    public void checkJavaSpecification(final String javaSpecificationVersion, final String maxJavaSpecificationVersion) throws ApplicationException {
+        if (!isJavaSpecificationVersionCompatible(javaSpecificationVersion, maxJavaSpecificationVersion)) {
+            if (maxJavaSpecificationVersion == null) {
+                throw new ApplicationException("This JVM does not support java " + javaSpecificationVersion);
+            }
+            throw new ApplicationException("Application only support java from " + javaSpecificationVersion + " to " + maxJavaSpecificationVersion);
+        }
+
+    }
+
     public ApplicationContext createApplicationContext(final RepositoryOverride repositoryOverride, final URL repoURL, final String appName, final List<Integer> version,
             final String installName, final boolean trusted, final JobHelper jobHelper) throws ApplicationException {
         ApplicationDescriptor applicationDescriptor = applicationDescriptorFactory.createApplicationDescriptor(repositoryOverride, repoURL, appName, version, jobHelper);
 
         String javaSpecificationVersion = applicationDescriptor.getJavaSpecificationVersion();
-        if (!isJavaSpecificationVersionCompatible(javaSpecificationVersion)) {
-            throw new ApplicationException("This JVM does not support java " + javaSpecificationVersion);
-        }
+        String maxJavaSpecificationVersion = applicationDescriptor.getMaxJavaSpecificationVersion();
+        checkJavaSpecification(javaSpecificationVersion, maxJavaSpecificationVersion);
 
         File configFile = new File(appConfigFile, installName);
         File dataFile = new File(appDataFile, installName);
@@ -311,6 +320,9 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         }
 
         ApplicationContext applicationContext = new ApplicationContext();
+
+        applicationContext.setJavaSpecificationVersion(javaSpecificationVersion);
+        applicationContext.setMaxJavaSpecificationVersion(maxJavaSpecificationVersion);
 
         LauncherAttachmentDescriptor launcherAttachmentDescriptor = applicationDescriptor.getLauncherAttachmentDescriptor();
         AttachmentContext<RuntimeApplicationContext> launcherAttachmentContext = createAttachmentContext(launcherAttachmentDescriptor, installName, " launcher",
@@ -806,6 +818,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 migratedApplicationContext = fromApplicationContext;
             }
 
+            checkJavaSpecification(migratorApplicationContext.getJavaSpecificationVersion(), migratorApplicationContext.getMaxJavaSpecificationVersion());
+
             try {
                 final AttachmentContext<RuntimeApplicationInstallerContext> migratorInstallerAttachmentContext = migratorApplicationContext.getInstallerAttachmentContext();
                 final RuntimeApplicationInstallerContext finalRuntimeApplicationInstallerContext;
@@ -964,6 +978,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                 } else {
                     migratedApplicationContext = fromApplicationContext;
                 }
+
+                checkJavaSpecification(migratorApplicationContext.getJavaSpecificationVersion(), migratorApplicationContext.getMaxJavaSpecificationVersion());
 
                 final RuntimeApplicationContext runtimeApplicationContext = fromApplicationContext.getLauncherAttachmentContext().getRuntimeApplicationContext();
                 // && runtimeApplicationContext != null should be redundant
@@ -1579,6 +1595,8 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
             final AttachableClassLoader attachableClassLoader;
             final ClassLoader classLoader;
 
+            checkJavaSpecification(applicationContext.getJavaSpecificationVersion(), applicationContext.getMaxJavaSpecificationVersion());
+
             final AttachmentContext<RuntimeApplicationContext> launcherAttachmentContext = applicationContext.getLauncherAttachmentContext();
 
             RuntimeApplicationContext previousRuntimeApplicationContext = launcherAttachmentContext.getRuntimeApplicationContext();
@@ -2109,25 +2127,41 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
     }
 
     @Override
-    public boolean isJavaSpecificationVersionCompatible(final String javaSpecificationVersion) {
+    public boolean isJavaSpecificationVersionCompatible(final String javaSpecificationVersion, final String maxJavaSpecificationVersion) {
         if (currentJavaSpecificationVersion == 0) {
             return true;
         }
-        int version;
-        try {
-            if (javaSpecificationVersion.startsWith("1.")) {
-                version = Integer.parseInt(javaSpecificationVersion.substring("1.".length()));
-            } else {
-                version = Integer.parseInt(javaSpecificationVersion);
+        if (javaSpecificationVersion != null) {
+            int minVersion;
+            try {
+                if (javaSpecificationVersion.startsWith("1.")) {
+                    minVersion = Integer.parseInt(javaSpecificationVersion.substring("1.".length()));
+                } else {
+                    minVersion = Integer.parseInt(javaSpecificationVersion);
+                }
+                if (currentJavaSpecificationVersion < minVersion) {
+                    return false;
+                }
+            } catch (NumberFormatException e) {
+                // unknown: accept
             }
-        } catch (NumberFormatException e) {
-            // unknown: accept
-            return true;
         }
-        if (currentJavaSpecificationVersion >= version) {
-            return true;
+        if (maxJavaSpecificationVersion != null) {
+            int maxVersion;
+            try {
+                if (maxJavaSpecificationVersion.startsWith("1.")) {
+                    maxVersion = Integer.parseInt(maxJavaSpecificationVersion.substring("1.".length()));
+                } else {
+                    maxVersion = Integer.parseInt(maxJavaSpecificationVersion);
+                }
+                if (currentJavaSpecificationVersion > maxVersion) {
+                    return false;
+                }
+            } catch (NumberFormatException e) {
+                // unknown: accept
+            }
         }
-        return false;
+        return true;
     }
 
 }

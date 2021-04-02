@@ -45,4 +45,10 @@ public class PropertiesApplicationDescriptor implements ApplicationDescriptor {
         return null;
     }
 
+    @Override
+    public String getMaxJavaSpecificationVersion() throws ApplicationException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
 }

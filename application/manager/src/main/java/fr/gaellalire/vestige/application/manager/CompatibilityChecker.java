@@ -22,6 +22,6 @@ package fr.gaellalire.vestige.application.manager;
  */
 public interface CompatibilityChecker {
 
-    boolean isJavaSpecificationVersionCompatible(String javaSpecificationVersion);
+    boolean isJavaSpecificationVersionCompatible(String javaSpecificationVersion, String maxJavaSpecificationVersion);
 
 }

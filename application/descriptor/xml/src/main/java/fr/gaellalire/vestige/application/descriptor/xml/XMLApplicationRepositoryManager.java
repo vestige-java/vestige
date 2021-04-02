@@ -125,7 +125,9 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
             return false;
         }
         try {
-            if (compatibilityChecker.isJavaSpecificationVersionCompatible(SimpleValueGetter.INSTANCE.getValue(getApplication(inputStream).getJavaSpecificationVersion()))) {
+            Application application = getApplication(inputStream);
+            if (compatibilityChecker.isJavaSpecificationVersionCompatible(SimpleValueGetter.INSTANCE.getValue(application.getJavaSpecificationVersion()),
+                    SimpleValueGetter.INSTANCE.getValue(application.getMaxJavaSpecificationVersion()))) {
                 return true;
             }
             return false;
@@ -189,6 +191,7 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
 
         Config configurations = application.getConfigurations();
         String javaSpecificationVersion = SimpleValueGetter.INSTANCE.getValue(application.getJavaSpecificationVersion());
+        String maxJavaSpecificationVersion = SimpleValueGetter.INSTANCE.getValue(application.getMaxJavaSpecificationVersion());
         PermissionSetFactory installerPermissionSet = new PermissionSetFactory();
         PermissionSetFactory launcherPermissionSet = new PermissionSetFactory();
         MavenContext mavenContext = createMavenContext(configurations, installerPermissionSet, launcherPermissionSet, vestigeMavenResolver);
@@ -198,8 +201,8 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
         } else {
             installerMavenContext = mavenContext;
         }
-        return new XMLApplicationDescriptor(this, javaSpecificationVersion, version, application, mavenContext, installerMavenContext, launcherPermissionSet,
-                installerPermissionSet, jobHelper);
+        return new XMLApplicationDescriptor(this, javaSpecificationVersion, maxJavaSpecificationVersion, version, application, mavenContext, installerMavenContext,
+                launcherPermissionSet, installerPermissionSet, jobHelper);
     }
 
     public MavenContext createMavenContext(final Config configurations, final PermissionSetFactory installerPermissionSet, final PermissionSetFactory launcherPermissionSet,

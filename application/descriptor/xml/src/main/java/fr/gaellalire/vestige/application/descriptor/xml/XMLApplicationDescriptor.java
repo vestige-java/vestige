@@ -49,11 +49,14 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
 
     private String javaSpecificationVersion;
 
-    public XMLApplicationDescriptor(final XMLApplicationRepositoryManager xmlApplicationRepositoryManager, final String javaSpecificationVersion, final List<Integer> version,
-            final Application application, final MavenContext mavenContext, final MavenContext installerMavenContext, final PermissionSetFactory permissions,
-            final PermissionSetFactory installerPermissions, final JobHelper jobHelper) {
+    private String maxJavaSpecificationVersion;
+
+    public XMLApplicationDescriptor(final XMLApplicationRepositoryManager xmlApplicationRepositoryManager, final String javaSpecificationVersion,
+            final String maxJavaSpecificationVersion, final List<Integer> version, final Application application, final MavenContext mavenContext,
+            final MavenContext installerMavenContext, final PermissionSetFactory permissions, final PermissionSetFactory installerPermissions, final JobHelper jobHelper) {
         this.xmlApplicationRepositoryManager = xmlApplicationRepositoryManager;
         this.javaSpecificationVersion = javaSpecificationVersion;
+        this.maxJavaSpecificationVersion = maxJavaSpecificationVersion;
         this.application = application;
         this.mavenContext = mavenContext;
         this.installerMavenContext = installerMavenContext;
@@ -65,6 +68,10 @@ public class XMLApplicationDescriptor implements ApplicationDescriptor {
     @Override
     public String getJavaSpecificationVersion() throws ApplicationException {
         return javaSpecificationVersion;
+    }
+
+    public String getMaxJavaSpecificationVersion() throws ApplicationException {
+        return maxJavaSpecificationVersion;
     }
 
     @Override
