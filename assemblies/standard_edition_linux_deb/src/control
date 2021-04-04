@@ -8,4 +8,4 @@ Maintainer: Gael Lalire <vestige@gaellalire.fr>
 Description: Java Application Manager
 Homepage: http://gaellalire.fr/vestige
 Installed-Size: 15360
-Depends: bash, default-jre-headless, java6-runtime-headless
+Depends: bash, debianutils, default-jre-headless, java6-runtime-headless

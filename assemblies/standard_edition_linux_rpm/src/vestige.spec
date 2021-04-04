@@ -10,7 +10,7 @@ Source0:        vestige.tar.gz
 
 BuildArchitectures: noarch
 
-Requires:  bash java >= 1.6.0
+Requires:  bash which coreutils-single java >= 1.6.0
 
 %define __jar_repack %{nil}
 %define _binaries_in_noarch_packages_terminate_build 0
