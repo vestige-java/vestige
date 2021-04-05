@@ -115,6 +115,7 @@ import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
 import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.platform.VestigeURLStreamHandlerFactory;
+import fr.gaellalire.vestige.resolver.maven.DefaultURLFactory;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
 import fr.gaellalire.vestige.resolver.maven.SSLContextAccessor;
 import fr.gaellalire.vestige.resolver.maven.secure.SecureVestigeMavenResolver;
@@ -498,7 +499,7 @@ public class StandardEditionVestige implements Runnable {
             if (installM2RepoFile.mkdirs()) {
                 try {
                     installVestigeMavenResolver = new MavenArtifactResolver(vestigePlatform, vestigeWorker, mavenSettingsFile, lazySSLContextAccessor, "installation",
-                            installM2RepoFile);
+                            installM2RepoFile, DefaultURLFactory.INSTANCE);
                     // the mvn protocol of the launching code may not be the same as ours
                     // vestigeSystem.setURLStreamHandlerForProtocol(MavenArtifactResolver.MVN_PROTOCOL, MavenArtifactResolver.URL_STREAM_HANDLER);
                 } catch (NoLocalRepositoryManagerException e) {

@@ -199,13 +199,21 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
 
     private String logAppend;
 
+    private URLFactory urlFactory;
+
     public MavenArtifactResolver(final VestigePlatform vestigePlatform, final VestigeWorker[] vestigeWorker, final File settingsFile, final SSLContextAccessor sslContextAccessor)
             throws NoLocalRepositoryManagerException {
-        this(vestigePlatform, vestigeWorker, settingsFile, sslContextAccessor, null, null);
+        this(vestigePlatform, vestigeWorker, settingsFile, sslContextAccessor, null, null, DefaultURLFactory.INSTANCE);
     }
 
     public MavenArtifactResolver(final VestigePlatform vestigePlatform, final VestigeWorker[] vestigeWorker, final File settingsFile, final SSLContextAccessor sslContextAccessor,
-            final String name, final File localRepositoryFileOverride) throws NoLocalRepositoryManagerException {
+            final URLFactory urlFactory) throws NoLocalRepositoryManagerException {
+        this(vestigePlatform, vestigeWorker, settingsFile, sslContextAccessor, null, null, urlFactory);
+    }
+
+    public MavenArtifactResolver(final VestigePlatform vestigePlatform, final VestigeWorker[] vestigeWorker, final File settingsFile, final SSLContextAccessor sslContextAccessor,
+            final String name, final File localRepositoryFileOverride, final URLFactory urlFactory) throws NoLocalRepositoryManagerException {
+        this.urlFactory = urlFactory;
         if (name == null) {
             logAppend = "";
         } else {
@@ -487,7 +495,8 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
                         mavenArtifactPatch = new MavenArtifact(patch.getGroupId(), patch.getArtifactId(), patch.getVersion(), patch.getExtension(), null);
 
                         try {
-                            patchFileWithMetadata = new PatchFileWithMetadata(resolveArtifact.getArtifact().getFile(), new URL(mavenArtifactPatch.toString()), sha1Patch);
+                            patchFileWithMetadata = new PatchFileWithMetadata(resolveArtifact.getArtifact().getFile(), urlFactory.createURL(mavenArtifactPatch.toString()),
+                                    sha1Patch);
                         } catch (MalformedURLException e) {
                             throw new ResolverException("Unable to create Maven URL" + logAppend, e);
                         }
@@ -500,7 +509,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
                 File file = artifact.getFile();
                 FileWithMetadata secureFile;
                 try {
-                    secureFile = new FileWithMetadata(file, new URL(mavenArtifact.toString()), sha1, patchFileWithMetadata);
+                    secureFile = new FileWithMetadata(file, urlFactory.createURL(mavenArtifact.toString()), sha1, patchFileWithMetadata);
                 } catch (MalformedURLException e) {
                     throw new ResolverException("Unable to create Maven URL" + logAppend, e);
                 }
