@@ -1,0 +1,32 @@
+<verify xmlns="http://gaellalire.fr/vestige/VERIFY" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://gaellalire.fr/vestige/VERIFY http://gaellalire.fr/vestige/verify-1.0.0.xsd">
+  <attachment>
+    <mavenResolver groupId="fr.gaellalire.vestige" artifactId="vestige.edition.standard" version="${project.version}">
+      <modifyLoadedDependency artifactId="jaxb-api" groupId="fr.gaellalire.jaxb">
+        <addBeforeParent />
+      </modifyLoadedDependency>
+    </mavenResolver>
+  </attachment>
+  <configurations>
+    <mavenConfig>
+      <modifyDependency artifactId="milton-server-ce" groupId="io.milton">
+        <addDependency artifactId="javax.servlet" groupId="org.eclipse.jetty.orbit" version="${javax-servlet.version}" />
+      </modifyDependency>
+      <modifyDependency artifactId="jetty-util" groupId="org.eclipse.jetty">
+        <addDependency artifactId="slf4j-api" groupId="org.slf4j" version="${slf4j.version}" />
+      </modifyDependency>
+      <replaceDependency artifactId="logback-classic" groupId="ch.qos.logback">
+        <exceptIn artifactId="slf4j-api" groupId="org.slf4j" />
+        <addDependency artifactId="slf4j-api" groupId="org.slf4j" version="${slf4j.version}" />
+      </replaceDependency>
+      <modifyDependency artifactId="slf4j-api" groupId="org.slf4j">
+        <addDependency artifactId="logback-classic" groupId="ch.qos.logback" version="${logback.version}" />
+        <addDependency artifactId="logstash-logback-encoder" groupId="net.logstash.logback" version="${logstash.logback.encoder.version}" />
+      </modifyDependency>
+      <replaceDependency artifactId="commons-logging" groupId="commons-logging">
+        <addDependency artifactId="jcl-over-slf4j" groupId="org.slf4j" version="${slf4j.version}" />
+      </replaceDependency>
+      <additionalRepository id="gaellalire-repo" url="https://gaellalire.fr/maven/repository/" />
+    </mavenConfig>
+  </configurations>
+</verify>

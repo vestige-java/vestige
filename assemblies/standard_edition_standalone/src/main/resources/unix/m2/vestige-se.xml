@@ -1,4 +1,4 @@
-<mavenLauncher xmlns="http://gaellalire.fr/vestige/MAVEN_LAUNCHER" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://gaellalire.fr/vestige/MAVEN_LAUNCHER http://gaellalire.fr/vestige/mavenLauncher-2.0.0.xsd">
+<mavenLauncher xmlns="http://gaellalire.fr/vestige/MAVEN_LAUNCHER" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://gaellalire.fr/vestige/MAVEN_LAUNCHER http://gaellalire.fr/vestige/mavenLauncher-2.2.0.xsd">
   <launch class="fr.gaellalire.vestige.edition.standard.StandardEditionVestige" groupId="fr.gaellalire.vestige" artifactId="vestige.edition.standard" version="${project.version}"
     mode="FIXED_DEPENDENCIES">
     <activateNamedModules>
@@ -6,6 +6,7 @@
       <addReads source="fr.gaellalire.vestige.edition.standard" target="javax.runtime" />
       <addReads source="fr.gaellalire.vestige.application.descriptor.xml"  target="javax.runtime" />
     </activateNamedModules>
+    <verificationMetadata>${vestige.edition.standard.verificationMetadata}</verificationMetadata>
   </launch>
   <config superPomRepositoriesIgnored="true" pomRepositoriesIgnored="true">
     <modifyDependency artifactId="vestige.system" groupId="fr.gaellalire.vestige">

@@ -20,8 +20,6 @@ package fr.gaellalire.vestige.edition.maven_main_launcher;
 import java.io.Serializable;
 import java.util.List;
 
-import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
-
 /**
  * @author Gael Lalire
  */
@@ -29,23 +27,23 @@ public class MavenResolverCache implements Serializable {
 
     private static final long serialVersionUID = 561193783052759466L;
 
-    private List<ClassLoaderConfiguration> launchCaches;
+    private List<VerifiedClassLoaderConfiguration> launchCaches;
 
     private String className;
 
-    private ClassLoaderConfiguration classLoaderConfiguration;
+    private VerifiedClassLoaderConfiguration classLoaderConfiguration;
 
     private long lastModified;
 
-    public MavenResolverCache(final List<ClassLoaderConfiguration> classLoaderConfigurations, final String className, final ClassLoaderConfiguration classLoaderConfiguration,
-            final long lastModified) {
+    public MavenResolverCache(final List<VerifiedClassLoaderConfiguration> classLoaderConfigurations, final String className,
+            final VerifiedClassLoaderConfiguration classLoaderConfiguration, final long lastModified) {
         this.launchCaches = classLoaderConfigurations;
         this.className = className;
         this.classLoaderConfiguration = classLoaderConfiguration;
         this.lastModified = lastModified;
     }
 
-    public List<ClassLoaderConfiguration> getClassLoaderConfigurations() {
+    public List<VerifiedClassLoaderConfiguration> getClassLoaderConfigurations() {
         return launchCaches;
     }
 
@@ -57,7 +55,7 @@ public class MavenResolverCache implements Serializable {
         return className;
     }
 
-    public ClassLoaderConfiguration getClassLoaderConfiguration() {
+    public VerifiedClassLoaderConfiguration getClassLoaderConfiguration() {
         return classLoaderConfiguration;
     }
 
@@ -66,7 +64,7 @@ public class MavenResolverCache implements Serializable {
         if (!classLoaderConfiguration.verify()) {
             result = false;
         }
-        for (ClassLoaderConfiguration launchCache : launchCaches) {
+        for (VerifiedClassLoaderConfiguration launchCache : launchCaches) {
             if (launchCache.verify()) {
                 result = false;
             }

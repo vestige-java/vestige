@@ -92,6 +92,7 @@ import fr.gaellalire.vestige.logback_enhancer.LogbackEnhancer;
 import fr.gaellalire.vestige.platform.AddAccessibility;
 import fr.gaellalire.vestige.platform.AddReads;
 import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
+import fr.gaellalire.vestige.platform.AttachmentVerificationMetadata;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.DefaultVestigePlatform;
 import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
@@ -364,7 +365,7 @@ public final class MavenMainLauncher {
 
                     mavenArtifactResolver = new MavenArtifactResolver(vestigePlatform, new VestigeWorker[] {vestigeWorker}, mavenSettingsFile, lazySSLContextAccessor);
 
-                    List<ClassLoaderConfiguration> launchCaches = new ArrayList<ClassLoaderConfiguration>();
+                    List<VerifiedClassLoaderConfiguration> launchCaches = new ArrayList<VerifiedClassLoaderConfiguration>();
                     int attachCount = 0;
                     for (MavenAttachType mavenClassType : mavenLauncher.getAttach()) {
                         ResolveMode resolveMode = convertMode(mavenClassType.getMode());
@@ -391,7 +392,8 @@ public final class MavenMainLauncher {
                         ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
                                 .createClassLoaderConfiguration(createClassLoaderConfigurationParameters);
 
-                        launchCaches.add(classLoaderConfiguration);
+                        launchCaches
+                                .add(new VerifiedClassLoaderConfiguration(classLoaderConfiguration, SimpleValueGetter.INSTANCE.getValue(mavenClassType.getVerificationMetadata())));
                         attachCount++;
                     }
 
@@ -421,7 +423,8 @@ public final class MavenMainLauncher {
                     ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
                             .createClassLoaderConfiguration(createClassLoaderConfigurationParameters);
 
-                    mavenResolverCache = new MavenResolverCache(launchCaches, SimpleValueGetter.INSTANCE.getValue(mavenClassType.getClazz()), classLoaderConfiguration,
+                    mavenResolverCache = new MavenResolverCache(launchCaches, SimpleValueGetter.INSTANCE.getValue(mavenClassType.getClazz()),
+                            new VerifiedClassLoaderConfiguration(classLoaderConfiguration, SimpleValueGetter.INSTANCE.getValue(mavenClassType.getVerificationMetadata())),
                             lastModified);
                     try {
                         File parentFile = mavenResolverCacheFile.getParentFile();
@@ -444,15 +447,18 @@ public final class MavenMainLauncher {
                     LOGGER.info("Maven launcher file not modified, use resolver cache");
                 }
 
-                for (ClassLoaderConfiguration classLoaderConfiguration : mavenResolverCache.getClassLoaderConfigurations()) {
+                for (VerifiedClassLoaderConfiguration classLoaderConfiguration : mavenResolverCache.getClassLoaderConfigurations()) {
                     LOGGER.debug("Attach:\n{}", classLoaderConfiguration);
                     // int attach =
-                    vestigePlatform.attach(classLoaderConfiguration, null, vestigeWorker);
+                    vestigePlatform.attach(classLoaderConfiguration.getClassLoaderConfiguration(),
+                            AttachmentVerificationMetadata.fromString(classLoaderConfiguration.getVerificationMetadata()), vestigeWorker);
                     // vestigePlatform.start(attach);
                 }
 
-                LOGGER.debug("Attach and run vestigeMain:\n{}", mavenResolverCache.getClassLoaderConfiguration());
-                int load = vestigePlatform.attach(mavenResolverCache.getClassLoaderConfiguration(), null, vestigeWorker);
+                VerifiedClassLoaderConfiguration verifiedClassLoaderConfiguration = mavenResolverCache.getClassLoaderConfiguration();
+                LOGGER.debug("Attach and run vestigeMain:\n{}", verifiedClassLoaderConfiguration);
+                int load = vestigePlatform.attach(verifiedClassLoaderConfiguration.getClassLoaderConfiguration(),
+                        AttachmentVerificationMetadata.fromString(verifiedClassLoaderConfiguration.getVerificationMetadata()), vestigeWorker);
                 // vestigePlatform.start(load);
 
                 final VestigeClassLoader<AttachedVestigeClassLoader> mavenResolverClassLoader = vestigePlatform.getClassLoader(load);

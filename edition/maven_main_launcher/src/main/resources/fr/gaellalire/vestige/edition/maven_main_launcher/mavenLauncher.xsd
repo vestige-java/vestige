@@ -3,14 +3,14 @@
   xmlns:tns="http://gaellalire.fr/vestige/MAVEN_LAUNCHER"
   xmlns:vu="http://gaellalire.fr/vestige/UTILS"
   xmlns="http://gaellalire.fr/vestige/MAVEN_LAUNCHER"
-  targetNamespace="http://gaellalire.fr/vestige/MAVEN_LAUNCHER" version="2.1.0">
+  targetNamespace="http://gaellalire.fr/vestige/MAVEN_LAUNCHER" version="2.2.0">
 
   <xs:import namespace="http://gaellalire.fr/vestige/UTILS" 
     schemaLocation="http://gaellalire.fr/vestige/utils-1.0.0.xsd" />
 
   <xs:element name="mavenLauncher" type="MavenLauncher">
     <xs:annotation>
-      <xs:documentation source="version">2.1.0</xs:documentation>
+      <xs:documentation source="version">2.2.0</xs:documentation>
       <xs:documentation source="description">
         Root element of the user
         configuration file.
@@ -27,6 +27,9 @@
   </xs:complexType>
 
   <xs:complexType name="MavenAttachType">
+    <xs:sequence>
+      <xs:element name="verificationMetadata" type="xs:string" minOccurs="0" />
+    </xs:sequence>
     <xs:attribute name="groupId" type="xs:string" use="required" />
     <xs:attribute name="artifactId" type="xs:string" use="required" />
     <xs:attribute name="version" type="xs:string" use="required" />
@@ -37,6 +40,7 @@
   <xs:complexType name="MavenClassType">
     <xs:sequence>
       <xs:element name="activateNamedModules" type="ActivateNamedModules" minOccurs="0" maxOccurs="1" />
+      <xs:element name="verificationMetadata" type="xs:string" minOccurs="0" />
     </xs:sequence>
     <xs:attribute name="class" type="xs:string" use="required" />
     <xs:attribute name="groupId" type="xs:string" use="required" />

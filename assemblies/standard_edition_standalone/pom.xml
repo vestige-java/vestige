@@ -84,6 +84,31 @@
         </executions>
       </plugin>
       <plugin>
+        <groupId>fr.gaellalire.vestige</groupId>
+        <artifactId>vestige.plugin.verify</artifactId>
+        <version>1.1.0</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>create-verification-metadata</goal>
+            </goals>
+            <configuration>
+              <vestigeVersion>${project.version}</vestigeVersion>
+              <verifications>
+                <verification>
+                  <verifyFile>${basedir}/src/main/config/verify.xml</verifyFile>
+                  <mavenPropertyName>vestige.edition.standard.verificationMetadata</mavenPropertyName>
+                </verification>
+                <verification>
+                  <verifyFile>${basedir}/src/main/config/verify-6to8.xml</verifyFile>
+                  <mavenPropertyName>vestige.edition.standard.verificationMetadata6to8</mavenPropertyName>
+                </verification>
+              </verifications>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <artifactId>maven-resources-plugin</artifactId>
         <executions>
           <execution>

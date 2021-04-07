@@ -269,7 +269,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
 
                     @Override
                     public void fill(final AuthenticationContext context, final String key, final Map<String, String> data) {
-                        if (!repository.getUrl().startsWith("file:")) {
+                        if (sslContextAccessor != null && !repository.getUrl().startsWith("file:")) {
                             context.put(AuthenticationContext.SSL_CONTEXT, sslContextAccessor.getSSLContext());
                         }
                     }

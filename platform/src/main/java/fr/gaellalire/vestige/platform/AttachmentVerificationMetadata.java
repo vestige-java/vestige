@@ -158,6 +158,8 @@ public class AttachmentVerificationMetadata {
                     currentSignature = signatures.get(Integer.parseInt(readLine.substring(1)));
                     if (previousLevel > currentLevel) {
                         dependenciesByLevel.subList(currentLevel + 1, dependenciesByLevel.size()).clear();
+                    } else if (previousLevel < currentLevel) {
+                        dependenciesByLevel.add(null);
                     }
                 } else {
                     List<FileVerificationMetadata> currentBeforeFiles = new ArrayList<FileVerificationMetadata>();
