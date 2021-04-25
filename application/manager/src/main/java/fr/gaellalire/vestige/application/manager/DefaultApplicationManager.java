@@ -363,7 +363,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
         }
         AttachmentContext<RuntimeContext> attachmentContext = new AttachmentContext<RuntimeContext>();
 
-        attachmentContext.setResolve(attachmentDescriptor.getClassLoaderConfiguration(installName + " installer"));
+        attachmentContext.setResolve(attachmentDescriptor.getClassLoaderConfiguration(installName + attachmentSuffix));
         attachmentContext.setPermissions(attachmentDescriptor.getPermissions());
         attachmentContext.setAddInjects(attachmentDescriptor.getAddInjects());
         attachmentContext.setVerificationMetadata(attachmentDescriptor.getVerificationMetadata());

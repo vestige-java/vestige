@@ -47,6 +47,8 @@ import fr.gaellalire.vestige.core.StackedHandler;
 import fr.gaellalire.vestige.core.StackedHandlerUtils;
 import fr.gaellalire.vestige.core.logger.VestigeLoggerFactory;
 import fr.gaellalire.vestige.system.interceptor.ProviderListThreadLocal;
+import fr.gaellalire.vestige.system.interceptor.TCPTransportConnectionThreadPool;
+import fr.gaellalire.vestige.system.interceptor.TCPTransportLocalEndpoints;
 import fr.gaellalire.vestige.system.interceptor.VestigeArrayList;
 import fr.gaellalire.vestige.system.interceptor.VestigeCopyOnWriteArrayList;
 import fr.gaellalire.vestige.system.interceptor.VestigeDriverVector;
@@ -300,7 +302,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
         VestigeURLStreamHandlerFactory vestigeURLStreamHandlerFactory = new VestigeURLStreamHandlerFactory();
         urlFields.put("factory", vestigeURLStreamHandlerFactory);
 
-        VestigeSystemJarURLStreamHandler jarUrlStreamHandler = new VestigeSystemJarURLStreamHandler();
+        VestigeSystemJarURLStreamHandler jarUrlStreamHandler = new VestigeSystemJarURLStreamHandler(vestigeSystemHolder);
         vestigeSystemHolder.setVestigeApplicationJarURLStreamHandler(jarUrlStreamHandler);
 
         VestigeURLHandlersHashTable vestigeURLHandlersHashTable = new VestigeURLHandlersHashTable(vestigeSystemHolder, jarUrlStreamHandler);
@@ -368,11 +370,63 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
             LOGGER.warn("Could not intercept DriverManager.registerDriver", e);
             driverManagerFields = null;
         }
+
+        Map<String, StackedHandler<?>> tcpTransportFields = new HashMap<String, StackedHandler<?>>();
+        TCPTransportConnectionThreadPool vestigeExecutorService = new TCPTransportConnectionThreadPool(vestigeSystemHolder);
+        tcpTransportFields.put("connectionThreadPool", vestigeExecutorService);
+
+        Class<?> tcpTransportClass = null;
+        try {
+            tcpTransportClass = Class.forName("sun.rmi.transport.tcp.TCPTransport");
+
+            installFields(tcpTransportClass, tcpTransportFields);
+        } catch (Exception e) {
+            LOGGER.warn("Could not intercept TCPTransport.connectionThreadPool", e);
+            tcpTransportFields = null;
+        }
+
+        Map<String, StackedHandler<?>> tcpEndpointFields = new HashMap<String, StackedHandler<?>>();
+        Class<?> tcpEndpointClass = null;
+        try {
+            tcpEndpointClass = Class.forName("sun.rmi.transport.tcp.TCPEndpoint");
+            Class.forName("sun.rmi.transport.Transport");
+            Class.forName("sun.rmi.transport.Endpoint");
+
+            tcpEndpointFields.put("localEndpoints", new TCPTransportLocalEndpoints(vestigeSystemHolder));
+
+            installFields(tcpEndpointClass, tcpEndpointFields);
+        } catch (Exception e) {
+            LOGGER.warn("Could not intercept TCPEndpoint.localEndpoints", e);
+            tcpEndpointFields = null;
+        }
+
+        // TODO maybe intercept RuntimeUtil.instance.scheduler ?
+
+        // RenewCleanThread will stop after sun.rmi.dgc.cleanInterval (default to 3 minutes)
+        // TODO interrupt ?, interrupt will kill only RenewCleanThread which has nothing to do
+        // TODO interrupt all Thread which are childen of group NewThreadAction.systemThreadGroup and with name containing RenewClean
+
         // vestigeCacheObjectReaper.start();
         try {
             vestigeSystemAction.vestigeSystemRun(vestigeSystem);
         } finally {
             // vestigeCacheObjectReaper.interrupt();
+
+            if (tcpEndpointFields != null) {
+                try {
+                    uninstallFields(tcpEndpointClass, tcpEndpointFields);
+                } catch (Exception e) {
+                    LOGGER.error("Could not release TCPEndpoint.localEndpoints interception", e);
+                }
+            }
+
+            if (tcpTransportFields != null) {
+                try {
+                    uninstallFields(tcpTransportClass, tcpTransportFields);
+                } catch (Exception e) {
+                    LOGGER.error("Could not release TCPTransport.connectionThreadPool interception", e);
+                }
+            }
 
             if (driverManagerFields != null) {
                 synchronized (driverManagerClass) {

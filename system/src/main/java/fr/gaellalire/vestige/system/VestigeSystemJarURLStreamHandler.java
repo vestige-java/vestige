@@ -34,8 +34,6 @@ import java.util.Map.Entry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import fr.gaellalire.vestige.spi.system.VestigeSystemCache;
-
 /**
  * @author Gael Lalire
  */
@@ -47,11 +45,15 @@ public class VestigeSystemJarURLStreamHandler extends URLStreamHandler {
 
     private Map<File, WeakReference<CachedJarFile>> cachedJarFileKeyWeakReferenceByFile = new HashMap<File, WeakReference<CachedJarFile>>();
 
-    private ThreadLocal<DefaultVestigeSystemCache> vestigeSystemCacheThreadLocal = new InheritableThreadLocal<DefaultVestigeSystemCache>();
-
     private File temp;
 
     private boolean clearingCache;
+
+    private VestigeSystemHolder vestigeSystemHolder;
+
+    public VestigeSystemJarURLStreamHandler(final VestigeSystemHolder vestigeSystemHolder) {
+        this.vestigeSystemHolder = vestigeSystemHolder;
+    }
 
     @Override
     protected URLConnection openConnection(final URL url) throws IOException {
@@ -78,8 +80,8 @@ public class VestigeSystemJarURLStreamHandler extends URLStreamHandler {
         // we always try to use cache
         // because new URL("jar:file:/f.jar").connect() will prevent f.jar to be suppress until a GC finalize the CachedJarFile
         // we need that when the application exit GC or not, its data can be suppressed
-        if (true  /* useCachesAsked */) {
-            vestigeSystemCache = vestigeSystemCacheThreadLocal.get();
+        if (true /* useCachesAsked */) {
+            vestigeSystemCache = vestigeSystemHolder.getVestigeSystemCache();
             if (vestigeSystemCache == null) {
                 LOGGER.warn("Cannot use cache for {} when no system cache is set", jarFileUrl);
             } else {
@@ -158,34 +160,7 @@ public class VestigeSystemJarURLStreamHandler extends URLStreamHandler {
         }
     }
 
-    public void clearCache(final DefaultVestigeSystemCache popedVestigeSystemCache) {
-        DefaultVestigeSystemCache vestigeSystemCache = vestigeSystemCacheThreadLocal.get();
-        while (vestigeSystemCache != null && vestigeSystemCache != popedVestigeSystemCache) {
-            vestigeSystemCache = vestigeSystemCache.getParent();
-        }
-        if (vestigeSystemCache == null) {
-            // can not clear cache
-            return;
-        }
-        vestigeSystemCache = vestigeSystemCacheThreadLocal.get();
-        boolean last = false;
-        while (!last) {
-            if (vestigeSystemCache == popedVestigeSystemCache) {
-                last = true;
-            }
-            for (WeakReference<CachedJarFile> weakReference : vestigeSystemCache.getWeakReferences()) {
-                CachedJarFile cachedJarFile = weakReference.get();
-                // if key is GC, then all VestigeSystemJarURLConnection which use this key are also GC.
-                // the cachedJarFileByCachedJarFileKey loop will detect it, and close it
-                if (cachedJarFile != null) {
-                    // the key is not GC but it has one less user because vestigeSystemCache is popped
-                    cachedJarFile.removeVestigeSystemUser();
-                }
-            }
-            vestigeSystemCache = vestigeSystemCache.getParent();
-        }
-        vestigeSystemCacheThreadLocal.set(popedVestigeSystemCache.getParent());
-
+    public void clearCache() {
         synchronized (cachedJarFileKeyWeakReferenceByURL) {
             clearingCache = true;
             try {
@@ -203,12 +178,6 @@ public class VestigeSystemJarURLStreamHandler extends URLStreamHandler {
                 clearingCache = false;
             }
         }
-    }
-
-    public VestigeSystemCache pushVestigeSystemCache() {
-        DefaultVestigeSystemCache vestigeSystemCache = new DefaultVestigeSystemCache(this, vestigeSystemCacheThreadLocal.get());
-        vestigeSystemCacheThreadLocal.set(vestigeSystemCache);
-        return vestigeSystemCache;
     }
 
 }

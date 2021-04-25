@@ -18,6 +18,7 @@
 package fr.gaellalire.vestige.system;
 
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
+import fr.gaellalire.vestige.spi.system.VestigeSystemCache;
 
 /**
  * @author Gael Lalire
@@ -31,6 +32,8 @@ public class VestigeSystemHolder {
     private DefaultVestigeSystem fallbackVestigeSystem;
 
     private VestigeSystemJarURLStreamHandler vestigeApplicationJarURLStreamHandler;
+
+    private ThreadLocal<DefaultVestigeSystemCache> vestigeSystemCacheThreadLocal = new InheritableThreadLocal<DefaultVestigeSystemCache>();
 
     public DefaultVestigeSystem getVestigeSystem() {
         DefaultVestigeSystem vestigeSystem = vestigeSystems.get();
@@ -53,12 +56,47 @@ public class VestigeSystemHolder {
         fallbackVestigeSystem = vestigeSystem;
     }
 
+    public void setVestigeApplicationJarURLStreamHandler(final VestigeSystemJarURLStreamHandler vestigeApplicationJarURLStreamHandler) {
+        this.vestigeApplicationJarURLStreamHandler = vestigeApplicationJarURLStreamHandler;
+    }
+
     public VestigeSystemJarURLStreamHandler getVestigeApplicationJarURLStreamHandler() {
         return vestigeApplicationJarURLStreamHandler;
     }
 
-    public void setVestigeApplicationJarURLStreamHandler(final VestigeSystemJarURLStreamHandler vestigeApplicationJarURLStreamHandler) {
-        this.vestigeApplicationJarURLStreamHandler = vestigeApplicationJarURLStreamHandler;
+    public DefaultVestigeSystemCache getVestigeSystemCache() {
+        return vestigeSystemCacheThreadLocal.get();
+    }
+
+    public VestigeSystemCache pushVestigeSystemCache() {
+        DefaultVestigeSystemCache vestigeSystemCache = new DefaultVestigeSystemCache(this, vestigeSystemCacheThreadLocal.get());
+        vestigeSystemCacheThreadLocal.set(vestigeSystemCache);
+        return vestigeSystemCache;
+    }
+
+    public void clearCache(final DefaultVestigeSystemCache popedCache) {
+        DefaultVestigeSystemCache vestigeSystemCache = vestigeSystemCacheThreadLocal.get();
+        while (vestigeSystemCache != null && vestigeSystemCache != popedCache) {
+            vestigeSystemCache = vestigeSystemCache.getParent();
+        }
+        if (vestigeSystemCache == null) {
+            // can not clear cache
+            return;
+        }
+        vestigeSystemCache = vestigeSystemCacheThreadLocal.get();
+        boolean last = false;
+        while (!last) {
+            if (vestigeSystemCache == popedCache) {
+                last = true;
+            }
+            vestigeSystemCache.doClearCache();
+
+            vestigeSystemCache = vestigeSystemCache.getParent();
+        }
+        vestigeSystemCacheThreadLocal.set(vestigeSystemCache);
+
+        vestigeApplicationJarURLStreamHandler.clearCache();
+
     }
 
 }

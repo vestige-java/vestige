@@ -10,12 +10,14 @@
   </launch>
   <config superPomRepositoriesIgnored="true" pomRepositoriesIgnored="true">
     <modifyDependency artifactId="vestige.system" groupId="fr.gaellalire.vestige">
+      <addExports module="java.rmi" package="sun.rmi.transport" />
       <addOpens module="java.logging" package="java.util.logging" />
       <addOpens module="java.base" package="java.security" />
       <addOpens module="java.base" package="sun.security.jca" />
       <addOpens module="java.base" package="java.lang.reflect" />
       <addOpens module="java.base" package="java.net" />
       <addOpens module="java.sql" package="java.sql" />
+      <addOpens module="java.rmi" package="sun.rmi.transport.tcp" />
     </modifyDependency>
     <modifyDependency artifactId="jaxb-api" groupId="fr.gaellalire.jaxb">
       <addBeforeParent />

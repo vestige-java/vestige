@@ -1019,6 +1019,11 @@ public class StandardEditionVestige implements Runnable {
             if (findModule != null) {
                 findModule.addOpens("java.sql", JVMVestigeSystemActionExecutor.class);
             }
+            findModule = bootLayer.findModule("java.rmi");
+            if (findModule != null) {
+                findModule.addOpens("sun.rmi.transport.tcp", JVMVestigeSystemActionExecutor.class);
+                findModule.addExports("sun.rmi.transport", JVMVestigeSystemActionExecutor.class);
+            }
             moduleLayerRepository = jpmsAccessor.createModuleLayerRepository();
         }
 

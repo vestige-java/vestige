@@ -432,7 +432,7 @@ public final class DefaultVestigeSystem implements VestigeSystem {
 
     @Override
     public VestigeSystemCache pushVestigeSystemCache() {
-        return vestigeSystemHolder.getVestigeApplicationJarURLStreamHandler().pushVestigeSystemCache();
+        return vestigeSystemHolder.pushVestigeSystemCache();
     }
 
 }
