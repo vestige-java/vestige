@@ -48,13 +48,15 @@ public class AttachedVestigeClassLoader {
 
     private boolean jpmsActivated;
 
+    private boolean verified;
+
     public AttachedVestigeClassLoader(final List<AttachedVestigeClassLoader> dependencies) {
         this.dependencies = dependencies;
     }
 
     public AttachedVestigeClassLoader(final VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader, final List<AttachedVestigeClassLoader> dependencies,
             final String name, final boolean attachmentScoped, final VestigeResourceLocator[] cache, final JPMSInRepositoryModuleLayerAccessor moduleLayer,
-            final boolean jpmsActivated) {
+            final boolean jpmsActivated, final boolean verified) {
         this.vestigeClassLoader = vestigeClassLoader;
         this.dependencies = dependencies;
         this.name = name;
@@ -63,6 +65,7 @@ public class AttachedVestigeClassLoader {
         this.cache = cache;
         this.moduleLayer = moduleLayer;
         this.jpmsActivated = jpmsActivated;
+        this.verified = verified;
     }
 
     public void setModuleLayer(final JPMSInRepositoryModuleLayerAccessor moduleLayer) {
@@ -109,11 +112,32 @@ public class AttachedVestigeClassLoader {
         return jpmsActivated;
     }
 
+    public boolean isVerified() {
+        return verified;
+    }
+
     @Override
     public String toString() {
         if (name != null) {
-            if (jpmsActivated) {
-                return name + " (JPMS)";
+            if (jpmsActivated || verified) {
+                StringBuilder sb = new StringBuilder();
+                sb.append(name);
+                sb.append(" (");
+                boolean first = true;
+                if (jpmsActivated) {
+                    sb.append("JPMS");
+                    first = false;
+                }
+                if (verified) {
+                    if (first) {
+                        first = false;
+                    } else {
+                        sb.append(",");
+                    }
+                    sb.append("verified");
+                }
+                sb.append(")");
+                return sb.toString();
             }
             return name;
         }

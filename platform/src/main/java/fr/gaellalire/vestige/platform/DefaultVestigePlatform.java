@@ -447,6 +447,9 @@ public class DefaultVestigePlatform implements VestigePlatform {
             final ClassLoaderConfiguration classLoaderConfiguration, final AttachmentVerificationMetadata verificationMetadata, final VestigeWorker vestigeWorker)
             throws InterruptedException, IOException {
         Serializable key = classLoaderConfiguration.getKey();
+        if (verificationMetadata != null) {
+            key = new VerifiedKey(key, verificationMetadata.toString());
+        }
 
         JPMSNamedModulesConfiguration namedModulesConfiguration = classLoaderConfiguration.getNamedModulesConfiguration();
         boolean selfNeedModuleDefine = BOOT_LAYER != null && namedModulesConfiguration != null;
@@ -574,7 +577,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
                 name = name + " @ " + Integer.toHexString(System.identityHashCode(attachmentMap));
             }
             attachedVestigeClassLoader = new AttachedVestigeClassLoader(vestigeClassLoader, classLoaderDependencies, name, classLoaderConfiguration.isAttachmentScoped(), urls,
-                    null, namedModulesConfiguration != null);
+                    null, namedModulesConfiguration != null, verificationMetadata != null);
             vestigeClassLoader.setData(this, attachedVestigeClassLoader);
 
             JPMSInRepositoryModuleLayerAccessor moduleLayer = null;

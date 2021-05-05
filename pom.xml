@@ -153,7 +153,7 @@
     <at>@</at>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <slf4j.version>1.7.25</slf4j.version>
-    <vestige.core.version>11</vestige.core.version>
+    <vestige.core.version>12</vestige.core.version>
     <vestige.jpms.version>2.0</vestige.jpms.version>
     <vestige.jvm_enhancer.version>4.3</vestige.jvm_enhancer.version>
     <vestige.logback_enhancer.version>1.1</vestige.logback_enhancer.version>
@@ -172,7 +172,7 @@
     <bouncycastle.version>1.68</bouncycastle.version>
     <httpcomponents.version>4.5.3</httpcomponents.version>
     <proxy_vole.version>java6-3</proxy_vole.version>
-    <maven-resolver.version>java6-2</maven-resolver.version>
+    <maven-resolver.version>java6-3</maven-resolver.version>
   </properties>
   <dependencyManagement>
     <dependencies>

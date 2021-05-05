@@ -69,7 +69,8 @@ public final class VestigePlatformConverter {
                 (Boolean) oldAttachedVestigeClassLoaderClass.getMethod("isAttachmentScoped").invoke(oldAttachedVestigeClassLoader),
                 (VestigeResourceLocator[]) oldAttachedVestigeClassLoaderClass.getMethod("getCache").invoke(oldAttachedVestigeClassLoader),
                 loadedModuleLayers.get(oldAttachedVestigeClassLoaderClass.getMethod("getModuleLayer").invoke(oldAttachedVestigeClassLoader)),
-                (Boolean) oldAttachedVestigeClassLoaderClass.getMethod("isJPMSActivated").invoke(oldAttachedVestigeClassLoader));
+                (Boolean) oldAttachedVestigeClassLoaderClass.getMethod("isJPMSActivated").invoke(oldAttachedVestigeClassLoader),
+                (Boolean) oldAttachedVestigeClassLoaderClass.getMethod("isVerified").invoke(oldAttachedVestigeClassLoader));
 
         attachedVestigeClassLoader.setAttachments((Integer) oldAttachedVestigeClassLoaderClass.getMethod("getAttachments").invoke(oldAttachedVestigeClassLoader));
 

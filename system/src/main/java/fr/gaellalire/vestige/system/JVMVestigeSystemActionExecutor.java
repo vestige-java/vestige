@@ -47,6 +47,7 @@ import fr.gaellalire.vestige.core.StackedHandler;
 import fr.gaellalire.vestige.core.StackedHandlerUtils;
 import fr.gaellalire.vestige.core.logger.VestigeLoggerFactory;
 import fr.gaellalire.vestige.system.interceptor.ProviderListThreadLocal;
+import fr.gaellalire.vestige.system.interceptor.RuntimeUtilScheduledThreadPoolExecutor;
 import fr.gaellalire.vestige.system.interceptor.TCPTransportConnectionThreadPool;
 import fr.gaellalire.vestige.system.interceptor.TCPTransportLocalEndpoints;
 import fr.gaellalire.vestige.system.interceptor.VestigeArrayList;
@@ -85,6 +86,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
         final VestigeSystemHolder vestigeSystemHolder = new VestigeSystemHolder();
         final DefaultVestigeSystem vestigeSystem = new DefaultVestigeSystem(vestigeSystemHolder, "rootVestigeSystem");
         vestigeSystemHolder.setFallbackVestigeSystem(vestigeSystem);
+        vestigeSystemHolder.setHandlerVestigeSystem(vestigeSystem);
 
         VestigePolicy vestigePolicy = null;
         if (securityEnabled) {
@@ -200,7 +202,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
         try {
             levelClass = Class.forName("java.util.logging.Level");
             try {
-                installFields(levelClass, levelFields);
+                installFields(levelClass, null, levelFields);
                 vestigeSystem.setKnownLevels(vestigeArrayList.getNextHandler());
             } catch (NoSuchFieldException e) {
                 LOGGER.trace("Missing field try another", e);
@@ -225,7 +227,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
                 };
                 levelFields.put("nameToLevels", nameToLevels);
                 levelFields.put("intToLevels", intToLevels);
-                installFields(levelClass, levelFields);
+                installFields(levelClass, null, levelFields);
                 vestigeSystem.setNameToLevels(nameToLevels.getNextHandler());
                 vestigeSystem.setIntToLevels(intToLevels.getNextHandler());
             }
@@ -257,7 +259,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
         };
         securityFields.put("props", vestigeSecurityProperties);
         try {
-            installFields(Security.class, securityFields);
+            installFields(Security.class, null, securityFields);
             vestigeSystem.setSecurityProperties(vestigeSecurityProperties.getNextHandler());
         } catch (Exception e) {
             LOGGER.warn("Could not intercept Security.properties", e);
@@ -284,9 +286,9 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
         Field threadListsUsedField = null;
         try {
             securityProviders = Class.forName("sun.security.jca.Providers");
-            vestigeSystem.setSecurityProviderList(getStaticFieldValue(securityProviders.getDeclaredField("providerList")));
+            vestigeSystem.setSecurityProviderList(getFieldValue(securityProviders.getDeclaredField("providerList"), null));
             threadListsUsedField = securityProviders.getDeclaredField("threadListsUsed");
-            installFields(securityProviders, securityProvidersFields);
+            installFields(securityProviders, null, securityProvidersFields);
             synchronized (securityProviders) {
                 // always use thread local providerList
                 threadListsUsedField.setAccessible(true);
@@ -308,7 +310,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
         VestigeURLHandlersHashTable vestigeURLHandlersHashTable = new VestigeURLHandlersHashTable(vestigeSystemHolder, jarUrlStreamHandler);
         urlFields.put("handlers", vestigeURLHandlersHashTable);
         try {
-            installFields(URL.class, urlFields);
+            installFields(URL.class, null, urlFields);
             URLStreamHandlerFactory nextHandler = vestigeURLStreamHandlerFactory.getNextHandler();
             // default protocol differ (jar files) so we remove the cache
             vestigeSystem.setURLStreamHandlerByProtocol(new Hashtable<String, URLStreamHandler>());
@@ -326,7 +328,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
         VestigeURLConnectionHandlersHashTable vestigeURLConnectionHandlersHashTable = new VestigeURLConnectionHandlersHashTable(vestigeSystemHolder);
         urlConnectionFields.put("handlers", vestigeURLConnectionHandlersHashTable);
         try {
-            installFields(URLConnection.class, urlConnectionFields);
+            installFields(URLConnection.class, null, urlConnectionFields);
             vestigeSystem.setURLConnectionContentHandlerFactory(vestigeURLConnectionContentHandlerFactory.getNextHandler());
             vestigeSystem.setURLConnectionContentHandlerByMime(vestigeURLConnectionHandlersHashTable.getNextHandler());
         } catch (Exception e) {
@@ -344,7 +346,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
         try {
             driverManagerClass = Class.forName("java.sql.DriverManager");
             try {
-                installFields(driverManagerClass, driverManagerFields);
+                installFields(driverManagerClass, null, driverManagerFields);
                 vestigeSystem.setWriteDrivers(writeDrivers.getNextHandler());
                 vestigeSystem.setReadDrivers(new WeakHashMap<Object, Vector<Object>>());
                 vestigeSystem.getReadDrivers().put(vestigeSystem, readDrivers.getNextHandler());
@@ -363,7 +365,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
                     }
                 };
                 driverManagerFields.put("registeredDrivers", vestigeDriversCopyOnWriteArrayList);
-                installFields(driverManagerClass, driverManagerFields);
+                installFields(driverManagerClass, null, driverManagerFields);
                 vestigeSystem.setRegisteredDrivers(vestigeDriversCopyOnWriteArrayList.getNextHandler());
             }
         } catch (Exception e) {
@@ -379,7 +381,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
         try {
             tcpTransportClass = Class.forName("sun.rmi.transport.tcp.TCPTransport");
 
-            installFields(tcpTransportClass, tcpTransportFields);
+            installFields(tcpTransportClass, null, tcpTransportFields);
         } catch (Exception e) {
             LOGGER.warn("Could not intercept TCPTransport.connectionThreadPool", e);
             tcpTransportFields = null;
@@ -394,13 +396,31 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
 
             tcpEndpointFields.put("localEndpoints", new TCPTransportLocalEndpoints(vestigeSystemHolder));
 
-            installFields(tcpEndpointClass, tcpEndpointFields);
+            installFields(tcpEndpointClass, null, tcpEndpointFields);
         } catch (Exception e) {
             LOGGER.warn("Could not intercept TCPEndpoint.localEndpoints", e);
             tcpEndpointFields = null;
         }
 
-        // TODO maybe intercept RuntimeUtil.instance.scheduler ?
+        Map<String, StackedHandler<?>> runtimeUtilFields = new HashMap<String, StackedHandler<?>>();
+        RuntimeUtilScheduledThreadPoolExecutor runtimeUtilScheduledThreadPoolExecutor = new RuntimeUtilScheduledThreadPoolExecutor(vestigeSystemHolder);
+        runtimeUtilFields.put("scheduler", runtimeUtilScheduledThreadPoolExecutor);
+
+        Class<?> runtimeUtilClass = null;
+        Object runtimeUtilInstance = null;
+        try {
+            Class<?> newThreadActionClass = Class.forName("sun.rmi.runtime.NewThreadAction");
+            ThreadGroup threadGroup = (ThreadGroup) getFieldValue(newThreadActionClass.getDeclaredField("systemThreadGroup"), null);
+            RuntimeUtilScheduledThreadPoolExecutor.setSystemThreadGroup(threadGroup);
+
+            runtimeUtilClass = Class.forName("sun.rmi.runtime.RuntimeUtil");
+            runtimeUtilInstance = getFieldValue(runtimeUtilClass.getDeclaredField("instance"), null);
+
+            installFields(runtimeUtilClass, runtimeUtilInstance, runtimeUtilFields);
+        } catch (Exception e) {
+            LOGGER.warn("Could not intercept RuntimeUtil.instance.scheduler", e);
+            runtimeUtilFields = null;
+        }
 
         // RenewCleanThread will stop after sun.rmi.dgc.cleanInterval (default to 3 minutes)
         // TODO interrupt ?, interrupt will kill only RenewCleanThread which has nothing to do
@@ -412,9 +432,17 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
         } finally {
             // vestigeCacheObjectReaper.interrupt();
 
+            if (runtimeUtilFields != null) {
+                try {
+                    uninstallFields(runtimeUtilClass, runtimeUtilInstance, runtimeUtilFields);
+                } catch (Exception e) {
+                    LOGGER.error("Could not release RuntimeUtil.instance.scheduler interception", e);
+                }
+            }
+
             if (tcpEndpointFields != null) {
                 try {
-                    uninstallFields(tcpEndpointClass, tcpEndpointFields);
+                    uninstallFields(tcpEndpointClass, null, tcpEndpointFields);
                 } catch (Exception e) {
                     LOGGER.error("Could not release TCPEndpoint.localEndpoints interception", e);
                 }
@@ -422,7 +450,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
 
             if (tcpTransportFields != null) {
                 try {
-                    uninstallFields(tcpTransportClass, tcpTransportFields);
+                    uninstallFields(tcpTransportClass, null, tcpTransportFields);
                 } catch (Exception e) {
                     LOGGER.error("Could not release TCPTransport.connectionThreadPool interception", e);
                 }
@@ -435,7 +463,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
                         driverManagerFields.put("readDrivers", readDrivers);
                     }
                     try {
-                        uninstallFields(driverManagerClass, driverManagerFields);
+                        uninstallFields(driverManagerClass, null, driverManagerFields);
                     } catch (Exception e) {
                         LOGGER.error("Could not release DriverManager.registerDriver interception", e);
                     }
@@ -444,7 +472,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
 
             if (urlConnectionFields != null) {
                 try {
-                    uninstallFields(URLConnection.class, urlConnectionFields);
+                    uninstallFields(URLConnection.class, null, urlConnectionFields);
                 } catch (Exception e) {
                     LOGGER.error("Could not release URLConnection.setContentHandlerFactory interception", e);
                 }
@@ -452,7 +480,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
 
             if (urlFields != null) {
                 try {
-                    uninstallFields(URL.class, urlFields);
+                    uninstallFields(URL.class, null, urlFields);
                 } catch (Exception e) {
                     LOGGER.error("Could not release URL.setURLStreamHandlerFactory interception", e);
                 }
@@ -461,7 +489,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
             if (securityProvidersFields != null) {
                 try {
                     synchronized (securityProviders) {
-                        uninstallFields(securityProviders, securityProvidersFields);
+                        uninstallFields(securityProviders, null, securityProvidersFields);
                         // always use thread local providerList
                         threadListsUsedField.setAccessible(true);
                         threadListsUsedField.setInt(null, threadListsUsedField.getInt(null) - 1);
@@ -474,7 +502,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
 
             if (securityFields != null) {
                 try {
-                    uninstallFields(Security.class, securityFields);
+                    uninstallFields(Security.class, null, securityFields);
                 } catch (Exception e) {
                     LOGGER.warn("Could not release Security.properties interception", e);
                 }
@@ -489,7 +517,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
 
             if (levelFields != null) {
                 try {
-                    uninstallFields(levelClass, levelFields);
+                    uninstallFields(levelClass, null, levelFields);
                 } catch (Exception e) {
                     LOGGER.warn("Could not release Level.known interception", e);
                 }
@@ -524,29 +552,29 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
     }
 
     @SuppressWarnings("unchecked")
-    public void uninstallFields(final Class<?> clazz, final Map<String, StackedHandler<?>> valueByFieldName) throws Exception {
+    public void uninstallFields(final Class<?> clazz, final Object object, final Map<String, StackedHandler<?>> valueByFieldName) throws Exception {
         synchronized (clazz) {
             for (final Entry<String, StackedHandler<?>> entry : valueByFieldName.entrySet()) {
                 final Field declaredField = clazz.getDeclaredField(entry.getKey());
-                setStaticFieldValue(declaredField, StackedHandlerUtils.uninstallStackedHandler((StackedHandler<Object>) entry.getValue(), getStaticFieldValue(declaredField)));
+                setFieldValue(declaredField, object, StackedHandlerUtils.uninstallStackedHandler((StackedHandler<Object>) entry.getValue(), getFieldValue(declaredField, object)));
             }
         }
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public void installFields(final Class<?> clazz, final Map<String, StackedHandler<?>> valueByFieldName) throws Exception {
+    public void installFields(final Class<?> clazz, final Object object, final Map<String, StackedHandler<?>> valueByFieldName) throws Exception {
         synchronized (clazz) {
             for (final Entry<String, StackedHandler<?>> entry : valueByFieldName.entrySet()) {
                 Field declaredField = clazz.getDeclaredField(entry.getKey());
                 StackedHandler value = entry.getValue();
-                Object previousValue = getStaticFieldValue(declaredField);
-                setStaticFieldValue(declaredField, value);
+                Object previousValue = getFieldValue(declaredField, object);
+                setFieldValue(declaredField, object, value);
                 value.setNextHandler(previousValue);
             }
         }
     }
 
-    public static Object getStaticFieldValue(final Field field) throws Exception {
+    public static Object getFieldValue(final Field field, final Object object) throws Exception {
         Callable<Object> callable = new Callable<Object>() {
 
             @Override
@@ -554,12 +582,12 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
                 if (!field.isAccessible()) {
                     field.setAccessible(true);
                     try {
-                        return field.get(null);
+                        return field.get(object);
                     } finally {
                         field.setAccessible(false);
                     }
                 } else {
-                    return field.get(null);
+                    return field.get(object);
                 }
             }
         };
@@ -571,7 +599,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
         }
     }
 
-    public static void setStaticFieldValue(final Field field, final Object value) throws Exception {
+    public static void setFieldValue(final Field field, final Object object, final Object value) throws Exception {
         Callable<Void> callable = new Callable<Void>() {
 
             @Override
@@ -579,12 +607,12 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
                 if (!field.isAccessible()) {
                     field.setAccessible(true);
                     try {
-                        field.set(null, value);
+                        field.set(object, value);
                     } finally {
                         field.setAccessible(false);
                     }
                 } else {
-                    field.set(null, value);
+                    field.set(object, value);
                 }
                 return null;
             }

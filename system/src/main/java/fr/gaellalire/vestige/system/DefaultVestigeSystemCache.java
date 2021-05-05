@@ -25,12 +25,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.gaellalire.vestige.spi.system.VestigeSystem;
 import fr.gaellalire.vestige.spi.system.VestigeSystemCache;
 import fr.gaellalire.vestige.system.interceptor.JustInTimeReference;
+import fr.gaellalire.vestige.system.interceptor.RuntimeUtilScheduledThreadPoolExecutor;
 import fr.gaellalire.vestige.system.interceptor.TCPTransportConnectionThreadPool;
 
 /**
@@ -48,9 +51,14 @@ public class DefaultVestigeSystemCache implements VestigeSystemCache {
 
     private JustInTimeReference<ExecutorService> tcpTransportConnectionThreadPoolReference;
 
+    private JustInTimeReference<ScheduledThreadPoolExecutor> scheduledThreadPoolExecutorReference;
+
     private VestigeSystemHolder vestigeSystemHolder;
 
-    public DefaultVestigeSystemCache(final VestigeSystemHolder vestigeSystemHolder, final DefaultVestigeSystemCache parent) {
+    private VestigeSystem handlerVestigeSystem;
+
+    public DefaultVestigeSystemCache(final VestigeSystem handlerVestigeSystem, final VestigeSystemHolder vestigeSystemHolder, final DefaultVestigeSystemCache parent) {
+        this.handlerVestigeSystem = handlerVestigeSystem;
         this.vestigeSystemHolder = vestigeSystemHolder;
         this.parent = parent;
         this.weakReferences = new ArrayList<WeakReference<CachedJarFile>>();
@@ -60,6 +68,13 @@ public class DefaultVestigeSystemCache implements VestigeSystemCache {
             @Override
             protected ExecutorService create() {
                 return TCPTransportConnectionThreadPool.createConnectionThreadPool();
+            }
+        };
+        scheduledThreadPoolExecutorReference = new JustInTimeReference<ScheduledThreadPoolExecutor>() {
+
+            @Override
+            protected ScheduledThreadPoolExecutor create() {
+                return RuntimeUtilScheduledThreadPoolExecutor.createScheduledThreadPoolExecutor();
             }
         };
     }
@@ -72,9 +87,18 @@ public class DefaultVestigeSystemCache implements VestigeSystemCache {
         return tcpTransportConnectionThreadPoolReference;
     }
 
+    public JustInTimeReference<ScheduledThreadPoolExecutor> getScheduledThreadPoolExecutorReference() {
+        return scheduledThreadPoolExecutorReference;
+    }
+
     @Override
     public void clearCache() {
-        vestigeSystemHolder.clearCache(this);
+        VestigeSystem vestigeSystem = handlerVestigeSystem.setCurrentSystem();
+        try {
+            vestigeSystemHolder.clearCache(this);
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
     }
 
     public DefaultVestigeSystemCache getParent() {
@@ -136,9 +160,13 @@ public class DefaultVestigeSystemCache implements VestigeSystemCache {
             LOGGER.debug("Unable to clean RMI cache", e);
         }
 
-        ExecutorService noCreate = tcpTransportConnectionThreadPoolReference.getNoCreate();
-        if (noCreate != null) {
-            noCreate.shutdownNow();
+        ExecutorService executorService = tcpTransportConnectionThreadPoolReference.getNoCreate();
+        if (executorService != null) {
+            executorService.shutdownNow();
+        }
+        ScheduledThreadPoolExecutor scheduledThreadPoolExecutor = scheduledThreadPoolExecutorReference.getNoCreate();
+        if (scheduledThreadPoolExecutor != null) {
+            scheduledThreadPoolExecutor.shutdownNow();
         }
     }
 
