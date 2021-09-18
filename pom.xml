@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>fr.gaellalire.vestige</groupId>
   <artifactId>vestige</artifactId>
-  <version>10.4.3</version>
+  <version>10.4.4-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Vestige</name>
   <build>
@@ -428,7 +428,7 @@
   <scm>
     <connection>scm:git:git@gaellalire.fr:vestige/vestige.git</connection>
     <developerConnection>scm:git:git@gaellalire.fr:vestige/vestige.git</developerConnection>
-    <tag>vestige-10.4.3</tag>
+    <tag>HEAD</tag>
   </scm>
   <reporting>
     <plugins>
