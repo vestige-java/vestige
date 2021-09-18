@@ -4,8 +4,9 @@ VESTIGE_VERSION=`cat ../standard_edition_standalone/pom.xml | grep -m 1 version 
 
 rm -r target
 mkdir target
-bunzip2 -kc src/wc.dmg.bz2 > target/wc.dmg
-hdiutil attach target/wc.dmg -noautoopen -quiet -mountpoint target/wc
+hdiutil convert -format UDRW -ov -o target/wc.dmg src/wc.dmg
+hdiutil resize -size 100M target/wc.dmg
+HDIDEV=$(hdiutil attach target/wc.dmg -noautoopen -nobrowse -mountpoint target/wc | grep "Apple_HFS" | cut -d$'\t' -f 1)
 rm -rf src/Vestige.app/Contents/Resources/vestige_home/
 cp -r src/Vestige.app target/wc/
 unzip -d target/wc/Vestige.app/Contents/Resources/vestige_home ../standard_edition_standalone/target/vestige.assemblies.standard_edition_standalone-$VESTIGE_VERSION-unix.zip
@@ -17,6 +18,10 @@ sed -i~ -e 's/VESTIGE_DATA=.*/VESTIGE_DATA="$HOME\/Library\/Application Support\
 rm target/wc/Vestige.app/Contents/Resources/vestige_home/vestigeweb~
 rm target/wc/Vestige.app/Contents/Resources/vestige_home/lib/*.so
 find target -name .svn -exec rm -rf {} \;
-hdiutil detach `hdiutil info | grep "target/wc"  | grep "Apple_HFS" | cut -d$'\t' -f 1` -quiet -force
-hdiutil convert target/wc.dmg -quiet -format UDZO -imagekey zlib-level=9 -o target/vestige-$VESTIGE_VERSION.dmg
-
+# SetFile -c icnC target/wc/.VolumeIcon.icns
+GetFileInfo target/wc/.VolumeIcon.icns
+SetFile -a C target/wc
+rm -rf target/wc/.fseventsd
+hdiutil detach $HDIDEV
+hdiutil convert target/wc.dmg -format UDZO -imagekey zlib-level=9 -o target/vestige-$VESTIGE_VERSION.dmg
+SetFile -a C target/vestige-$VESTIGE_VERSION.dmg
