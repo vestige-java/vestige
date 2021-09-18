@@ -155,7 +155,7 @@
     <slf4j.version>1.7.25</slf4j.version>
     <vestige.core.version>12</vestige.core.version>
     <vestige.jpms.version>2.0</vestige.jpms.version>
-    <vestige.jvm_enhancer.version>4.4</vestige.jvm_enhancer.version>
+    <vestige.jvm_enhancer.version>4.5</vestige.jvm_enhancer.version>
     <vestige.logback_enhancer.version>1.1</vestige.logback_enhancer.version>
     <vestige.spi.system.version>1.1</vestige.spi.system.version>
     <vestige.spi.job.version>1.2</vestige.spi.job.version>
