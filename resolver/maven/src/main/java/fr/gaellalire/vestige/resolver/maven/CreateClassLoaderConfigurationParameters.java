@@ -41,6 +41,8 @@ public class CreateClassLoaderConfigurationParameters {
 
     private boolean selfExcluded;
 
+    private boolean dependenciesExcluded;
+
     public String getAppName() {
         return appName;
     }
@@ -103,6 +105,14 @@ public class CreateClassLoaderConfigurationParameters {
 
     public void setSelfExcluded(final boolean selfExcluded) {
         this.selfExcluded = selfExcluded;
+    }
+
+    public boolean isDependenciesExcluded() {
+        return dependenciesExcluded;
+    }
+
+    public void setDependenciesExcluded(final boolean dependenciesExcluded) {
+        this.dependenciesExcluded = dependenciesExcluded;
     }
 
 }

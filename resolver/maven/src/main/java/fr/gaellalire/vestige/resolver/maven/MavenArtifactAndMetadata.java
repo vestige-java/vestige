@@ -26,19 +26,19 @@ public class MavenArtifactAndMetadata {
 
     private MavenArtifact mavenArtifact;
 
-    private FileWithMetadata secureFile;
+    private FileWithMetadata fileWithMetadata;
 
-    public MavenArtifactAndMetadata(final MavenArtifact mavenArtifact, final FileWithMetadata secureFile) {
+    public MavenArtifactAndMetadata(final MavenArtifact mavenArtifact, final FileWithMetadata fileWithMetadata) {
         this.mavenArtifact = mavenArtifact;
-        this.secureFile = secureFile;
+        this.fileWithMetadata = fileWithMetadata;
     }
 
     public MavenArtifact getMavenArtifact() {
         return mavenArtifact;
     }
 
-    public FileWithMetadata getSecureFile() {
-        return secureFile;
+    public FileWithMetadata getFileWithMetadata() {
+        return fileWithMetadata;
     }
 
     @Override

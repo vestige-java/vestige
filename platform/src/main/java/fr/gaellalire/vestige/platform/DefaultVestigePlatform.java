@@ -70,6 +70,7 @@ import fr.gaellalire.vestige.jpms.JPMSInRepositoryModuleLayerParentList;
 import fr.gaellalire.vestige.jpms.JPMSModuleAccessor;
 import fr.gaellalire.vestige.jpms.JPMSModuleLayerAccessor;
 import fr.gaellalire.vestige.jpms.JPMSModuleLayerRepository;
+import fr.gaellalire.vestige.spi.resolver.VestigeJar;
 
 /**
  * @author Gael Lalire
@@ -187,8 +188,8 @@ public class DefaultVestigePlatform implements VestigePlatform {
         }
     }
 
-    public int attach(final ClassLoaderConfiguration classLoaderConfiguration, final AttachmentVerificationMetadata verificationMetadata, final VestigeWorker vestigeWorker)
-            throws InterruptedException, IOException {
+    public int attach(final ClassLoaderConfiguration classLoaderConfiguration, final AttachmentVerificationMetadata verificationMetadata, final VestigeWorker vestigeWorker,
+            final AttachmentResult result) throws InterruptedException, IOException {
         int size = attached.size();
         int id = 0;
         while (id < size) {
@@ -198,7 +199,11 @@ public class DefaultVestigePlatform implements VestigePlatform {
             id++;
         }
         Map<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>> attachmentMap = new HashMap<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>>();
-        AttachedVestigeClassLoader load = attachDependencies(attachmentMap, classLoaderConfiguration, verificationMetadata, vestigeWorker);
+        AttachedVestigeClassLoader load = attachDependencies(attachmentMap, classLoaderConfiguration, verificationMetadata, vestigeWorker, result);
+        if (result != null) {
+            result.setAttachedVestigeClassLoader(load);
+        }
+
         Iterator<SoftReference<?>> iterator = load.getSoftReferences().iterator();
         while (iterator.hasNext()) {
             SoftReference<?> next = iterator.next();
@@ -397,11 +402,13 @@ public class DefaultVestigePlatform implements VestigePlatform {
         return data;
     }
 
-    public VestigeResourceLocator verifyAbstractJar(final AbstractFileWithMetadata secureFile, final AbstractFileVerificationMetadata fileMetadata) throws IOException {
-        if (fileMetadata == null) {
-            return new JarFileResourceLocator(secureFile.getFile(), secureFile.getCodeBase());
+    public VestigeResourceLocator verifyAbstractJar(final AbstractFileWithMetadata fileWithMetadata, final VestigeJar patchVestigeJar, final VestigeJar[] vestigeJars,
+            final JarVerifier jarVerifier) throws IOException {
+        if (jarVerifier == null) {
+            vestigeJars[0] = new DefaultVestigeJar(fileWithMetadata, null, patchVestigeJar, null, vestigeReaper);
+            return new JarFileResourceLocator(fileWithMetadata.getFile(), fileWithMetadata.getCodeBase());
         }
-        SecureFile secureJarFile = new SecureFile(secureFile.getFile(), Mode.PRIVATE_MAP);
+        SecureFile secureJarFile = new SecureFile(fileWithMetadata.getFile(), Mode.PRIVATE_MAP);
         long[] sizeHolder = new long[1];
         String sha512;
         InputStream inputStream = secureJarFile.getInputStream();
@@ -420,68 +427,75 @@ public class DefaultVestigePlatform implements VestigePlatform {
         }
         vestigeReaper.addReapable(secureJarFile, new CloseableReaperHelper(secureJarFile.getCloseable()));
 
-        if (!sha512.equals(fileMetadata.getSha512()) || sizeHolder[0] != fileMetadata.getSize()) {
-            throw new IOException("Detected corruption of file " + secureFile.getFile());
-        }
-        return new SecureJarFileResourceLocator(secureJarFile, secureFile.getCodeBase());
+        jarVerifier.verify(sizeHolder[0], sha512);
+
+        SecureJarFileResourceLocator secureJarFileResourceLocator = new SecureJarFileResourceLocator(secureJarFile, fileWithMetadata.getCodeBase());
+        vestigeJars[0] = new DefaultVestigeJar(fileWithMetadata, secureJarFile, patchVestigeJar, secureJarFileResourceLocator, vestigeReaper);
+        return secureJarFileResourceLocator;
     }
 
-    public VestigeResourceLocator verifyJar(final FileWithMetadata secureFile, final FileVerificationMetadata fileMetadata) throws IOException {
-        PatchFileWithMetadata patch = secureFile.getPatch();
+    public VestigeResourceLocator verifyJar(final FileWithMetadata fileWithMetadata, final FileVerificationContext context, final List<VestigeJar> vestigeJars) throws IOException {
+        VestigeJar[] vestigeJarKeeper = new VestigeJar[1];
+        final PatchFileWithMetadata patch = fileWithMetadata.getPatch();
+        JarVerifier standardJarVerifier;
+        if (context == null) {
+            standardJarVerifier = null;
+        } else {
+            standardJarVerifier = new JarVerifier() {
+
+                @Override
+                public void verify(final long size, final String sha512) throws IOException {
+                    while (context.hasNext()) {
+                        FileVerificationMetadata fileMetadata = context.next();
+                        if (sha512.equals(fileMetadata.getSha512()) && size == fileMetadata.getSize()) {
+                            // verified
+                            return;
+                        } else {
+                            context.skip();
+                        }
+                    }
+                    throw new IOException("Detected corruption of file " + fileWithMetadata.getFile());
+                }
+            };
+        }
         if (patch != null) {
-            VestigeResourceLocator verifyJar = verifyAbstractJar(secureFile, fileMetadata);
-            PatchFileVerificationMetadata patchFileVerificationMetadata = null;
-            if (fileMetadata != null) {
-                patchFileVerificationMetadata = fileMetadata.getPatchFileVerificationMetadata();
+            VestigeResourceLocator verifyJar = verifyAbstractJar(fileWithMetadata, null, vestigeJarKeeper, standardJarVerifier);
+            JarVerifier patchJarVerifier;
+            if (context == null) {
+                patchJarVerifier = null;
+            } else {
+                FileVerificationMetadata fileMetadata = context.getCurrent();
+                final PatchFileVerificationMetadata patchFileVerificationMetadata = fileMetadata.getPatchFileVerificationMetadata();
                 if (patchFileVerificationMetadata == null) {
                     throw new IOException("Detected missing patch file " + patch.getFile());
                 }
+                patchJarVerifier = new JarVerifier() {
+
+                    @Override
+                    public void verify(final long size, final String sha512) throws IOException {
+                        if (!sha512.equals(patchFileVerificationMetadata.getSha512()) || size != patchFileVerificationMetadata.getSize()) {
+                            throw new IOException("Detected corruption of patch file " + patch.getFile());
+                        }
+                    }
+                };
             }
-            VestigeResourceLocator verifyPatchJar = verifyAbstractJar(patch, patchFileVerificationMetadata);
+            VestigeResourceLocator verifyPatchJar = verifyAbstractJar(patch, vestigeJarKeeper[0], vestigeJarKeeper, patchJarVerifier);
+            vestigeJars.add(vestigeJarKeeper[0]);
             return new PatchedVestigeResourceLocator(verifyJar, verifyPatchJar, false);
         }
-        return verifyAbstractJar(secureFile, fileMetadata);
+        VestigeResourceLocator verifyAbstractJar = verifyAbstractJar(fileWithMetadata, null, vestigeJarKeeper, standardJarVerifier);
+        vestigeJars.add(vestigeJarKeeper[0]);
+        return verifyAbstractJar;
     }
 
     private AttachedVestigeClassLoader attachDependencies(final Map<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>> attachmentMap,
-            final ClassLoaderConfiguration classLoaderConfiguration, final AttachmentVerificationMetadata verificationMetadata, final VestigeWorker vestigeWorker)
-            throws InterruptedException, IOException {
+            final ClassLoaderConfiguration classLoaderConfiguration, final AttachmentVerificationMetadata verificationMetadata, final VestigeWorker vestigeWorker,
+            final AttachmentResult result) throws InterruptedException, IOException {
         Serializable key = classLoaderConfiguration.getKey();
         if (verificationMetadata != null) {
             key = new VerifiedKey(key, verificationMetadata.toString());
         }
 
-        JPMSNamedModulesConfiguration namedModulesConfiguration = classLoaderConfiguration.getNamedModulesConfiguration();
-        boolean selfNeedModuleDefine = BOOT_LAYER != null && namedModulesConfiguration != null;
-        JPMSInRepositoryModuleLayerParentList moduleLayerList = null;
-        if (selfNeedModuleDefine) {
-            moduleLayerList = moduleLayerRepository.createModuleLayerList();
-            moduleLayerList.addInRepositoryModuleLayerByIndex(JPMSModuleLayerRepository.BOOT_LAYER_INDEX);
-        }
-
-        List<ClassLoaderConfiguration> configurationDependencies = classLoaderConfiguration.getDependencies();
-        List<AttachedVestigeClassLoader> classLoaderDependencies = new ArrayList<AttachedVestigeClassLoader>();
-        Iterator<AttachmentVerificationMetadata> verificationMetadataIterator = null;
-        if (verificationMetadata != null) {
-            verificationMetadataIterator = verificationMetadata.getDependencyVerificationMetadata().iterator();
-        }
-        for (ClassLoaderConfiguration configurationDependency : configurationDependencies) {
-            if (verificationMetadataIterator != null && !verificationMetadataIterator.hasNext()) {
-                throw new IOException("Dependency of " + key + " does not match the verification metadata");
-            }
-            AttachmentVerificationMetadata subVerificationMetadata = null;
-            if (verificationMetadataIterator != null) {
-                subVerificationMetadata = verificationMetadataIterator.next();
-            }
-            AttachedVestigeClassLoader attachDependency = attachDependencies(attachmentMap, configurationDependency, subVerificationMetadata, vestigeWorker);
-            classLoaderDependencies.add(attachDependency);
-            if (selfNeedModuleDefine) {
-                moduleLayerList.addInRepositoryModuleLayerByIndex(attachDependency.getModuleLayer().getRepositoryIndex());
-            }
-        }
-        if (verificationMetadataIterator != null && verificationMetadataIterator.hasNext()) {
-            throw new IOException("Dependency of " + key + " does not match the verification metadata");
-        }
         VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader = null;
         if (classLoaderConfiguration.isAttachmentScoped()) {
             vestigeClassLoader = attachmentMap.get(key);
@@ -494,193 +508,279 @@ public class DefaultVestigePlatform implements VestigePlatform {
                 }
             }
         }
+        if (vestigeClassLoader != null) {
+            if (result != null) {
+                result.setUsedVerificationMetadata(verificationMetadata.toString());
+                result.setRemainingVerificationMetadata(null);
+                result.setComplete(true);
+            }
 
-        if (vestigeClassLoader == null) {
-            // search inside jar after dependencies
-            // classLoaderDependencies.add(null);
-            List<FileWithMetadata> afterUrls = classLoaderConfiguration.getAfterUrls();
-            List<FileWithMetadata> beforeUrls = classLoaderConfiguration.getBeforeUrls();
-            VestigeResourceLocator[] urls = new VestigeResourceLocator[beforeUrls.size() + afterUrls.size()];
-            Iterator<FileVerificationMetadata> iterator = null;
+            return vestigeClassLoader.getData(this);
+        }
+
+        JPMSNamedModulesConfiguration namedModulesConfiguration = classLoaderConfiguration.getNamedModulesConfiguration();
+        boolean selfNeedModuleDefine = BOOT_LAYER != null && namedModulesConfiguration != null;
+        JPMSInRepositoryModuleLayerParentList moduleLayerList = null;
+        if (selfNeedModuleDefine) {
+            moduleLayerList = moduleLayerRepository.createModuleLayerList();
+            moduleLayerList.addInRepositoryModuleLayerByIndex(JPMSModuleLayerRepository.BOOT_LAYER_INDEX);
+        }
+
+        List<ClassLoaderConfiguration> configurationDependencies = classLoaderConfiguration.getDependencies();
+        List<AttachedVestigeClassLoader> classLoaderDependencies = new ArrayList<AttachedVestigeClassLoader>();
+        List<AttachmentVerificationMetadata> usedAttachmentVerificationMetadata = null;
+        List<FileVerificationMetadata> usedBeforeFiles = null;
+        List<FileVerificationMetadata> usedAfterFiles = null;
+        List<AttachmentVerificationMetadata> remainingAttachmentVerificationMetadata = null;
+        List<FileVerificationMetadata> remainingBeforeFiles = null;
+        List<FileVerificationMetadata> remainingAfterFiles = null;
+        if (result != null) {
+            usedAttachmentVerificationMetadata = new ArrayList<AttachmentVerificationMetadata>();
+            remainingAttachmentVerificationMetadata = new ArrayList<AttachmentVerificationMetadata>();
+        }
+
+        // either no dependency or all dependencies. The partial support is only for first classloader.
+        if (result != null && configurationDependencies.size() == 0) {
+            // no dependency
+            remainingAttachmentVerificationMetadata.addAll(verificationMetadata.getDependencyVerificationMetadata());
+        } else {
+            if (result != null) {
+                usedAttachmentVerificationMetadata.addAll(verificationMetadata.getDependencyVerificationMetadata());
+            }
+
+            Iterator<AttachmentVerificationMetadata> verificationMetadataIterator = null;
             if (verificationMetadata != null) {
-                iterator = verificationMetadata.getBeforeFiles().iterator();
+                verificationMetadataIterator = verificationMetadata.getDependencyVerificationMetadata().iterator();
             }
-            for (int i = 0; i < beforeUrls.size(); i++) {
-                if (iterator != null && !iterator.hasNext()) {
-                    throw new IOException("Before file of " + key + " does not match the verification metadata");
-                }
-                FileVerificationMetadata fileMetadata = null;
-                if (iterator != null) {
-                    fileMetadata = iterator.next();
-                }
-                urls[i] = verifyJar(beforeUrls.get(i), fileMetadata);
-            }
-            if (iterator != null && iterator.hasNext()) {
-                throw new IOException("Before file of " + key + " does not match the verification metadata");
-            }
-            if (verificationMetadata != null) {
-                iterator = verificationMetadata.getAfterFiles().iterator();
-            }
-            for (int i = 0; i < afterUrls.size(); i++) {
-                if (iterator != null && !iterator.hasNext()) {
-                    throw new IOException("After file of " + key + " does not match the verification metadata");
-                }
-                FileVerificationMetadata fileMetadata = null;
-                if (iterator != null) {
-                    fileMetadata = iterator.next();
-                }
-                urls[i + beforeUrls.size()] = verifyJar(afterUrls.get(i), fileMetadata);
-            }
-            if (iterator != null && iterator.hasNext()) {
-                throw new IOException("After file of " + key + " does not match the verification metadata");
-            }
-            String name = classLoaderConfiguration.getName();
 
-            // for vestige class loader : null == current classloader
-            AttachedVestigeClassLoader attachedVestigeClassLoader = new AttachedVestigeClassLoader(classLoaderDependencies);
-            StringParser resourceStringParser = classLoaderConfiguration.getPathIdsPositionByResourceName();
-            StringParser classStringParser;
-            if (resourceStringParser == null) {
-                resourceStringParser = new NoStateStringParser(0);
-                classStringParser = resourceStringParser;
-            } else {
-                classStringParser = classLoaderConfiguration.getPathIdsPositionByClassName();
-                if (classStringParser == null) {
-                    classStringParser = new ClassStringParser(resourceStringParser);
+            for (ClassLoaderConfiguration configurationDependency : configurationDependencies) {
+                if (verificationMetadataIterator != null && !verificationMetadataIterator.hasNext()) {
+                    throw new IOException("Dependency of " + key + " does not match the verification metadata");
+                }
+                AttachmentVerificationMetadata subVerificationMetadata = null;
+                if (verificationMetadataIterator != null) {
+                    subVerificationMetadata = verificationMetadataIterator.next();
+                }
+                AttachedVestigeClassLoader attachDependency = attachDependencies(attachmentMap, configurationDependency, subVerificationMetadata, vestigeWorker, null);
+                classLoaderDependencies.add(attachDependency);
+                if (selfNeedModuleDefine) {
+                    moduleLayerList.addInRepositoryModuleLayerByIndex(attachDependency.getModuleLayer().getRepositoryIndex());
                 }
             }
-
-            // create classloader with executor to remove this protection domain from access control
-
-            ModuleEncapsulationEnforcer moduleEncapsulationEnforcer = null;
-            JPMSInRepositoryConfiguration<VestigeClassLoader<AttachedVestigeClassLoader>> configuration = null;
-            if (selfNeedModuleDefine) {
-                List<File> beforeFiles = new ArrayList<File>(beforeUrls.size());
-                for (FileWithMetadata secureFile : beforeUrls) {
-                    beforeFiles.add(secureFile.getFile());
-                }
-                List<File> afterFiles = new ArrayList<File>(afterUrls.size());
-                for (FileWithMetadata secureFile : afterUrls) {
-                    afterFiles.add(secureFile.getFile());
-                }
-                configuration = moduleLayerList.createConfiguration(beforeFiles, afterFiles, null, this);
-                moduleEncapsulationEnforcer = configuration.getModuleEncapsulationEnforcer();
-                resourceStringParser = new ResourceEncapsulationEnforcer(resourceStringParser, configuration.getEncapsulatedPackageNames(), -1);
-            }
-            vestigeClassLoader = vestigeWorker.createVestigeClassLoader(ClassLoader.getSystemClassLoader(), convert(attachedVestigeClassLoader, classLoaderConfiguration),
-                    classStringParser, resourceStringParser, moduleEncapsulationEnforcer, urls);
-            vestigeClassLoader.setDataProtector(null, this);
-
-            final VestigeClassLoader<AttachedVestigeClassLoader> finalClassLoader = vestigeClassLoader;
-
-            if (classLoaderConfiguration.isAttachmentScoped()) {
-                name = name + " @ " + Integer.toHexString(System.identityHashCode(attachmentMap));
-            }
-            attachedVestigeClassLoader = new AttachedVestigeClassLoader(vestigeClassLoader, classLoaderDependencies, name, classLoaderConfiguration.isAttachmentScoped(), urls,
-                    null, namedModulesConfiguration != null, verificationMetadata != null);
-            vestigeClassLoader.setData(this, attachedVestigeClassLoader);
-
-            JPMSInRepositoryModuleLayerAccessor moduleLayer = null;
-            if (selfNeedModuleDefine) {
-                moduleLayer = configuration.defineModules(new Function<String, VestigeClassLoader<AttachedVestigeClassLoader>, RuntimeException>() {
-
-                    @Override
-                    public VestigeClassLoader<AttachedVestigeClassLoader> apply(final String t) {
-                        return finalClassLoader;
-                    }
-                });
-
-                if (namedModulesConfiguration != null) {
-                    Set<AddAccessibility> addExportsList = namedModulesConfiguration.getAddExports();
-                    if (addExportsList != null) {
-                        for (AddAccessibility addAccessibility : addExportsList) {
-                            moduleLayer.findModule(addAccessibility.getSource()).addExports(addAccessibility.getPn(), addAccessibility.getTarget());
-                        }
-                    }
-                    Set<AddAccessibility> addOpensList = namedModulesConfiguration.getAddOpens();
-                    if (addOpensList != null) {
-                        for (AddAccessibility addAccessibility : addOpensList) {
-                            moduleLayer.findModule(addAccessibility.getSource()).addOpens(addAccessibility.getPn(), addAccessibility.getTarget());
-                        }
-                    }
-                    Set<AddReads> addReadsList = namedModulesConfiguration.getAddReads();
-                    if (addReadsList != null) {
-                        for (AddReads addReads : addReadsList) {
-                            moduleLayer.findModule(addReads.getSource()).addReads(addReads.getTarget());
-                        }
-                    }
-                }
-            }
-
-            if (BOOT_LAYER != null) {
-                JPMSClassLoaderConfiguration jpmsConfiguration = classLoaderConfiguration.getModuleConfiguration();
-                for (ModuleConfiguration moduleConfiguration : jpmsConfiguration.getModuleConfigurations()) {
-                    String targetModuleName = moduleConfiguration.getTargetModuleName();
-                    String moduleName = moduleConfiguration.getModuleName();
-                    if (selfNeedModuleDefine) {
-                        JPMSModuleAccessor moduleAccessor = moduleLayer.findModule(targetModuleName);
-                        for (String packageName : moduleConfiguration.getAddExports()) {
-                            moduleAccessor.requireBootAddExports(moduleName, packageName);
-                        }
-                        for (String packageName : moduleConfiguration.getAddOpens()) {
-                            moduleAccessor.requireBootAddOpens(moduleName, packageName);
-                        }
-                    } else {
-                        JPMSModuleAccessor moduleAccessor = BOOT_LAYER.findModule(moduleName);
-                        if (moduleAccessor != null) {
-                            for (String packageName : moduleConfiguration.getAddExports()) {
-                                moduleAccessor.addExports(packageName, vestigeClassLoader);
-                            }
-                            for (String packageName : moduleConfiguration.getAddOpens()) {
-                                moduleAccessor.addOpens(packageName, vestigeClassLoader);
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (classLoaderConfiguration.isMdcIncluded()) {
-                Thread currentThread = Thread.currentThread();
-                ClassLoader contextClassLoader = currentThread.getContextClassLoader();
-                currentThread.setContextClassLoader(vestigeClassLoader);
-                try {
-                    Object basicMDCAdapter = vestigeClassLoader.loadClass("org.slf4j.MDC").getMethod("getMDCAdapter").invoke(null);
-                    Class<? extends Object> class1 = basicMDCAdapter.getClass();
-                    if ("org.slf4j.helpers.BasicMDCAdapter".equals(class1.getName())) {
-                        if (selfNeedModuleDefine) {
-                            JPMSModuleAccessor slf4jModule = moduleLayer.findModule("org.slf4j");
-                            if (slf4jModule != null) {
-                                slf4jModule.addOpens("org.slf4j.helpers", DefaultVestigePlatform.class);
-                            }
-                        }
-                        Field declaredField = class1.getDeclaredField("inheritableThreadLocal");
-                        declaredField.setAccessible(true);
-                        try {
-                            declaredField.set(basicMDCAdapter, BASIC_MDC_HOOK);
-                        } finally {
-                            declaredField.setAccessible(false);
-                        }
-                    }
-                } catch (Exception e) {
-                    LOGGER.warn("Unable to redirect MDC", e);
-                } catch (UnsupportedClassVersionError e) {
-                    LOGGER.warn("Unable to redirect MDC", e);
-                } catch (NoClassDefFoundError e) {
-                    LOGGER.warn("Unable to redirect MDC", e);
-                } finally {
-                    currentThread.setContextClassLoader(contextClassLoader);
-                }
-
-            }
-
-            if (classLoaderConfiguration.isAttachmentScoped()) {
-                attachmentMap.put(key, vestigeClassLoader);
-            } else {
-                map.put(key, new WeakReference<AttachedVestigeClassLoader>(attachedVestigeClassLoader));
+            if (verificationMetadataIterator != null && verificationMetadataIterator.hasNext()) {
+                throw new IOException("Dependency of " + key + " does not match the verification metadata");
             }
         }
-        return vestigeClassLoader.getData(this);
 
+        // search inside jar after dependencies
+        // classLoaderDependencies.add(null);
+
+        List<VestigeJar> vestigeJars = new ArrayList<VestigeJar>();
+        List<FileWithMetadata> afterUrls = classLoaderConfiguration.getAfterUrls();
+        List<FileWithMetadata> beforeUrls = classLoaderConfiguration.getBeforeUrls();
+        VestigeResourceLocator[] urls = new VestigeResourceLocator[beforeUrls.size() + afterUrls.size()];
+        FileVerificationContext iterator = null;
+        if (verificationMetadata != null) {
+            iterator = new FileVerificationContext(verificationMetadata.getBeforeFiles().iterator());
+        }
+        for (int i = 0; i < beforeUrls.size(); i++) {
+            if (iterator != null && !iterator.hasNext()) {
+                throw new IOException("Before file of " + key + " does not match the verification metadata");
+            }
+            urls[i] = verifyJar(beforeUrls.get(i), iterator, vestigeJars);
+        }
+        if (iterator != null && iterator.hasNext()) {
+            if (result != null) {
+                while (iterator.hasNext()) {
+                    iterator.next();
+                    iterator.skip();
+                }
+            } else {
+                throw new IOException("Before file of " + key + " does not match the verification metadata");
+            }
+        }
+        if (result != null) {
+            usedBeforeFiles = iterator.getUsedFileVerificationMetadata();
+            remainingBeforeFiles = iterator.getSkippedFileVerificationMetadata();
+        }
+        if (verificationMetadata != null) {
+            iterator = new FileVerificationContext(verificationMetadata.getAfterFiles().iterator());
+        }
+        for (int i = 0; i < afterUrls.size(); i++) {
+            if (iterator != null && !iterator.hasNext()) {
+                throw new IOException("After file of " + key + " does not match the verification metadata");
+            }
+            urls[i + beforeUrls.size()] = verifyJar(afterUrls.get(i), iterator, vestigeJars);
+        }
+        if (iterator != null && iterator.hasNext()) {
+            if (result != null) {
+                while (iterator.hasNext()) {
+                    iterator.next();
+                    iterator.skip();
+                }
+            } else {
+                throw new IOException("After file of " + key + " does not match the verification metadata");
+            }
+        }
+        if (result != null) {
+            usedAfterFiles = iterator.getUsedFileVerificationMetadata();
+            remainingAfterFiles = iterator.getSkippedFileVerificationMetadata();
+
+            result.setUsedVerificationMetadata(new AttachmentVerificationMetadata(usedAttachmentVerificationMetadata, usedBeforeFiles, usedAfterFiles).toString());
+            if (remainingAttachmentVerificationMetadata.size() == 0 && remainingBeforeFiles.size() == 0 && remainingAfterFiles.size() == 0) {
+                result.setComplete(true);
+            } else {
+                result.setRemainingVerificationMetadata(
+                        new AttachmentVerificationMetadata(remainingAttachmentVerificationMetadata, remainingBeforeFiles, remainingAfterFiles).toString());
+            }
+            key = new VerifiedKey(key, result.getUsedVerificationMetadata());
+        }
+
+        String name = classLoaderConfiguration.getName();
+
+        // for vestige class loader : null == current classloader
+        AttachedVestigeClassLoader attachedVestigeClassLoader = new AttachedVestigeClassLoader(classLoaderDependencies);
+        StringParser resourceStringParser = classLoaderConfiguration.getPathIdsPositionByResourceName();
+        StringParser classStringParser;
+        if (resourceStringParser == null) {
+            resourceStringParser = new NoStateStringParser(0);
+            classStringParser = resourceStringParser;
+        } else {
+            classStringParser = classLoaderConfiguration.getPathIdsPositionByClassName();
+            if (classStringParser == null) {
+                classStringParser = new ClassStringParser(resourceStringParser);
+            }
+        }
+
+        // create classloader with executor to remove this protection domain from access control
+
+        ModuleEncapsulationEnforcer moduleEncapsulationEnforcer = null;
+        JPMSInRepositoryConfiguration<VestigeClassLoader<AttachedVestigeClassLoader>> configuration = null;
+        if (selfNeedModuleDefine) {
+            List<File> beforeFiles = new ArrayList<File>(beforeUrls.size());
+            for (FileWithMetadata secureFile : beforeUrls) {
+                beforeFiles.add(secureFile.getFile());
+            }
+            List<File> afterFiles = new ArrayList<File>(afterUrls.size());
+            for (FileWithMetadata secureFile : afterUrls) {
+                afterFiles.add(secureFile.getFile());
+            }
+            configuration = moduleLayerList.createConfiguration(beforeFiles, afterFiles, null, this);
+            moduleEncapsulationEnforcer = configuration.getModuleEncapsulationEnforcer();
+            resourceStringParser = new ResourceEncapsulationEnforcer(resourceStringParser, configuration.getEncapsulatedPackageNames(), -1);
+        }
+        vestigeClassLoader = vestigeWorker.createVestigeClassLoader(ClassLoader.getSystemClassLoader(), convert(attachedVestigeClassLoader, classLoaderConfiguration),
+                classStringParser, resourceStringParser, moduleEncapsulationEnforcer, urls);
+        vestigeClassLoader.setDataProtector(null, this);
+
+        final VestigeClassLoader<AttachedVestigeClassLoader> finalClassLoader = vestigeClassLoader;
+
+        if (classLoaderConfiguration.isAttachmentScoped()) {
+            name = name + " @ " + Integer.toHexString(System.identityHashCode(attachmentMap));
+        }
+        attachedVestigeClassLoader = new AttachedVestigeClassLoader(vestigeClassLoader, classLoaderDependencies, name, classLoaderConfiguration.isAttachmentScoped(), urls, null,
+                namedModulesConfiguration != null, vestigeJars, verificationMetadata != null);
+        vestigeClassLoader.setData(this, attachedVestigeClassLoader);
+
+        JPMSInRepositoryModuleLayerAccessor moduleLayer = null;
+        if (selfNeedModuleDefine) {
+            moduleLayer = configuration.defineModules(new Function<String, VestigeClassLoader<AttachedVestigeClassLoader>, RuntimeException>() {
+
+                @Override
+                public VestigeClassLoader<AttachedVestigeClassLoader> apply(final String t) {
+                    return finalClassLoader;
+                }
+            });
+
+            if (namedModulesConfiguration != null) {
+                Set<AddAccessibility> addExportsList = namedModulesConfiguration.getAddExports();
+                if (addExportsList != null) {
+                    for (AddAccessibility addAccessibility : addExportsList) {
+                        moduleLayer.findModule(addAccessibility.getSource()).addExports(addAccessibility.getPn(), addAccessibility.getTarget());
+                    }
+                }
+                Set<AddAccessibility> addOpensList = namedModulesConfiguration.getAddOpens();
+                if (addOpensList != null) {
+                    for (AddAccessibility addAccessibility : addOpensList) {
+                        moduleLayer.findModule(addAccessibility.getSource()).addOpens(addAccessibility.getPn(), addAccessibility.getTarget());
+                    }
+                }
+                Set<AddReads> addReadsList = namedModulesConfiguration.getAddReads();
+                if (addReadsList != null) {
+                    for (AddReads addReads : addReadsList) {
+                        moduleLayer.findModule(addReads.getSource()).addReads(addReads.getTarget());
+                    }
+                }
+            }
+        }
+
+        if (BOOT_LAYER != null) {
+            JPMSClassLoaderConfiguration jpmsConfiguration = classLoaderConfiguration.getModuleConfiguration();
+            for (ModuleConfiguration moduleConfiguration : jpmsConfiguration.getModuleConfigurations()) {
+                String targetModuleName = moduleConfiguration.getTargetModuleName();
+                String moduleName = moduleConfiguration.getModuleName();
+                if (selfNeedModuleDefine) {
+                    JPMSModuleAccessor moduleAccessor = moduleLayer.findModule(targetModuleName);
+                    for (String packageName : moduleConfiguration.getAddExports()) {
+                        moduleAccessor.requireBootAddExports(moduleName, packageName);
+                    }
+                    for (String packageName : moduleConfiguration.getAddOpens()) {
+                        moduleAccessor.requireBootAddOpens(moduleName, packageName);
+                    }
+                } else {
+                    JPMSModuleAccessor moduleAccessor = BOOT_LAYER.findModule(moduleName);
+                    if (moduleAccessor != null) {
+                        for (String packageName : moduleConfiguration.getAddExports()) {
+                            moduleAccessor.addExports(packageName, vestigeClassLoader);
+                        }
+                        for (String packageName : moduleConfiguration.getAddOpens()) {
+                            moduleAccessor.addOpens(packageName, vestigeClassLoader);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (classLoaderConfiguration.isMdcIncluded()) {
+            Thread currentThread = Thread.currentThread();
+            ClassLoader contextClassLoader = currentThread.getContextClassLoader();
+            currentThread.setContextClassLoader(vestigeClassLoader);
+            try {
+                Object basicMDCAdapter = vestigeClassLoader.loadClass("org.slf4j.MDC").getMethod("getMDCAdapter").invoke(null);
+                Class<? extends Object> class1 = basicMDCAdapter.getClass();
+                if ("org.slf4j.helpers.BasicMDCAdapter".equals(class1.getName())) {
+                    if (selfNeedModuleDefine) {
+                        JPMSModuleAccessor slf4jModule = moduleLayer.findModule("org.slf4j");
+                        if (slf4jModule != null) {
+                            slf4jModule.addOpens("org.slf4j.helpers", DefaultVestigePlatform.class);
+                        }
+                    }
+                    Field declaredField = class1.getDeclaredField("inheritableThreadLocal");
+                    declaredField.setAccessible(true);
+                    try {
+                        declaredField.set(basicMDCAdapter, BASIC_MDC_HOOK);
+                    } finally {
+                        declaredField.setAccessible(false);
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.warn("Unable to redirect MDC", e);
+            } catch (UnsupportedClassVersionError e) {
+                LOGGER.warn("Unable to redirect MDC", e);
+            } catch (NoClassDefFoundError e) {
+                LOGGER.warn("Unable to redirect MDC", e);
+            } finally {
+                currentThread.setContextClassLoader(contextClassLoader);
+            }
+
+        }
+
+        if (classLoaderConfiguration.isAttachmentScoped()) {
+            attachmentMap.put(key, vestigeClassLoader);
+        } else {
+            map.put(key, new WeakReference<AttachedVestigeClassLoader>(attachedVestigeClassLoader));
+        }
+        return vestigeClassLoader.getData(this);
     }
 
     public static void setURLStreamHandlerFactoryDelegate(final DelegateURLStreamHandlerFactory delegateURLStreamHandlerFactory,

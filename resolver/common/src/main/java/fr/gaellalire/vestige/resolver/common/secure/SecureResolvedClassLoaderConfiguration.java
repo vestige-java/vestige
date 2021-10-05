@@ -21,12 +21,11 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.security.Permission;
 import java.util.Collection;
-import java.util.Enumeration;
 
 import fr.gaellalire.vestige.spi.resolver.AttachedClassLoader;
+import fr.gaellalire.vestige.spi.resolver.PartiallyVerifiedAttachment;
 import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
-import fr.gaellalire.vestige.spi.resolver.VestigeJar;
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
 
 /**
@@ -69,22 +68,6 @@ public class SecureResolvedClassLoaderConfiguration implements ResolvedClassLoad
     }
 
     @Override
-    public Enumeration<VestigeJar> getVestigeJarEnumeration() {
-        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
-        try {
-            return new SecureEnumeration<VestigeJar>(secureVestigeSystem, new ElementSecureMaker<VestigeJar>() {
-
-                @Override
-                public VestigeJar makeSecure(final VestigeJar e) {
-                    return new SecureVestigeJar(secureVestigeSystem, e);
-                }
-            }, delegate.getVestigeJarEnumeration());
-        } finally {
-            vestigeSystem.setCurrentSystem();
-        }
-    }
-
-    @Override
     public String createVerificationMetadata() throws ResolverException {
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {
@@ -99,6 +82,16 @@ public class SecureResolvedClassLoaderConfiguration implements ResolvedClassLoad
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {
             return new SecureAttachedClassLoader(secureVestigeSystem, delegate.verifiedAttach(signature));
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
+    }
+
+    @Override
+    public PartiallyVerifiedAttachment partiallyVerifiedAttach(final String signature) throws ResolverException, InterruptedException {
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return delegate.partiallyVerifiedAttach(signature);
         } finally {
             vestigeSystem.setCurrentSystem();
         }

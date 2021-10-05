@@ -36,6 +36,7 @@ import fr.gaellalire.vestige.core.resource.VestigeResourceLocator;
 import fr.gaellalire.vestige.core.weak.VestigeReaper;
 import fr.gaellalire.vestige.jpms.JPMSInRepositoryModuleLayerAccessor;
 import fr.gaellalire.vestige.jpms.JPMSModuleLayerRepository;
+import fr.gaellalire.vestige.spi.resolver.VestigeJar;
 
 /**
  * @author Gael Lalire
@@ -43,6 +44,10 @@ import fr.gaellalire.vestige.jpms.JPMSModuleLayerRepository;
 public final class VestigePlatformConverter {
 
     private VestigePlatformConverter() {
+    }
+
+    public static VestigeJar convertVestigeJar(final Object oldVestigeJar, final Object oldVestigePlatform, final VestigePlatform vestigePlatform) throws Exception {
+        return null;
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -64,12 +69,18 @@ public final class VestigePlatformConverter {
         for (Object dependency : dependencies) {
             list.add(convertAttachedVestigeClassLoader(dependency, oldVestigePlatform, vestigePlatform, loadedModuleLayers));
         }
+        List<Object> vestigeJars = (List<Object>) oldAttachedVestigeClassLoaderClass.getMethod("getVestigeJars").invoke(oldAttachedVestigeClassLoader);
+        List<VestigeJar> list2 = new ArrayList<VestigeJar>(vestigeJars.size());
+        for (Object dependency : dependencies) {
+            list2.add(convertVestigeJar(dependency, oldVestigePlatform, vestigePlatform));
+        }
+
         AttachedVestigeClassLoader attachedVestigeClassLoader = new AttachedVestigeClassLoader(uncheckedVestigeClassLoader, list,
                 (String) oldAttachedVestigeClassLoaderClass.getMethod("getName").invoke(oldAttachedVestigeClassLoader),
                 (Boolean) oldAttachedVestigeClassLoaderClass.getMethod("isAttachmentScoped").invoke(oldAttachedVestigeClassLoader),
                 (VestigeResourceLocator[]) oldAttachedVestigeClassLoaderClass.getMethod("getCache").invoke(oldAttachedVestigeClassLoader),
                 loadedModuleLayers.get(oldAttachedVestigeClassLoaderClass.getMethod("getModuleLayer").invoke(oldAttachedVestigeClassLoader)),
-                (Boolean) oldAttachedVestigeClassLoaderClass.getMethod("isJPMSActivated").invoke(oldAttachedVestigeClassLoader),
+                (Boolean) oldAttachedVestigeClassLoaderClass.getMethod("isJPMSActivated").invoke(oldAttachedVestigeClassLoader), list2,
                 (Boolean) oldAttachedVestigeClassLoaderClass.getMethod("isVerified").invoke(oldAttachedVestigeClassLoader));
 
         attachedVestigeClassLoader.setAttachments((Integer) oldAttachedVestigeClassLoaderClass.getMethod("getAttachments").invoke(oldAttachedVestigeClassLoader));

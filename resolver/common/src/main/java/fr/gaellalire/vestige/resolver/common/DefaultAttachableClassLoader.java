@@ -18,12 +18,16 @@
 package fr.gaellalire.vestige.resolver.common;
 
 import java.lang.ref.SoftReference;
+import java.util.Enumeration;
+import java.util.Iterator;
+import java.util.List;
 
 import fr.gaellalire.vestige.core.VestigeClassLoader;
 import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.spi.resolver.AttachableClassLoader;
 import fr.gaellalire.vestige.spi.resolver.AttachedClassLoader;
+import fr.gaellalire.vestige.spi.resolver.VestigeJar;
 
 /**
  * @author Gael Lalire
@@ -34,9 +38,13 @@ public class DefaultAttachableClassLoader implements AttachableClassLoader {
 
     private VestigeClassLoader<AttachedVestigeClassLoader> classLoader;
 
-    public DefaultAttachableClassLoader(final VestigePlatform vestigePlatform, final VestigeClassLoader<AttachedVestigeClassLoader> classLoader) {
+    private List<VestigeJar> vestigeJars;
+
+    public DefaultAttachableClassLoader(final VestigePlatform vestigePlatform, final VestigeClassLoader<AttachedVestigeClassLoader> classLoader,
+            final List<VestigeJar> vestigeJars) {
         this.vestigePlatform = vestigePlatform;
         this.classLoader = classLoader;
+        this.vestigeJars = vestigeJars;
     }
 
     @Override
@@ -56,6 +64,23 @@ public class DefaultAttachableClassLoader implements AttachableClassLoader {
         synchronized (vestigePlatform) {
             classLoader.getData(vestigePlatform).getSoftReferences().add(new SoftReference<Object>(dataObject));
         }
+    }
+
+    public Enumeration<? extends VestigeJar> getVestigeJarEnumeration() {
+        return new Enumeration<VestigeJar>() {
+
+            private Iterator<VestigeJar> vestigeJarsIterator = vestigeJars.iterator();
+
+            @Override
+            public boolean hasMoreElements() {
+                return vestigeJarsIterator.hasNext();
+            }
+
+            @Override
+            public VestigeJar nextElement() {
+                return vestigeJarsIterator.next();
+            }
+        };
     }
 
 }

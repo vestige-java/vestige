@@ -24,6 +24,7 @@ import java.util.List;
 import fr.gaellalire.vestige.core.VestigeClassLoader;
 import fr.gaellalire.vestige.core.resource.VestigeResourceLocator;
 import fr.gaellalire.vestige.jpms.JPMSInRepositoryModuleLayerAccessor;
+import fr.gaellalire.vestige.spi.resolver.VestigeJar;
 
 /**
  * @author Gael Lalire
@@ -50,13 +51,15 @@ public class AttachedVestigeClassLoader {
 
     private boolean verified;
 
+    private List<VestigeJar> vestigeJars;
+
     public AttachedVestigeClassLoader(final List<AttachedVestigeClassLoader> dependencies) {
         this.dependencies = dependencies;
     }
 
     public AttachedVestigeClassLoader(final VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader, final List<AttachedVestigeClassLoader> dependencies,
             final String name, final boolean attachmentScoped, final VestigeResourceLocator[] cache, final JPMSInRepositoryModuleLayerAccessor moduleLayer,
-            final boolean jpmsActivated, final boolean verified) {
+            final boolean jpmsActivated, final List<VestigeJar> vestigeJars, final boolean verified) {
         this.vestigeClassLoader = vestigeClassLoader;
         this.dependencies = dependencies;
         this.name = name;
@@ -65,6 +68,7 @@ public class AttachedVestigeClassLoader {
         this.cache = cache;
         this.moduleLayer = moduleLayer;
         this.jpmsActivated = jpmsActivated;
+        this.vestigeJars = vestigeJars;
         this.verified = verified;
     }
 
@@ -114,6 +118,15 @@ public class AttachedVestigeClassLoader {
 
     public boolean isVerified() {
         return verified;
+    }
+
+    public List<VestigeJar> getVestigeJars() {
+        List<VestigeJar> vestigeJars = new ArrayList<VestigeJar>();
+        vestigeJars.addAll(this.vestigeJars);
+        for (AttachedVestigeClassLoader attachedVestigeClassLoader : dependencies) {
+            vestigeJars.addAll(attachedVestigeClassLoader.getVestigeJars());
+        }
+        return vestigeJars;
     }
 
     @Override

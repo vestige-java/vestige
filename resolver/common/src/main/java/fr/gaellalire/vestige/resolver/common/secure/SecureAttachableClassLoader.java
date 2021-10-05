@@ -17,9 +17,12 @@
 
 package fr.gaellalire.vestige.resolver.common.secure;
 
+import java.util.Enumeration;
+
 import fr.gaellalire.vestige.spi.resolver.AttachableClassLoader;
 import fr.gaellalire.vestige.spi.resolver.AttachedClassLoader;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
+import fr.gaellalire.vestige.spi.resolver.VestigeJar;
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
 
 /**
@@ -54,6 +57,22 @@ public class SecureAttachableClassLoader implements AttachableClassLoader {
     @Override
     public void addSoftReferenceObject(final Object object) {
         delegate.addSoftReferenceObject(object);
+    }
+
+    @Override
+    public Enumeration<VestigeJar> getVestigeJarEnumeration() {
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return new SecureEnumeration<VestigeJar>(secureVestigeSystem, new ElementSecureMaker<VestigeJar>() {
+
+                @Override
+                public VestigeJar makeSecure(final VestigeJar e) {
+                    return new SecureVestigeJar(secureVestigeSystem, e);
+                }
+            }, delegate.getVestigeJarEnumeration());
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
     }
 
 }

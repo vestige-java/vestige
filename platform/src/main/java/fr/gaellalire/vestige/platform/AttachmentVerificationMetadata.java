@@ -165,6 +165,9 @@ public class AttachmentVerificationMetadata {
                     List<FileVerificationMetadata> currentBeforeFiles = new ArrayList<FileVerificationMetadata>();
                     List<FileVerificationMetadata> currentAfterFiles = new ArrayList<FileVerificationMetadata>();
                     String[] split = readLine.split(FILE_LIST_TERMINATOR);
+                    if (split.length == 0) {
+                        split = new String[] {"", ""};
+                    }
                     parseFileVerificationMetadataList(split[0], currentBeforeFiles);
                     parseFileVerificationMetadataList(split[1], currentAfterFiles);
 

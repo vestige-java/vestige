@@ -43,7 +43,6 @@ import fr.gaellalire.vestige.platform.MinimalStringParserFactory;
 import fr.gaellalire.vestige.platform.ModuleConfiguration;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.resolver.common.DefaultResolvedClassLoaderConfiguration;
-import fr.gaellalire.vestige.resolver.common.DefaultVestigeJar;
 import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.Scope;
@@ -64,7 +63,7 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
 
     private Artifact artifact;
 
-    private FileWithMetadata secureFile;
+    private FileWithMetadata fileWithMetadata;
 
     private DependencyReader dependencyReader;
 
@@ -94,7 +93,7 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
         this.relevantDataLimited = relevantDataLimited;
         artifact = nodeAndState.getDependencyNode().getArtifact();
         if (relevantDataLimited) {
-            secureFile = artifacts.get(0).getSecureFile();
+            fileWithMetadata = artifacts.get(0).getFileWithMetadata();
         }
     }
 
@@ -124,16 +123,18 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
     }
 
     public VestigeJar getVestigeJar() {
-        if (secureFile == null) {
+        if (fileWithMetadata == null) {
             for (MavenArtifactAndMetadata artifact : artifacts) {
                 MavenArtifact mavenArtifact = artifact.getMavenArtifact();
                 if (mavenArtifact.getArtifactId().equals(getArtifactId()) && mavenArtifact.getGroupId().equals(getGroupId())) {
-                    secureFile = artifact.getSecureFile();
+                    fileWithMetadata = artifact.getFileWithMetadata();
                     break;
                 }
             }
         }
-        return new DefaultVestigeJar(secureFile);
+        // FIXME
+        // return new DefaultVestigeJar(fileWithMetadata);
+        return null;
     }
 
     public ClassLoaderConfiguration createClassLoaderConfiguration(final CreateClassLoaderConfigurationParameters createClassLoaderConfigurationParameters)
@@ -155,7 +156,7 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
             jpmsConfiguration = new DefaultJPMSConfiguration();
         }
 
-        if (createClassLoaderConfigurationParameters.isManyLoaders()) {
+        if (createClassLoaderConfigurationParameters.isManyLoaders() && !createClassLoaderConfigurationParameters.isDependenciesExcluded()) {
             Map<String, Map<String, MavenArtifact>> runtimeDependencies = new HashMap<String, Map<String, MavenArtifact>>();
             Map<MavenArtifact, FileWithMetadata> urlByKey = new HashMap<MavenArtifact, FileWithMetadata>();
             for (MavenArtifactAndMetadata artifact : artifacts) {
@@ -166,7 +167,7 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
                     runtimeDependencies.put(mavenArtifact.getGroupId(), map);
                 }
                 map.put(mavenArtifact.getArtifactId(), mavenArtifact);
-                urlByKey.put(mavenArtifact, artifact.getSecureFile());
+                urlByKey.put(mavenArtifact, artifact.getFileWithMetadata());
             }
 
             if (createClassLoaderConfigurationParameters.isSelfExcluded()) {
@@ -197,7 +198,13 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
 
             List<MavenArtifactAndMetadata> artifacts;
             if (createClassLoaderConfigurationParameters.isSelfExcluded()) {
-                artifacts = this.artifacts.subList(1, this.artifacts.size());
+                if (createClassLoaderConfigurationParameters.isDependenciesExcluded()) {
+                    artifacts = Collections.emptyList();
+                } else {
+                    artifacts = this.artifacts.subList(1, this.artifacts.size());
+                }
+            } else if (createClassLoaderConfigurationParameters.isDependenciesExcluded()) {
+                artifacts = this.artifacts.subList(0, 1);
             } else {
                 artifacts = this.artifacts;
             }
@@ -220,13 +227,13 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
                 } else {
                     urls = afterUrls;
                 }
-                urls.add(artifact.getSecureFile());
+                urls.add(artifact.getFileWithMetadata());
 
                 JPMSClassLoaderConfiguration unnamedClassLoaderConfiguration = jpmsConfiguration.getModuleConfiguration(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId());
                 if (jpmsNamedModulesConfiguration != null) {
                     String moduleName;
                     try {
-                        moduleName = NamedModuleUtils.getModuleName(artifact.getSecureFile().getFile());
+                        moduleName = NamedModuleUtils.getModuleName(artifact.getFileWithMetadata().getFile());
                     } catch (IOException e) {
                         throw new ResolverException("Unable to calculate module name", e);
                     }
@@ -283,6 +290,8 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
             private ScopeModifier scopeModifier;
 
             private boolean selfExcluded;
+
+            private boolean dependenciesExcluded;
 
             private DefaultJPMSConfiguration defaultJPMSConfiguration = new DefaultJPMSConfiguration();
 
@@ -344,6 +353,7 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
                 resolveRequest.setJpmsNamedModulesConfiguration(jpmsNamedModulesConfiguration);
                 resolveRequest.setScopeModifier(scopeModifier);
                 resolveRequest.setSelfExcluded(selfExcluded);
+                resolveRequest.setDependenciesExcluded(dependenciesExcluded);
 
                 return new DefaultResolvedClassLoaderConfiguration(vestigePlatform, vestigeWorker, createClassLoaderConfiguration(resolveRequest),
                         beforeParentController.isBeforeParent(getGroupId(), getArtifactId()));
@@ -383,6 +393,11 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
                     }
 
                 };
+            }
+
+            @Override
+            public void setDependenciesExcluded(final boolean dependenciesExcluded) {
+                this.dependenciesExcluded = dependenciesExcluded;
             }
         };
     }

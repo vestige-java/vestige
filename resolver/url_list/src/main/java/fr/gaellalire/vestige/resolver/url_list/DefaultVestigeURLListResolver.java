@@ -39,7 +39,6 @@ import fr.gaellalire.vestige.spi.job.JobHelper;
 import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.Scope;
-import fr.gaellalire.vestige.spi.resolver.VestigeJar;
 import fr.gaellalire.vestige.spi.resolver.url_list.URLListRequest;
 import fr.gaellalire.vestige.spi.resolver.url_list.VestigeURLListResolver;
 
@@ -124,25 +123,6 @@ public class DefaultVestigeURLListResolver implements VestigeURLListResolver {
 
             }.readObject();
             return new DefaultResolvedClassLoaderConfiguration(vestigePlatform, vestigeWorker[0], classLoaderConfiguration, true);
-        } catch (ClassNotFoundException e) {
-            throw new IOException("ClassNotFoundException", e);
-        }
-    }
-
-    @Override
-    public VestigeJar restoreSavedVestigeJar(final ObjectInputStream objectInputStream) throws IOException {
-        int size = objectInputStream.readInt();
-        byte[] array = new byte[size];
-        objectInputStream.readFully(array);
-        try {
-            VestigeJar vestigeJar = (VestigeJar) new ObjectInputStream(new ByteArrayInputStream(array)) {
-
-                protected Class<?> resolveClass(final ObjectStreamClass desc) throws IOException, ClassNotFoundException {
-                    return Class.forName(desc.getName(), false, DefaultVestigeURLListResolver.class.getClassLoader());
-                }
-
-            }.readObject();
-            return vestigeJar;
         } catch (ClassNotFoundException e) {
             throw new IOException("ClassNotFoundException", e);
         }

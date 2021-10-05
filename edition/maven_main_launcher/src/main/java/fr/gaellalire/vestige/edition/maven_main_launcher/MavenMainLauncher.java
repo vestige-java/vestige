@@ -451,14 +451,14 @@ public final class MavenMainLauncher {
                     LOGGER.debug("Attach:\n{}", classLoaderConfiguration);
                     // int attach =
                     vestigePlatform.attach(classLoaderConfiguration.getClassLoaderConfiguration(),
-                            AttachmentVerificationMetadata.fromString(classLoaderConfiguration.getVerificationMetadata()), vestigeWorker);
+                            AttachmentVerificationMetadata.fromString(classLoaderConfiguration.getVerificationMetadata()), vestigeWorker, null);
                     // vestigePlatform.start(attach);
                 }
 
                 VerifiedClassLoaderConfiguration verifiedClassLoaderConfiguration = mavenResolverCache.getClassLoaderConfiguration();
                 LOGGER.debug("Attach and run vestigeMain:\n{}", verifiedClassLoaderConfiguration);
                 int load = vestigePlatform.attach(verifiedClassLoaderConfiguration.getClassLoaderConfiguration(),
-                        AttachmentVerificationMetadata.fromString(verifiedClassLoaderConfiguration.getVerificationMetadata()), vestigeWorker);
+                        AttachmentVerificationMetadata.fromString(verifiedClassLoaderConfiguration.getVerificationMetadata()), vestigeWorker, null);
                 // vestigePlatform.start(load);
 
                 final VestigeClassLoader<AttachedVestigeClassLoader> mavenResolverClassLoader = vestigePlatform.getClassLoader(load);

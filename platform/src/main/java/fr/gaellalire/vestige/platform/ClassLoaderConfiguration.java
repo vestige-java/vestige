@@ -205,8 +205,8 @@ public class ClassLoaderConfiguration implements Serializable {
         return new FileVerificationMetadata(fileWithMetadata.getFile().length(), fileWithMetadata.createSha512(), patchFileVerificationMetadata);
     }
 
-    public AttachmentVerificationMetadata createVerificationMetadata(final Map<ClassLoaderConfiguration, AttachmentVerificationMetadata> verificationMetadataByClassLoaderConfigurations)
-            throws IOException {
+    public AttachmentVerificationMetadata createVerificationMetadata(
+            final Map<ClassLoaderConfiguration, AttachmentVerificationMetadata> verificationMetadataByClassLoaderConfigurations) throws IOException {
         AttachmentVerificationMetadata verificationMetadata = verificationMetadataByClassLoaderConfigurations.get(this);
         if (verificationMetadata != null) {
             return verificationMetadata;

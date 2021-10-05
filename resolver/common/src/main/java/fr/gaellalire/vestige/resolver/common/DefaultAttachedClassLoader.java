@@ -41,13 +41,16 @@ public class DefaultAttachedClassLoader implements AttachedClassLoader {
     @Override
     public void detach() {
         synchronized (vestigePlatform) {
-            vestigePlatform.detach(installerAttach);
+            if (installerAttach != -1) {
+                vestigePlatform.detach(installerAttach);
+            }
+            installerAttach = -1;
         }
-        attachableClassLoader = null;
     }
 
     @Override
     public AttachableClassLoader getAttachableClassLoader() {
         return attachableClassLoader;
     }
+
 }

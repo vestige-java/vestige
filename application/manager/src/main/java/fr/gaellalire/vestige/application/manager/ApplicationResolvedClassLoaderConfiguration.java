@@ -21,12 +21,11 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.security.Permission;
 import java.util.Collection;
-import java.util.Enumeration;
 
 import fr.gaellalire.vestige.spi.resolver.AttachedClassLoader;
+import fr.gaellalire.vestige.spi.resolver.PartiallyVerifiedAttachment;
 import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
-import fr.gaellalire.vestige.spi.resolver.VestigeJar;
 
 /**
  * @author Gael Lalire
@@ -71,11 +70,6 @@ public class ApplicationResolvedClassLoaderConfiguration implements ResolvedClas
     }
 
     @Override
-    public Enumeration<? extends VestigeJar> getVestigeJarEnumeration() {
-        return delegate.getVestigeJarEnumeration();
-    }
-
-    @Override
     public String createVerificationMetadata() throws ResolverException {
         return delegate.createVerificationMetadata();
     }
@@ -83,6 +77,11 @@ public class ApplicationResolvedClassLoaderConfiguration implements ResolvedClas
     @Override
     public AttachedClassLoader verifiedAttach(final String signature) throws ResolverException, InterruptedException {
         return delegate.verifiedAttach(signature);
+    }
+
+    @Override
+    public PartiallyVerifiedAttachment partiallyVerifiedAttach(final String signature) throws ResolverException, InterruptedException {
+        return delegate.partiallyVerifiedAttach(signature);
     }
 
 }

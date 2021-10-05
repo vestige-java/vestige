@@ -22,16 +22,17 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.security.Permission;
 import java.util.Collection;
-import java.util.Enumeration;
 
 import fr.gaellalire.vestige.core.executor.VestigeWorker;
+import fr.gaellalire.vestige.platform.AttachedVestigeClassLoader;
+import fr.gaellalire.vestige.platform.AttachmentResult;
 import fr.gaellalire.vestige.platform.AttachmentVerificationMetadata;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.spi.resolver.AttachedClassLoader;
+import fr.gaellalire.vestige.spi.resolver.PartiallyVerifiedAttachment;
 import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
-import fr.gaellalire.vestige.spi.resolver.VestigeJar;
 
 /**
  * @author Gael Lalire
@@ -73,12 +74,14 @@ public class DefaultResolvedClassLoaderConfiguration implements ResolvedClassLoa
         int installerAttach;
         synchronized (vestigePlatform) {
             try {
-                installerAttach = vestigePlatform.attach(classLoaderConfiguration, null, vestigeWorker);
+                installerAttach = vestigePlatform.attach(classLoaderConfiguration, null, vestigeWorker, null);
             } catch (IOException e) {
                 throw new ResolverException("Unable to attach", e);
             }
         }
-        return new DefaultAttachedClassLoader(vestigePlatform, installerAttach, new DefaultAttachableClassLoader(vestigePlatform, vestigePlatform.getClassLoader(installerAttach)));
+        AttachedVestigeClassLoader attachedVestigeClassLoader = vestigePlatform.getAttachedVestigeClassLoader(installerAttach);
+        return new DefaultAttachedClassLoader(vestigePlatform, installerAttach,
+                new DefaultAttachableClassLoader(vestigePlatform, attachedVestigeClassLoader.getVestigeClassLoader(), attachedVestigeClassLoader.getVestigeJars()));
     }
 
     @Override
@@ -87,12 +90,14 @@ public class DefaultResolvedClassLoaderConfiguration implements ResolvedClassLoa
 
         synchronized (vestigePlatform) {
             try {
-                installerAttach = vestigePlatform.attach(classLoaderConfiguration, AttachmentVerificationMetadata.fromString(verificationMetadata), vestigeWorker);
+                installerAttach = vestigePlatform.attach(classLoaderConfiguration, AttachmentVerificationMetadata.fromString(verificationMetadata), vestigeWorker, null);
             } catch (IOException e) {
                 throw new ResolverException("Unable to attach", e);
             }
         }
-        return new DefaultAttachedClassLoader(vestigePlatform, installerAttach, new DefaultAttachableClassLoader(vestigePlatform, vestigePlatform.getClassLoader(installerAttach)));
+        AttachedVestigeClassLoader attachedVestigeClassLoader = vestigePlatform.getAttachedVestigeClassLoader(installerAttach);
+        return new DefaultAttachedClassLoader(vestigePlatform, installerAttach,
+                new DefaultAttachableClassLoader(vestigePlatform, attachedVestigeClassLoader.getVestigeClassLoader(), attachedVestigeClassLoader.getVestigeJars()));
     }
 
     @Override
@@ -111,23 +116,6 @@ public class DefaultResolvedClassLoaderConfiguration implements ResolvedClassLoa
     }
 
     @Override
-    public Enumeration<? extends VestigeJar> getVestigeJarEnumeration() {
-        final DefaultVestigeJarContext defaultVestigeJarContext = new DefaultVestigeJarContext(classLoaderConfiguration, firstBeforeParent);
-        return new Enumeration<VestigeJar>() {
-
-            @Override
-            public boolean hasMoreElements() {
-                return defaultVestigeJarContext.hasNext();
-            }
-
-            @Override
-            public VestigeJar nextElement() {
-                return new DefaultVestigeJar(defaultVestigeJarContext.next());
-            }
-        };
-    }
-
-    @Override
     public String createVerificationMetadata() throws ResolverException {
         String verificationMetadata;
         try {
@@ -136,6 +124,46 @@ public class DefaultResolvedClassLoaderConfiguration implements ResolvedClassLoa
             throw new ResolverException(e);
         }
         return verificationMetadata;
+    }
+
+    @Override
+    public PartiallyVerifiedAttachment partiallyVerifiedAttach(final String verificationMetadata) throws ResolverException, InterruptedException {
+        int installerAttach;
+
+        final AttachmentResult attachmentResult = new AttachmentResult();
+        synchronized (vestigePlatform) {
+            try {
+                installerAttach = vestigePlatform.attach(classLoaderConfiguration, AttachmentVerificationMetadata.fromString(verificationMetadata), vestigeWorker,
+                        attachmentResult);
+            } catch (IOException e) {
+                throw new ResolverException("Unable to attach", e);
+            }
+        }
+        AttachedVestigeClassLoader attachedVestigeClassLoader = attachmentResult.getAttachedVestigeClassLoader();
+        final DefaultAttachedClassLoader defaultAttachedClassLoader = new DefaultAttachedClassLoader(vestigePlatform, installerAttach,
+                new DefaultAttachableClassLoader(vestigePlatform, attachedVestigeClassLoader.getVestigeClassLoader(), attachedVestigeClassLoader.getVestigeJars()));
+        return new PartiallyVerifiedAttachment() {
+
+            @Override
+            public boolean isComplete() {
+                return attachmentResult.isComplete();
+            }
+
+            @Override
+            public String getUsedVerificationMetadata() {
+                return attachmentResult.getUsedVerificationMetadata();
+            }
+
+            @Override
+            public String getRemainingVerificationMetadata() {
+                return attachmentResult.getRemainingVerificationMetadata();
+            }
+
+            @Override
+            public AttachedClassLoader getAttachedClassLoader() {
+                return defaultAttachedClassLoader;
+            }
+        };
     }
 
 }
