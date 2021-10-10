@@ -30,6 +30,7 @@ import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
 import fr.gaellalire.vestige.core.resource.SecureFile;
+import fr.gaellalire.vestige.core.resource.VestigeResource;
 import fr.gaellalire.vestige.core.resource.VestigeResourceLocator;
 import fr.gaellalire.vestige.core.weak.CloseableReaperHelper;
 import fr.gaellalire.vestige.core.weak.VestigeReaper;
@@ -94,7 +95,7 @@ public class DefaultVestigeJar implements VestigeJar {
 
                 @Override
                 public VestigeJarEntry nextElement() {
-                    return new VestigeResourceVestigeJarEntry(vestigeResourceLocator.findResource(resourceNames.next()));
+                    return new VestigeResourceVestigeJarEntry(DefaultVestigeJar.this, vestigeResourceLocator.findResource(resourceNames.next()));
                 }
             };
         }
@@ -109,7 +110,7 @@ public class DefaultVestigeJar implements VestigeJar {
 
             @Override
             public VestigeJarEntry nextElement() {
-                return new DefaultVestigeJarEntry(jarFile, entries.nextElement());
+                return new DefaultVestigeJarEntry(DefaultVestigeJar.this, jarFile, entries.nextElement());
             }
         };
     }
@@ -121,6 +122,10 @@ public class DefaultVestigeJar implements VestigeJar {
 
     @Override
     public Manifest getManifest() throws IOException {
+        if (vestigeResourceLocator != null) {
+            return vestigeResourceLocator.getManifest();
+        }
+
         return getJarFile().getManifest();
     }
 
@@ -158,11 +163,19 @@ public class DefaultVestigeJar implements VestigeJar {
 
     @Override
     public VestigeJarEntry getEntry(final String name) throws IOException {
+        if (vestigeResourceLocator != null) {
+            VestigeResource vestigeResource = vestigeResourceLocator.findResource(name);
+            if (vestigeResource == null) {
+                return null;
+            }
+            return new VestigeResourceVestigeJarEntry(DefaultVestigeJar.this, vestigeResource);
+        }
+
         JarEntry jarEntry = getJarFile().getJarEntry(name);
         if (jarEntry == null) {
             return null;
         }
-        return new DefaultVestigeJarEntry(jarFile, jarEntry);
+        return new DefaultVestigeJarEntry(this, jarFile, jarEntry);
     }
 
     @Override

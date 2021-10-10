@@ -97,4 +97,9 @@ public class SecureResolvedClassLoaderConfiguration implements ResolvedClassLoad
         }
     }
 
+    @Override
+    public String toString() {
+        return delegate.toString();
+    }
+
 }

@@ -50,4 +50,9 @@ public class SecureAttachedClassLoader implements AttachedClassLoader {
         delegate.detach();
     }
 
+    @Override
+    public String toString() {
+        return delegate.toString();
+    }
+
 }

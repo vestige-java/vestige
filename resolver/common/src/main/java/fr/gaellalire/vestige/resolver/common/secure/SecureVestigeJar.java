@@ -133,4 +133,9 @@ public class SecureVestigeJar implements VestigeJar {
         return delegate.getPatch();
     }
 
+    @Override
+    public String toString() {
+        return delegate.toString();
+    }
+
 }

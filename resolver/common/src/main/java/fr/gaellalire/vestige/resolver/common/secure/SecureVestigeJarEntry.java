@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.cert.Certificate;
 
+import fr.gaellalire.vestige.spi.resolver.VestigeJar;
 import fr.gaellalire.vestige.spi.resolver.VestigeJarEntry;
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
 
@@ -71,6 +72,16 @@ public class SecureVestigeJarEntry implements VestigeJarEntry {
     @Override
     public Certificate[] getCertificates() {
         return delegate.getCertificates();
+    }
+
+    @Override
+    public VestigeJar getVestigeJar() {
+        return delegate.getVestigeJar();
+    }
+
+    @Override
+    public String toString() {
+        return delegate.toString();
     }
 
 }

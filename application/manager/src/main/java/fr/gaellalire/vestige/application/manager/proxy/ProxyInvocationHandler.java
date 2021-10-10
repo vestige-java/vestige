@@ -231,4 +231,10 @@ public class ProxyInvocationHandler implements InvocationHandler {
             throw cause;
         }
     }
+
+    @Override
+    public String toString() {
+        return source.toString();
+    }
+
 }

@@ -58,4 +58,9 @@ public class SecureResolveMavenArtifactRequest implements ResolveMavenArtifactRe
         }
     }
 
+    @Override
+    public String toString() {
+        return delegate.toString();
+    }
+
 }

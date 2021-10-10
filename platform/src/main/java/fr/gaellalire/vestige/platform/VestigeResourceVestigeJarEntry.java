@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.security.cert.Certificate;
 
 import fr.gaellalire.vestige.core.resource.VestigeResource;
+import fr.gaellalire.vestige.spi.resolver.VestigeJar;
 import fr.gaellalire.vestige.spi.resolver.VestigeJarEntry;
 
 /**
@@ -29,9 +30,12 @@ import fr.gaellalire.vestige.spi.resolver.VestigeJarEntry;
  */
 public class VestigeResourceVestigeJarEntry implements VestigeJarEntry {
 
+    private VestigeJar vestigeJar;
+
     private VestigeResource vestigeResource;
 
-    public VestigeResourceVestigeJarEntry(final VestigeResource vestigeResource) {
+    public VestigeResourceVestigeJarEntry(final VestigeJar vestigeJar, final VestigeResource vestigeResource) {
+        this.vestigeJar = vestigeJar;
         this.vestigeResource = vestigeResource;
     }
 
@@ -63,6 +67,16 @@ public class VestigeResourceVestigeJarEntry implements VestigeJarEntry {
     @Override
     public Certificate[] getCertificates() {
         return vestigeResource.getCertificates();
+    }
+
+    @Override
+    public VestigeJar getVestigeJar() {
+        return vestigeJar;
+    }
+
+    @Override
+    public String toString() {
+        return vestigeResource.toString();
     }
 
 }

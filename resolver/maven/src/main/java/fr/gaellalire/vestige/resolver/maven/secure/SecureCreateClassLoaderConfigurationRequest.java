@@ -129,4 +129,9 @@ public class SecureCreateClassLoaderConfigurationRequest implements CreateClassL
         delegate.setDependenciesExcluded(dependenciesExcluded);
     }
 
+    @Override
+    public String toString() {
+        return delegate.toString();
+    }
+
 }

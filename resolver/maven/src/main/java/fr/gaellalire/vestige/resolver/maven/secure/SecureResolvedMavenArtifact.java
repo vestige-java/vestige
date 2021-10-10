@@ -99,4 +99,9 @@ public class SecureResolvedMavenArtifact implements ResolvedMavenArtifact {
         }
     }
 
+    @Override
+    public String toString() {
+        return delegate.toString();
+    }
+
 }

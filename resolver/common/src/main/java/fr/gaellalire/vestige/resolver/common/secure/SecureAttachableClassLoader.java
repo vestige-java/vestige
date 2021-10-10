@@ -75,4 +75,9 @@ public class SecureAttachableClassLoader implements AttachableClassLoader {
         }
     }
 
+    @Override
+    public String toString() {
+        return delegate.toString();
+    }
+
 }

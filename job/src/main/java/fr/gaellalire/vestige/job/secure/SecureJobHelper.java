@@ -48,4 +48,9 @@ public class SecureJobHelper extends AbstractJobHelper {
         return new SecureTaskHelper(secureVestigeSystem, addTask);
     }
 
+    @Override
+    public String toString() {
+        return delegate.toString();
+    }
+
 }

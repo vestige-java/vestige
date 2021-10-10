@@ -109,4 +109,9 @@ public class SecureMavenContextBuilder implements MavenContextBuilder, MavenCont
         }
     }
 
+    @Override
+    public String toString() {
+        return delegate.toString();
+    }
+
 }

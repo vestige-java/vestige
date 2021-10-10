@@ -59,4 +59,9 @@ public class SecureEnumeration<E> implements Enumeration<E> {
         }
     }
 
+    @Override
+    public String toString() {
+        return delegate.toString();
+    }
+
 }

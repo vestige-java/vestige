@@ -55,4 +55,9 @@ public class SecureTaskHelper extends AbstractTaskHelper {
         }
     }
 
+    @Override
+    public String toString() {
+        return delegate.toString();
+    }
+
 }

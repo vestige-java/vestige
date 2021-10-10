@@ -72,4 +72,9 @@ public class SecureVestigeMavenResolver implements VestigeMavenResolver {
         }
     }
 
+    @Override
+    public String toString() {
+        return delegate.toString();
+    }
+
 }

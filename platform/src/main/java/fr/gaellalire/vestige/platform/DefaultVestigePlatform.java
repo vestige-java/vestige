@@ -431,6 +431,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
 
         SecureJarFileResourceLocator secureJarFileResourceLocator = new SecureJarFileResourceLocator(secureJarFile, fileWithMetadata.getCodeBase());
         vestigeJars[0] = new DefaultVestigeJar(fileWithMetadata, secureJarFile, patchVestigeJar, secureJarFileResourceLocator, vestigeReaper);
+        vestigeReaper.addReapable(vestigeJars[0], new CloseableReaperHelper(secureJarFileResourceLocator));
         return secureJarFileResourceLocator;
     }
 

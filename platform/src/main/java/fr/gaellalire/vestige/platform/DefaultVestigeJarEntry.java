@@ -23,6 +23,7 @@ import java.security.cert.Certificate;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import fr.gaellalire.vestige.spi.resolver.VestigeJar;
 import fr.gaellalire.vestige.spi.resolver.VestigeJarEntry;
 
 /**
@@ -30,11 +31,14 @@ import fr.gaellalire.vestige.spi.resolver.VestigeJarEntry;
  */
 public class DefaultVestigeJarEntry implements VestigeJarEntry {
 
+    private VestigeJar vestigeJar;
+
     private JarFile jarFile;
 
     private JarEntry je;
 
-    public DefaultVestigeJarEntry(final JarFile jarFile, final JarEntry je) {
+    public DefaultVestigeJarEntry(final VestigeJar vestigeJar, final JarFile jarFile, final JarEntry je) {
+        this.vestigeJar = vestigeJar;
         this.jarFile = jarFile;
         this.je = je;
     }
@@ -67,6 +71,16 @@ public class DefaultVestigeJarEntry implements VestigeJarEntry {
     @Override
     public Certificate[] getCertificates() {
         return je.getCertificates();
+    }
+
+    @Override
+    public VestigeJar getVestigeJar() {
+        return vestigeJar;
+    }
+
+    @Override
+    public String toString() {
+        return "jar:" + vestigeJar.getCodeBase() + "!/" + getName();
     }
 
 }

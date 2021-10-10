@@ -56,4 +56,9 @@ public class SecureObjectInputStream extends ObjectInputStream {
         }
     }
 
+    @Override
+    public String toString() {
+        return delegate.toString();
+    }
+
 }
