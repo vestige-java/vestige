@@ -86,7 +86,6 @@
       <plugin>
         <groupId>fr.gaellalire.vestige</groupId>
         <artifactId>vestige.plugin.verify</artifactId>
-        <version>1.1.2</version>
         <executions>
           <execution>
             <goals>
