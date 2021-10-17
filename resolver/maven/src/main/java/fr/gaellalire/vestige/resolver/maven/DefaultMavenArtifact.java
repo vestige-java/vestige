@@ -19,10 +19,12 @@ package fr.gaellalire.vestige.resolver.maven;
 
 import java.io.Serializable;
 
+import fr.gaellalire.vestige.spi.resolver.maven.MavenArtifact;
+
 /**
  * @author Gael Lalire
  */
-public class MavenArtifact implements Serializable {
+public class DefaultMavenArtifact implements Serializable, MavenArtifact {
 
     private static final long serialVersionUID = 2208410848525695153L;
 
@@ -38,13 +40,20 @@ public class MavenArtifact implements Serializable {
 
     private boolean virtual;
 
-    private MavenArtifact patch;
+    private boolean parentExcluder;
 
-    public MavenArtifact() {
-        virtual = true;
+    private DefaultMavenArtifact patch;
+
+    public DefaultMavenArtifact() {
+        this(false);
     }
 
-    public MavenArtifact(final String groupId, final String artifactId, final String version, final String extension, final MavenArtifact patch) {
+    public DefaultMavenArtifact(final boolean parentExcluder) {
+        virtual = true;
+        this.parentExcluder = parentExcluder;
+    }
+
+    public DefaultMavenArtifact(final String groupId, final String artifactId, final String version, final String extension, final DefaultMavenArtifact patch) {
         this.groupId = groupId;
         this.artifactId = artifactId;
         this.version = version;
@@ -82,6 +91,10 @@ public class MavenArtifact implements Serializable {
         return virtual;
     }
 
+    public boolean isParentExcluder() {
+        return parentExcluder;
+    }
+
     @Override
     public boolean equals(final Object obj) {
         if (this == obj) {
@@ -90,10 +103,10 @@ public class MavenArtifact implements Serializable {
         if (obj == null) {
             return false;
         }
-        if (!(obj instanceof MavenArtifact)) {
+        if (!(obj instanceof DefaultMavenArtifact)) {
             return false;
         }
-        MavenArtifact other = (MavenArtifact) obj;
+        DefaultMavenArtifact other = (DefaultMavenArtifact) obj;
         if (virtual || other.virtual) {
             return false;
         }

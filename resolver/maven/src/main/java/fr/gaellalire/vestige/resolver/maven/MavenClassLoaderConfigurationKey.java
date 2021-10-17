@@ -33,7 +33,7 @@ public class MavenClassLoaderConfigurationKey implements Serializable {
 
     private static final long serialVersionUID = 12014007030441749L;
 
-    private List<MavenArtifact> artifacts;
+    private List<DefaultMavenArtifact> artifacts;
 
     private List<MavenClassLoaderConfigurationKey> dependencies;
 
@@ -47,7 +47,7 @@ public class MavenClassLoaderConfigurationKey implements Serializable {
 
     private boolean[] beforeParents;
 
-    public MavenClassLoaderConfigurationKey(final List<MavenArtifact> artifacts, final List<MavenClassLoaderConfigurationKey> dependencies, final Scope scope,
+    public MavenClassLoaderConfigurationKey(final List<DefaultMavenArtifact> artifacts, final List<MavenClassLoaderConfigurationKey> dependencies, final Scope scope,
             final JPMSClassLoaderConfiguration moduleConfiguration, final JPMSNamedModulesConfiguration namedModulesConfiguration, final boolean[] beforeParents) {
         this.artifacts = artifacts;
         this.dependencies = dependencies;
@@ -62,7 +62,7 @@ public class MavenClassLoaderConfigurationKey implements Serializable {
         return moduleConfiguration;
     }
 
-    public List<MavenArtifact> getArtifacts() {
+    public List<DefaultMavenArtifact> getArtifacts() {
         return artifacts;
     }
 

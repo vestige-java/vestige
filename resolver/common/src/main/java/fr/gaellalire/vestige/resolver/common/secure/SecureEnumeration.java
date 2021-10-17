@@ -53,7 +53,11 @@ public class SecureEnumeration<E> implements Enumeration<E> {
     public E nextElement() {
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {
-            return elementSecureMaker.makeSecure(delegate.nextElement());
+            E nextElement = delegate.nextElement();
+            if (elementSecureMaker == null) {
+                return nextElement;
+            }
+            return elementSecureMaker.makeSecure(nextElement);
         } finally {
             vestigeSystem.setCurrentSystem();
         }

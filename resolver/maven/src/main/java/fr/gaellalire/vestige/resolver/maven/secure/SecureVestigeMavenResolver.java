@@ -22,9 +22,8 @@ import java.io.ObjectInputStream;
 import java.security.Permission;
 import java.security.PermissionCollection;
 
-import fr.gaellalire.vestige.resolver.common.secure.SecureResolvedClassLoaderConfiguration;
-import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.maven.MavenContextBuilder;
+import fr.gaellalire.vestige.spi.resolver.maven.MavenResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.maven.VestigeMavenResolver;
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
 import fr.gaellalire.vestige.system.PrivateVestigePolicy;
@@ -57,16 +56,16 @@ public class SecureVestigeMavenResolver implements VestigeMavenResolver {
     }
 
     @Override
-    public ResolvedClassLoaderConfiguration restoreSavedResolvedClassLoaderConfiguration(final ObjectInputStream objectInputStream) throws IOException {
+    public MavenResolvedClassLoaderConfiguration restoreSavedResolvedClassLoaderConfiguration(final ObjectInputStream objectInputStream) throws IOException {
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {
-            ResolvedClassLoaderConfiguration resolvedClassLoaderConfiguration = delegate
+            MavenResolvedClassLoaderConfiguration resolvedClassLoaderConfiguration = delegate
                     .restoreSavedResolvedClassLoaderConfiguration(new SecureObjectInputStream(vestigeSystem, objectInputStream));
             PermissionCollection permissionCollection = vestigePolicy.getPermissionCollection();
             for (Permission permission : resolvedClassLoaderConfiguration.getPermissions()) {
                 permissionCollection.add(permission);
             }
-            return new SecureResolvedClassLoaderConfiguration(secureVestigeSystem, resolvedClassLoaderConfiguration);
+            return new SecureMavenResolvedClassLoaderConfiguration(secureVestigeSystem, resolvedClassLoaderConfiguration);
         } finally {
             vestigeSystem.setCurrentSystem();
         }

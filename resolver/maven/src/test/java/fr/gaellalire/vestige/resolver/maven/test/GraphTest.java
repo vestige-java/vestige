@@ -69,7 +69,6 @@ public class GraphTest {
         Assert.assertEquals(r1a2, graphCycleRemover.removeCycle(n1));
     }
 
-
     @Test
     public void testCycleIntersection() throws Exception {
         Node n1 = new Node("1");
@@ -140,7 +139,6 @@ public class GraphTest {
         Assert.assertEquals(r1, graphCycleRemover.removeCycle(n1));
     }
 
-
     @Test
     public void testCycleWithSameNext() throws Exception {
         Node n1 = new Node("1");
@@ -160,6 +158,39 @@ public class GraphTest {
         r2a3a5.setNexts(Collections.singletonList(r4));
 
         Assert.assertEquals(r1, graphCycleRemover.removeCycle(n1));
+    }
+
+    @Test
+    public void testExclusion() throws Exception {
+        Node nA = new Node("A");
+        Node nB = new Node("B");
+        Node nC = new Node("C");
+        Node nD = new Node("D");
+        Node nE = new Node("E");
+        Node nF = new Node("F");
+        Node nG = new Node("G");
+        Node nH = new Node("H");
+        Node nI = new Node("I");
+        Node nK = new Node("K");
+        Node nL = new Node("L");
+
+        nC.setParentExcluded(true);
+        nF.setParentExcluded(true);
+
+        nA.setNexts(Arrays.asList(nB, nD, nH));
+        nB.setNexts(Collections.singletonList(nC));
+        nC.setNexts(Collections.singletonList(nK));
+        nK.setNexts(Collections.singletonList(nL));
+        nD.setNexts(Arrays.asList(nE, nF));
+        nF.setNexts(Collections.singletonList(nG));
+        nH.setNexts(Collections.singletonList(nI));
+        nI.setNexts(Collections.singletonList(nK));
+
+        System.out.println(graphCycleRemover.removeCycle(nA));
+        /*
+         * Node r1 = new Node("1"); Node r2a3a5 = new Node(Arrays.asList("2", "3", "5")); Node r4 = new Node("4"); r1.setNexts(Collections.singletonList(r2a3a5));
+         * r2a3a5.setNexts(Collections.singletonList(r4)); Assert.assertEquals(r1, graphCycleRemover.removeCycle(n1));
+         */
     }
 
 }

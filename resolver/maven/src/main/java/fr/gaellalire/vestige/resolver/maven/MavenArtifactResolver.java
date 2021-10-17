@@ -106,11 +106,10 @@ import fr.gaellalire.vestige.platform.FileWithMetadata;
 import fr.gaellalire.vestige.platform.PatchFileWithMetadata;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.platform.VestigeURLStreamHandlerFactory;
-import fr.gaellalire.vestige.resolver.common.DefaultResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.job.JobHelper;
-import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.maven.MavenContextBuilder;
+import fr.gaellalire.vestige.spi.resolver.maven.MavenResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.maven.VestigeMavenResolver;
 
 /**
@@ -473,7 +472,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
                     }
                 }
 
-                MavenArtifact mavenArtifactPatch = null;
+                DefaultMavenArtifact mavenArtifactPatch = null;
 
                 PatchFileWithMetadata patchFileWithMetadata = null;
                 if (artifactPatcher != null) {
@@ -491,7 +490,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
                             sha1Patch = getSha1(patch, firstTry);
                         }
 
-                        mavenArtifactPatch = new MavenArtifact(patch.getGroupId(), patch.getArtifactId(), patch.getVersion(), patch.getExtension(), null);
+                        mavenArtifactPatch = new DefaultMavenArtifact(patch.getGroupId(), patch.getArtifactId(), patch.getVersion(), patch.getExtension(), null);
 
                         try {
                             patchFileWithMetadata = new PatchFileWithMetadata(resolveArtifact.getArtifact().getFile(), urlFactory.createURL(mavenArtifactPatch.toString()),
@@ -502,7 +501,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
                     }
                 }
 
-                MavenArtifact mavenArtifact = new MavenArtifact(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion(), artifact.getExtension(),
+                DefaultMavenArtifact mavenArtifact = new DefaultMavenArtifact(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion(), artifact.getExtension(),
                         mavenArtifactPatch);
 
                 File file = artifact.getFile();
@@ -530,7 +529,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
     }
 
     @Override
-    public ResolvedClassLoaderConfiguration restoreSavedResolvedClassLoaderConfiguration(final ObjectInputStream objectInputStream) throws IOException {
+    public MavenResolvedClassLoaderConfiguration restoreSavedResolvedClassLoaderConfiguration(final ObjectInputStream objectInputStream) throws IOException {
         int size = objectInputStream.readInt();
         byte[] array = new byte[size];
         objectInputStream.readFully(array);
@@ -544,7 +543,9 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
             };
             boolean firstBeforeParent = internObjectInputStream.readBoolean();
             ClassLoaderConfiguration classLoaderConfiguration = (ClassLoaderConfiguration) internObjectInputStream.readObject();
-            return new DefaultResolvedClassLoaderConfiguration(vestigePlatform, vestigeWorker[0], classLoaderConfiguration, firstBeforeParent);
+            @SuppressWarnings("unchecked")
+            List<DefaultMavenArtifact> usedArtifacts = (List<DefaultMavenArtifact>) internObjectInputStream.readObject();
+            return new DefaultMavenResolvedClassLoaderConfiguration(vestigePlatform, vestigeWorker[0], classLoaderConfiguration, firstBeforeParent, usedArtifacts);
         } catch (ClassNotFoundException e) {
             throw new IOException("ClassNotFoundException", e);
         }

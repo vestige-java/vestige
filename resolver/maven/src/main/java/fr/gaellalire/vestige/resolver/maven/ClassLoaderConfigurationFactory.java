@@ -436,7 +436,7 @@ public class ClassLoaderConfigurationFactory {
                 name = classLoaderConfigurationKey.getArtifacts().toString() + " of " + appName;
             }
             boolean mdcIncluded = false;
-            for (MavenArtifact mavenArtifact : classLoaderConfigurationKey.getArtifacts()) {
+            for (DefaultMavenArtifact mavenArtifact : classLoaderConfigurationKey.getArtifacts()) {
                 if ("org.slf4j".equals(mavenArtifact.getGroupId()) && "slf4j-api".equals(mavenArtifact.getArtifactId())) {
                     mdcIncluded = true;
                 }

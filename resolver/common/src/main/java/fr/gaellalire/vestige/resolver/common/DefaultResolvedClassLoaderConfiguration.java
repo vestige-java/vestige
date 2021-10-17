@@ -54,6 +54,10 @@ public class DefaultResolvedClassLoaderConfiguration implements ResolvedClassLoa
         this.classLoaderConfiguration = classLoaderConfiguration;
     }
 
+    public void saveOtherFields(final ObjectOutputStream internObjectOutputStream) throws IOException {
+
+    }
+
     @Override
     public void save(final ObjectOutputStream objectOutputStream) throws IOException {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
@@ -61,6 +65,7 @@ public class DefaultResolvedClassLoaderConfiguration implements ResolvedClassLoa
         try {
             internObjectOutputStream.writeBoolean(firstBeforeParent);
             internObjectOutputStream.writeObject(classLoaderConfiguration);
+            saveOtherFields(internObjectOutputStream);
         } finally {
             internObjectOutputStream.close();
         }
@@ -163,6 +168,7 @@ public class DefaultResolvedClassLoaderConfiguration implements ResolvedClassLoa
             public AttachedClassLoader getAttachedClassLoader() {
                 return defaultAttachedClassLoader;
             }
+
         };
     }
 

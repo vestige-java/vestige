@@ -35,6 +35,9 @@
             <goals>
               <goal>check</goal>
             </goals>
+            <configuration>
+              <excludes>module-info.java,**/fr/gaellalire/vestige/edition/standard/schema/**/*</excludes>
+            </configuration>
           </execution>
         </executions>
       </plugin>

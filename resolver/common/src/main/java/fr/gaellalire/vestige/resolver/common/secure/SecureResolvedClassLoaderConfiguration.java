@@ -30,14 +30,23 @@ import fr.gaellalire.vestige.spi.system.VestigeSystem;
 
 /**
  * @author Gael Lalire
+ * @param <E> delegate type
  */
-public class SecureResolvedClassLoaderConfiguration implements ResolvedClassLoaderConfiguration {
+public class SecureResolvedClassLoaderConfiguration<E extends ResolvedClassLoaderConfiguration> implements ResolvedClassLoaderConfiguration {
 
     private VestigeSystem secureVestigeSystem;
 
-    private ResolvedClassLoaderConfiguration delegate;
+    private E delegate;
 
-    public SecureResolvedClassLoaderConfiguration(final VestigeSystem secureVestigeSystem, final ResolvedClassLoaderConfiguration delegate) {
+    public E getDelegate() {
+        return delegate;
+    }
+
+    public VestigeSystem getSecureVestigeSystem() {
+        return secureVestigeSystem;
+    }
+
+    public SecureResolvedClassLoaderConfiguration(final VestigeSystem secureVestigeSystem, final E delegate) {
         this.secureVestigeSystem = secureVestigeSystem;
         this.delegate = delegate;
     }
@@ -78,20 +87,20 @@ public class SecureResolvedClassLoaderConfiguration implements ResolvedClassLoad
     }
 
     @Override
-    public AttachedClassLoader verifiedAttach(final String signature) throws ResolverException, InterruptedException {
+    public AttachedClassLoader verifiedAttach(final String verificationMetadata) throws ResolverException, InterruptedException {
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {
-            return new SecureAttachedClassLoader(secureVestigeSystem, delegate.verifiedAttach(signature));
+            return new SecureAttachedClassLoader(secureVestigeSystem, delegate.verifiedAttach(verificationMetadata));
         } finally {
             vestigeSystem.setCurrentSystem();
         }
     }
 
     @Override
-    public PartiallyVerifiedAttachment partiallyVerifiedAttach(final String signature) throws ResolverException, InterruptedException {
+    public PartiallyVerifiedAttachment partiallyVerifiedAttach(final String verificationMetadata) throws ResolverException, InterruptedException {
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {
-            return delegate.partiallyVerifiedAttach(signature);
+            return delegate.partiallyVerifiedAttach(verificationMetadata);
         } finally {
             vestigeSystem.setCurrentSystem();
         }

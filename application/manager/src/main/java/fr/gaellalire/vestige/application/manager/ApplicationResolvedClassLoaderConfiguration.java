@@ -75,13 +75,13 @@ public class ApplicationResolvedClassLoaderConfiguration implements ResolvedClas
     }
 
     @Override
-    public AttachedClassLoader verifiedAttach(final String signature) throws ResolverException, InterruptedException {
-        return delegate.verifiedAttach(signature);
+    public AttachedClassLoader verifiedAttach(final String verificationMetadata) throws ResolverException, InterruptedException {
+        return delegate.verifiedAttach(verificationMetadata);
     }
 
     @Override
-    public PartiallyVerifiedAttachment partiallyVerifiedAttach(final String signature) throws ResolverException, InterruptedException {
-        return delegate.partiallyVerifiedAttach(signature);
+    public PartiallyVerifiedAttachment partiallyVerifiedAttach(final String verificationMetadata) throws ResolverException, InterruptedException {
+        return delegate.partiallyVerifiedAttach(verificationMetadata);
     }
 
 }

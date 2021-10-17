@@ -17,6 +17,8 @@
 
 package fr.gaellalire.vestige.resolver.maven;
 
+import java.util.Set;
+
 import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
 import fr.gaellalire.vestige.spi.resolver.Scope;
 
@@ -42,6 +44,10 @@ public class CreateClassLoaderConfigurationParameters {
     private boolean selfExcluded;
 
     private boolean dependenciesExcluded;
+
+    private Set<MavenArtifactKey> excludesWithParents;
+
+    private Set<MavenArtifactKey> excludes;
 
     public String getAppName() {
         return appName;
@@ -113,6 +119,22 @@ public class CreateClassLoaderConfigurationParameters {
 
     public void setDependenciesExcluded(final boolean dependenciesExcluded) {
         this.dependenciesExcluded = dependenciesExcluded;
+    }
+
+    public Set<MavenArtifactKey> getExcludesWithParents() {
+        return excludesWithParents;
+    }
+
+    public void setExcludesWithParents(final Set<MavenArtifactKey> excludesWithParents) {
+        this.excludesWithParents = excludesWithParents;
+    }
+
+    public Set<MavenArtifactKey> getExcludes() {
+        return excludes;
+    }
+
+    public void setExcludes(final Set<MavenArtifactKey> excludes) {
+        this.excludes = excludes;
     }
 
 }

@@ -15,33 +15,35 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.resolver.maven;
-
-import java.util.List;
-
-import fr.gaellalire.vestige.spi.resolver.ResolverException;
+package fr.gaellalire.vestige.platform;
 
 /**
- * @param <Node> type of input nodes
- * @param <Key> type of input node key
- * @param <RNode> type of output nodes
- * @author Gael Lalire
+ * @author gaellalire
  */
-public interface GraphHelper<Node, Key, RNode> {
+public interface VerifierContext {
 
-    /**
-     * @author Gael Lalire
-     */
-    interface ParentNodeExcluder {
+    boolean nextDependency();
 
-        void setExcludeParentNodes();
+    boolean endOfDependencies();
 
-    }
+    void selectBeforeJars();
 
-    List<RNode> merge(List<Key> nodes, List<RNode> nexts, boolean mergeIfNoNode, ParentNodeExcluder parentNodeExcluder) throws ResolverException;
+    void selectAfterJars();
 
-    Key getKey(Node node);
+    boolean nextJar();
 
-    List<Node> getNexts(Node node) throws ResolverException;
+    boolean endOfJars();
+
+    boolean patch();
+
+    void pushDependency();
+
+    void popDependency();
+
+    boolean verify(final long size, final String sha512);
+
+    AttachmentVerificationMetadata getCurrentVerificationMetadata();
+
+    AttachmentVerificationMetadata getValidatedCurrentVerificationMetadata();
 
 }

@@ -19,6 +19,7 @@ package fr.gaellalire.vestige.resolver.maven;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,15 +37,15 @@ import fr.gaellalire.vestige.spi.resolver.Scope;
 /**
  * @author Gael Lalire
  */
-public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndState, MavenArtifact, ClassLoaderConfigurationFactory> {
+public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndState, DefaultMavenArtifact, ClassLoaderConfigurationFactory> {
 
     private String appName;
 
-    private Map<List<MavenArtifact>, ClassLoaderConfigurationFactory> cachedClassLoaderConfigurationFactory;
+    private Map<List<DefaultMavenArtifact>, ClassLoaderConfigurationFactory> cachedClassLoaderConfigurationFactory;
 
-    private Map<MavenArtifact, FileWithMetadata> urlByKey;
+    private Map<DefaultMavenArtifact, FileWithMetadata> urlByKey;
 
-    private Map<String, Map<String, MavenArtifact>> runtimeDependencies;
+    private Map<String, Map<String, DefaultMavenArtifact>> runtimeDependencies;
 
     private Scope scope;
 
@@ -58,11 +59,13 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
     private DependencyReader dependencyReader;
 
-    public ClassLoaderConfigurationGraphHelper(final String appName, final Map<MavenArtifact, FileWithMetadata> urlByKey, final DependencyReader dependencyReader,
+    private List<DefaultMavenArtifact> mavenArtifacts;
+
+    public ClassLoaderConfigurationGraphHelper(final String appName, final Map<DefaultMavenArtifact, FileWithMetadata> urlByKey, final DependencyReader dependencyReader,
             final BeforeParentController beforeParentController, final DefaultJPMSConfiguration jpmsConfiguration,
-            final Map<String, Map<String, MavenArtifact>> runtimeDependencies, final Scope scope, final ScopeModifier scopeModifier,
-            final JPMSNamedModulesConfiguration namedModulesConfiguration) {
-        cachedClassLoaderConfigurationFactory = new HashMap<List<MavenArtifact>, ClassLoaderConfigurationFactory>();
+            final Map<String, Map<String, DefaultMavenArtifact>> runtimeDependencies, final Scope scope, final ScopeModifier scopeModifier,
+            final JPMSNamedModulesConfiguration namedModulesConfiguration, final List<DefaultMavenArtifact> mavenArtifacts) {
+        cachedClassLoaderConfigurationFactory = new HashMap<List<DefaultMavenArtifact>, ClassLoaderConfigurationFactory>();
         this.appName = appName;
         this.urlByKey = urlByKey;
         this.dependencyReader = dependencyReader;
@@ -72,19 +75,28 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
         this.scope = scope;
         this.scopeModifier = scopeModifier;
         this.namedModulesConfiguration = namedModulesConfiguration;
+        this.mavenArtifacts = mavenArtifacts;
     }
 
     /**
      * Executed before any call to {@link ClassLoaderConfigurationFactory#create(fr.gaellalire.vestige.platform.StringParserFactory)}.
      */
-    public ClassLoaderConfigurationFactory merge(final List<MavenArtifact> pnodes, final List<ClassLoaderConfigurationFactory> nexts) throws ResolverException {
+    public List<ClassLoaderConfigurationFactory> merge(final List<DefaultMavenArtifact> pnodes, final List<ClassLoaderConfigurationFactory> nexts, final boolean mergeIfNoNode,
+            final ParentNodeExcluder parentNodeExcluder) throws ResolverException {
         List<MavenClassLoaderConfigurationKey> dependencies = new ArrayList<MavenClassLoaderConfigurationKey>();
 
-        List<MavenArtifact> nodes = new ArrayList<MavenArtifact>(pnodes.size());
-        for (MavenArtifact mavenArtifact : pnodes) {
+        List<DefaultMavenArtifact> nodes = new ArrayList<DefaultMavenArtifact>(pnodes.size());
+        for (DefaultMavenArtifact mavenArtifact : pnodes) {
             if (!mavenArtifact.isVirtual()) {
                 nodes.add(mavenArtifact);
+                mavenArtifacts.add(mavenArtifact);
+            } else if (mavenArtifact.isParentExcluder()) {
+                parentNodeExcluder.setExcludeParentNodes();
             }
+        }
+
+        if (nodes.size() == 0 && !mergeIfNoNode) {
+            return nexts;
         }
 
         for (ClassLoaderConfigurationFactory classLoaderConfiguration : nexts) {
@@ -94,7 +106,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
         JPMSClassLoaderConfiguration moduleConfiguration = JPMSClassLoaderConfiguration.EMPTY_INSTANCE;
         boolean[] beforeParents = null;
         int i = 0;
-        for (MavenArtifact mavenArtifact : nodes) {
+        for (DefaultMavenArtifact mavenArtifact : nodes) {
             JPMSClassLoaderConfiguration unnamedClassLoaderConfiguration = jpmsConfiguration.getModuleConfiguration(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId());
             if (namedModulesConfiguration != null) {
 
@@ -133,7 +145,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
             List<FileWithMetadata> afterUrls = new ArrayList<FileWithMetadata>();
             Scope scope = this.scope;
             i = 0;
-            for (MavenArtifact artifact : nodes) {
+            for (DefaultMavenArtifact artifact : nodes) {
                 if (scopeModifier != null) {
                     scope = scopeModifier.modify(scope, artifact.getGroupId(), artifact.getArtifactId());
                 }
@@ -150,18 +162,18 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
             classLoaderConfigurationFactory = new ClassLoaderConfigurationFactory(appName, key, scope, beforeUrls, afterUrls, nexts, namedModulesConfiguration != null);
             cachedClassLoaderConfigurationFactory.put(key.getArtifacts(), classLoaderConfigurationFactory);
         }
-        return classLoaderConfigurationFactory;
+        return Collections.singletonList(classLoaderConfigurationFactory);
     }
 
     public List<NodeAndState> getNexts(final NodeAndState nodeAndState) throws ResolverException {
         return dependencyReader.getDependencies(nodeAndState);
     }
 
-    public MavenArtifact getKey(final NodeAndState nodeAndState) {
+    public DefaultMavenArtifact getKey(final NodeAndState nodeAndState) {
         Artifact artifact = nodeAndState.getDependencyNode().getDependency().getArtifact();
 
-        MavenArtifact key = null;
-        Map<String, MavenArtifact> map = runtimeDependencies.get(artifact.getGroupId());
+        DefaultMavenArtifact key = null;
+        Map<String, DefaultMavenArtifact> map = runtimeDependencies.get(artifact.getGroupId());
         if (map != null) {
             key = map.get(artifact.getArtifactId());
         }

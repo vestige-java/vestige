@@ -15,35 +15,35 @@
  * along with Vestige.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package fr.gaellalire.vestige.resolver.maven;
-
-import fr.gaellalire.vestige.platform.FileWithMetadata;
+package fr.gaellalire.vestige.platform;
 
 /**
  * @author Gael Lalire
  */
-public class MavenArtifactAndMetadata {
+public class FileMetadataLocation {
 
-    private DefaultMavenArtifact mavenArtifact;
+    private AttachmentVerificationMetadata attachmentVerificationMetadata;
 
-    private FileWithMetadata fileWithMetadata;
+    private int position;
 
-    public MavenArtifactAndMetadata(final DefaultMavenArtifact mavenArtifact, final FileWithMetadata fileWithMetadata) {
-        this.mavenArtifact = mavenArtifact;
-        this.fileWithMetadata = fileWithMetadata;
+    private boolean before;
+
+    public FileMetadataLocation(final AttachmentVerificationMetadata attachmentVerificationMetadata, final int position, final boolean before) {
+        this.attachmentVerificationMetadata = attachmentVerificationMetadata;
+        this.position = position;
+        this.before = before;
     }
 
-    public DefaultMavenArtifact getMavenArtifact() {
-        return mavenArtifact;
+    public AttachmentVerificationMetadata getAttachmentVerificationMetadata() {
+        return attachmentVerificationMetadata;
     }
 
-    public FileWithMetadata getFileWithMetadata() {
-        return fileWithMetadata;
+    public int getPosition() {
+        return position;
     }
 
-    @Override
-    public String toString() {
-        return mavenArtifact.toString();
+    public boolean isBefore() {
+        return before;
     }
 
 }

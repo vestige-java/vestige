@@ -18,6 +18,7 @@
 package fr.gaellalire.vestige.resolver.maven.test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import fr.gaellalire.vestige.resolver.maven.GraphHelper;
@@ -27,15 +28,35 @@ import fr.gaellalire.vestige.resolver.maven.GraphHelper;
  */
 public class NodeGraphHelper implements GraphHelper<Node, Node, Node> {
 
-    public Node merge(final List<Node> nodes, final List<Node> nexts) {
+    public List<Node> merge(final List<Node> nodes, final List<Node> nexts, final boolean mergeIfNoNode, final ParentNodeExcluder parentNodeExcluder) {
         List<String> names = new ArrayList<String>();
+        boolean parentExcluded = false;
         for (Node node : nodes) {
-            names.addAll(node.getNames());
+            if (node.isParentExcluded()) {
+                parentExcluded = true;
+                names.clear();
+                break;
+            }
+            if (!node.isExcluded()) {
+                names.addAll(node.getNames());
+            }
         }
+        for (Node next : nexts) {
+            if (next.isParentExcluded()) {
+                names.clear();
+                parentExcluded = true;
+            }
+        }
+        if (names.size() == 0 && !mergeIfNoNode) {
+            parentNodeExcluder.setExcludeParentNodes();
+            return nexts;
+        }
+
         nexts.removeAll(nodes);
         Node node = new Node(names);
         node.setNexts(nexts);
-        return node;
+        node.setParentExcluded(parentExcluded);
+        return Collections.singletonList(node);
     }
 
     public List<Node> getNexts(final Node node) {

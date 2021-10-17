@@ -21,7 +21,12 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author Gael Lalire
@@ -47,6 +52,150 @@ public class AttachmentVerificationMetadata {
     private List<FileVerificationMetadata> beforeFiles;
 
     private List<FileVerificationMetadata> afterFiles;
+
+    private boolean[] beforeUsedArray;
+
+    private boolean[] afterUsedArray;
+
+    /**
+     * @author Gael Lalire
+     */
+    private static class Key {
+
+        private long size;
+
+        private String sha512;
+
+        public Key(final long size, final String sha512) {
+            this.size = size;
+            this.sha512 = sha512;
+        }
+
+        @Override
+        public int hashCode() {
+            final int prime = 31;
+            int result = 1;
+            result = prime * result + sha512.hashCode();
+            result = prime * result + (int) (size ^ (size >>> 32));
+            return result;
+        }
+
+        @Override
+        public boolean equals(final Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (!(obj instanceof Key)) {
+                return false;
+            }
+            Key other = (Key) obj;
+            if (!sha512.equals(other.sha512)) {
+                return false;
+            }
+            if (size != other.size) {
+                return false;
+            }
+            return true;
+        }
+
+    }
+
+    private Map<Key, FileMetadataLocation> valueByKey;
+
+    /**
+     * @return the current location, or null if not found
+     */
+    public FileMetadataLocation findAndMarkAsUsed(final long size, final String sha512) {
+        FileMetadataLocation value = valueByKey.get(new Key(size, sha512));
+        if (value == null) {
+            return null;
+        }
+        if (value.isBefore()) {
+            value.getAttachmentVerificationMetadata().beforeUsedArray[value.getPosition()] = true;
+        } else {
+            value.getAttachmentVerificationMetadata().afterUsedArray[value.getPosition()] = true;
+        }
+        return value;
+    }
+
+    public List<AttachmentVerificationMetadata> extract(final IdentityHashMap<AttachmentVerificationMetadata, List<AttachmentVerificationMetadata>> alreadyExtracted,
+            final boolean used) {
+        List<FileVerificationMetadata> beforeFiles = new ArrayList<FileVerificationMetadata>();
+        List<FileVerificationMetadata> afterFiles = new ArrayList<FileVerificationMetadata>();
+        List<AttachmentVerificationMetadata> dependencySignatures = new ArrayList<AttachmentVerificationMetadata>();
+
+        for (AttachmentVerificationMetadata dependencySignature : this.dependencySignatures) {
+            dependencySignatures.addAll(dependencySignature.extract(alreadyExtracted, used));
+        }
+
+        Iterator<FileVerificationMetadata> iterator = this.beforeFiles.iterator();
+        for (boolean beforeUsed : beforeUsedArray) {
+            if (beforeUsed == used) {
+                beforeFiles.add(iterator.next());
+            }
+        }
+        iterator = this.afterFiles.iterator();
+        for (boolean afterUsed : afterUsedArray) {
+            if (afterUsed == used) {
+                afterFiles.add(iterator.next());
+            }
+        }
+
+        List<AttachmentVerificationMetadata> attachmentVerificationMetadatas;
+        if (beforeFiles.size() == 0 && afterFiles.size() == 0) {
+            attachmentVerificationMetadatas = dependencySignatures;
+        } else {
+            attachmentVerificationMetadatas = Collections.singletonList(new AttachmentVerificationMetadata(dependencySignatures, beforeFiles, afterFiles));
+        }
+
+        alreadyExtracted.put(this, attachmentVerificationMetadatas);
+
+        return attachmentVerificationMetadatas;
+    }
+
+    public AttachmentVerificationMetadata extractUsed() {
+        List<AttachmentVerificationMetadata> extract = extract(new IdentityHashMap<AttachmentVerificationMetadata, List<AttachmentVerificationMetadata>>(), true);
+        if (extract.size() == 1) {
+            return extract.get(0);
+        } else if (extract.size() == 0) {
+            return null;
+        }
+        return new AttachmentVerificationMetadata(extract, Collections.<FileVerificationMetadata> emptyList(), Collections.<FileVerificationMetadata> emptyList());
+    }
+
+    public AttachmentVerificationMetadata extractUnused() {
+        List<AttachmentVerificationMetadata> extract = extract(new IdentityHashMap<AttachmentVerificationMetadata, List<AttachmentVerificationMetadata>>(), false);
+        if (extract.size() == 1) {
+            return extract.get(0);
+        } else if (extract.size() == 0) {
+            return null;
+        }
+        return new AttachmentVerificationMetadata(extract, Collections.<FileVerificationMetadata> emptyList(), Collections.<FileVerificationMetadata> emptyList());
+    }
+
+    public boolean isPreparedForUseCheck() {
+        return valueByKey != null;
+    }
+
+    public void prepareForUseCheck() {
+        valueByKey = new HashMap<AttachmentVerificationMetadata.Key, FileMetadataLocation>();
+        beforeUsedArray = new boolean[beforeFiles.size()];
+        afterUsedArray = new boolean[afterFiles.size()];
+        for (AttachmentVerificationMetadata dependencySignature : this.dependencySignatures) {
+            dependencySignature.prepareForUseCheck();
+            valueByKey.putAll(dependencySignature.valueByKey);
+        }
+        int position = 0;
+        for (FileVerificationMetadata file : beforeFiles) {
+            valueByKey.put(new Key(file.getSize(), file.getSha512()), new FileMetadataLocation(this, position, true));
+            position++;
+        }
+        position = 0;
+        for (FileVerificationMetadata file : afterFiles) {
+            valueByKey.put(new Key(file.getSize(), file.getSha512()), new FileMetadataLocation(this, position, false));
+            position++;
+        }
+    }
 
     public AttachmentVerificationMetadata(final List<AttachmentVerificationMetadata> dependencySignatures, final List<FileVerificationMetadata> beforeFiles,
             final List<FileVerificationMetadata> afterFiles) {

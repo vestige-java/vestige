@@ -390,7 +390,7 @@ public final class MavenMainLauncher {
                         createClassLoaderConfigurationParameters.setScope(mavenScope);
 
                         ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
-                                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters);
+                                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, null);
 
                         launchCaches
                                 .add(new VerifiedClassLoaderConfiguration(classLoaderConfiguration, SimpleValueGetter.INSTANCE.getValue(mavenClassType.getVerificationMetadata())));
@@ -421,7 +421,7 @@ public final class MavenMainLauncher {
                     createClassLoaderConfigurationParameters.setScope(mavenScope);
 
                     ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
-                            .createClassLoaderConfiguration(createClassLoaderConfigurationParameters);
+                            .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, null);
 
                     mavenResolverCache = new MavenResolverCache(launchCaches, SimpleValueGetter.INSTANCE.getValue(mavenClassType.getClazz()),
                             new VerifiedClassLoaderConfiguration(classLoaderConfiguration, SimpleValueGetter.INSTANCE.getValue(mavenClassType.getVerificationMetadata())),

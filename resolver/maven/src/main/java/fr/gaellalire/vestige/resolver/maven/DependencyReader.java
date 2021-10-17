@@ -96,7 +96,7 @@ public class DependencyReader {
         List<MavenArtifactAndMetadata> result = new ArrayList<MavenArtifactAndMetadata>();
         Map<String, Map<String, MavenArtifactAndMetadata>> runtimeDependencies = new HashMap<String, Map<String, MavenArtifactAndMetadata>>();
         for (MavenArtifactAndMetadata artifact : artifactAndMetadatas) {
-            MavenArtifact mavenArtifact = artifact.getMavenArtifact();
+            DefaultMavenArtifact mavenArtifact = artifact.getMavenArtifact();
             Map<String, MavenArtifactAndMetadata> map = runtimeDependencies.get(mavenArtifact.getGroupId());
             if (map == null) {
                 map = new HashMap<String, MavenArtifactAndMetadata>();

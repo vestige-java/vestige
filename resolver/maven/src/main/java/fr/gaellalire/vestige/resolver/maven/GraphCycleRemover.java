@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 
+import fr.gaellalire.vestige.resolver.maven.GraphHelper.ParentNodeExcluder;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 
 /**
@@ -44,9 +45,32 @@ public class GraphCycleRemover<Node, Key, RNode> {
     /**
      * @author Gael Lalire
      */
-    class Context {
+    static class CachedRNode<RNode> {
 
-        private Map<Key, List<RNode>> cache = new HashMap<Key, List<RNode>>();
+        private boolean parentNodeExcluded;
+
+        private List<RNode> rNodes;
+
+        public CachedRNode(final List<RNode> rNodes) {
+            this.rNodes = rNodes;
+        }
+
+        public void setParentNodeExcluded(final boolean parentNodeExcluded) {
+            this.parentNodeExcluded = parentNodeExcluded;
+        }
+
+        public void setRNodes(final List<RNode> rNodes) {
+            this.rNodes = rNodes;
+        }
+
+    }
+
+    /**
+     * @author Gael Lalire
+     */
+    static class Context<Key, RNode> {
+
+        private Map<Key, CachedRNode<RNode>> cache = new HashMap<Key, CachedRNode<RNode>>();
 
         private List<List<Key>> merge = new LinkedList<List<Key>>();
 
@@ -90,57 +114,89 @@ public class GraphCycleRemover<Node, Key, RNode> {
             return list;
         }
 
-        public void putCache(final Key key, final List<RNode> result) {
+        public void putCache(final Key key, final CachedRNode<RNode> result) {
             cache.put(key, result);
         }
 
-        public List<RNode> getCache(final Key key) {
+        public CachedRNode<RNode> getCache(final Key key) {
             return cache.get(key);
         }
 
     }
 
     public RNode removeCycle(final Node node) throws ResolverException {
-        return removeCycle(node, new Context()).get(0);
+        List<RNode> removeCycle = removeCycle(node, new Context<Key, RNode>()).rNodes;
+        if (removeCycle.size() != 1) {
+            return graphHelper.merge(Collections.<Key> emptyList(), removeCycle, true, new ParentNodeExcluder() {
+
+                @Override
+                public void setExcludeParentNodes() {
+                    // first node => no parent to exclude
+                }
+            }).get(0);
+        }
+        return removeCycle.get(0);
     }
 
-    public List<RNode> removeCycle(final Node node, final Context context) throws ResolverException {
+    private final CachedRNode<RNode> empty = new CachedRNode<RNode>(Collections.<RNode> emptyList());
+
+    public CachedRNode<RNode> removeCycle(final Node node, final Context<Key, RNode> context) throws ResolverException {
         Key key = graphHelper.getKey(node);
 
         if (key == null) {
-            return Collections.emptyList();
+            return empty;
         }
 
-        List<RNode> result = context.getCache(key);
+        CachedRNode<RNode> result = context.getCache(key);
         if (result != null) {
             return result;
         }
 
         if (!context.pushNode(key)) {
-            return Collections.emptyList();
+            return empty;
         }
         List<Node> nexts = graphHelper.getNexts(node);
         List<RNode> mergedNexts = new ArrayList<RNode>();
+        boolean parentNodeExcluded = false;
         for (Node next : nexts) {
-            List<RNode> removeCycle = removeCycle(next, context);
-            for (RNode rNode : removeCycle) {
+            CachedRNode<RNode> removeCycle = removeCycle(next, context);
+            if (removeCycle.parentNodeExcluded) {
+                parentNodeExcluded = true;
+            }
+            for (RNode rNode : removeCycle.rNodes) {
                 if (!mergedNexts.contains(rNode)) {
                     mergedNexts.add(rNode);
                 }
             }
         }
 
+        final CachedRNode<RNode> cachedRNode = new CachedRNode<RNode>(null);
+
         List<Key> popNode = context.popNode();
         if (popNode == null) {
             // we are in cycle
-            return mergedNexts;
+            cachedRNode.rNodes = mergedNexts;
+            return cachedRNode;
         }
 
-        result = Collections.singletonList(graphHelper.merge(popNode, mergedNexts));
-        for (Key sharedKey : popNode) {
-            context.putCache(sharedKey, result);
+        List<Key> popNodeGiven;
+        if (parentNodeExcluded) {
+            popNodeGiven = Collections.emptyList();
+        } else {
+            popNodeGiven = popNode;
         }
-        return result;
+
+        cachedRNode.setRNodes(graphHelper.merge(popNodeGiven, mergedNexts, false, new ParentNodeExcluder() {
+
+            @Override
+            public void setExcludeParentNodes() {
+                cachedRNode.setParentNodeExcluded(true);
+            }
+        }));
+        for (Key sharedKey : popNode) {
+            context.putCache(sharedKey, cachedRNode);
+        }
+        return cachedRNode;
     }
 
 }

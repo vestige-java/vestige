@@ -104,7 +104,7 @@
         <plugin>
           <groupId>fr.gaellalire.vestige</groupId>
           <artifactId>vestige.plugin.verify</artifactId>
-          <version>1.1.2</version>
+          <version>1.1.3</version>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -175,15 +175,15 @@
     <at>@</at>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <slf4j.version>1.7.25</slf4j.version>
-    <vestige.core.version>14-SNAPSHOT</vestige.core.version>
+    <vestige.core.version>14</vestige.core.version>
     <vestige.jpms.version>2.0</vestige.jpms.version>
     <vestige.jvm_enhancer.version>4.6</vestige.jvm_enhancer.version>
     <vestige.logback_enhancer.version>1.1</vestige.logback_enhancer.version>
     <vestige.spi.system.version>1.1</vestige.spi.system.version>
     <vestige.spi.job.version>1.2</vestige.spi.job.version>
-    <vestige.spi.resolver.version>3.1-SNAPSHOT</vestige.spi.resolver.version>
-    <vestige.spi.resolver.url_list.version>3.1-SNAPSHOT</vestige.spi.resolver.url_list.version>
-    <vestige.spi.resolver.maven.version>3.1-SNAPSHOT</vestige.spi.resolver.maven.version>
+    <vestige.spi.resolver.version>3.1</vestige.spi.resolver.version>
+    <vestige.spi.resolver.url_list.version>3.1</vestige.spi.resolver.url_list.version>
+    <vestige.spi.resolver.maven.version>3.1</vestige.spi.resolver.maven.version>
     <vestige.spi.trust.version>2.1</vestige.spi.trust.version>
     <vestige.maven.version>java6-3</vestige.maven.version>
     <logback.version>1.2.3</logback.version>

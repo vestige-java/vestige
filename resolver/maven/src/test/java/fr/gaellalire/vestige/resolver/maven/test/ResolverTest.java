@@ -19,8 +19,11 @@ package fr.gaellalire.vestige.resolver.maven.test;
 
 import java.io.File;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashSet;
 
 import org.eclipse.aether.artifact.DefaultArtifact;
 import org.eclipse.aether.graph.Dependency;
@@ -29,12 +32,15 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import fr.gaellalire.vestige.core.VestigeCoreContext;
+import fr.gaellalire.vestige.core.executor.VestigeWorker;
 import fr.gaellalire.vestige.core.url.DelegateURLStreamHandlerFactory;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.VestigeURLStreamHandlerFactory;
 import fr.gaellalire.vestige.resolver.maven.CreateClassLoaderConfigurationParameters;
 import fr.gaellalire.vestige.resolver.maven.DefaultDependencyModifier;
+import fr.gaellalire.vestige.resolver.maven.DefaultMavenArtifact;
 import fr.gaellalire.vestige.resolver.maven.DefaultResolvedMavenArtifact;
+import fr.gaellalire.vestige.resolver.maven.MavenArtifactKey;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
 import fr.gaellalire.vestige.resolver.maven.ResolveParameters;
 import fr.gaellalire.vestige.spi.job.DummyJobHelper;
@@ -61,11 +67,49 @@ public class ResolverTest {
     }
 
     @Test
-    @Ignore
     public void test() throws Exception {
 
         File settingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
-        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(null, null, settingsFile, null);
+        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(null, new VestigeWorker[] {null}, settingsFile, null);
+
+        ResolveParameters resolveRequest = new ResolveParameters();
+        resolveRequest.setGroupId("fr.gaellalire.vestige_app.mywar");
+        resolveRequest.setArtifactId("mywar");
+        resolveRequest.setVersion("0.0.1");
+        resolveRequest.setExtension("war");
+        // resolveRequest.setAdditionalRepositories(additionalRepositories);
+        DefaultDependencyModifier defaultDependencyModifier = new DefaultDependencyModifier();
+        // defaultDependencyModifier.add("commons-io", "commons-io",
+        // Collections.singletonList(new Dependency(new DefaultArtifact("fr.gaellalire.vestige_app.mywar", "mywar", "war", "0.0.1"), "runtime")));
+        resolveRequest.setDependencyModifier(defaultDependencyModifier);
+        // resolveRequest.setJpmsConfiguration(defaultJPMSConfiguration);
+        // resolveRequest.setJpmsNamedModulesConfiguration(namedModulesConfiguration);
+        resolveRequest.setSuperPomRepositoriesIgnored(true);
+        resolveRequest.setPomRepositoriesIgnored(true);
+        resolveRequest.setChecksumVerified(false);
+
+        CreateClassLoaderConfigurationParameters createClassLoaderConfigurationParameters = new CreateClassLoaderConfigurationParameters();
+        createClassLoaderConfigurationParameters.setManyLoaders(true);
+        createClassLoaderConfigurationParameters.setAppName("mywar");
+        createClassLoaderConfigurationParameters.setScope(Scope.PLATFORM);
+        createClassLoaderConfigurationParameters.setSelfExcluded(true);
+
+        if (true) {
+            createClassLoaderConfigurationParameters
+                    .setExcludesWithParents(new HashSet<MavenArtifactKey>(Arrays.asList(new MavenArtifactKey("javax.servlet", "javax.servlet-api", "jar"))));
+        }
+
+        ClassLoaderConfiguration resolve = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
+                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, new ArrayList<DefaultMavenArtifact>());
+        System.out.println(resolve);
+
+    }
+
+    @Test
+    public void testWar() throws Exception {
+
+        File settingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
+        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(null, new VestigeWorker[] {null}, settingsFile, null);
 
         ResolveParameters resolveRequest = new ResolveParameters();
         resolveRequest.setGroupId("fr.gaellalire.vestige_app.mywar");
@@ -92,7 +136,7 @@ public class ResolverTest {
         createClassLoaderConfigurationParameters.setSelfExcluded(true);
 
         ClassLoaderConfiguration resolve = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
-                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters);
+                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, new ArrayList<DefaultMavenArtifact>());
         System.out.println(resolve);
 
     }
@@ -102,7 +146,7 @@ public class ResolverTest {
     public void testEAR() throws Exception {
 
         File settingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
-        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(null, null, settingsFile, null);
+        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(null, new VestigeWorker[] {null}, settingsFile, null);
 
         ResolveParameters resolveRequest = new ResolveParameters();
         resolveRequest.setGroupId("fr.gaellalire.vestige_app.myeeapps");
@@ -129,7 +173,7 @@ public class ResolverTest {
         createClassLoaderConfigurationParameters.setSelfExcluded(true);
 
         ClassLoaderConfiguration resolve = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
-                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters);
+                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, new ArrayList<DefaultMavenArtifact>());
         System.out.println(resolve);
 
     }

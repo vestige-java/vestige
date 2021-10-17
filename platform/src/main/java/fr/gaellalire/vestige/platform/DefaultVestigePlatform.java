@@ -199,8 +199,30 @@ public class DefaultVestigePlatform implements VestigePlatform {
             id++;
         }
         Map<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>> attachmentMap = new HashMap<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>>();
-        AttachedVestigeClassLoader load = attachDependencies(attachmentMap, classLoaderConfiguration, verificationMetadata, vestigeWorker, result);
+        VerifierContext verifierContext = null;
+        if (verificationMetadata != null) {
+            if (result != null) {
+                verificationMetadata.prepareForUseCheck();
+                verifierContext = new PartialJarVerifierContext(verificationMetadata);
+            } else if (verificationMetadata != null) {
+                verifierContext = new CompleteMetadataVerifierContext(verificationMetadata);
+            }
+        }
+        AttachedVestigeClassLoader load = attachDependencies(attachmentMap, classLoaderConfiguration, vestigeWorker, verifierContext);
         if (result != null) {
+            if (verificationMetadata != null) {
+                AttachmentVerificationMetadata extractUsed = verificationMetadata.extractUsed();
+                if (extractUsed != null) {
+                    result.setUsedVerificationMetadata(extractUsed.toString());
+                }
+                AttachmentVerificationMetadata extractUnused = verificationMetadata.extractUnused();
+                if (extractUnused != null) {
+                    result.setRemainingVerificationMetadata(extractUnused.toString());
+                } else {
+                    result.setComplete(true);
+                }
+            }
+
             result.setAttachedVestigeClassLoader(load);
         }
 
@@ -435,46 +457,38 @@ public class DefaultVestigePlatform implements VestigePlatform {
         return secureJarFileResourceLocator;
     }
 
-    public VestigeResourceLocator verifyJar(final FileWithMetadata fileWithMetadata, final FileVerificationContext context, final List<VestigeJar> vestigeJars) throws IOException {
+    public VestigeResourceLocator verifyJar(final FileWithMetadata fileWithMetadata, final List<VestigeJar> vestigeJars, final VerifierContext verifierContext) throws IOException {
         VestigeJar[] vestigeJarKeeper = new VestigeJar[1];
         final PatchFileWithMetadata patch = fileWithMetadata.getPatch();
         JarVerifier standardJarVerifier;
-        if (context == null) {
+
+        if (verifierContext == null) {
             standardJarVerifier = null;
         } else {
             standardJarVerifier = new JarVerifier() {
 
                 @Override
                 public void verify(final long size, final String sha512) throws IOException {
-                    while (context.hasNext()) {
-                        FileVerificationMetadata fileMetadata = context.next();
-                        if (sha512.equals(fileMetadata.getSha512()) && size == fileMetadata.getSize()) {
-                            // verified
-                            return;
-                        } else {
-                            context.skip();
-                        }
+                    if (!verifierContext.verify(size, sha512)) {
+                        throw new IOException("Detected corruption of file " + fileWithMetadata.getFile());
                     }
-                    throw new IOException("Detected corruption of file " + fileWithMetadata.getFile());
                 }
             };
         }
         if (patch != null) {
             VestigeResourceLocator verifyJar = verifyAbstractJar(fileWithMetadata, null, vestigeJarKeeper, standardJarVerifier);
             JarVerifier patchJarVerifier;
-            if (context == null) {
+            if (verifierContext == null) {
                 patchJarVerifier = null;
             } else {
-                FileVerificationMetadata fileMetadata = context.getCurrent();
-                final PatchFileVerificationMetadata patchFileVerificationMetadata = fileMetadata.getPatchFileVerificationMetadata();
-                if (patchFileVerificationMetadata == null) {
+                if (!verifierContext.patch()) {
                     throw new IOException("Detected missing patch file " + patch.getFile());
                 }
                 patchJarVerifier = new JarVerifier() {
 
                     @Override
                     public void verify(final long size, final String sha512) throws IOException {
-                        if (!sha512.equals(patchFileVerificationMetadata.getSha512()) || size != patchFileVerificationMetadata.getSize()) {
+                        if (!verifierContext.verify(size, sha512)) {
                             throw new IOException("Detected corruption of patch file " + patch.getFile());
                         }
                     }
@@ -490,11 +504,11 @@ public class DefaultVestigePlatform implements VestigePlatform {
     }
 
     private AttachedVestigeClassLoader attachDependencies(final Map<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>> attachmentMap,
-            final ClassLoaderConfiguration classLoaderConfiguration, final AttachmentVerificationMetadata verificationMetadata, final VestigeWorker vestigeWorker,
-            final AttachmentResult result) throws InterruptedException, IOException {
+            final ClassLoaderConfiguration classLoaderConfiguration, final VestigeWorker vestigeWorker, final VerifierContext verifierContext)
+            throws InterruptedException, IOException {
         Serializable key = classLoaderConfiguration.getKey();
-        if (verificationMetadata != null) {
-            key = new VerifiedKey(key, verificationMetadata.toString());
+        if (verifierContext != null) {
+            key = new VerifiedKey(key, verifierContext.getCurrentVerificationMetadata().toString());
         }
 
         VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader = null;
@@ -510,12 +524,6 @@ public class DefaultVestigePlatform implements VestigePlatform {
             }
         }
         if (vestigeClassLoader != null) {
-            if (result != null) {
-                result.setUsedVerificationMetadata(verificationMetadata.toString());
-                result.setRemainingVerificationMetadata(null);
-                result.setComplete(true);
-            }
-
             return vestigeClassLoader.getData(this);
         }
 
@@ -529,48 +537,21 @@ public class DefaultVestigePlatform implements VestigePlatform {
 
         List<ClassLoaderConfiguration> configurationDependencies = classLoaderConfiguration.getDependencies();
         List<AttachedVestigeClassLoader> classLoaderDependencies = new ArrayList<AttachedVestigeClassLoader>();
-        List<AttachmentVerificationMetadata> usedAttachmentVerificationMetadata = null;
-        List<FileVerificationMetadata> usedBeforeFiles = null;
-        List<FileVerificationMetadata> usedAfterFiles = null;
-        List<AttachmentVerificationMetadata> remainingAttachmentVerificationMetadata = null;
-        List<FileVerificationMetadata> remainingBeforeFiles = null;
-        List<FileVerificationMetadata> remainingAfterFiles = null;
-        if (result != null) {
-            usedAttachmentVerificationMetadata = new ArrayList<AttachmentVerificationMetadata>();
-            remainingAttachmentVerificationMetadata = new ArrayList<AttachmentVerificationMetadata>();
+
+        for (ClassLoaderConfiguration configurationDependency : configurationDependencies) {
+            if (verifierContext != null && !verifierContext.nextDependency()) {
+                throw new IOException("Too many dependencies for " + key);
+            }
+            verifierContext.pushDependency();
+            AttachedVestigeClassLoader attachDependency = attachDependencies(attachmentMap, configurationDependency, vestigeWorker, verifierContext);
+            verifierContext.popDependency();
+            classLoaderDependencies.add(attachDependency);
+            if (selfNeedModuleDefine) {
+                moduleLayerList.addInRepositoryModuleLayerByIndex(attachDependency.getModuleLayer().getRepositoryIndex());
+            }
         }
-
-        // either no dependency or all dependencies. The partial support is only for first classloader.
-        if (result != null && configurationDependencies.size() == 0) {
-            // no dependency
-            remainingAttachmentVerificationMetadata.addAll(verificationMetadata.getDependencyVerificationMetadata());
-        } else {
-            if (result != null) {
-                usedAttachmentVerificationMetadata.addAll(verificationMetadata.getDependencyVerificationMetadata());
-            }
-
-            Iterator<AttachmentVerificationMetadata> verificationMetadataIterator = null;
-            if (verificationMetadata != null) {
-                verificationMetadataIterator = verificationMetadata.getDependencyVerificationMetadata().iterator();
-            }
-
-            for (ClassLoaderConfiguration configurationDependency : configurationDependencies) {
-                if (verificationMetadataIterator != null && !verificationMetadataIterator.hasNext()) {
-                    throw new IOException("Dependency of " + key + " does not match the verification metadata");
-                }
-                AttachmentVerificationMetadata subVerificationMetadata = null;
-                if (verificationMetadataIterator != null) {
-                    subVerificationMetadata = verificationMetadataIterator.next();
-                }
-                AttachedVestigeClassLoader attachDependency = attachDependencies(attachmentMap, configurationDependency, subVerificationMetadata, vestigeWorker, null);
-                classLoaderDependencies.add(attachDependency);
-                if (selfNeedModuleDefine) {
-                    moduleLayerList.addInRepositoryModuleLayerByIndex(attachDependency.getModuleLayer().getRepositoryIndex());
-                }
-            }
-            if (verificationMetadataIterator != null && verificationMetadataIterator.hasNext()) {
-                throw new IOException("Dependency of " + key + " does not match the verification metadata");
-            }
+        if (verifierContext != null && !verifierContext.endOfDependencies()) {
+            throw new IOException("Not enough dependencies for " + key);
         }
 
         // search inside jar after dependencies
@@ -580,61 +561,32 @@ public class DefaultVestigePlatform implements VestigePlatform {
         List<FileWithMetadata> afterUrls = classLoaderConfiguration.getAfterUrls();
         List<FileWithMetadata> beforeUrls = classLoaderConfiguration.getBeforeUrls();
         VestigeResourceLocator[] urls = new VestigeResourceLocator[beforeUrls.size() + afterUrls.size()];
-        FileVerificationContext iterator = null;
-        if (verificationMetadata != null) {
-            iterator = new FileVerificationContext(verificationMetadata.getBeforeFiles().iterator());
+        if (verifierContext != null) {
+            verifierContext.selectBeforeJars();
         }
         for (int i = 0; i < beforeUrls.size(); i++) {
-            if (iterator != null && !iterator.hasNext()) {
-                throw new IOException("Before file of " + key + " does not match the verification metadata");
+            if (verifierContext != null && !verifierContext.nextJar()) {
+                throw new IOException("Unexpected " + beforeUrls.get(i).getFile() + " before file");
             }
-            urls[i] = verifyJar(beforeUrls.get(i), iterator, vestigeJars);
+            urls[i] = verifyJar(beforeUrls.get(i), vestigeJars, verifierContext);
         }
-        if (iterator != null && iterator.hasNext()) {
-            if (result != null) {
-                while (iterator.hasNext()) {
-                    iterator.next();
-                    iterator.skip();
-                }
-            } else {
-                throw new IOException("Before file of " + key + " does not match the verification metadata");
-            }
+        if (verifierContext != null && !verifierContext.endOfJars()) {
+            throw new IOException("Before file of " + key + " is missing jars");
         }
-        if (result != null) {
-            usedBeforeFiles = iterator.getUsedFileVerificationMetadata();
-            remainingBeforeFiles = iterator.getSkippedFileVerificationMetadata();
-        }
-        if (verificationMetadata != null) {
-            iterator = new FileVerificationContext(verificationMetadata.getAfterFiles().iterator());
+        if (verifierContext != null) {
+            verifierContext.selectAfterJars();
         }
         for (int i = 0; i < afterUrls.size(); i++) {
-            if (iterator != null && !iterator.hasNext()) {
-                throw new IOException("After file of " + key + " does not match the verification metadata");
+            if (verifierContext != null && !verifierContext.nextJar()) {
+                throw new IOException("Unexpected " + afterUrls.get(i).getFile() + " after file");
             }
-            urls[i + beforeUrls.size()] = verifyJar(afterUrls.get(i), iterator, vestigeJars);
+            urls[i + beforeUrls.size()] = verifyJar(afterUrls.get(i), vestigeJars, verifierContext);
         }
-        if (iterator != null && iterator.hasNext()) {
-            if (result != null) {
-                while (iterator.hasNext()) {
-                    iterator.next();
-                    iterator.skip();
-                }
-            } else {
-                throw new IOException("After file of " + key + " does not match the verification metadata");
-            }
+        if (verifierContext != null && !verifierContext.endOfJars()) {
+            throw new IOException("After file of " + key + " is missing jars");
         }
-        if (result != null) {
-            usedAfterFiles = iterator.getUsedFileVerificationMetadata();
-            remainingAfterFiles = iterator.getSkippedFileVerificationMetadata();
-
-            result.setUsedVerificationMetadata(new AttachmentVerificationMetadata(usedAttachmentVerificationMetadata, usedBeforeFiles, usedAfterFiles).toString());
-            if (remainingAttachmentVerificationMetadata.size() == 0 && remainingBeforeFiles.size() == 0 && remainingAfterFiles.size() == 0) {
-                result.setComplete(true);
-            } else {
-                result.setRemainingVerificationMetadata(
-                        new AttachmentVerificationMetadata(remainingAttachmentVerificationMetadata, remainingBeforeFiles, remainingAfterFiles).toString());
-            }
-            key = new VerifiedKey(key, result.getUsedVerificationMetadata());
+        if (verifierContext != null) {
+            key = new VerifiedKey(classLoaderConfiguration.getKey(), verifierContext.getValidatedCurrentVerificationMetadata().toString());
         }
 
         String name = classLoaderConfiguration.getName();
@@ -680,7 +632,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
             name = name + " @ " + Integer.toHexString(System.identityHashCode(attachmentMap));
         }
         attachedVestigeClassLoader = new AttachedVestigeClassLoader(vestigeClassLoader, classLoaderDependencies, name, classLoaderConfiguration.isAttachmentScoped(), urls, null,
-                namedModulesConfiguration != null, vestigeJars, verificationMetadata != null);
+                namedModulesConfiguration != null, vestigeJars, verifierContext != null);
         vestigeClassLoader.setData(this, attachedVestigeClassLoader);
 
         JPMSInRepositoryModuleLayerAccessor moduleLayer = null;

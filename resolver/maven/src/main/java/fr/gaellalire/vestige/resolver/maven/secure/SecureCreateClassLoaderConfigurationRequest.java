@@ -20,11 +20,10 @@ package fr.gaellalire.vestige.resolver.maven.secure;
 import java.security.Permission;
 import java.security.PermissionCollection;
 
-import fr.gaellalire.vestige.resolver.common.secure.SecureResolvedClassLoaderConfiguration;
-import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.Scope;
 import fr.gaellalire.vestige.spi.resolver.maven.CreateClassLoaderConfigurationRequest;
+import fr.gaellalire.vestige.spi.resolver.maven.MavenResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.maven.ModifyLoadedDependencyRequest;
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
 import fr.gaellalire.vestige.system.PrivateVestigePolicy;
@@ -93,17 +92,17 @@ public class SecureCreateClassLoaderConfigurationRequest implements CreateClassL
     }
 
     @Override
-    public ResolvedClassLoaderConfiguration execute() throws ResolverException {
+    public MavenResolvedClassLoaderConfiguration execute() throws ResolverException {
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {
-            ResolvedClassLoaderConfiguration execute = delegate.execute();
+            MavenResolvedClassLoaderConfiguration execute = delegate.execute();
             PermissionCollection permissionCollection = vestigePolicy.getPermissionCollection();
             if (permissionCollection != null) {
                 for (Permission permission : execute.getPermissions()) {
                     permissionCollection.add(permission);
                 }
             }
-            return new SecureResolvedClassLoaderConfiguration(secureVestigeSystem, execute);
+            return new SecureMavenResolvedClassLoaderConfiguration(secureVestigeSystem, execute);
         } finally {
             vestigeSystem.setCurrentSystem();
         }
@@ -127,6 +126,26 @@ public class SecureCreateClassLoaderConfigurationRequest implements CreateClassL
     @Override
     public void setDependenciesExcluded(final boolean dependenciesExcluded) {
         delegate.setDependenciesExcluded(dependenciesExcluded);
+    }
+
+    @Override
+    public void addExcludeWithParents(final String groupId, final String artifactId) {
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            delegate.addExcludeWithParents(groupId, artifactId);
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
+    }
+
+    @Override
+    public void addExclude(final String groupId, final String artifactId) {
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            delegate.addExclude(groupId, artifactId);
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
     }
 
     @Override

@@ -32,6 +32,10 @@ public class Node {
 
     private List<Node> nexts;
 
+    private boolean excluded;
+
+    private boolean parentExcluded;
+
     public Node(final String name) {
         this.names = Collections.singletonList(name);
         nexts = Collections.emptyList();
@@ -97,6 +101,22 @@ public class Node {
         } else {
             builder.append("...loop");
         }
+    }
+
+    public void setExcluded(final boolean excluded) {
+        this.excluded = excluded;
+    }
+
+    public void setParentExcluded(final boolean parentExcluded) {
+        this.parentExcluded = parentExcluded;
+    }
+
+    public boolean isParentExcluded() {
+        return parentExcluded;
+    }
+
+    public boolean isExcluded() {
+        return excluded;
     }
 
 }

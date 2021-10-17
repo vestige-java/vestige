@@ -19,6 +19,9 @@
             <goals>
               <goal>check</goal>
             </goals>
+            <configuration>
+              <excludes>module-info.java,**/fr/gaellalire/vestige/edition/maven_main_launcher/schema/**/*</excludes>
+            </configuration>
           </execution>
         </executions>
       </plugin>

@@ -31,6 +31,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -92,8 +93,50 @@ public class ProxyInvocationHandler implements InvocationHandler {
                 map = new HashMap<Integer, Method>();
                 delegateMethods.put(methodName, map);
             }
-            if (map.put(method.getParameterTypes().length, method) != null) {
-                throw new UnsupportedOperationException("Cannot overload a method with same number of parameters");
+            Method oldMethod = map.put(method.getParameterTypes().length, method);
+            if (oldMethod != null) {
+                if (Arrays.asList(method.getParameterTypes()).equals(Arrays.asList(oldMethod.getParameterTypes()))) {
+                    // check which one is the parent
+                    Class<?> oldDeclaringClass = oldMethod.getDeclaringClass();
+                    Class<?> declaringClass = method.getDeclaringClass();
+
+                    boolean correctOverride = false;
+                    if (Arrays.asList(oldDeclaringClass.getInterfaces()).contains(declaringClass)) {
+                        correctOverride = true;
+                    } else {
+                        Class<?> superClass = oldDeclaringClass.getSuperclass();
+                        while (superClass != null) {
+                            if (superClass.equals(declaringClass)) {
+                                correctOverride = true;
+                                break;
+                            }
+                            superClass = superClass.getSuperclass();
+                        }
+                    }
+                    if (correctOverride) {
+                        // old is a child of of current, child is more precise
+                        map.put(oldMethod.getParameterTypes().length, oldMethod);
+                    } else {
+                        if (Arrays.asList(declaringClass.getInterfaces()).contains(oldDeclaringClass)) {
+                            correctOverride = true;
+                        } else {
+                            Class<?> superClass = declaringClass.getSuperclass();
+                            while (superClass != null) {
+                                if (superClass.equals(oldDeclaringClass)) {
+                                    // current is a child of of old, child is more precise
+                                    correctOverride = true;
+                                    break;
+                                }
+                                superClass = superClass.getSuperclass();
+                            }
+                        }
+                    }
+                    if (!correctOverride) {
+                        throw new UnsupportedOperationException("Cannot overload a method with same number of parameters");
+                    }
+                } else {
+                    throw new UnsupportedOperationException("Cannot overload a method with same number of parameters");
+                }
             }
         }
     }

@@ -42,12 +42,11 @@ import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
 import fr.gaellalire.vestige.platform.MinimalStringParserFactory;
 import fr.gaellalire.vestige.platform.ModuleConfiguration;
 import fr.gaellalire.vestige.platform.VestigePlatform;
-import fr.gaellalire.vestige.resolver.common.DefaultResolvedClassLoaderConfiguration;
-import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.Scope;
 import fr.gaellalire.vestige.spi.resolver.VestigeJar;
 import fr.gaellalire.vestige.spi.resolver.maven.CreateClassLoaderConfigurationRequest;
+import fr.gaellalire.vestige.spi.resolver.maven.MavenResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.maven.ModifyLoadedDependencyRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolveMode;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolvedMavenArtifact;
@@ -125,7 +124,7 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
     public VestigeJar getVestigeJar() {
         if (fileWithMetadata == null) {
             for (MavenArtifactAndMetadata artifact : artifacts) {
-                MavenArtifact mavenArtifact = artifact.getMavenArtifact();
+                DefaultMavenArtifact mavenArtifact = artifact.getMavenArtifact();
                 if (mavenArtifact.getArtifactId().equals(getArtifactId()) && mavenArtifact.getGroupId().equals(getGroupId())) {
                     fileWithMetadata = artifact.getFileWithMetadata();
                     break;
@@ -137,9 +136,14 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
         return null;
     }
 
-    public ClassLoaderConfiguration createClassLoaderConfiguration(final CreateClassLoaderConfigurationParameters createClassLoaderConfigurationParameters)
-            throws ResolverException {
+    public ClassLoaderConfiguration createClassLoaderConfiguration(final CreateClassLoaderConfigurationParameters createClassLoaderConfigurationParameters,
+            final List<DefaultMavenArtifact> mavenArtifacts) throws ResolverException {
         String appName = createClassLoaderConfigurationParameters.getAppName();
+
+        List<DefaultMavenArtifact> notNullMavenArtifacts = mavenArtifacts;
+        if (notNullMavenArtifacts == null) {
+            notNullMavenArtifacts = new ArrayList<DefaultMavenArtifact>();
+        }
 
         JPMSNamedModulesConfiguration jpmsNamedModulesConfiguration = createClassLoaderConfigurationParameters.getJpmsNamedModulesConfiguration();
         Scope scope = createClassLoaderConfigurationParameters.getScope();
@@ -157,13 +161,13 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
         }
 
         if (createClassLoaderConfigurationParameters.isManyLoaders() && !createClassLoaderConfigurationParameters.isDependenciesExcluded()) {
-            Map<String, Map<String, MavenArtifact>> runtimeDependencies = new HashMap<String, Map<String, MavenArtifact>>();
-            Map<MavenArtifact, FileWithMetadata> urlByKey = new HashMap<MavenArtifact, FileWithMetadata>();
+            Map<String, Map<String, DefaultMavenArtifact>> runtimeDependencies = new HashMap<String, Map<String, DefaultMavenArtifact>>();
+            Map<DefaultMavenArtifact, FileWithMetadata> urlByKey = new HashMap<DefaultMavenArtifact, FileWithMetadata>();
             for (MavenArtifactAndMetadata artifact : artifacts) {
-                MavenArtifact mavenArtifact = artifact.getMavenArtifact();
-                Map<String, MavenArtifact> map = runtimeDependencies.get(mavenArtifact.getGroupId());
+                DefaultMavenArtifact mavenArtifact = artifact.getMavenArtifact();
+                Map<String, DefaultMavenArtifact> map = runtimeDependencies.get(mavenArtifact.getGroupId());
                 if (map == null) {
-                    map = new HashMap<String, MavenArtifact>();
+                    map = new HashMap<String, DefaultMavenArtifact>();
                     runtimeDependencies.put(mavenArtifact.getGroupId(), map);
                 }
                 map.put(mavenArtifact.getArtifactId(), mavenArtifact);
@@ -171,24 +175,41 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
             }
 
             if (createClassLoaderConfigurationParameters.isSelfExcluded()) {
-                runtimeDependencies.get(getGroupId()).put(getArtifactId(), new MavenArtifact());
+                runtimeDependencies.get(getGroupId()).put(getArtifactId(), new DefaultMavenArtifact());
+            }
+            Set<MavenArtifactKey> excludesWithParents = createClassLoaderConfigurationParameters.getExcludesWithParents();
+            Set<MavenArtifactKey> excludes = createClassLoaderConfigurationParameters.getExcludes();
+            if (excludesWithParents != null || excludes != null) {
+                if (excludesWithParents != null && excludesWithParents.size() != 0) {
+                    for (MavenArtifactKey exclude : excludesWithParents) {
+                        runtimeDependencies.get(exclude.getGroupId()).put(exclude.getArtifactId(), new DefaultMavenArtifact(true));
+                    }
+                }
+                if (excludes != null && excludes.size() != 0) {
+                    for (MavenArtifactKey exclude : excludes) {
+                        runtimeDependencies.get(exclude.getGroupId()).put(exclude.getArtifactId(), new DefaultMavenArtifact());
+                    }
+                }
+
             }
 
             ClassLoaderConfigurationGraphHelper classLoaderConfigurationGraphHelper = new ClassLoaderConfigurationGraphHelper(appName, urlByKey, dependencyReader,
                     beforeParentController, jpmsConfiguration, runtimeDependencies, scope, createClassLoaderConfigurationParameters.getScopeModifier(),
-                    jpmsNamedModulesConfiguration);
+                    jpmsNamedModulesConfiguration, notNullMavenArtifacts);
 
-            GraphCycleRemover<NodeAndState, MavenArtifact, ClassLoaderConfigurationFactory> graphCycleRemover = new GraphCycleRemover<NodeAndState, MavenArtifact, ClassLoaderConfigurationFactory>(
+            GraphCycleRemover<NodeAndState, DefaultMavenArtifact, ClassLoaderConfigurationFactory> graphCycleRemover = new GraphCycleRemover<NodeAndState, DefaultMavenArtifact, ClassLoaderConfigurationFactory>(
                     classLoaderConfigurationGraphHelper);
             ClassLoaderConfigurationFactory removeCycle = graphCycleRemover.removeCycle(nodeAndState);
             if (jpmsNamedModulesConfiguration != null) {
                 removeCycle.setNamedModulesConfiguration(jpmsNamedModulesConfiguration);
             }
+
+            // process exclusion for partialAttach
+
             classLoaderConfiguration = removeCycle.create(new MinimalStringParserFactory());
         } else {
             List<FileWithMetadata> beforeUrls = new ArrayList<FileWithMetadata>();
             List<FileWithMetadata> afterUrls = new ArrayList<FileWithMetadata>();
-            List<MavenArtifact> mavenArtifacts = new ArrayList<MavenArtifact>();
             JPMSClassLoaderConfiguration moduleConfiguration = JPMSClassLoaderConfiguration.EMPTY_INSTANCE;
 
             if (!relevantDataLimited) {
@@ -212,11 +233,11 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
             boolean[] beforeParents = null;
             int i = 0;
             for (MavenArtifactAndMetadata artifact : artifacts) {
-                MavenArtifact mavenArtifact = artifact.getMavenArtifact();
+                DefaultMavenArtifact mavenArtifact = artifact.getMavenArtifact();
                 if ("org.slf4j".equals(mavenArtifact.getGroupId()) && "slf4j-api".equals(mavenArtifact.getArtifactId())) {
                     mdcIncluded = true;
                 }
-                mavenArtifacts.add(mavenArtifact);
+                notNullMavenArtifacts.add(mavenArtifact);
                 List<FileWithMetadata> urls;
                 if (beforeParentController.isBeforeParent(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId())) {
                     urls = beforeUrls;
@@ -249,7 +270,7 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
                 }
                 i++;
             }
-            MavenClassLoaderConfigurationKey key = new MavenClassLoaderConfigurationKey(mavenArtifacts, Collections.<MavenClassLoaderConfigurationKey> emptyList(), scope,
+            MavenClassLoaderConfigurationKey key = new MavenClassLoaderConfigurationKey(notNullMavenArtifacts, Collections.<MavenClassLoaderConfigurationKey> emptyList(), scope,
                     moduleConfiguration, jpmsNamedModulesConfiguration, beforeParents);
             String name;
             if (scope == Scope.PLATFORM) {
@@ -286,6 +307,10 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
             private Set<AddAccessibility> addExports;
 
             private Set<AddAccessibility> addOpens;
+
+            private Set<MavenArtifactKey> excludesWithParents;
+
+            private Set<MavenArtifactKey> excludes;
 
             private ScopeModifier scopeModifier;
 
@@ -339,7 +364,7 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
             }
 
             @Override
-            public ResolvedClassLoaderConfiguration execute() throws ResolverException {
+            public MavenResolvedClassLoaderConfiguration execute() throws ResolverException {
                 JPMSNamedModulesConfiguration jpmsNamedModulesConfiguration = null;
                 if (namedModuleActivated) {
                     if (addReads == null && addExports == null && addOpens == null) {
@@ -354,10 +379,13 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
                 resolveRequest.setScopeModifier(scopeModifier);
                 resolveRequest.setSelfExcluded(selfExcluded);
                 resolveRequest.setDependenciesExcluded(dependenciesExcluded);
+                resolveRequest.setExcludesWithParents(excludesWithParents);
+                resolveRequest.setExcludes(excludes);
 
-                return new DefaultResolvedClassLoaderConfiguration(vestigePlatform, vestigeWorker, createClassLoaderConfiguration(resolveRequest),
-                        beforeParentController.isBeforeParent(getGroupId(), getArtifactId()));
+                List<DefaultMavenArtifact> mavenArtifacts = new ArrayList<DefaultMavenArtifact>();
 
+                return new DefaultMavenResolvedClassLoaderConfiguration(vestigePlatform, vestigeWorker, createClassLoaderConfiguration(resolveRequest, mavenArtifacts),
+                        beforeParentController.isBeforeParent(getGroupId(), getArtifactId()), mavenArtifacts);
             }
 
             @Override
@@ -398,6 +426,22 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
             @Override
             public void setDependenciesExcluded(final boolean dependenciesExcluded) {
                 this.dependenciesExcluded = dependenciesExcluded;
+            }
+
+            @Override
+            public void addExcludeWithParents(final String groupId, final String artifactId) {
+                if (excludesWithParents == null) {
+                    excludesWithParents = new HashSet<MavenArtifactKey>();
+                }
+                excludesWithParents.add(new MavenArtifactKey(groupId, artifactId, "jar"));
+            }
+
+            @Override
+            public void addExclude(final String groupId, final String artifactId) {
+                if (excludes == null) {
+                    excludes = new HashSet<MavenArtifactKey>();
+                }
+                excludes.add(new MavenArtifactKey(groupId, artifactId, "jar"));
             }
         };
     }
