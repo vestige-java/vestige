@@ -39,6 +39,14 @@ public class ApplicationInstallerInvoker implements ApplicationInstaller {
 
     private Method uninterruptedMigrateToMethod;
 
+    private Method migrateFromWithInstallerMethod;
+
+    private Method migrateToWithInstallerMethod;
+
+    private Method uninterruptedMigrateFromWithInstallerMethod;
+
+    private Method uninterruptedMigrateToWithInstallerMethod;
+
     private Method cleanMethod;
 
     private Method commitMethod;
@@ -61,13 +69,29 @@ public class ApplicationInstallerInvoker implements ApplicationInstaller {
             } else if (methodName.equals("uninstall")) {
                 uninstallMethod = applicationInstallerMethod;
             } else if (methodName.equals("prepareMigrateFrom")) {
-                migrateFromMethod = applicationInstallerMethod;
+                if (method.getParameterTypes().length == 1) {
+                    migrateFromMethod = applicationInstallerMethod;
+                } else {
+                    migrateFromWithInstallerMethod = applicationInstallerMethod;
+                }
             } else if (methodName.equals("prepareMigrateTo")) {
-                migrateToMethod = applicationInstallerMethod;
+                if (method.getParameterTypes().length == 1) {
+                    migrateToMethod = applicationInstallerMethod;
+                } else {
+                    migrateToWithInstallerMethod = applicationInstallerMethod;
+                }
             } else if (methodName.equals("prepareUninterruptedMigrateFrom")) {
-                uninterruptedMigrateFromMethod = applicationInstallerMethod;
+                if (method.getParameterTypes().length == 4) {
+                    uninterruptedMigrateFromMethod = applicationInstallerMethod;
+                } else {
+                    uninterruptedMigrateFromWithInstallerMethod = applicationInstallerMethod;
+                }
             } else if (methodName.equals("prepareUninterruptedMigrateTo")) {
-                uninterruptedMigrateToMethod = applicationInstallerMethod;
+                if (method.getParameterTypes().length == 4) {
+                    uninterruptedMigrateToMethod = applicationInstallerMethod;
+                } else {
+                    uninterruptedMigrateToWithInstallerMethod = applicationInstallerMethod;
+                }
             } else if (methodName.equals("cleanMigration")) {
                 cleanMethod = applicationInstallerMethod;
             } else if (methodName.equals("commitMigration")) {
@@ -136,5 +160,55 @@ public class ApplicationInstallerInvoker implements ApplicationInstaller {
             throw new ApplicationException("Method commitMigration not found");
         }
         commitMethod.invoke(applicationInstaller);
+    }
+
+    public boolean hasMigrateFromWithInstaller() {
+        return migrateFromWithInstallerMethod != null;
+    }
+
+    @Override
+    public void prepareMigrateFrom(final List<Integer> fromVersion, final Object fromVersionInstaller) throws Exception {
+        if (migrateFromWithInstallerMethod == null) {
+            throw new ApplicationException("Method prepareMigrateFrom with installer not found");
+        }
+        migrateFromWithInstallerMethod.invoke(applicationInstaller, fromVersion, fromVersionInstaller);
+    }
+
+    public boolean hasMigrateToWithInstaller() {
+        return migrateToWithInstallerMethod != null;
+    }
+
+    @Override
+    public void prepareMigrateTo(final List<Integer> toVersion, final Object toVersionInstaller) throws Exception {
+        if (migrateToWithInstallerMethod == null) {
+            throw new ApplicationException("Method prepareMigrateTo with installer not found");
+        }
+        migrateToWithInstallerMethod.invoke(applicationInstaller, toVersion, toVersionInstaller);
+    }
+
+    public boolean hasUninterruptedMigrateFromWithInstaller() {
+        return uninterruptedMigrateFromWithInstallerMethod != null;
+    }
+
+    @Override
+    public void prepareUninterruptedMigrateFrom(final List<Integer> fromVersion, final Object fromRunnable, final Object runnable, final Runnable unlockThread,
+            final Object fromVersionInstaller) throws Exception {
+        if (uninterruptedMigrateFromWithInstallerMethod == null) {
+            throw new ApplicationException("Method prepareUninterruptedMigrateFrom with installer not found");
+        }
+        uninterruptedMigrateFromWithInstallerMethod.invoke(applicationInstaller, fromVersion, fromRunnable, runnable, unlockThread, fromVersionInstaller);
+    }
+
+    public boolean hasUninterruptedMigrateToWithInstaller() {
+        return uninterruptedMigrateToWithInstallerMethod != null;
+    }
+
+    @Override
+    public void prepareUninterruptedMigrateTo(final Object runnable, final List<Integer> toVersion, final Object toRunnable, final Runnable unlockToThread,
+            final Object toVersionInstaller) throws Exception {
+        if (uninterruptedMigrateToWithInstallerMethod == null) {
+            throw new ApplicationException("Method prepareUninterruptedMigrateTo with installer not found");
+        }
+        uninterruptedMigrateToWithInstallerMethod.invoke(applicationInstaller, runnable, toVersion, toRunnable, unlockToThread, toVersionInstaller);
     }
 }

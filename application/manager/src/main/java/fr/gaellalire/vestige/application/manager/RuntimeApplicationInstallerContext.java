@@ -31,7 +31,7 @@ public class RuntimeApplicationInstallerContext {
 
     private AttachableClassLoader classLoader;
 
-    private ApplicationInstaller applicationInstaller;
+    private ApplicationInstallerInvoker applicationInstaller;
 
     private VestigeSystem vestigeSystem;
 
@@ -47,11 +47,11 @@ public class RuntimeApplicationInstallerContext {
         return classLoader;
     }
 
-    public void setApplicationInstaller(final ApplicationInstaller applicationInstaller) {
+    public void setApplicationInstaller(final ApplicationInstallerInvoker applicationInstaller) {
         this.applicationInstaller = applicationInstaller;
     }
 
-    public ApplicationInstaller getApplicationInstaller() {
+    public ApplicationInstallerInvoker getApplicationInstaller() {
         return applicationInstaller;
     }
 

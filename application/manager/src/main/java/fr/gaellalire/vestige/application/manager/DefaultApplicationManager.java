@@ -855,7 +855,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
                                 @Override
                                 public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
-                                    ApplicationInstaller applicationInstaller = finalRuntimeApplicationInstallerContext.getApplicationInstaller();
+                                    ApplicationInstallerInvoker applicationInstaller = finalRuntimeApplicationInstallerContext.getApplicationInstaller();
                                     if (applicationInstaller == null) {
                                         applicationInstaller = new ApplicationInstallerInvoker(
                                                 callConstructorAndInject(installerClassLoader, installerClassLoader.loadClass(migratorInstallerAttachmentContext.getClassName()),
@@ -924,6 +924,42 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                     LOGGER.info("Application {} restored to version {}", installName, VersionUtils.toString(fromApplicationContext.getRepoApplicationVersion()));
                 }
             }
+        }
+    }
+
+    /**
+     * @author Gael Lalire
+     */
+    interface OtherInstallerAction {
+
+        void perform(Object otherInstaller) throws Exception;
+    }
+
+    public void performActionWithOtherInstallerClassLoader(final JobHelper jobHelper, final ApplicationContext applicationContext, final VestigeSystem vestigeSystem,
+            final PrivilegedExceptionActionExecutor privilegedExecutor, final boolean trusted, final OtherInstallerAction otherInstallerAction) throws Exception {
+        TaskHelper task = jobHelper.addTask("Attaching installer classLoader of version " + VersionUtils.toString(applicationContext.getRepoApplicationVersion()));
+        final AttachmentContext<RuntimeApplicationInstallerContext> installerAttachmentContext = applicationContext.getInstallerAttachmentContext();
+        AttachedClassLoader installerAttach;
+        try {
+            RuntimeApplicationInstallerContext runtimeApplicationInstallerContext = installerAttachmentContext.getRuntimeApplicationContext();
+            if (runtimeApplicationInstallerContext == null) {
+                // attach
+                installerAttach = attach(trusted, installerAttachmentContext);
+            } else {
+                // reattach
+                installerAttach = runtimeApplicationInstallerContext.getClassLoader().attach();
+            }
+        } finally {
+            task.setDone();
+        }
+        ClassLoader classLoader = installerAttach.getAttachableClassLoader().getClassLoader();
+
+        try {
+            Object otherInstaller = callConstructorAndInject(classLoader, classLoader.loadClass(installerAttachmentContext.getClassName()), applicationContext.getConfig(),
+                    applicationContext.getData(), applicationContext.getCache(), installerAttachmentContext.getAddInjects(), vestigeSystem, privilegedExecutor);
+            otherInstallerAction.perform(otherInstaller);
+        } finally {
+            installerAttach.detach();
         }
     }
 
@@ -1070,7 +1106,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
                                             @Override
                                             public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
-                                                ApplicationInstaller applicationInstaller = finalRuntimeApplicationInstallerContext.getApplicationInstaller();
+                                                ApplicationInstallerInvoker applicationInstaller = finalRuntimeApplicationInstallerContext.getApplicationInstaller();
                                                 if (applicationInstaller == null) {
                                                     applicationInstaller = new ApplicationInstallerInvoker(callConstructorAndInject(installerClassLoader,
                                                             installerClassLoader.loadClass(migratorInstallerAttachmentContext.getClassName()),
@@ -1078,23 +1114,56 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                                             migratorInstallerAttachmentContext.getAddInjects(), vestigeSystem, privilegedExecutor));
                                                     finalRuntimeApplicationInstallerContext.setApplicationInstaller(applicationInstaller);
                                                 }
+                                                final ApplicationInstallerInvoker finalApplicationInstaller = applicationInstaller;
                                                 Exception migrateException = null;
                                                 TaskHelper task;
                                                 try {
                                                     if (migratorApplicationContext == fromApplicationContext) {
                                                         task = jobHelper.addTask("Calling prepareUninterruptedMigrateTo method");
                                                         try {
-                                                            applicationInstaller.prepareUninterruptedMigrateTo(runtimeApplicationContext.getApplicationCallable(), toVersion,
-                                                                    notNullToRuntimeApplicationContext.getApplicationCallable(), notifyRunMutex);
+                                                            if (applicationInstaller.hasUninterruptedMigrateToWithInstaller()) {
+                                                                performActionWithOtherInstallerClassLoader(jobHelper, migratedApplicationContext, vestigeSystem, privilegedExecutor,
+                                                                        fromApplicationContext.isTrusted(), new OtherInstallerAction() {
+
+                                                                            @Override
+                                                                            public void perform(final Object otherInstaller) throws Exception {
+                                                                                finalApplicationInstaller.prepareUninterruptedMigrateTo(
+                                                                                        runtimeApplicationContext.getApplicationCallable(), toVersion,
+                                                                                        notNullToRuntimeApplicationContext.getApplicationCallable(), notifyRunMutex,
+                                                                                        otherInstaller);
+                                                                            }
+
+                                                                        });
+                                                            } else {
+                                                                applicationInstaller.prepareUninterruptedMigrateTo(runtimeApplicationContext.getApplicationCallable(), toVersion,
+                                                                        notNullToRuntimeApplicationContext.getApplicationCallable(), notifyRunMutex);
+                                                            }
+
                                                         } finally {
                                                             task.setDone();
                                                         }
                                                     } else {
                                                         task = jobHelper.addTask("Calling prepareUninterruptedMigrateFrom method");
                                                         try {
-                                                            applicationInstaller.prepareUninterruptedMigrateFrom(fromApplicationContext.getRepoApplicationVersion(),
-                                                                    runtimeApplicationContext.getApplicationCallable(), notNullToRuntimeApplicationContext.getApplicationCallable(),
-                                                                    notifyRunMutex);
+                                                            if (applicationInstaller.hasUninterruptedMigrateFromWithInstaller()) {
+                                                                performActionWithOtherInstallerClassLoader(jobHelper, migratedApplicationContext, vestigeSystem, privilegedExecutor,
+                                                                        fromApplicationContext.isTrusted(), new OtherInstallerAction() {
+
+                                                                            @Override
+                                                                            public void perform(final Object otherInstaller) throws Exception {
+                                                                                finalApplicationInstaller.prepareUninterruptedMigrateFrom(
+                                                                                        fromApplicationContext.getRepoApplicationVersion(),
+                                                                                        runtimeApplicationContext.getApplicationCallable(),
+                                                                                        notNullToRuntimeApplicationContext.getApplicationCallable(), notifyRunMutex,
+                                                                                        otherInstaller);
+                                                                            }
+
+                                                                        });
+                                                            } else {
+                                                                applicationInstaller.prepareUninterruptedMigrateFrom(fromApplicationContext.getRepoApplicationVersion(),
+                                                                        runtimeApplicationContext.getApplicationCallable(),
+                                                                        notNullToRuntimeApplicationContext.getApplicationCallable(), notifyRunMutex);
+                                                            }
                                                         } finally {
                                                             task.setDone();
                                                         }
@@ -1196,7 +1265,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                         try {
                             final ClassLoader installerClassLoader = installerAttach.getAttachableClassLoader().getClassLoader();
 
-                            Set<Permission> additionnalPermissions = new HashSet<Permission>();
+                            final Set<Permission> additionnalPermissions = new HashSet<Permission>();
                             finalRuntimeApplicationInstallerContext.addInstallerAdditionnalPermissions(additionnalPermissions);
                             additionnalPermissions.addAll(ApplicationContext.getResolve(migratedApplicationContext.getLauncherAttachmentContext()).getPermissions());
 
@@ -1206,7 +1275,7 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
 
                                         @Override
                                         public Void call(final PrivilegedExceptionActionExecutor privilegedExecutor) throws Exception {
-                                            ApplicationInstaller applicationInstaller = finalRuntimeApplicationInstallerContext.getApplicationInstaller();
+                                            ApplicationInstallerInvoker applicationInstaller = finalRuntimeApplicationInstallerContext.getApplicationInstaller();
                                             if (applicationInstaller == null) {
                                                 applicationInstaller = new ApplicationInstallerInvoker(callConstructorAndInject(installerClassLoader,
                                                         installerClassLoader.loadClass(migratorInstallerAttachmentContext.getClassName()), migratorApplicationContext.getConfig(),
@@ -1214,20 +1283,46 @@ public class DefaultApplicationManager implements ApplicationManager, Compatibil
                                                         migratorInstallerAttachmentContext.getAddInjects(), vestigeSystem, privilegedExecutor));
                                                 finalRuntimeApplicationInstallerContext.setApplicationInstaller(applicationInstaller);
                                             }
+                                            final ApplicationInstallerInvoker finalApplicationInstaller = applicationInstaller;
                                             Exception migrateException = null;
                                             TaskHelper task;
                                             try {
                                                 if (migratorApplicationContext == fromApplicationContext) {
                                                     task = jobHelper.addTask("Calling prepareMigrateTo method");
                                                     try {
-                                                        applicationInstaller.prepareMigrateTo(toVersion);
+                                                        if (applicationInstaller.hasMigrateToWithInstaller()) {
+                                                            performActionWithOtherInstallerClassLoader(jobHelper, migratedApplicationContext, vestigeSystem, privilegedExecutor,
+                                                                    fromApplicationContext.isTrusted(), new OtherInstallerAction() {
+
+                                                                        @Override
+                                                                        public void perform(final Object otherInstaller) throws Exception {
+                                                                            finalApplicationInstaller.prepareMigrateTo(toVersion, otherInstaller);
+                                                                        }
+
+                                                                    });
+                                                        } else {
+                                                            applicationInstaller.prepareMigrateTo(toVersion);
+                                                        }
                                                     } finally {
                                                         task.setDone();
                                                     }
                                                 } else {
                                                     task = jobHelper.addTask("Calling prepareMigrateFrom method");
                                                     try {
-                                                        applicationInstaller.prepareMigrateFrom(fromApplicationContext.getRepoApplicationVersion());
+                                                        if (applicationInstaller.hasMigrateFromWithInstaller()) {
+                                                            performActionWithOtherInstallerClassLoader(jobHelper, migratedApplicationContext, vestigeSystem, privilegedExecutor,
+                                                                    fromApplicationContext.isTrusted(), new OtherInstallerAction() {
+
+                                                                        @Override
+                                                                        public void perform(final Object otherInstaller) throws Exception {
+                                                                            finalApplicationInstaller.prepareMigrateFrom(fromApplicationContext.getRepoApplicationVersion(),
+                                                                                    otherInstaller);
+                                                                        }
+
+                                                                    });
+                                                        } else {
+                                                            applicationInstaller.prepareMigrateFrom(fromApplicationContext.getRepoApplicationVersion());
+                                                        }
                                                     } finally {
                                                         task.setDone();
                                                     }
