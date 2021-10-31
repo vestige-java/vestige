@@ -190,6 +190,8 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
 
             private String extension = "jar";
 
+            private String classifier = "";
+
             @Override
             public void setExtension(final String extension) {
                 this.extension = extension;
@@ -202,9 +204,19 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
                 resolveRequest.setSuperPomRepositoriesIgnored(superPomRepositoriesIgnored);
                 resolveRequest.setPomRepositoriesIgnored(pomRepositoriesIgnored);
                 resolveRequest.setExtension(extension);
+                resolveRequest.setClassifier(classifier);
                 resolveRequest.setArtifactPatcher(defaultDependencyModifier);
 
                 return mavenArtifactResolver.resolve(resolveRequest, jobHelper);
+            }
+
+            @Override
+            public void setClassifier(final String classifier) {
+                if (classifier == null) {
+                    this.classifier = "";
+                } else {
+                    this.classifier = classifier;
+                }
             }
 
         };

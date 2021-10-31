@@ -48,6 +48,11 @@ public class SecureResolveMavenArtifactRequest implements ResolveMavenArtifactRe
     }
 
     @Override
+    public void setClassifier(final String classifier) {
+        delegate.setClassifier(classifier);
+    }
+
+    @Override
     public ResolvedMavenArtifact execute(final JobHelper jobHelper) throws ResolverException {
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {

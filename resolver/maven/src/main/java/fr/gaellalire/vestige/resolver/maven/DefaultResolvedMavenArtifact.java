@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -160,6 +161,8 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
             jpmsConfiguration = new DefaultJPMSConfiguration();
         }
 
+        Set<MavenArtifactKey> excludesWithParents = createClassLoaderConfigurationParameters.getExcludesWithParents();
+        Set<MavenArtifactKey> excludes = createClassLoaderConfigurationParameters.getExcludes();
         if (createClassLoaderConfigurationParameters.isManyLoaders() && !createClassLoaderConfigurationParameters.isDependenciesExcluded()) {
             Map<String, Map<String, DefaultMavenArtifact>> runtimeDependencies = new HashMap<String, Map<String, DefaultMavenArtifact>>();
             Map<DefaultMavenArtifact, FileWithMetadata> urlByKey = new HashMap<DefaultMavenArtifact, FileWithMetadata>();
@@ -177,17 +180,15 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
             if (createClassLoaderConfigurationParameters.isSelfExcluded()) {
                 runtimeDependencies.get(getGroupId()).put(getArtifactId(), new DefaultMavenArtifact());
             }
-            Set<MavenArtifactKey> excludesWithParents = createClassLoaderConfigurationParameters.getExcludesWithParents();
-            Set<MavenArtifactKey> excludes = createClassLoaderConfigurationParameters.getExcludes();
             if (excludesWithParents != null || excludes != null) {
-                if (excludesWithParents != null && excludesWithParents.size() != 0) {
-                    for (MavenArtifactKey exclude : excludesWithParents) {
-                        runtimeDependencies.get(exclude.getGroupId()).put(exclude.getArtifactId(), new DefaultMavenArtifact(true));
-                    }
-                }
                 if (excludes != null && excludes.size() != 0) {
                     for (MavenArtifactKey exclude : excludes) {
                         runtimeDependencies.get(exclude.getGroupId()).put(exclude.getArtifactId(), new DefaultMavenArtifact());
+                    }
+                }
+                if (excludesWithParents != null && excludesWithParents.size() != 0) {
+                    for (MavenArtifactKey exclude : excludesWithParents) {
+                        runtimeDependencies.get(exclude.getGroupId()).put(exclude.getArtifactId(), new DefaultMavenArtifact(true));
                     }
                 }
 
@@ -217,18 +218,63 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
                 relevantDataLimited = true;
             }
 
-            List<MavenArtifactAndMetadata> artifacts;
+            List<MavenArtifactAndMetadata> artifacts = new ArrayList<MavenArtifactAndMetadata>();
+
             if (createClassLoaderConfigurationParameters.isSelfExcluded()) {
-                if (createClassLoaderConfigurationParameters.isDependenciesExcluded()) {
-                    artifacts = Collections.emptyList();
-                } else {
-                    artifacts = this.artifacts.subList(1, this.artifacts.size());
+                if (!createClassLoaderConfigurationParameters.isDependenciesExcluded()) {
+                    artifacts.addAll(this.artifacts.subList(1, this.artifacts.size()));
                 }
             } else if (createClassLoaderConfigurationParameters.isDependenciesExcluded()) {
-                artifacts = this.artifacts.subList(0, 1);
+                artifacts.addAll(this.artifacts.subList(0, 1));
             } else {
-                artifacts = this.artifacts;
+                artifacts.addAll(this.artifacts);
             }
+
+            if (excludesWithParents != null || excludes != null) {
+
+                Map<String, Map<String, DefaultMavenArtifact>> runtimeDependencies = new HashMap<String, Map<String, DefaultMavenArtifact>>();
+
+                for (MavenArtifactAndMetadata artifact : this.artifacts) {
+                    DefaultMavenArtifact mavenArtifact = artifact.getMavenArtifact();
+                    Map<String, DefaultMavenArtifact> map = runtimeDependencies.get(mavenArtifact.getGroupId());
+                    if (map == null) {
+                        map = new HashMap<String, DefaultMavenArtifact>();
+                        runtimeDependencies.put(mavenArtifact.getGroupId(), map);
+                    }
+                    map.put(mavenArtifact.getArtifactId(), mavenArtifact);
+                }
+
+                if (excludes != null && excludes.size() != 0) {
+                    for (MavenArtifactKey exclude : excludes) {
+                        runtimeDependencies.get(exclude.getGroupId()).put(exclude.getArtifactId(), new DefaultMavenArtifact());
+                    }
+                }
+
+                if (excludesWithParents != null && excludesWithParents.size() != 0) {
+                    for (MavenArtifactKey exclude : excludesWithParents) {
+                        runtimeDependencies.get(exclude.getGroupId()).put(exclude.getArtifactId(), new DefaultMavenArtifact(true));
+                    }
+                }
+
+                if (createClassLoaderConfigurationParameters.isSelfExcluded()) {
+                    runtimeDependencies.get(getGroupId()).put(getArtifactId(), new DefaultMavenArtifact());
+                }
+
+                GraphCycleRemover<NodeAndState, DefaultMavenArtifact, Set<MavenArtifactKey>> graphCycleRemover = new GraphCycleRemover<NodeAndState, DefaultMavenArtifact, Set<MavenArtifactKey>>(
+                        new ParentExcluderGraphHelper(dependencyReader, runtimeDependencies));
+                Set<MavenArtifactKey> includedMavenArtifactKeys = graphCycleRemover.removeCycle(nodeAndState);
+
+                Iterator<MavenArtifactAndMetadata> iterator = artifacts.iterator();
+                while (iterator.hasNext()) {
+                    MavenArtifactAndMetadata mavenArtifactAndMetadata = iterator.next();
+                    DefaultMavenArtifact mavenArtifact = mavenArtifactAndMetadata.getMavenArtifact();
+                    if (!includedMavenArtifactKeys.contains(new MavenArtifactKey(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId(), mavenArtifact.getExtension()))) {
+                        iterator.remove();
+                    }
+                }
+
+            }
+
             boolean mdcIncluded = false;
             boolean[] beforeParents = null;
             int i = 0;

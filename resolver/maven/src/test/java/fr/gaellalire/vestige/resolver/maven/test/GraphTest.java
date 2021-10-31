@@ -186,11 +186,43 @@ public class GraphTest {
         nH.setNexts(Collections.singletonList(nI));
         nI.setNexts(Collections.singletonList(nK));
 
-        System.out.println(graphCycleRemover.removeCycle(nA));
-        /*
-         * Node r1 = new Node("1"); Node r2a3a5 = new Node(Arrays.asList("2", "3", "5")); Node r4 = new Node("4"); r1.setNexts(Collections.singletonList(r2a3a5));
-         * r2a3a5.setNexts(Collections.singletonList(r4)); Assert.assertEquals(r1, graphCycleRemover.removeCycle(n1));
-         */
+        Node nR = new Node(Collections.<String> emptyList());
+        Node nRE = new Node("E");
+        Node nRG = new Node("G");
+        Node nRH = new Node("H");
+        Node nRI = new Node("I");
+        Node nRK = new Node("K");
+        Node nRL = new Node("L");
+
+        nR.setNexts(Arrays.asList(nRK, nRE, nRG, nRH));
+        nRK.setNexts(Collections.singletonList(nRL));
+        nRH.setNexts(Collections.singletonList(nRI));
+        nRI.setNexts(Collections.singletonList(nRK));
+
+        Node removeCycle = graphCycleRemover.removeCycle(nA);
+        Assert.assertEquals(nR, removeCycle);
+    }
+
+    @Test
+    public void testExclusionWithCycle() throws Exception {
+        Node nA = new Node("A");
+        Node nB = new Node("B");
+        Node nC = new Node("C");
+        Node nD = new Node("D");
+        Node nE = new Node("E");
+
+        nC.setParentExcluded(true);
+
+        nA.setNexts(Collections.singletonList(nB));
+        nB.setNexts(Collections.singletonList(nC));
+        nC.setNexts(Collections.singletonList(nD));
+        nD.setNexts(Arrays.asList(nB, nE));
+
+        Node nRE = new Node("E");
+
+        Node removeCycle = graphCycleRemover.removeCycle(nA);
+        System.out.println(removeCycle);
+        Assert.assertEquals(nRE, removeCycle);
     }
 
 }

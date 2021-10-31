@@ -34,6 +34,8 @@ public class ResolveParameters {
 
     private String extension;
 
+    private String classifier;
+
     private List<MavenRepository> additionalRepositories;
 
     private DependencyModifier dependencyModifier;
@@ -124,6 +126,14 @@ public class ResolveParameters {
 
     public void setArtifactPatcher(final ArtifactPatcher artifactPatcher) {
         this.artifactPatcher = artifactPatcher;
+    }
+
+    public void setClassifier(final String classifier) {
+        this.classifier = classifier;
+    }
+
+    public String getClassifier() {
+        return classifier;
     }
 
 }

@@ -36,6 +36,8 @@ public class DefaultMavenArtifact implements Serializable, MavenArtifact {
 
     private String extension;
 
+    private String classifier;
+
     private int hashCode;
 
     private boolean virtual;
@@ -53,11 +55,13 @@ public class DefaultMavenArtifact implements Serializable, MavenArtifact {
         this.parentExcluder = parentExcluder;
     }
 
-    public DefaultMavenArtifact(final String groupId, final String artifactId, final String version, final String extension, final DefaultMavenArtifact patch) {
+    public DefaultMavenArtifact(final String groupId, final String artifactId, final String version, final String extension, final String classifier,
+            final DefaultMavenArtifact patch) {
         this.groupId = groupId;
         this.artifactId = artifactId;
         this.version = version;
         this.extension = extension;
+        this.classifier = classifier;
         this.patch = patch;
         if (version == null) {
             hashCode = groupId.hashCode() + artifactId.hashCode();
@@ -80,6 +84,10 @@ public class DefaultMavenArtifact implements Serializable, MavenArtifact {
 
     public String getExtension() {
         return extension;
+    }
+
+    public String getClassifier() {
+        return classifier;
     }
 
     @Override
@@ -148,6 +156,9 @@ public class DefaultMavenArtifact implements Serializable, MavenArtifact {
         String append = "";
         if (patch != null) {
             append = " (" + patch.toString() + ")";
+        }
+        if (classifier != null && classifier.length() != 0) {
+            return "mvn:" + groupId + "/" + artifactId + "/" + version + "/" + extension + "/" + classifier + append;
         }
         if (!"jar".equals(extension)) {
             return "mvn:" + groupId + "/" + artifactId + "/" + version + "/" + extension + append;

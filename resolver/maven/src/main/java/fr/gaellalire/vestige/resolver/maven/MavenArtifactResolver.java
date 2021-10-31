@@ -326,7 +326,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
         } catch (NoLocalRepositoryManagerException e) {
             throw new ResolverException(e);
         }
-        // user agent may prevent NTLM access without authentification
+        // user agent may prevent NTLM access without authentication
         session.setConfigProperty(ConfigurationProperties.USER_AGENT, "Apache-HttpClient/4.5.3");
 
         return session;
@@ -399,8 +399,8 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
 
         ArtifactPatcher artifactPatcher = resolveRequest.getArtifactPatcher();
 
-        Dependency dependency = new Dependency(
-                new DefaultArtifact(resolveRequest.getGroupId(), resolveRequest.getArtifactId(), resolveRequest.getExtension(), resolveRequest.getVersion()), "runtime");
+        Dependency dependency = new Dependency(new DefaultArtifact(resolveRequest.getGroupId(), resolveRequest.getArtifactId(), resolveRequest.getClassifier(),
+                resolveRequest.getExtension(), resolveRequest.getVersion()), "runtime");
 
         CollectRequest collectRequest = new CollectRequest();
         collectRequest.setRoot(dependency);
@@ -490,7 +490,8 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
                             sha1Patch = getSha1(patch, firstTry);
                         }
 
-                        mavenArtifactPatch = new DefaultMavenArtifact(patch.getGroupId(), patch.getArtifactId(), patch.getVersion(), patch.getExtension(), null);
+                        mavenArtifactPatch = new DefaultMavenArtifact(patch.getGroupId(), patch.getArtifactId(), patch.getVersion(), patch.getExtension(), patch.getClassifier(),
+                                null);
 
                         try {
                             patchFileWithMetadata = new PatchFileWithMetadata(resolveArtifact.getArtifact().getFile(), urlFactory.createURL(mavenArtifactPatch.toString()),
@@ -502,7 +503,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
                 }
 
                 DefaultMavenArtifact mavenArtifact = new DefaultMavenArtifact(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion(), artifact.getExtension(),
-                        mavenArtifactPatch);
+                        artifact.getClassifier(), mavenArtifactPatch);
 
                 File file = artifact.getFile();
                 FileWithMetadata secureFile;

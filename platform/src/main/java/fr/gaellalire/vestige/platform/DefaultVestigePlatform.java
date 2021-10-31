@@ -430,24 +430,36 @@ public class DefaultVestigePlatform implements VestigePlatform {
             vestigeJars[0] = new DefaultVestigeJar(fileWithMetadata, null, patchVestigeJar, null, vestigeReaper);
             return new JarFileResourceLocator(fileWithMetadata.getFile(), fileWithMetadata.getCodeBase());
         }
-        SecureFile secureJarFile = new SecureFile(fileWithMetadata.getFile(), Mode.PRIVATE_MAP);
+        File file = fileWithMetadata.getFile();
+        if (!file.exists()) {
+            throw new IOException("Cannot verify checkum, file does not exist");
+        }
+        boolean closeSecureJarFile = true;
         long[] sizeHolder = new long[1];
         String sha512;
-        InputStream inputStream = secureJarFile.getInputStream();
+        SecureFile secureJarFile = new SecureFile(file, Mode.PRIVATE_MAP);
         try {
+            InputStream inputStream = secureJarFile.getInputStream();
             try {
-                List<String> checksums = FileWithMetadata.createChecksum(inputStream, Arrays.asList("SHA-512"), sizeHolder);
-                sha512 = checksums.get(0);
-            } catch (NoSuchAlgorithmException e) {
-                throw new IOException("Cannot verify checkum", e);
-            } catch (NoSuchProviderException e) {
-                throw new IOException("Cannot verify checkum", e);
-            }
+                try {
+                    List<String> checksums = FileWithMetadata.createChecksum(inputStream, Arrays.asList("SHA-512"), sizeHolder);
+                    sha512 = checksums.get(0);
+                } catch (NoSuchAlgorithmException e) {
+                    throw new IOException("Cannot verify checkum", e);
+                } catch (NoSuchProviderException e) {
+                    throw new IOException("Cannot verify checkum", e);
+                }
 
+            } finally {
+                inputStream.close();
+            }
+            vestigeReaper.addReapable(secureJarFile, new CloseableReaperHelper(secureJarFile.getCloseable()));
+            closeSecureJarFile = false;
         } finally {
-            inputStream.close();
+            if (closeSecureJarFile) {
+                secureJarFile.close();
+            }
         }
-        vestigeReaper.addReapable(secureJarFile, new CloseableReaperHelper(secureJarFile.getCloseable()));
 
         jarVerifier.verify(sizeHolder[0], sha512);
 

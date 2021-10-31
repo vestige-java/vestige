@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
+import java.util.List;
 
 import org.eclipse.aether.artifact.DefaultArtifact;
 import org.eclipse.aether.graph.Dependency;
@@ -42,6 +43,7 @@ import fr.gaellalire.vestige.resolver.maven.DefaultMavenArtifact;
 import fr.gaellalire.vestige.resolver.maven.DefaultResolvedMavenArtifact;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactKey;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
+import fr.gaellalire.vestige.resolver.maven.MavenRepository;
 import fr.gaellalire.vestige.resolver.maven.ResolveParameters;
 import fr.gaellalire.vestige.spi.job.DummyJobHelper;
 import fr.gaellalire.vestige.spi.resolver.ResolvedClassLoaderConfiguration;
@@ -67,6 +69,7 @@ public class ResolverTest {
     }
 
     @Test
+    @Ignore
     public void test() throws Exception {
 
         File settingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
@@ -116,6 +119,7 @@ public class ResolverTest {
         resolveRequest.setArtifactId("mywar");
         resolveRequest.setVersion("0.0.1");
         resolveRequest.setExtension("war");
+        resolveRequest.setClassifier("exploded-assembly");
         // resolveRequest.setAdditionalRepositories(additionalRepositories);
         DefaultDependencyModifier defaultDependencyModifier = new DefaultDependencyModifier();
         // defaultDependencyModifier.add("commons-io", "commons-io",
@@ -129,11 +133,55 @@ public class ResolverTest {
         resolveRequest.setPomRepositoriesIgnored(true);
         resolveRequest.setChecksumVerified(false);
 
+        List<MavenRepository> additionalRepositories = new ArrayList<MavenRepository>();
+        additionalRepositories.add(new MavenRepository("gaellalire-repo", null, "https://gaellalire.fr/maven/repository/"));
+        resolveRequest.setAdditionalRepositories(additionalRepositories);
+
         CreateClassLoaderConfigurationParameters createClassLoaderConfigurationParameters = new CreateClassLoaderConfigurationParameters();
         createClassLoaderConfigurationParameters.setManyLoaders(true);
         createClassLoaderConfigurationParameters.setAppName("mywar");
         createClassLoaderConfigurationParameters.setScope(Scope.PLATFORM);
-        createClassLoaderConfigurationParameters.setSelfExcluded(true);
+        // createClassLoaderConfigurationParameters.setSelfExcluded(true);
+
+        ClassLoaderConfiguration resolve = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
+                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, new ArrayList<DefaultMavenArtifact>());
+        System.out.println(resolve);
+
+    }
+
+    @Test
+    @Ignore
+    public void testWarExcludeClasspath() throws Exception {
+
+        File settingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
+        MavenArtifactResolver mavenArtifactResolver = new MavenArtifactResolver(null, new VestigeWorker[] {null}, settingsFile, null);
+
+        ResolveParameters resolveRequest = new ResolveParameters();
+        resolveRequest.setGroupId("fr.gaellalire.vestige_app.mywar");
+        resolveRequest.setArtifactId("mywar");
+        resolveRequest.setVersion("0.0.1");
+        resolveRequest.setExtension("war");
+        // resolveRequest.setAdditionalRepositories(additionalRepositories);
+        DefaultDependencyModifier defaultDependencyModifier = new DefaultDependencyModifier();
+        // defaultDependencyModifier.add("commons-io", "commons-io",
+        // Collections.singletonList(new Dependency(new DefaultArtifact("fr.gaellalire.vestige_app.mywar", "mywar", "war", "0.0.1"), "runtime")));
+        // defaultDependencyModifier.add("javax.servlet", "javax.servlet-api",
+        // Collections.singletonList(new Dependency(new DefaultArtifact("fr.gaellalire.vestige_app.mywar", "mywar", "war", "0.0.1"), "runtime")));
+        resolveRequest.setDependencyModifier(defaultDependencyModifier);
+        // resolveRequest.setJpmsConfiguration(defaultJPMSConfiguration);
+        // resolveRequest.setJpmsNamedModulesConfiguration(namedModulesConfiguration);
+        resolveRequest.setSuperPomRepositoriesIgnored(true);
+        resolveRequest.setPomRepositoriesIgnored(true);
+        resolveRequest.setChecksumVerified(false);
+
+        CreateClassLoaderConfigurationParameters createClassLoaderConfigurationParameters = new CreateClassLoaderConfigurationParameters();
+        createClassLoaderConfigurationParameters.setManyLoaders(false);
+        createClassLoaderConfigurationParameters.setAppName("mywar");
+        createClassLoaderConfigurationParameters.setScope(Scope.PLATFORM);
+        HashSet<MavenArtifactKey> excludesWithParents = new HashSet<MavenArtifactKey>();
+        excludesWithParents.add(new MavenArtifactKey("commons-io", "commons-io", "jar"));
+        createClassLoaderConfigurationParameters.setExcludesWithParents(excludesWithParents);
+        // createClassLoaderConfigurationParameters.setExcludes(excludesWithParents);
 
         ClassLoaderConfiguration resolve = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
                 .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, new ArrayList<DefaultMavenArtifact>());
