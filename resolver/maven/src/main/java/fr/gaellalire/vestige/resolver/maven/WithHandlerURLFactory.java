@@ -23,9 +23,9 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
-import java.util.regex.Matcher;
 
 /**
+ * This class is used by verifier plugin.
  * @author Gael Lalire
  */
 public class WithHandlerURLFactory implements URLFactory {
@@ -37,20 +37,7 @@ public class WithHandlerURLFactory implements URLFactory {
 
             @Override
             protected URLConnection openConnection(final URL u) throws IOException {
-                Matcher matcher = MavenArtifactResolver.MVN_URL_PATTERN.matcher(u.toExternalForm());
-                if (!matcher.matches()) {
-                    throw new IOException("Invalid Maven URL");
-                }
-                int i = 1;
-                String groupId = matcher.group(i++);
-                String artifactId = matcher.group(i++);
-                String version = matcher.group(i++);
-                String extension = matcher.group(i);
-                if (extension == null) {
-                    extension = "jar";
-                }
-                return new File(baseDir, groupId.replace('.', File.separatorChar) + File.separator + artifactId + File.separator + version + File.separator + artifactId + "-"
-                        + version + "." + extension).toURI().toURL().openConnection();
+                return MavenArtifactResolver.getFile(baseDir, u).toURI().toURL().openConnection();
             }
 
         };

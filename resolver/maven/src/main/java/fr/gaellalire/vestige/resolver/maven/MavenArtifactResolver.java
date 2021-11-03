@@ -119,7 +119,29 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
 
     public static final String MVN_PROTOCOL = "mvn";
 
-    public static final Pattern MVN_URL_PATTERN = Pattern.compile("mvn:([^/]*)/([^/]*)/([^/]*)(?:/([^/]*))?");
+    public static final Pattern MVN_URL_PATTERN = Pattern.compile("mvn:([^/]*)/([^/]*)/([^/]*)(?:/([^/]*)(?:/([^/]*))?)?");
+
+    public static File getFile(final File baseDir, final URL u) throws IOException {
+        Matcher matcher = MVN_URL_PATTERN.matcher(u.toExternalForm());
+        if (!matcher.matches()) {
+            throw new IOException("Invalid Maven URL");
+        }
+        int i = 1;
+        String groupId = matcher.group(i++);
+        String artifactId = matcher.group(i++);
+        String version = matcher.group(i++);
+        String extension = matcher.group(i++);
+        if (extension == null) {
+            extension = "jar";
+        }
+        String classifierAppend = "";
+        String classifier = matcher.group(i);
+        if (classifier != null) {
+            classifierAppend = "-" + classifier;
+        }
+        return new File(baseDir, groupId.replace('.', File.separatorChar) + File.separator + artifactId + File.separator + version + File.separator + artifactId + "-" + version
+                + classifierAppend + "." + extension);
+    }
 
     public static final URLStreamHandler replaceMavenURLStreamHandler(final File baseDir, final VestigeURLStreamHandlerFactory vestigeURLStreamHandlerFactory) {
         DelegateURLStreamHandler delegateURLStreamHandler = vestigeURLStreamHandlerFactory.get(MVN_PROTOCOL);
@@ -132,20 +154,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
 
             @Override
             protected URLConnection openConnection(final URL u) throws IOException {
-                Matcher matcher = MVN_URL_PATTERN.matcher(u.toExternalForm());
-                if (!matcher.matches()) {
-                    throw new IOException("Invalid Maven URL");
-                }
-                int i = 1;
-                String groupId = matcher.group(i++);
-                String artifactId = matcher.group(i++);
-                String version = matcher.group(i++);
-                String extension = matcher.group(i);
-                if (extension == null) {
-                    extension = "jar";
-                }
-                return new File(baseDir, groupId.replace('.', File.separatorChar) + File.separator + artifactId + File.separator + version + File.separator + artifactId + "-"
-                        + version + "." + extension).toURI().toURL().openConnection();
+                return getFile(baseDir, u).toURI().toURL().openConnection();
             }
         };
         delegateURLStreamHandler.setDelegate(vestigeURLStreamHandler);

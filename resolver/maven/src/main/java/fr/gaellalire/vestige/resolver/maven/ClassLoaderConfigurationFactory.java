@@ -46,6 +46,7 @@ import fr.gaellalire.vestige.platform.AddReads;
 import fr.gaellalire.vestige.platform.ClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.FileWithMetadata;
 import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
+import fr.gaellalire.vestige.platform.PatchFileWithMetadata;
 import fr.gaellalire.vestige.platform.StringParserFactory;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.Scope;
@@ -205,7 +206,12 @@ public class ClassLoaderConfigurationFactory {
         try {
             ListIterator<FileWithMetadata> listIterator = afterUrls.listIterator(afterUrls.size());
             while (listIterator.hasPrevious()) {
-                readJar(pathsByResourceName, exportedPathsByResourceName, exportedPathsByClassName, moduleNames, listIterator.previous().getFile());
+                FileWithMetadata previous = listIterator.previous();
+                readJar(pathsByResourceName, exportedPathsByResourceName, exportedPathsByClassName, moduleNames, previous.getFile());
+                PatchFileWithMetadata patch = previous.getPatch();
+                if (patch != null) {
+                    readJar(pathsByResourceName, exportedPathsByResourceName, exportedPathsByClassName, moduleNames, patch.getFile());
+                }
             }
         } catch (IOException e) {
             throw new ResolverException("Unable to read jar content", e);
@@ -270,7 +276,12 @@ public class ClassLoaderConfigurationFactory {
         try {
             ListIterator<FileWithMetadata> listIterator = beforeUrls.listIterator(beforeUrls.size());
             while (listIterator.hasPrevious()) {
-                readJar(pathsByResourceName, exportedPathsByResourceName, exportedPathsByClassName, moduleNames, listIterator.previous().getFile());
+                FileWithMetadata previous = listIterator.previous();
+                readJar(pathsByResourceName, exportedPathsByResourceName, exportedPathsByClassName, moduleNames, previous.getFile());
+                PatchFileWithMetadata patch = previous.getPatch();
+                if (patch != null) {
+                    readJar(pathsByResourceName, exportedPathsByResourceName, exportedPathsByClassName, moduleNames, patch.getFile());
+                }
             }
         } catch (IOException e) {
             throw new ResolverException("Unable to read jar content", e);

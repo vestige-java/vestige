@@ -117,6 +117,10 @@ public class DefaultVestigeJar implements VestigeJar {
 
     @Override
     public long getLastModified() {
+        if (vestigeResourceLocator != null) {
+            return vestigeResourceLocator.getLastModified();
+        }
+
         return file.lastModified();
     }
 

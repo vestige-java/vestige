@@ -518,9 +518,11 @@ public class DefaultVestigePlatform implements VestigePlatform {
     private AttachedVestigeClassLoader attachDependencies(final Map<Serializable, VestigeClassLoader<AttachedVestigeClassLoader>> attachmentMap,
             final ClassLoaderConfiguration classLoaderConfiguration, final VestigeWorker vestigeWorker, final VerifierContext verifierContext)
             throws InterruptedException, IOException {
+        String presumedVerificationMetada = null;
         Serializable key = classLoaderConfiguration.getKey();
         if (verifierContext != null) {
-            key = new VerifiedKey(key, verifierContext.getCurrentVerificationMetadata().toString());
+            presumedVerificationMetada = verifierContext.getCurrentVerificationMetadata().toString();
+            key = new VerifiedKey(key, presumedVerificationMetada);
         }
 
         VestigeClassLoader<AttachedVestigeClassLoader> vestigeClassLoader = null;
@@ -536,6 +538,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
             }
         }
         if (vestigeClassLoader != null) {
+            // FIXME verifierContext need to manage reference (@n)
             return vestigeClassLoader.getData(this);
         }
 
@@ -554,9 +557,13 @@ public class DefaultVestigePlatform implements VestigePlatform {
             if (verifierContext != null && !verifierContext.nextDependency()) {
                 throw new IOException("Too many dependencies for " + key);
             }
-            verifierContext.pushDependency();
+            if (verifierContext != null) {
+                verifierContext.pushDependency();
+            }
             AttachedVestigeClassLoader attachDependency = attachDependencies(attachmentMap, configurationDependency, vestigeWorker, verifierContext);
-            verifierContext.popDependency();
+            if (verifierContext != null) {
+                verifierContext.popDependency();
+            }
             classLoaderDependencies.add(attachDependency);
             if (selfNeedModuleDefine) {
                 moduleLayerList.addInRepositoryModuleLayerByIndex(attachDependency.getModuleLayer().getRepositoryIndex());
@@ -598,7 +605,26 @@ public class DefaultVestigePlatform implements VestigePlatform {
             throw new IOException("After file of " + key + " is missing jars");
         }
         if (verifierContext != null) {
-            key = new VerifiedKey(classLoaderConfiguration.getKey(), verifierContext.getValidatedCurrentVerificationMetadata().toString());
+            String validatedVerificationMetada = verifierContext.getValidatedCurrentVerificationMetadata().toString();
+            if (!validatedVerificationMetada.equals(presumedVerificationMetada)) {
+                // try the cache again
+                key = new VerifiedKey(classLoaderConfiguration.getKey(), validatedVerificationMetada);
+                if (classLoaderConfiguration.isAttachmentScoped()) {
+                    vestigeClassLoader = attachmentMap.get(key);
+                } else {
+                    WeakReference<AttachedVestigeClassLoader> weakReference = map.get(key);
+                    if (weakReference != null) {
+                        AttachedVestigeClassLoader attachedVestigeClassLoader = weakReference.get();
+                        if (attachedVestigeClassLoader != null) {
+                            vestigeClassLoader = attachedVestigeClassLoader.getVestigeClassLoader();
+                        }
+                    }
+                }
+                if (vestigeClassLoader != null) {
+                    // FIXME verifierContext need to manage reference (@n)
+                    return vestigeClassLoader.getData(this);
+                }
+            }
         }
 
         String name = classLoaderConfiguration.getName();
