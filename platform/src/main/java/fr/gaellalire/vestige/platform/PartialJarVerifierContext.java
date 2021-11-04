@@ -17,15 +17,21 @@
 
 package fr.gaellalire.vestige.platform;
 
+import java.io.Serializable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author Gael Lalire
  */
 public class PartialJarVerifierContext implements VerifierContext {
+
+    private Map<Serializable, AttachmentVerificationMetadata> verificationMetadataByClassLoaderConfigurationKey;
 
     private AttachmentVerificationMetadata attachmentVerificationMetadata;
 
@@ -49,6 +55,7 @@ public class PartialJarVerifierContext implements VerifierContext {
         this.attachmentVerificationMetadata = attachmentVerificationMetadata;
         validatedDependenciesStack = new ArrayDeque<List<AttachmentVerificationMetadata>>();
         validatedDependencies = new ArrayList<AttachmentVerificationMetadata>();
+        verificationMetadataByClassLoaderConfigurationKey = new HashMap<Serializable, AttachmentVerificationMetadata>();
     }
 
     @Override
@@ -98,6 +105,38 @@ public class PartialJarVerifierContext implements VerifierContext {
     public void pushDependency() {
         validatedDependenciesStack.push(validatedDependencies);
         validatedDependencies = new ArrayList<AttachmentVerificationMetadata>();
+    }
+
+    public AttachmentVerificationMetadata generateAttachmentVerificationMetadata(final ClassLoaderConfiguration classLoaderConfiguration,
+            final AttachmentVerificationMetadata unsharedAttachmentVerificationMetadata) {
+        Serializable key = classLoaderConfiguration.getKey();
+        AttachmentVerificationMetadata sharedAttachmentVerificationMetadata = verificationMetadataByClassLoaderConfigurationKey.get(key);
+        if (sharedAttachmentVerificationMetadata != null) {
+            // already loaded
+            return sharedAttachmentVerificationMetadata;
+        }
+        List<AttachmentVerificationMetadata> dependencyAttachmentVerificationMetadatas = new ArrayList<AttachmentVerificationMetadata>();
+        List<ClassLoaderConfiguration> dependencies = classLoaderConfiguration.getDependencies();
+        Iterator<AttachmentVerificationMetadata> iterator = unsharedAttachmentVerificationMetadata.getDependencyVerificationMetadata().iterator();
+        for (ClassLoaderConfiguration subClassLoaderConfiguration : dependencies) {
+            dependencyAttachmentVerificationMetadatas.add(generateAttachmentVerificationMetadata(subClassLoaderConfiguration, iterator.next()));
+        }
+
+        sharedAttachmentVerificationMetadata = new AttachmentVerificationMetadata(dependencyAttachmentVerificationMetadatas,
+                unsharedAttachmentVerificationMetadata.getBeforeFiles(), unsharedAttachmentVerificationMetadata.getAfterFiles());
+        verificationMetadataByClassLoaderConfigurationKey.put(key, sharedAttachmentVerificationMetadata);
+        return sharedAttachmentVerificationMetadata;
+    }
+
+    @Override
+    public void useCachedClassLoader(final ClassLoaderConfiguration classLoaderConfiguration, final String verifiedMetada) {
+        Serializable classLoaderConfigurationKey = classLoaderConfiguration.getKey();
+        validatedAttachmentVerificationMetadata = verificationMetadataByClassLoaderConfigurationKey.get(classLoaderConfigurationKey);
+        if (validatedAttachmentVerificationMetadata == null) {
+            // The dependency is loaded by another attachment, some sub-dependencies may be already loaded by our attachment
+            // need to browse each dependency of classLoaderConfiguration
+            validatedAttachmentVerificationMetadata = generateAttachmentVerificationMetadata(classLoaderConfiguration, AttachmentVerificationMetadata.fromString(verifiedMetada));
+        }
     }
 
     @Override

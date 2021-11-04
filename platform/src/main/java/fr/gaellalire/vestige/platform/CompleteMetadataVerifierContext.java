@@ -128,4 +128,8 @@ public class CompleteMetadataVerifierContext implements VerifierContext {
         return !jarIterator.hasNext();
     }
 
+    @Override
+    public void useCachedClassLoader(final ClassLoaderConfiguration classLoaderConfiguration, final String verifiedMetada) {
+    }
+
 }

@@ -125,7 +125,15 @@ public class AttachmentVerificationMetadata {
         List<AttachmentVerificationMetadata> dependencySignatures = new ArrayList<AttachmentVerificationMetadata>();
 
         for (AttachmentVerificationMetadata dependencySignature : this.dependencySignatures) {
-            dependencySignatures.addAll(dependencySignature.extract(alreadyExtracted, used));
+            List<AttachmentVerificationMetadata> list = alreadyExtracted.get(dependencySignature);
+            if (list == null) {
+                list = dependencySignature.extract(alreadyExtracted, used);
+            }
+            for (AttachmentVerificationMetadata attachmentVerificationMetadata : list) {
+                if (!dependencySignatures.contains(attachmentVerificationMetadata)) {
+                    dependencySignatures.add(attachmentVerificationMetadata);
+                }
+            }
         }
 
         Iterator<FileVerificationMetadata> iterator = this.beforeFiles.iterator();

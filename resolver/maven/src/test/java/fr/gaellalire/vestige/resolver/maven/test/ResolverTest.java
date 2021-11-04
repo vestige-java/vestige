@@ -109,6 +109,7 @@ public class ResolverTest {
     }
 
     @Test
+    @Ignore
     public void testWar() throws Exception {
 
         File settingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
@@ -276,6 +277,7 @@ public class ResolverTest {
         System.out.println(resolveDirect);
         System.out.println();
 
+        @SuppressWarnings("unused")
         ResolvedMavenArtifact ejb1 = dependencies.nextElement();
         ResolvedMavenArtifact ejb2 = dependencies.nextElement();
         ResolvedClassLoaderConfiguration resolve = ejb2.createClassLoaderConfiguration("myejb2", ResolveMode.CLASSPATH, Scope.PLATFORM).execute();

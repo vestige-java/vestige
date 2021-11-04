@@ -213,7 +213,12 @@ public class DefaultVestigePlatform implements VestigePlatform {
             if (verificationMetadata != null) {
                 AttachmentVerificationMetadata extractUsed = verificationMetadata.extractUsed();
                 if (extractUsed != null) {
-                    result.setUsedVerificationMetadata(extractUsed.toString());
+                    String expectedUsedVerificationMetadata = extractUsed.toString();
+                    String validatedVerificationMetadata = verifierContext.getValidatedCurrentVerificationMetadata().toString();
+                    if (!expectedUsedVerificationMetadata.equals(validatedVerificationMetadata)) {
+                        throw new IOException("Expected verification metadata subset was:\n" + expectedUsedVerificationMetadata + " but got:\n" + validatedVerificationMetadata);
+                    }
+                    result.setUsedVerificationMetadata(expectedUsedVerificationMetadata);
                 }
                 AttachmentVerificationMetadata extractUnused = verificationMetadata.extractUnused();
                 if (extractUnused != null) {
@@ -538,7 +543,9 @@ public class DefaultVestigePlatform implements VestigePlatform {
             }
         }
         if (vestigeClassLoader != null) {
-            // FIXME verifierContext need to manage reference (@n)
+            if (verifierContext != null) {
+                verifierContext.useCachedClassLoader(classLoaderConfiguration, presumedVerificationMetada);
+            }
             return vestigeClassLoader.getData(this);
         }
 
@@ -621,7 +628,9 @@ public class DefaultVestigePlatform implements VestigePlatform {
                     }
                 }
                 if (vestigeClassLoader != null) {
-                    // FIXME verifierContext need to manage reference (@n)
+                    if (verifierContext != null) {
+                        verifierContext.useCachedClassLoader(classLoaderConfiguration, validatedVerificationMetada);
+                    }
                     return vestigeClassLoader.getData(this);
                 }
             }
