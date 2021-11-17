@@ -17,14 +17,13 @@
 
 package fr.gaellalire.vestige.resolver.maven.secure;
 
+import java.io.File;
 import java.util.Enumeration;
 
 import fr.gaellalire.vestige.resolver.common.secure.ElementSecureMaker;
 import fr.gaellalire.vestige.resolver.common.secure.SecureEnumeration;
-import fr.gaellalire.vestige.resolver.common.secure.SecureVestigeJar;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.Scope;
-import fr.gaellalire.vestige.spi.resolver.VestigeJar;
 import fr.gaellalire.vestige.spi.resolver.maven.CreateClassLoaderConfigurationRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolveMode;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolvedMavenArtifact;
@@ -84,9 +83,10 @@ public class SecureResolvedMavenArtifact implements ResolvedMavenArtifact {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
-    public VestigeJar getVestigeJar() {
-        return new SecureVestigeJar(secureVestigeSystem, delegate.getVestigeJar());
+    public File getFile() {
+        return delegate.getFile();
     }
 
     @Override

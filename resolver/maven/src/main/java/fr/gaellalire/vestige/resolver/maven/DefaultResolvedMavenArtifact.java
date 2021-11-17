@@ -17,6 +17,7 @@
 
 package fr.gaellalire.vestige.resolver.maven;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -45,7 +46,6 @@ import fr.gaellalire.vestige.platform.ModuleConfiguration;
 import fr.gaellalire.vestige.platform.VestigePlatform;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.Scope;
-import fr.gaellalire.vestige.spi.resolver.VestigeJar;
 import fr.gaellalire.vestige.spi.resolver.maven.CreateClassLoaderConfigurationRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.MavenResolvedClassLoaderConfiguration;
 import fr.gaellalire.vestige.spi.resolver.maven.ModifyLoadedDependencyRequest;
@@ -122,7 +122,8 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
         return resolvedMavenArtifacts;
     }
 
-    public VestigeJar getVestigeJar() {
+    @Override
+    public File getFile() {
         if (fileWithMetadata == null) {
             for (MavenArtifactAndMetadata artifact : artifacts) {
                 DefaultMavenArtifact mavenArtifact = artifact.getMavenArtifact();
@@ -132,9 +133,7 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
                 }
             }
         }
-        // FIXME
-        // return new DefaultVestigeJar(fileWithMetadata);
-        return null;
+        return fileWithMetadata.getFile();
     }
 
     public ClassLoaderConfiguration createClassLoaderConfiguration(final CreateClassLoaderConfigurationParameters createClassLoaderConfigurationParameters,
