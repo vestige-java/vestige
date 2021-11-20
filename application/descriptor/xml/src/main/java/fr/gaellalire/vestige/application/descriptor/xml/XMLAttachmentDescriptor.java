@@ -133,7 +133,8 @@ public class XMLAttachmentDescriptor implements AttachmentDescriptor {
         if (modifyLoadedDependencyList != null) {
             for (ModifyLoadedDependency modifyDependency : modifyLoadedDependencyList) {
                 ModifyLoadedDependencyRequest modifyDependencyRequest = createClassLoaderConfigurationRequest.addModifyLoadedDependency(
-                        SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()), SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()));
+                        SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()), SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()),
+                        SimpleValueGetter.INSTANCE.getValue(modifyDependency.getClassifier()));
                 for (ModulePackageName addExports : modifyDependency.getAddExports()) {
                     modifyDependencyRequest.addExports(SimpleValueGetter.INSTANCE.getValue(addExports.getModule()), SimpleValueGetter.INSTANCE.getValue(addExports.getPackage()));
                 }
@@ -165,7 +166,8 @@ public class XMLAttachmentDescriptor implements AttachmentDescriptor {
         }
 
         try {
-            return new ApplicationResolvedClassLoaderConfiguration(createClassLoaderConfigurationRequest.execute(), xmlApplicationRepositoryManager.getVestigeMavenResolverIndex());
+            return new ApplicationResolvedClassLoaderConfiguration(createClassLoaderConfigurationRequest.execute(actionHelper),
+                    xmlApplicationRepositoryManager.getVestigeMavenResolverIndex());
         } catch (ResolverException e) {
             throw new ApplicationException(e);
         }

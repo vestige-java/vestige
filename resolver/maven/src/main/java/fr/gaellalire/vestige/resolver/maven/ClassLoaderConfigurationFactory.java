@@ -48,6 +48,7 @@ import fr.gaellalire.vestige.platform.FileWithMetadata;
 import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
 import fr.gaellalire.vestige.platform.PatchFileWithMetadata;
 import fr.gaellalire.vestige.platform.StringParserFactory;
+import fr.gaellalire.vestige.spi.job.TaskHelper;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.Scope;
 
@@ -446,12 +447,13 @@ public class ClassLoaderConfigurationFactory {
         }
     }
 
-    public ClassLoaderConfiguration create(final StringParserFactory stringParserFactory) {
+    public ClassLoaderConfiguration create(final StringParserFactory stringParserFactory, final TaskHelper taskHelper, final int totalDependencies, final float currentProgress,
+            final float taskProgress, final int[] treated) {
         if (cachedClassLoaderConfiguration == null) {
             List<MavenClassLoaderConfigurationKey> keyDependencies = new ArrayList<MavenClassLoaderConfigurationKey>(factoryDependencies.size());
             List<ClassLoaderConfiguration> dependencies = new ArrayList<ClassLoaderConfiguration>(factoryDependencies.size());
             for (ClassLoaderConfigurationFactory classLoaderConfigurationFactory : factoryDependencies) {
-                dependencies.add(classLoaderConfigurationFactory.create(stringParserFactory));
+                dependencies.add(classLoaderConfigurationFactory.create(stringParserFactory, taskHelper, totalDependencies, currentProgress, taskProgress, treated));
                 scope = scope.restrict(classLoaderConfigurationFactory.getScope());
                 keyDependencies.add(classLoaderConfigurationFactory.getKey());
             }
@@ -478,6 +480,8 @@ public class ClassLoaderConfigurationFactory {
             cachedClassLoaderConfiguration = new ClassLoaderConfiguration(classLoaderConfigurationKey, name, scope == Scope.ATTACHMENT, beforeUrls, afterUrls, dependencies, paths,
                     pathIdsList, pathsByResourceName, pathsByClassName, classLoaderConfigurationKey.getModuleConfiguration(), namedModulesConfiguration, mdcIncluded);
             LOGGER.trace("Classloader rules created");
+            treated[0]++;
+            taskHelper.setProgress(currentProgress + taskProgress * (((float) treated[0]) / totalDependencies));
         }
         return cachedClassLoaderConfiguration;
     }

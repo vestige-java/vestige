@@ -35,7 +35,6 @@ import java.security.SecureRandom;
 import java.security.Security;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -103,6 +102,7 @@ import fr.gaellalire.vestige.platform.VestigeURLStreamHandlerFactory;
 import fr.gaellalire.vestige.resolver.maven.CreateClassLoaderConfigurationParameters;
 import fr.gaellalire.vestige.resolver.maven.DefaultDependencyModifier;
 import fr.gaellalire.vestige.resolver.maven.DefaultJPMSConfiguration;
+import fr.gaellalire.vestige.resolver.maven.MavenArtifactKey;
 import fr.gaellalire.vestige.resolver.maven.MavenArtifactResolver;
 import fr.gaellalire.vestige.resolver.maven.MavenRepository;
 import fr.gaellalire.vestige.resolver.maven.ResolveParameters;
@@ -278,11 +278,12 @@ public final class MavenMainLauncher {
                                             SimpleValueGetter.INSTANCE.getValue(addDependency.getArtifactId()), "jar",
                                             SimpleValueGetter.INSTANCE.getValue(addDependency.getVersion())), "runtime"));
                                 }
-                                defaultJPMSConfiguration.addModuleConfiguration(SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()),
-                                        SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()),
+                                defaultJPMSConfiguration.addModuleConfiguration(
+                                        new MavenArtifactKey(SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()),
+                                                SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()), "jar", ""),
                                         toModuleConfigurations(modifyDependency.getAddExports(), modifyDependency.getAddOpens()));
-                                defaultDependencyModifier.add(SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()),
-                                        SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()), dependencies);
+                                defaultDependencyModifier.add(new MavenArtifactKey(SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()),
+                                        SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()), "jar", ""), dependencies);
                                 if (modifyDependency.getAddBeforeParent() != null) {
                                     defaultDependencyModifier.addBeforeParent(SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()),
                                             SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()));
@@ -296,21 +297,17 @@ public final class MavenMainLauncher {
                                             SimpleValueGetter.INSTANCE.getValue(addDependency.getArtifactId()), "jar",
                                             SimpleValueGetter.INSTANCE.getValue(addDependency.getVersion())), "runtime"));
                                 }
-                                Map<String, Set<String>> exceptsMap = null;
+                                Set<MavenArtifactKey> exceptsSet = null;
                                 List<ExceptIn> excepts = replaceDependency.getExceptIn();
                                 if (excepts != null) {
-                                    exceptsMap = new HashMap<String, Set<String>>();
+                                    exceptsSet = new HashSet<MavenArtifactKey>();
                                     for (ExceptIn except : excepts) {
-                                        Set<String> set = exceptsMap.get(SimpleValueGetter.INSTANCE.getValue(except.getGroupId()));
-                                        if (set == null) {
-                                            set = new HashSet<String>();
-                                            exceptsMap.put(SimpleValueGetter.INSTANCE.getValue(except.getGroupId()), set);
-                                        }
-                                        set.add(SimpleValueGetter.INSTANCE.getValue(except.getArtifactId()));
+                                        exceptsSet.add(new MavenArtifactKey(SimpleValueGetter.INSTANCE.getValue(except.getGroupId()),
+                                                SimpleValueGetter.INSTANCE.getValue(except.getArtifactId()), "jar", ""));
                                     }
                                 }
-                                defaultDependencyModifier.replace(SimpleValueGetter.INSTANCE.getValue(replaceDependency.getGroupId()),
-                                        SimpleValueGetter.INSTANCE.getValue(replaceDependency.getArtifactId()), dependencies, exceptsMap);
+                                defaultDependencyModifier.replace(new MavenArtifactKey(SimpleValueGetter.INSTANCE.getValue(replaceDependency.getGroupId()),
+                                        SimpleValueGetter.INSTANCE.getValue(replaceDependency.getArtifactId()), "jar", ""), dependencies, exceptsSet);
                             } else if (object instanceof AdditionalRepository) {
                                 AdditionalRepository additionalRepository = (AdditionalRepository) object;
                                 additionalRepositories.add(new MavenRepository(SimpleValueGetter.INSTANCE.getValue(additionalRepository.getId()),
@@ -390,7 +387,7 @@ public final class MavenMainLauncher {
                         createClassLoaderConfigurationParameters.setScope(mavenScope);
 
                         ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
-                                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, null);
+                                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, null, DummyJobHelper.INSTANCE);
 
                         launchCaches
                                 .add(new VerifiedClassLoaderConfiguration(classLoaderConfiguration, SimpleValueGetter.INSTANCE.getValue(mavenClassType.getVerificationMetadata())));
@@ -421,7 +418,7 @@ public final class MavenMainLauncher {
                     createClassLoaderConfigurationParameters.setScope(mavenScope);
 
                     ClassLoaderConfiguration classLoaderConfiguration = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
-                            .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, null);
+                            .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, null, DummyJobHelper.INSTANCE);
 
                     mavenResolverCache = new MavenResolverCache(launchCaches, SimpleValueGetter.INSTANCE.getValue(mavenClassType.getClazz()),
                             new VerifiedClassLoaderConfiguration(classLoaderConfiguration, SimpleValueGetter.INSTANCE.getValue(mavenClassType.getVerificationMetadata())),

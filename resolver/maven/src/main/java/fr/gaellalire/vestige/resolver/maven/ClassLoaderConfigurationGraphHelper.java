@@ -31,6 +31,7 @@ import fr.gaellalire.vestige.platform.FileWithMetadata;
 import fr.gaellalire.vestige.platform.JPMSClassLoaderConfiguration;
 import fr.gaellalire.vestige.platform.JPMSNamedModulesConfiguration;
 import fr.gaellalire.vestige.platform.ModuleConfiguration;
+import fr.gaellalire.vestige.spi.job.TaskHelper;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.Scope;
 
@@ -61,10 +62,18 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
     private List<DefaultMavenArtifact> mavenArtifacts;
 
+    private TaskHelper taskHelper;
+
+    private int mavenArtifactsTreated;
+
+    private float mavenArtifactNumber;
+
+    private float taskProgress;
+
     public ClassLoaderConfigurationGraphHelper(final String appName, final Map<DefaultMavenArtifact, FileWithMetadata> urlByKey, final DependencyReader dependencyReader,
             final BeforeParentController beforeParentController, final DefaultJPMSConfiguration jpmsConfiguration,
             final Map<String, Map<String, DefaultMavenArtifact>> runtimeDependencies, final Scope scope, final ScopeModifier scopeModifier,
-            final JPMSNamedModulesConfiguration namedModulesConfiguration, final List<DefaultMavenArtifact> mavenArtifacts) {
+            final JPMSNamedModulesConfiguration namedModulesConfiguration, final List<DefaultMavenArtifact> mavenArtifacts, final TaskHelper taskHelper, final float taskProgress) {
         cachedClassLoaderConfigurationFactory = new HashMap<List<DefaultMavenArtifact>, ClassLoaderConfigurationFactory>();
         this.appName = appName;
         this.urlByKey = urlByKey;
@@ -76,6 +85,9 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
         this.scopeModifier = scopeModifier;
         this.namedModulesConfiguration = namedModulesConfiguration;
         this.mavenArtifacts = mavenArtifacts;
+        this.taskHelper = taskHelper;
+        this.taskProgress = taskProgress;
+        mavenArtifactNumber = urlByKey.size();
     }
 
     /**
@@ -107,7 +119,8 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
         boolean[] beforeParents = null;
         int i = 0;
         for (DefaultMavenArtifact mavenArtifact : nodes) {
-            JPMSClassLoaderConfiguration unnamedClassLoaderConfiguration = jpmsConfiguration.getModuleConfiguration(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId());
+            JPMSClassLoaderConfiguration unnamedClassLoaderConfiguration = jpmsConfiguration.getModuleConfiguration(
+                    new MavenArtifactKey(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId(), mavenArtifact.getExtension(), mavenArtifact.getClassifier()));
             if (namedModulesConfiguration != null) {
 
                 String moduleName;
@@ -161,6 +174,8 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
             }
             classLoaderConfigurationFactory = new ClassLoaderConfigurationFactory(appName, key, scope, beforeUrls, afterUrls, nexts, namedModulesConfiguration != null);
             cachedClassLoaderConfigurationFactory.put(key.getArtifacts(), classLoaderConfigurationFactory);
+            mavenArtifactsTreated += key.getArtifacts().size();
+            taskHelper.setProgress(taskProgress * mavenArtifactsTreated / mavenArtifactNumber);
         }
         return Collections.singletonList(classLoaderConfigurationFactory);
     }

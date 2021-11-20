@@ -250,7 +250,8 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
             if (object instanceof ModifyDependency) {
                 ModifyDependency modifyDependency = (ModifyDependency) object;
                 ModifyDependencyRequest modifyDependencyRequest = mavenResolverRequestContext.addModifyDependency(
-                        SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()), SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()));
+                        SimpleValueGetter.INSTANCE.getValue(modifyDependency.getGroupId()), SimpleValueGetter.INSTANCE.getValue(modifyDependency.getArtifactId()),
+                        SimpleValueGetter.INSTANCE.getValue(modifyDependency.getClassifier()));
                 AddDependency patch = modifyDependency.getPatch();
                 if (patch != null) {
                     modifyDependencyRequest.setPatch(SimpleValueGetter.INSTANCE.getValue(patch.getGroupId()), SimpleValueGetter.INSTANCE.getValue(patch.getArtifactId()),
@@ -259,22 +260,26 @@ public class XMLApplicationRepositoryManager implements ApplicationRepositoryMan
                 List<AddDependency> addDependencies = modifyDependency.getAddDependency();
                 for (AddDependency addDependency : addDependencies) {
                     modifyDependencyRequest.addDependency(SimpleValueGetter.INSTANCE.getValue(addDependency.getGroupId()),
-                            SimpleValueGetter.INSTANCE.getValue(addDependency.getArtifactId()), SimpleValueGetter.INSTANCE.getValue(addDependency.getVersion()));
+                            SimpleValueGetter.INSTANCE.getValue(addDependency.getArtifactId()), SimpleValueGetter.INSTANCE.getValue(addDependency.getVersion()), "jar",
+                            SimpleValueGetter.INSTANCE.getValue(addDependency.getClassifier()));
                 }
                 modifyDependencyRequest.execute();
             } else if (object instanceof ReplaceDependency) {
                 ReplaceDependency replaceDependency = (ReplaceDependency) object;
                 ReplaceDependencyRequest replaceDependencyRequest = mavenResolverRequestContext.addReplaceDependency(
-                        SimpleValueGetter.INSTANCE.getValue(replaceDependency.getGroupId()), SimpleValueGetter.INSTANCE.getValue(replaceDependency.getArtifactId()));
+                        SimpleValueGetter.INSTANCE.getValue(replaceDependency.getGroupId()), SimpleValueGetter.INSTANCE.getValue(replaceDependency.getArtifactId()),
+                        SimpleValueGetter.INSTANCE.getValue(replaceDependency.getClassifier()));
                 List<AddDependency> addDependencies = replaceDependency.getAddDependency();
                 for (AddDependency addDependency : addDependencies) {
                     replaceDependencyRequest.addDependency(SimpleValueGetter.INSTANCE.getValue(addDependency.getGroupId()),
-                            SimpleValueGetter.INSTANCE.getValue(addDependency.getArtifactId()), SimpleValueGetter.INSTANCE.getValue(addDependency.getVersion()));
+                            SimpleValueGetter.INSTANCE.getValue(addDependency.getArtifactId()), SimpleValueGetter.INSTANCE.getValue(addDependency.getVersion()), "jar",
+                            SimpleValueGetter.INSTANCE.getValue(addDependency.getClassifier()));
                 }
                 List<ExceptIn> excepts = replaceDependency.getExceptIn();
                 if (excepts != null) {
                     for (ExceptIn except : excepts) {
-                        replaceDependencyRequest.addExcept(SimpleValueGetter.INSTANCE.getValue(except.getGroupId()), SimpleValueGetter.INSTANCE.getValue(except.getArtifactId()));
+                        replaceDependencyRequest.addExcept(SimpleValueGetter.INSTANCE.getValue(except.getGroupId()), SimpleValueGetter.INSTANCE.getValue(except.getArtifactId()),
+                                SimpleValueGetter.INSTANCE.getValue(except.getClassifier()));
                     }
                 }
                 replaceDependencyRequest.execute();

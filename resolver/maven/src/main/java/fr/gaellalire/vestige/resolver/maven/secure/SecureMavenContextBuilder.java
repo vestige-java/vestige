@@ -114,4 +114,24 @@ public class SecureMavenContextBuilder implements MavenContextBuilder, MavenCont
         return delegate.toString();
     }
 
+    @Override
+    public ModifyDependencyRequest addModifyDependency(final String groupId, final String artifactId, final String classifier) {
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return delegate.addModifyDependency(groupId, artifactId, classifier);
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
+    }
+
+    @Override
+    public ReplaceDependencyRequest addReplaceDependency(final String groupId, final String artifactId, final String classifier) {
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return delegate.addReplaceDependency(groupId, artifactId, classifier);
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
+    }
+
 }

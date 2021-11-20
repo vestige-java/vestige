@@ -48,7 +48,7 @@ public class ParentExcluderGraphHelper implements GraphHelper<NodeAndState, Defa
         Set<MavenArtifactKey> nodes = new HashSet<MavenArtifactKey>(pnodes.size());
         for (DefaultMavenArtifact mavenArtifact : pnodes) {
             if (!mavenArtifact.isVirtual()) {
-                nodes.add(new MavenArtifactKey(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId(), mavenArtifact.getExtension()));
+                nodes.add(new MavenArtifactKey(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId(), mavenArtifact.getExtension(), mavenArtifact.getClassifier()));
             } else if (mavenArtifact.isParentExcluder()) {
                 parentNodeExcluder.setExcludeParentNodes();
             }

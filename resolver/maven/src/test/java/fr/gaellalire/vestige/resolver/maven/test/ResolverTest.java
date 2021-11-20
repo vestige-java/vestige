@@ -99,11 +99,11 @@ public class ResolverTest {
 
         if (true) {
             createClassLoaderConfigurationParameters
-                    .setExcludesWithParents(new HashSet<MavenArtifactKey>(Arrays.asList(new MavenArtifactKey("javax.servlet", "javax.servlet-api", "jar"))));
+                    .setExcludesWithParents(new HashSet<MavenArtifactKey>(Arrays.asList(new MavenArtifactKey("javax.servlet", "javax.servlet-api", "jar", ""))));
         }
 
         ClassLoaderConfiguration resolve = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
-                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, new ArrayList<DefaultMavenArtifact>());
+                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, new ArrayList<DefaultMavenArtifact>(), DummyJobHelper.INSTANCE);
         System.out.println(resolve);
 
     }
@@ -125,7 +125,7 @@ public class ResolverTest {
         DefaultDependencyModifier defaultDependencyModifier = new DefaultDependencyModifier();
         // defaultDependencyModifier.add("commons-io", "commons-io",
         // Collections.singletonList(new Dependency(new DefaultArtifact("fr.gaellalire.vestige_app.mywar", "mywar", "war", "0.0.1"), "runtime")));
-        defaultDependencyModifier.add("javax.servlet", "javax.servlet-api",
+        defaultDependencyModifier.add(new MavenArtifactKey("javax.servlet", "javax.servlet-api", "jar", ""),
                 Collections.singletonList(new Dependency(new DefaultArtifact("fr.gaellalire.vestige_app.mywar", "mywar", "war", "0.0.1"), "runtime")));
         resolveRequest.setDependencyModifier(defaultDependencyModifier);
         // resolveRequest.setJpmsConfiguration(defaultJPMSConfiguration);
@@ -145,7 +145,7 @@ public class ResolverTest {
         // createClassLoaderConfigurationParameters.setSelfExcluded(true);
 
         ClassLoaderConfiguration resolve = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
-                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, new ArrayList<DefaultMavenArtifact>());
+                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, new ArrayList<DefaultMavenArtifact>(), DummyJobHelper.INSTANCE);
         System.out.println(resolve);
 
     }
@@ -180,12 +180,12 @@ public class ResolverTest {
         createClassLoaderConfigurationParameters.setAppName("mywar");
         createClassLoaderConfigurationParameters.setScope(Scope.PLATFORM);
         HashSet<MavenArtifactKey> excludesWithParents = new HashSet<MavenArtifactKey>();
-        excludesWithParents.add(new MavenArtifactKey("commons-io", "commons-io", "jar"));
+        excludesWithParents.add(new MavenArtifactKey("commons-io", "commons-io", "jar", ""));
         createClassLoaderConfigurationParameters.setExcludesWithParents(excludesWithParents);
         // createClassLoaderConfigurationParameters.setExcludes(excludesWithParents);
 
         ClassLoaderConfiguration resolve = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
-                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, new ArrayList<DefaultMavenArtifact>());
+                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, new ArrayList<DefaultMavenArtifact>(), DummyJobHelper.INSTANCE);
         System.out.println(resolve);
 
     }
@@ -206,7 +206,7 @@ public class ResolverTest {
         DefaultDependencyModifier defaultDependencyModifier = new DefaultDependencyModifier();
         // defaultDependencyModifier.add("commons-io", "commons-io",
         // Collections.singletonList(new Dependency(new DefaultArtifact("fr.gaellalire.vestige_app.mywar", "mywar", "war", "0.0.1"), "runtime")));
-        defaultDependencyModifier.add("javax.servlet", "javax.servlet-api",
+        defaultDependencyModifier.add(new MavenArtifactKey("javax.servlet", "javax.servlet-api", "jar", ""),
                 Collections.singletonList(new Dependency(new DefaultArtifact("fr.gaellalire.vestige_app.mywar", "mywar", "war", "0.0.1"), "runtime")));
         resolveRequest.setDependencyModifier(defaultDependencyModifier);
         // resolveRequest.setJpmsConfiguration(defaultJPMSConfiguration);
@@ -222,7 +222,7 @@ public class ResolverTest {
         createClassLoaderConfigurationParameters.setSelfExcluded(true);
 
         ClassLoaderConfiguration resolve = mavenArtifactResolver.resolve(resolveRequest, DummyJobHelper.INSTANCE)
-                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, new ArrayList<DefaultMavenArtifact>());
+                .createClassLoaderConfiguration(createClassLoaderConfigurationParameters, new ArrayList<DefaultMavenArtifact>(), DummyJobHelper.INSTANCE);
         System.out.println(resolve);
 
     }

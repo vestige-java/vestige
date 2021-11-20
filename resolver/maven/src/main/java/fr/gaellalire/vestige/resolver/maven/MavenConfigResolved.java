@@ -18,10 +18,8 @@
 package fr.gaellalire.vestige.resolver.maven;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.aether.artifact.Artifact;
@@ -89,7 +87,8 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
     }
 
     @Override
-    public ModifyDependencyRequest addModifyDependency(final String groupId, final String artifactId) {
+    public ModifyDependencyRequest addModifyDependency(final String groupId, final String artifactId, final String classifier) {
+        final MavenArtifactKey mavenArtifactKey = new MavenArtifactKey(groupId, artifactId, "jar", classifier);
         return new ModifyDependencyRequest() {
 
             private List<Dependency> dependencies = new ArrayList<Dependency>();
@@ -110,14 +109,14 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
             @Override
             public void execute() {
                 checkBuild();
-                defaultDependencyModifier.setPatch(groupId, artifactId, patch);
-                defaultDependencyModifier.add(groupId, artifactId, dependencies);
-                defaultDependencyModifier.remove(groupId, artifactId, removedDependencies);
+                defaultDependencyModifier.setPatch(mavenArtifactKey, patch);
+                defaultDependencyModifier.add(mavenArtifactKey, dependencies);
+                defaultDependencyModifier.remove(mavenArtifactKey, removedDependencies);
             }
 
             @Override
             public void removeDependency(final String groupId, final String artifactId, final String extension) {
-                removedDependencies.add(new MavenArtifactKey(groupId, artifactId, extension));
+                removedDependencies.add(new MavenArtifactKey(groupId, artifactId, extension, ""));
             }
 
             @Override
@@ -125,28 +124,31 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
                 dependencies.add(new Dependency(new DefaultArtifact(groupId, artifactId, extension, version), "runtime"));
             }
 
+            @Override
+            public void addDependency(final String groupId, final String artifactId, final String version, final String extension, final String classifier) {
+                dependencies.add(new Dependency(new DefaultArtifact(groupId, artifactId, classifier, extension, version), "runtime"));
+            }
+
+            @Override
+            public void removeDependency(final String groupId, final String artifactId, final String extension, final String classifier) {
+                removedDependencies.add(new MavenArtifactKey(groupId, artifactId, extension, classifier));
+            }
+
         };
     }
 
     @Override
-    public ReplaceDependencyRequest addReplaceDependency(final String groupId, final String artifactId) {
+    public ReplaceDependencyRequest addReplaceDependency(final String groupId, final String artifactId, final String classifier) {
+        final MavenArtifactKey mavenArtifactKey = new MavenArtifactKey(groupId, artifactId, "jar", classifier);
         return new ReplaceDependencyRequest() {
 
-            private Map<String, Set<String>> exceptsMap;
+            private Set<MavenArtifactKey> excepts;
 
             private List<Dependency> dependencies = new ArrayList<Dependency>();
 
             @Override
             public void addExcept(final String groupId, final String artifactId) {
-                if (exceptsMap == null) {
-                    exceptsMap = new HashMap<String, Set<String>>();
-                }
-                Set<String> set = exceptsMap.get(groupId);
-                if (set == null) {
-                    set = new HashSet<String>();
-                    exceptsMap.put(groupId, set);
-                }
-                set.add(artifactId);
+                addExcept(groupId, artifactId, "jar");
             }
 
             @Override
@@ -157,7 +159,30 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
             @Override
             public void execute() {
                 checkBuild();
-                defaultDependencyModifier.replace(groupId, artifactId, dependencies, exceptsMap);
+                defaultDependencyModifier.replace(mavenArtifactKey, dependencies, excepts);
+            }
+
+            @Override
+            public void addDependency(final String groupId, final String artifactId, final String version, final String extension) {
+                dependencies.add(new Dependency(new DefaultArtifact(groupId, artifactId, extension, version), "runtime"));
+            }
+
+            @Override
+            public void addDependency(final String groupId, final String artifactId, final String version, final String extension, final String classifier) {
+                dependencies.add(new Dependency(new DefaultArtifact(groupId, artifactId, classifier, extension, version), "runtime"));
+            }
+
+            @Override
+            public void addExcept(final String groupId, final String artifactId, final String extension) {
+                addExcept(groupId, artifactId, extension, "");
+            }
+
+            @Override
+            public void addExcept(final String groupId, final String artifactId, final String extension, final String classifier) {
+                if (excepts == null) {
+                    excepts = new HashSet<MavenArtifactKey>();
+                }
+                excepts.add(new MavenArtifactKey(groupId, artifactId, extension, classifier));
             }
         };
     }
@@ -221,6 +246,16 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
 
         };
 
+    }
+
+    @Override
+    public ModifyDependencyRequest addModifyDependency(final String groupId, final String artifactId) {
+        return addModifyDependency(groupId, artifactId, "");
+    }
+
+    @Override
+    public ReplaceDependencyRequest addReplaceDependency(final String groupId, final String artifactId) {
+        return addReplaceDependency(groupId, artifactId, "");
     }
 
 }

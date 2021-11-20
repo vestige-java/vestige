@@ -103,7 +103,7 @@
         <plugin>
           <groupId>fr.gaellalire.vestige</groupId>
           <artifactId>vestige.plugin.verify</artifactId>
-          <version>1.2.0</version>
+          <version>1.2.1-SNAPSHOT</version>
         </plugin>
       </plugins>
     </pluginManagement>

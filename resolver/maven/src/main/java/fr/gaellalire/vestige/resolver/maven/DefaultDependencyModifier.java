@@ -34,23 +34,18 @@ import org.eclipse.aether.impl.DependencyModifier;
  */
 public class DefaultDependencyModifier implements BeforeParentController, DependencyModifier, ArtifactPatcher {
 
-    private Map<String, Map<String, ReplacementRule>> replacementRules = new HashMap<String, Map<String, ReplacementRule>>();
+    private Map<MavenArtifactKey, ReplacementRule> replacementRules = new HashMap<MavenArtifactKey, ReplacementRule>();
 
-    private Map<String, Map<String, List<Dependency>>> addRules = new HashMap<String, Map<String, List<Dependency>>>();
+    private Map<MavenArtifactKey, List<Dependency>> addRules = new HashMap<MavenArtifactKey, List<Dependency>>();
 
-    private Map<String, Map<String, List<MavenArtifactKey>>> removeRules = new HashMap<String, Map<String, List<MavenArtifactKey>>>();
+    private Map<MavenArtifactKey, List<MavenArtifactKey>> removeRules = new HashMap<MavenArtifactKey, List<MavenArtifactKey>>();
 
-    private Map<String, Map<String, Artifact>> patches = new HashMap<String, Map<String, Artifact>>();
+    private Map<MavenArtifactKey, Artifact> patches = new HashMap<MavenArtifactKey, Artifact>();
 
     private Map<String, Set<String>> beforeParents = new HashMap<String, Set<String>>();
 
-    public void replace(final String groupId, final String artifactId, final List<Dependency> dependency, final Map<String, Set<String>> excepts) {
-        Map<String, ReplacementRule> map = replacementRules.get(groupId);
-        if (map == null) {
-            map = new HashMap<String, ReplacementRule>();
-            replacementRules.put(groupId, map);
-        }
-        map.put(artifactId, new ReplacementRule(dependency, excepts));
+    public void replace(final MavenArtifactKey mavenArtifactKey, final List<Dependency> dependency, final Set<MavenArtifactKey> excepts) {
+        replacementRules.put(mavenArtifactKey, new ReplacementRule(dependency, excepts));
     }
 
     public void addBeforeParent(final String groupId, final String artifactId) {
@@ -70,74 +65,55 @@ public class DefaultDependencyModifier implements BeforeParentController, Depend
         return set.contains(artifactId);
     }
 
-    public void remove(final String groupId, final String artifactId, final List<MavenArtifactKey> dependency) {
-        Map<String, List<MavenArtifactKey>> map = removeRules.get(groupId);
-        if (map == null) {
-            map = new HashMap<String, List<MavenArtifactKey>>();
-            removeRules.put(groupId, map);
-        }
-        map.put(artifactId, dependency);
+    public void remove(final MavenArtifactKey mavenArtifactKey, final List<MavenArtifactKey> dependency) {
+        removeRules.put(mavenArtifactKey, dependency);
     }
 
-    public void add(final String groupId, final String artifactId, final List<Dependency> dependency) {
-        Map<String, List<Dependency>> map = addRules.get(groupId);
-        if (map == null) {
-            map = new HashMap<String, List<Dependency>>();
-            addRules.put(groupId, map);
-        }
-        map.put(artifactId, dependency);
+    public void add(final MavenArtifactKey mavenArtifactKey, final List<Dependency> dependency) {
+        addRules.put(mavenArtifactKey, dependency);
     }
 
-    public List<Dependency> replaceDependency(final Artifact parentArtifact, final Dependency dependency) {
+    public List<Dependency> replaceDependency(final MavenArtifactKey parentKey, final Dependency dependency) {
         Artifact artifact = dependency.getArtifact();
-        Map<String, ReplacementRule> map = replacementRules.get(artifact.getGroupId());
-        if (map != null) {
-            ReplacementRule replacementRule = map.get(artifact.getArtifactId());
-            if (replacementRule != null) {
-                if (parentArtifact != null) {
-                    Map<String, Set<String>> excepts = replacementRule.getExcepts();
-                    if (excepts != null) {
-                        Set<String> artifactIds = excepts.get(parentArtifact.getGroupId());
-                        if (artifactIds != null && artifactIds.contains(parentArtifact.getArtifactId())) {
-                            // excepts
-                            return null;
-                        }
-                    }
+        MavenArtifactKey key = new MavenArtifactKey(artifact.getGroupId(), artifact.getArtifactId(), artifact.getExtension(), artifact.getClassifier());
+        ReplacementRule replacementRule = replacementRules.get(key);
+        if (replacementRule != null) {
+            if (parentKey != null) {
+                Set<MavenArtifactKey> excepts = replacementRule.getExcepts();
+                if (excepts != null && excepts.contains(parentKey)) {
+                    // excepts
+                    return null;
                 }
-                return replacementRule.getAddedDependencies();
             }
+            return replacementRule.getAddedDependencies();
         }
         return null;
     }
 
     public List<Dependency> modify(final Dependency dependency, final List<Dependency> children) {
         Artifact parentArtifact = null;
+        MavenArtifactKey parentKey = null;
         if (dependency != null) {
             parentArtifact = dependency.getArtifact();
-            Map<String, List<MavenArtifactKey>> mapR = removeRules.get(parentArtifact.getGroupId());
-            if (mapR != null) {
-                List<MavenArtifactKey> rDependency = mapR.get(parentArtifact.getArtifactId());
-                if (rDependency != null) {
-                    Iterator<Dependency> iterator = children.iterator();
-                    while (iterator.hasNext()) {
-                        Artifact next = iterator.next().getArtifact();
-                        if (rDependency.contains(new MavenArtifactKey(next.getGroupId(), next.getArtifactId(), next.getExtension()))) {
-                            iterator.remove();
-                        }
+            parentKey = new MavenArtifactKey(parentArtifact.getGroupId(), parentArtifact.getArtifactId(), parentArtifact.getExtension(), parentArtifact.getClassifier());
+            List<MavenArtifactKey> rDependency = removeRules.get(parentKey);
+            if (rDependency != null) {
+                Iterator<Dependency> iterator = children.iterator();
+                while (iterator.hasNext()) {
+                    Artifact next = iterator.next().getArtifact();
+                    if (rDependency.contains(new MavenArtifactKey(next.getGroupId(), next.getArtifactId(), next.getExtension(), next.getClassifier()))) {
+                        iterator.remove();
                     }
                 }
             }
-            Map<String, List<Dependency>> map = addRules.get(parentArtifact.getGroupId());
-            if (map != null) {
-                List<Dependency> rDependency = map.get(parentArtifact.getArtifactId());
-                if (rDependency != null) {
-                    children.addAll(rDependency);
-                }
+            List<Dependency> aDependency = addRules.get(parentKey);
+            if (aDependency != null) {
+                children.addAll(aDependency);
             }
         }
         ListIterator<Dependency> listIterator = children.listIterator();
         while (listIterator.hasNext()) {
-            List<Dependency> replaceDependency = replaceDependency(parentArtifact, listIterator.next());
+            List<Dependency> replaceDependency = replaceDependency(parentKey, listIterator.next());
             if (replaceDependency != null) {
                 listIterator.remove();
                 Iterator<Dependency> iterator = replaceDependency.iterator();
@@ -149,22 +125,13 @@ public class DefaultDependencyModifier implements BeforeParentController, Depend
         return children;
     }
 
-    public void setPatch(final String groupId, final String artifactId, final Artifact patch) {
-        Map<String, Artifact> map = patches.get(groupId);
-        if (map == null) {
-            map = new HashMap<String, Artifact>();
-            patches.put(groupId, map);
-        }
-        map.put(artifactId, patch);
+    public void setPatch(final MavenArtifactKey mavenArtifactKey, final Artifact patch) {
+        patches.put(mavenArtifactKey, patch);
     }
 
     @Override
     public Artifact patch(final Artifact mavenArtifact) {
-        Map<String, Artifact> map = patches.get(mavenArtifact.getGroupId());
-        if (map == null) {
-            return null;
-        }
-        return map.get(mavenArtifact.getArtifactId());
+        return patches.get(new MavenArtifactKey(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId(), mavenArtifact.getExtension(), mavenArtifact.getClassifier()));
     }
 
 }

@@ -17,6 +17,7 @@
 
 package fr.gaellalire.vestige.resolver.maven;
 
+import java.io.IOException;
 import java.io.Serializable;
 
 /**
@@ -32,10 +33,21 @@ public class MavenArtifactKey implements Serializable {
 
     private String extension;
 
-    public MavenArtifactKey(final String groupId, final String artifactId, final String extension) {
+    private String classifier;
+
+    public MavenArtifactKey(final String groupId, final String artifactId, final String extension, final String classifier) {
         this.groupId = groupId;
         this.artifactId = artifactId;
-        this.extension = extension;
+        if (extension == null) {
+            this.extension = "jar";
+        } else {
+            this.extension = extension;
+        }
+        if (classifier == null) {
+            this.classifier = "";
+        } else {
+            this.classifier = classifier;
+        }
     }
 
     public String getGroupId() {
@@ -50,25 +62,24 @@ public class MavenArtifactKey implements Serializable {
         return extension;
     }
 
+    private void readObject(final java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        if (extension == null) {
+            extension = "jar";
+        }
+        if (classifier == null) {
+            classifier = "";
+        }
+    }
+
     @Override
     public int hashCode() {
         final int prime = 31;
         int result = 1;
-        if (artifactId == null) {
-            result = prime * result;
-        } else {
-            result = prime * result + artifactId.hashCode();
-        }
-        if (extension == null) {
-            result = prime * result;
-        } else {
-            result = prime * result + extension.hashCode();
-        }
-        if (groupId == null) {
-            result = prime * result;
-        } else {
-            result = prime * result + groupId.hashCode();
-        }
+        result = prime * result + groupId.hashCode();
+        result = prime * result + artifactId.hashCode();
+        result = prime * result + extension.hashCode();
+        result = prime * result + classifier.hashCode();
         return result;
     }
 
@@ -84,25 +95,16 @@ public class MavenArtifactKey implements Serializable {
             return false;
         }
         MavenArtifactKey other = (MavenArtifactKey) obj;
-        if (artifactId == null) {
-            if (other.artifactId != null) {
-                return false;
-            }
-        } else if (!artifactId.equals(other.artifactId)) {
+        if (!groupId.equals(other.groupId)) {
             return false;
         }
-        if (extension == null) {
-            if (other.extension != null) {
-                return false;
-            }
-        } else if (!extension.equals(other.extension)) {
+        if (!artifactId.equals(other.artifactId)) {
             return false;
         }
-        if (groupId == null) {
-            if (other.groupId != null) {
-                return false;
-            }
-        } else if (!groupId.equals(other.groupId)) {
+        if (!extension.equals(other.extension)) {
+            return false;
+        }
+        if (!classifier.equals(other.classifier)) {
             return false;
         }
         return true;

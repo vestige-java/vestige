@@ -18,7 +18,6 @@
 package fr.gaellalire.vestige.resolver.maven;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.aether.graph.Dependency;
@@ -30,14 +29,14 @@ public class ReplacementRule {
 
     private List<Dependency> addedDependencies;
 
-    private Map<String, Set<String>> excepts;
+    private Set<MavenArtifactKey> excepts;
 
-    public ReplacementRule(final List<Dependency> addedDependencies, final Map<String, Set<String>> excepts) {
+    public ReplacementRule(final List<Dependency> addedDependencies, final Set<MavenArtifactKey> excepts) {
         this.addedDependencies = addedDependencies;
         this.excepts = excepts;
     }
 
-    public Map<String, Set<String>> getExcepts() {
+    public Set<MavenArtifactKey> getExcepts() {
         return excepts;
     }
 

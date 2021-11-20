@@ -20,6 +20,7 @@ package fr.gaellalire.vestige.resolver.maven.secure;
 import java.security.Permission;
 import java.security.PermissionCollection;
 
+import fr.gaellalire.vestige.spi.job.JobHelper;
 import fr.gaellalire.vestige.spi.resolver.ResolverException;
 import fr.gaellalire.vestige.spi.resolver.Scope;
 import fr.gaellalire.vestige.spi.resolver.maven.CreateClassLoaderConfigurationRequest;
@@ -151,6 +152,33 @@ public class SecureCreateClassLoaderConfigurationRequest implements CreateClassL
     @Override
     public String toString() {
         return delegate.toString();
+    }
+
+    @Override
+    public MavenResolvedClassLoaderConfiguration execute(final JobHelper jobHelper) throws ResolverException {
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            MavenResolvedClassLoaderConfiguration execute = delegate.execute(jobHelper);
+            PermissionCollection permissionCollection = vestigePolicy.getPermissionCollection();
+            if (permissionCollection != null) {
+                for (Permission permission : execute.getPermissions()) {
+                    permissionCollection.add(permission);
+                }
+            }
+            return new SecureMavenResolvedClassLoaderConfiguration(secureVestigeSystem, execute);
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
+    }
+
+    @Override
+    public ModifyLoadedDependencyRequest addModifyLoadedDependency(final String groupId, final String artifactId, final String classifier) {
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return delegate.addModifyLoadedDependency(groupId, artifactId, classifier);
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
     }
 
 }

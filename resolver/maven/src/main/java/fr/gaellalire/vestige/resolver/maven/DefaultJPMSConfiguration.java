@@ -29,23 +29,14 @@ import fr.gaellalire.vestige.platform.ModuleConfiguration;
  */
 public class DefaultJPMSConfiguration {
 
-    private Map<String, Map<String, JPMSClassLoaderConfiguration>> moduleConfigurationByArtifactIdByGroupdId = new HashMap<String, Map<String, JPMSClassLoaderConfiguration>>();
+    private Map<MavenArtifactKey, JPMSClassLoaderConfiguration> moduleConfigurationByArtifactIdByGroupdId = new HashMap<MavenArtifactKey, JPMSClassLoaderConfiguration>();
 
-    public void addModuleConfiguration(final String groupId, final String artifactId, final Collection<ModuleConfiguration> moduleConfigurations) {
-        Map<String, JPMSClassLoaderConfiguration> moduleConfigurationByArtifactId = moduleConfigurationByArtifactIdByGroupdId.get(groupId);
-        if (moduleConfigurationByArtifactId == null) {
-            moduleConfigurationByArtifactId = new HashMap<String, JPMSClassLoaderConfiguration>();
-            moduleConfigurationByArtifactIdByGroupdId.put(groupId, moduleConfigurationByArtifactId);
-        }
-        moduleConfigurationByArtifactId.put(artifactId, JPMSClassLoaderConfiguration.EMPTY_INSTANCE.merge(moduleConfigurations));
+    public void addModuleConfiguration(final MavenArtifactKey mavenArtifactKey, final Collection<ModuleConfiguration> moduleConfigurations) {
+        moduleConfigurationByArtifactIdByGroupdId.put(mavenArtifactKey, JPMSClassLoaderConfiguration.EMPTY_INSTANCE.merge(moduleConfigurations));
     }
 
-    public JPMSClassLoaderConfiguration getModuleConfiguration(final String groupId, final String artifactId) {
-        Map<String, JPMSClassLoaderConfiguration> moduleConfigurationByArtifactId = moduleConfigurationByArtifactIdByGroupdId.get(groupId);
-        if (moduleConfigurationByArtifactId == null) {
-            return JPMSClassLoaderConfiguration.EMPTY_INSTANCE;
-        }
-        JPMSClassLoaderConfiguration moduleConfiguration = moduleConfigurationByArtifactId.get(artifactId);
+    public JPMSClassLoaderConfiguration getModuleConfiguration(final MavenArtifactKey mavenArtifactKey) {
+        JPMSClassLoaderConfiguration moduleConfiguration = moduleConfigurationByArtifactIdByGroupdId.get(mavenArtifactKey);
         if (moduleConfiguration == null) {
             return JPMSClassLoaderConfiguration.EMPTY_INSTANCE;
         }
