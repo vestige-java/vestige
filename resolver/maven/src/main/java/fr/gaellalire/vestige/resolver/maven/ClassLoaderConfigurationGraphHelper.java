@@ -99,7 +99,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
         List<DefaultMavenArtifact> nodes = new ArrayList<DefaultMavenArtifact>(pnodes.size());
         for (DefaultMavenArtifact mavenArtifact : pnodes) {
-            if (!mavenArtifact.isVirtual()) {
+            if (!mavenArtifact.isVirtual() && !"pom".equals(mavenArtifact.getExtension())) {
                 nodes.add(mavenArtifact);
                 mavenArtifacts.add(mavenArtifact);
             } else if (mavenArtifact.isParentExcluder()) {

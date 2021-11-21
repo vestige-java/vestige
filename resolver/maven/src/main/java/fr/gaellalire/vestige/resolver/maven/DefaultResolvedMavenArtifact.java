@@ -300,6 +300,11 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
             int size = artifacts.size();
             for (MavenArtifactAndMetadata artifact : artifacts) {
                 DefaultMavenArtifact mavenArtifact = artifact.getMavenArtifact();
+                if ("pom".equals(mavenArtifact.getExtension())) {
+                    i++;
+                    taskHelper.setProgress(((float) i) / size);
+                    continue;
+                }
                 if ("org.slf4j".equals(mavenArtifact.getGroupId()) && "slf4j-api".equals(mavenArtifact.getArtifactId())) {
                     mdcIncluded = true;
                 }
@@ -335,8 +340,8 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
                 } else {
                     moduleConfiguration = moduleConfiguration.merge(unnamedClassLoaderConfiguration);
                 }
-                taskHelper.setProgress(((float) i) / size);
                 i++;
+                taskHelper.setProgress(((float) i) / size);
             }
             MavenClassLoaderConfigurationKey key = new MavenClassLoaderConfigurationKey(notNullMavenArtifacts, Collections.<MavenClassLoaderConfigurationKey> emptyList(), scope,
                     moduleConfiguration, jpmsNamedModulesConfiguration, beforeParents);
