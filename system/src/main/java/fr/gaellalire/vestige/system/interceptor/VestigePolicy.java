@@ -62,7 +62,7 @@ public abstract class VestigePolicy extends Policy implements StackedHandler<Pol
     public PermissionCollection getPermissions(final CodeSource codesource) {
         Policy currentPolicy = getCurrentPolicy();
         if (currentPolicy == null) {
-            return super.getPermissions(codesource);
+            return AllPermissionCollection.INSTANCE;
         }
         return getCurrentPolicy().getPermissions(codesource);
     }

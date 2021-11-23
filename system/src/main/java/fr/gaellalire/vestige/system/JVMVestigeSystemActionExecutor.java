@@ -86,6 +86,7 @@ public class JVMVestigeSystemActionExecutor implements VestigeSystemActionExecut
         final VestigeSystemHolder vestigeSystemHolder = new VestigeSystemHolder();
         final DefaultVestigeSystem vestigeSystem = new DefaultVestigeSystem(vestigeSystemHolder, "rootVestigeSystem");
         vestigeSystemHolder.setFallbackVestigeSystem(vestigeSystem);
+        vestigeSystemHolder.setFallbackVestigeSystemCache(new DefaultVestigeSystemCache(vestigeSystem, vestigeSystemHolder, null));
         vestigeSystemHolder.setHandlerVestigeSystem(vestigeSystem);
 
         VestigePolicy vestigePolicy = null;

@@ -31,6 +31,8 @@ public class VestigeSystemHolder {
 
     private DefaultVestigeSystem fallbackVestigeSystem;
 
+    private DefaultVestigeSystemCache fallbackVestigeSystemCache;
+
     private VestigeSystem handlerVestigeSystem;
 
     private VestigeSystemJarURLStreamHandler vestigeApplicationJarURLStreamHandler;
@@ -66,6 +68,10 @@ public class VestigeSystemHolder {
         fallbackVestigeSystem = vestigeSystem;
     }
 
+    public void setFallbackVestigeSystemCache(final DefaultVestigeSystemCache fallbackVestigeSystemCache) {
+        this.fallbackVestigeSystemCache = fallbackVestigeSystemCache;
+    }
+
     public void setVestigeApplicationJarURLStreamHandler(final VestigeSystemJarURLStreamHandler vestigeApplicationJarURLStreamHandler) {
         this.vestigeApplicationJarURLStreamHandler = vestigeApplicationJarURLStreamHandler;
     }
@@ -75,7 +81,11 @@ public class VestigeSystemHolder {
     }
 
     public DefaultVestigeSystemCache getVestigeSystemCache() {
-        return vestigeSystemCacheThreadLocal.get();
+        DefaultVestigeSystemCache vestigeSystemCache = vestigeSystemCacheThreadLocal.get();
+        if (vestigeSystemCache != null) {
+            return vestigeSystemCache;
+        }
+        return fallbackVestigeSystemCache;
     }
 
     public VestigeSystemCache pushVestigeSystemCache() {
