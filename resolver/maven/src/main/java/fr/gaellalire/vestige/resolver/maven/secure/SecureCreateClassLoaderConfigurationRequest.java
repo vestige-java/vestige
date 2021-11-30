@@ -181,4 +181,25 @@ public class SecureCreateClassLoaderConfigurationRequest implements CreateClassL
         }
     }
 
+    @Override
+    public void addExclude(final String groupId, final String artifactId, final String extension, final String classifier) {
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            delegate.addExclude(groupId, artifactId, extension, classifier);
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
+    }
+
+    @Override
+    public void addExcludeWithParents(final String groupId, final String artifactId, final String extension, final String classifier) {
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            delegate.addExcludeWithParents(groupId, artifactId, extension, classifier);
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
+
+    }
+
 }

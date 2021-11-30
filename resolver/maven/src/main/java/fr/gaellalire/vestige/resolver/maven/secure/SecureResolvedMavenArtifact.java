@@ -68,6 +68,11 @@ public class SecureResolvedMavenArtifact implements ResolvedMavenArtifact {
     }
 
     @Override
+    public String getClassifier() {
+        return delegate.getClassifier();
+    }
+
+    @Override
     public Enumeration<ResolvedMavenArtifact> getDependencies() throws ResolverException {
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {

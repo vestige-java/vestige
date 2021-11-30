@@ -116,6 +116,11 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
         return artifact.getExtension();
     }
 
+    @Override
+    public String getClassifier() {
+        return artifact.getClassifier();
+    }
+
     public List<? extends DefaultResolvedMavenArtifact> getDependenciesAsList() throws ResolverException {
         List<NodeAndState> dependencies = dependencyReader.getDependencies(nodeAndState);
         List<DefaultResolvedMavenArtifact> resolvedMavenArtifacts = new ArrayList<DefaultResolvedMavenArtifact>(dependencies.size());
@@ -525,6 +530,22 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
                     excludes = new HashSet<MavenArtifactKey>();
                 }
                 excludes.add(new MavenArtifactKey(groupId, artifactId, "jar", ""));
+            }
+
+            @Override
+            public void addExclude(final String groupId, final String artifactId, final String extension, final String classifier) {
+                if (excludes == null) {
+                    excludes = new HashSet<MavenArtifactKey>();
+                }
+                excludes.add(new MavenArtifactKey(groupId, artifactId, extension, classifier));
+            }
+
+            @Override
+            public void addExcludeWithParents(final String groupId, final String artifactId, final String extension, final String classifier) {
+                if (excludesWithParents == null) {
+                    excludesWithParents = new HashSet<MavenArtifactKey>();
+                }
+                excludesWithParents.add(new MavenArtifactKey(groupId, artifactId, extension, classifier));
             }
         };
     }

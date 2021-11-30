@@ -22,7 +22,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
@@ -100,11 +99,8 @@ public class VestigeSystemJarURLStreamHandler extends URLStreamHandler {
         if (cachedJarFile == null) {
             boolean temporary = false;
             if (isLocalFileURL(jarFileUrl)) {
-                try {
-                    file = new File(jarFileUrl.toURI());
-                } catch (URISyntaxException e) {
-                    throw new IOException("File URI syntax", e);
-                }
+                // ParseUtil.decode will allow invalid URL
+                file = new File(ParseUtil.decode(jarFileUrl.getFile()));
             } else {
                 // copy in temp
                 InputStream inputStream = jarFileUrl.openConnection().getInputStream();

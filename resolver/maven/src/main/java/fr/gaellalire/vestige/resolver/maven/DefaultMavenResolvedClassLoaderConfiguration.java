@@ -82,6 +82,11 @@ public class DefaultMavenResolvedClassLoaderConfiguration extends DefaultResolve
                     public String getArtifactId() {
                         return next.getArtifactId();
                     }
+
+                    @Override
+                    public String getClassifier() {
+                        return next.getClassifier();
+                    }
                 };
             }
         };
