@@ -408,8 +408,17 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
 
         ArtifactPatcher artifactPatcher = resolveRequest.getArtifactPatcher();
 
-        Dependency dependency = new Dependency(new DefaultArtifact(resolveRequest.getGroupId(), resolveRequest.getArtifactId(), resolveRequest.getClassifier(),
-                resolveRequest.getExtension(), resolveRequest.getVersion()), "runtime");
+        DependencyModifier dependencyModifier = resolveRequest.getDependencyModifier();
+        if (dependencyModifier == null) {
+            dependencyModifier = NOOP_DEPENDENCY_MODIFIER;
+        }
+
+        Artifact rootArtifact = new DefaultArtifact(resolveRequest.getGroupId(), resolveRequest.getArtifactId(), resolveRequest.getClassifier(), resolveRequest.getExtension(),
+                resolveRequest.getVersion());
+        if (artifactPatcher != null) {
+            rootArtifact = artifactPatcher.replace(rootArtifact);
+        }
+        Dependency dependency = new Dependency(rootArtifact, "runtime");
 
         CollectRequest collectRequest = new CollectRequest();
         collectRequest.setRoot(dependency);
@@ -439,10 +448,6 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
 
             LOGGER.info("Collecting dependencies for {}{}", dependency, logAppend);
             DependencyNode node;
-            DependencyModifier dependencyModifier = resolveRequest.getDependencyModifier();
-            if (dependencyModifier == null) {
-                dependencyModifier = NOOP_DEPENDENCY_MODIFIER;
-            }
 
             try {
                 node = dependencyCollector.collectDependencies(session, collectRequest, dependencyModifier).getRoot();
@@ -529,7 +534,7 @@ public class MavenArtifactResolver implements VestigeMavenResolver {
             }
 
             return new DefaultResolvedMavenArtifact(vestigePlatform, vestigeWorker[0], new DependencyReader(descriptorReader, collectRequest, session, dependencyModifier),
-                    new NodeAndState(null, node, session.getDependencyManager()), mavenArtifactAndMetadatas, true);
+                    new NodeAndState(true, null, node, session.getDependencyManager()), mavenArtifactAndMetadatas, true);
         }
     }
 

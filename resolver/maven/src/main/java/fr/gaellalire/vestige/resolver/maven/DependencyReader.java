@@ -156,7 +156,7 @@ public class DependencyReader {
             for (Dependency dependency : dependencies) {
                 PremanagedDependency preManaged = PremanagedDependency.create(dependencyManager, dependency, false, false);
                 dependency = preManaged.getManagedDependency();
-                children.add(new NodeAndState(managedDependencies, new DefaultDependencyNode(dependency), dependencyManager));
+                children.add(new NodeAndState(false, managedDependencies, new DefaultDependencyNode(dependency), dependencyManager));
             }
             return children;
         } catch (ArtifactDescriptorException e) {

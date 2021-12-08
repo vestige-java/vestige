@@ -19,6 +19,7 @@ package fr.gaellalire.vestige.resolver.maven;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -174,37 +175,28 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
         Set<MavenArtifactKey> excludesWithParents = createClassLoaderConfigurationParameters.getExcludesWithParents();
         Set<MavenArtifactKey> excludes = createClassLoaderConfigurationParameters.getExcludes();
         if (createClassLoaderConfigurationParameters.isManyLoaders() && !createClassLoaderConfigurationParameters.isDependenciesExcluded()) {
-            Map<String, Map<String, DefaultMavenArtifact>> runtimeDependencies = new HashMap<String, Map<String, DefaultMavenArtifact>>();
+            Map<MavenArtifactKey, DefaultMavenArtifact> runtimeDependencies = new HashMap<MavenArtifactKey, DefaultMavenArtifact>();
             Map<DefaultMavenArtifact, FileWithMetadata> urlByKey = new HashMap<DefaultMavenArtifact, FileWithMetadata>();
             for (MavenArtifactAndMetadata artifact : artifacts) {
                 DefaultMavenArtifact mavenArtifact = artifact.getMavenArtifact();
-                Map<String, DefaultMavenArtifact> map = runtimeDependencies.get(mavenArtifact.getGroupId());
-                if (map == null) {
-                    map = new HashMap<String, DefaultMavenArtifact>();
-                    runtimeDependencies.put(mavenArtifact.getGroupId(), map);
-                }
-                map.put(mavenArtifact.getArtifactId(), mavenArtifact);
+                runtimeDependencies.put(
+                        new MavenArtifactKey(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId(), mavenArtifact.getExtension(), mavenArtifact.getClassifier()),
+                        mavenArtifact);
                 urlByKey.put(mavenArtifact, artifact.getFileWithMetadata());
             }
 
             if (createClassLoaderConfigurationParameters.isSelfExcluded()) {
-                runtimeDependencies.get(getGroupId()).put(getArtifactId(), new DefaultMavenArtifact());
+                runtimeDependencies.put(new MavenArtifactKey(getGroupId(), getArtifactId(), getExtension(), getClassifier()), new DefaultMavenArtifact());
             }
             if (excludesWithParents != null || excludes != null) {
                 if (excludes != null && excludes.size() != 0) {
                     for (MavenArtifactKey exclude : excludes) {
-                        Map<String, DefaultMavenArtifact> map = runtimeDependencies.get(exclude.getGroupId());
-                        if (map != null) {
-                            map.put(exclude.getArtifactId(), new DefaultMavenArtifact());
-                        }
+                        runtimeDependencies.put(exclude, new DefaultMavenArtifact());
                     }
                 }
                 if (excludesWithParents != null && excludesWithParents.size() != 0) {
                     for (MavenArtifactKey exclude : excludesWithParents) {
-                        Map<String, DefaultMavenArtifact> map = runtimeDependencies.get(exclude.getGroupId());
-                        if (map != null) {
-                            map.put(exclude.getArtifactId(), new DefaultMavenArtifact(true));
-                        }
+                        runtimeDependencies.put(exclude, new DefaultMavenArtifact(true));
                     }
                 }
 
@@ -548,6 +540,15 @@ public class DefaultResolvedMavenArtifact implements ResolvedMavenArtifact {
                 excludesWithParents.add(new MavenArtifactKey(groupId, artifactId, extension, classifier));
             }
         };
+    }
+
+    public URL getCodeBase() {
+        return fileWithMetadata.getCodeBase();
+    }
+
+    @Override
+    public String toString() {
+        return getCodeBase().toString();
     }
 
 }

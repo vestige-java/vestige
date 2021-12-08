@@ -28,13 +28,16 @@ import org.eclipse.aether.graph.DependencyNode;
  */
 public class NodeAndState {
 
+    private boolean root;
+
     private List<Dependency> managedDependencies;
 
     private DependencyNode dependencyNode;
 
     private DependencyManager dependencyManager;
 
-    public NodeAndState(final List<Dependency> managedDependencies, final DependencyNode dependencyNode, final DependencyManager dependencyManager) {
+    public NodeAndState(final boolean root, final List<Dependency> managedDependencies, final DependencyNode dependencyNode, final DependencyManager dependencyManager) {
+        this.root = root;
         this.managedDependencies = managedDependencies;
         this.dependencyNode = dependencyNode;
         this.dependencyManager = dependencyManager;
@@ -50,6 +53,10 @@ public class NodeAndState {
 
     public DependencyManager getDependencyManager() {
         return dependencyManager;
+    }
+
+    public boolean isRoot() {
+        return root;
     }
 
     @Override

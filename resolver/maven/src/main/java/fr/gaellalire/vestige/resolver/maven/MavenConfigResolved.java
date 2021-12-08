@@ -34,6 +34,7 @@ import fr.gaellalire.vestige.spi.resolver.maven.ModifyDependencyRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.ReplaceDependencyRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolveMavenArtifactRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolvedMavenArtifact;
+import fr.gaellalire.vestige.spi.resolver.maven.SetClassifierToExtensionRequest;
 
 /**
  * @author Gael Lalire
@@ -138,6 +139,29 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
     }
 
     @Override
+    public SetClassifierToExtensionRequest setClassifierToExtension(final String extension, final String classifier) {
+        return new SetClassifierToExtensionRequest() {
+
+            private Set<MavenArtifactKey> excepts;
+
+            @Override
+            public void addExcept(final String groupId, final String artifactId) {
+                if (excepts == null) {
+                    excepts = new HashSet<MavenArtifactKey>();
+                }
+                excepts.add(new MavenArtifactKey(groupId, artifactId, extension, ""));
+            }
+
+            @Override
+            public void execute() {
+                checkBuild();
+                defaultDependencyModifier.setClassifierToExtension(extension, classifier, excepts);
+            }
+
+        };
+    }
+
+    @Override
     public ReplaceDependencyRequest addReplaceDependency(final String groupId, final String artifactId, final String classifier) {
         final MavenArtifactKey mavenArtifactKey = new MavenArtifactKey(groupId, artifactId, "jar", classifier);
         return new ReplaceDependencyRequest() {
@@ -164,11 +188,13 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
 
             @Override
             public void addDependency(final String groupId, final String artifactId, final String version, final String extension) {
+                // FIXME DefaultArtifact.properties by extension / or add properties in API ?
                 dependencies.add(new Dependency(new DefaultArtifact(groupId, artifactId, extension, version), "runtime"));
             }
 
             @Override
             public void addDependency(final String groupId, final String artifactId, final String version, final String extension, final String classifier) {
+                // FIXME DefaultArtifact.properties by extension / or add properties in API ?
                 dependencies.add(new Dependency(new DefaultArtifact(groupId, artifactId, classifier, extension, version), "runtime"));
             }
 

@@ -17,6 +17,8 @@
 
 package fr.gaellalire.vestige.resolver.maven;
 
+import java.io.File;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -26,6 +28,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.aether.artifact.Artifact;
+import org.eclipse.aether.artifact.DefaultArtifact;
 import org.eclipse.aether.graph.Dependency;
 import org.eclipse.aether.impl.DependencyModifier;
 
@@ -43,6 +46,12 @@ public class DefaultDependencyModifier implements BeforeParentController, Depend
     private Map<MavenArtifactKey, Artifact> patches = new HashMap<MavenArtifactKey, Artifact>();
 
     private Map<String, Set<String>> beforeParents = new HashMap<String, Set<String>>();
+
+    private Map<String, SetClassifierRule> classifierByExtension = new HashMap<String, SetClassifierRule>();
+
+    public void setClassifierToExtension(final String extension, final String classifier, final Set<MavenArtifactKey> excepts) {
+        classifierByExtension.put(extension, new SetClassifierRule(classifier, excepts));
+    }
 
     public void replace(final MavenArtifactKey mavenArtifactKey, final List<Dependency> dependency, final Set<MavenArtifactKey> excepts) {
         replacementRules.put(mavenArtifactKey, new ReplacementRule(dependency, excepts));
@@ -74,20 +83,33 @@ public class DefaultDependencyModifier implements BeforeParentController, Depend
     }
 
     public List<Dependency> replaceDependency(final MavenArtifactKey parentKey, final Dependency dependency) {
+        List<Dependency> replacedDependency = null;
+
         Artifact artifact = dependency.getArtifact();
         MavenArtifactKey key = new MavenArtifactKey(artifact.getGroupId(), artifact.getArtifactId(), artifact.getExtension(), artifact.getClassifier());
+        SetClassifierRule setClassifierRule = classifierByExtension.get(artifact.getExtension());
+        if (setClassifierRule != null) {
+            Set<MavenArtifactKey> excepts = setClassifierRule.getExcepts();
+            if (excepts == null || !excepts.contains(key)) {
+                artifact = new DefaultArtifact(artifact.getGroupId(), artifact.getArtifactId(), setClassifierRule.getClassifier(), artifact.getExtension(), artifact.getVersion(),
+                        artifact.getProperties(), (File) null);
+                key = new MavenArtifactKey(artifact.getGroupId(), artifact.getArtifactId(), artifact.getExtension(), artifact.getClassifier());
+                replacedDependency = Collections.singletonList(new Dependency(artifact, "runtime"));
+            }
+        }
+
         ReplacementRule replacementRule = replacementRules.get(key);
         if (replacementRule != null) {
             if (parentKey != null) {
                 Set<MavenArtifactKey> excepts = replacementRule.getExcepts();
                 if (excepts != null && excepts.contains(parentKey)) {
                     // excepts
-                    return null;
+                    return replacedDependency;
                 }
             }
             return replacementRule.getAddedDependencies();
         }
-        return null;
+        return replacedDependency;
     }
 
     public List<Dependency> modify(final Dependency dependency, final List<Dependency> children) {
@@ -132,6 +154,15 @@ public class DefaultDependencyModifier implements BeforeParentController, Depend
     @Override
     public Artifact patch(final Artifact mavenArtifact) {
         return patches.get(new MavenArtifactKey(mavenArtifact.getGroupId(), mavenArtifact.getArtifactId(), mavenArtifact.getExtension(), mavenArtifact.getClassifier()));
+    }
+
+    @Override
+    public Artifact replace(final Artifact artifact) {
+        List<Dependency> replacedDependencies = replaceDependency(null, new Dependency(artifact, "runtime"));
+        if (replacedDependencies == null || replacedDependencies.size() != 1) {
+            return artifact;
+        }
+        return replacedDependencies.get(0).getArtifact();
     }
 
 }

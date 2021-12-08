@@ -22,6 +22,7 @@ import fr.gaellalire.vestige.spi.resolver.maven.MavenContextBuilder;
 import fr.gaellalire.vestige.spi.resolver.maven.ModifyDependencyRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.ReplaceDependencyRequest;
 import fr.gaellalire.vestige.spi.resolver.maven.ResolveMavenArtifactRequest;
+import fr.gaellalire.vestige.spi.resolver.maven.SetClassifierToExtensionRequest;
 import fr.gaellalire.vestige.spi.system.VestigeSystem;
 import fr.gaellalire.vestige.system.PrivateVestigePolicy;
 
@@ -129,6 +130,16 @@ public class SecureMavenContextBuilder implements MavenContextBuilder, MavenCont
         VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
         try {
             return delegate.addReplaceDependency(groupId, artifactId, classifier);
+        } finally {
+            vestigeSystem.setCurrentSystem();
+        }
+    }
+
+    @Override
+    public SetClassifierToExtensionRequest setClassifierToExtension(final String extension, final String classifier) {
+        VestigeSystem vestigeSystem = secureVestigeSystem.setCurrentSystem();
+        try {
+            return delegate.setClassifierToExtension(extension, classifier);
         } finally {
             vestigeSystem.setCurrentSystem();
         }

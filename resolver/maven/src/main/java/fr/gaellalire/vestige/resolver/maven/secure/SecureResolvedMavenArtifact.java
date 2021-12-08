@@ -18,6 +18,7 @@
 package fr.gaellalire.vestige.resolver.maven.secure;
 
 import java.io.File;
+import java.net.URL;
 import java.util.Enumeration;
 
 import fr.gaellalire.vestige.resolver.common.secure.ElementSecureMaker;
@@ -107,6 +108,11 @@ public class SecureResolvedMavenArtifact implements ResolvedMavenArtifact {
     @Override
     public String toString() {
         return delegate.toString();
+    }
+
+    @Override
+    public URL getCodeBase() {
+        return delegate.getCodeBase();
     }
 
 }

@@ -17,15 +17,27 @@
 
 package fr.gaellalire.vestige.resolver.maven;
 
-import org.eclipse.aether.artifact.Artifact;
+import java.util.Set;
 
 /**
  * @author Gael Lalire
  */
-public interface ArtifactPatcher {
+public class SetClassifierRule {
 
-    Artifact patch(Artifact mavenArtifact);
+    private String classifier;
 
-    Artifact replace(Artifact mavenArtifact);
+    private Set<MavenArtifactKey> excepts;
 
+    public SetClassifierRule(final String classifier, final Set<MavenArtifactKey> excepts) {
+        this.classifier = classifier;
+        this.excepts = excepts;
+    }
+
+    public Set<MavenArtifactKey> getExcepts() {
+        return excepts;
+    }
+
+    public String getClassifier() {
+        return classifier;
+    }
 }

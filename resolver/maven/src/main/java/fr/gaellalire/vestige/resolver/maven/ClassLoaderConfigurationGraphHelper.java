@@ -46,7 +46,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
     private Map<DefaultMavenArtifact, FileWithMetadata> urlByKey;
 
-    private Map<String, Map<String, DefaultMavenArtifact>> runtimeDependencies;
+    private Map<MavenArtifactKey, DefaultMavenArtifact> runtimeDependencies;
 
     private Scope scope;
 
@@ -72,7 +72,7 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
 
     public ClassLoaderConfigurationGraphHelper(final String appName, final Map<DefaultMavenArtifact, FileWithMetadata> urlByKey, final DependencyReader dependencyReader,
             final BeforeParentController beforeParentController, final DefaultJPMSConfiguration jpmsConfiguration,
-            final Map<String, Map<String, DefaultMavenArtifact>> runtimeDependencies, final Scope scope, final ScopeModifier scopeModifier,
+            final Map<MavenArtifactKey, DefaultMavenArtifact> runtimeDependencies, final Scope scope, final ScopeModifier scopeModifier,
             final JPMSNamedModulesConfiguration namedModulesConfiguration, final List<DefaultMavenArtifact> mavenArtifacts, final TaskHelper taskHelper, final float taskProgress) {
         cachedClassLoaderConfigurationFactory = new HashMap<List<DefaultMavenArtifact>, ClassLoaderConfigurationFactory>();
         this.appName = appName;
@@ -181,17 +181,20 @@ public class ClassLoaderConfigurationGraphHelper implements GraphHelper<NodeAndS
     }
 
     public List<NodeAndState> getNexts(final NodeAndState nodeAndState) throws ResolverException {
+        if (!nodeAndState.isRoot()) {
+            String extension = nodeAndState.getDependencyNode().getArtifact().getExtension();
+            if ("war".equals(extension) || "ear".equals(extension)) {
+                return Collections.emptyList();
+            }
+        }
         return dependencyReader.getDependencies(nodeAndState);
     }
 
     public DefaultMavenArtifact getKey(final NodeAndState nodeAndState) {
         Artifact artifact = nodeAndState.getDependencyNode().getDependency().getArtifact();
 
-        DefaultMavenArtifact key = null;
-        Map<String, DefaultMavenArtifact> map = runtimeDependencies.get(artifact.getGroupId());
-        if (map != null) {
-            key = map.get(artifact.getArtifactId());
-        }
+        DefaultMavenArtifact key = runtimeDependencies
+                .get(new MavenArtifactKey(artifact.getGroupId(), artifact.getArtifactId(), artifact.getExtension(), artifact.getClassifier()));
         if (key == null) {
             // key not known because dependency is optional, dependency is test
             // scope for root, dependency is excluded by an exclude element
