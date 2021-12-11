@@ -107,7 +107,18 @@ public class DefaultDependencyModifier implements BeforeParentController, Depend
                     return replacedDependency;
                 }
             }
-            return replacementRule.getAddedDependencies();
+            List<Dependency> addedDependencies = replacementRule.getAddedDependencies();
+            if (addedDependencies.size() == 1) {
+                Dependency addedDependency = addedDependencies.get(0);
+                Artifact addedArtifact = addedDependency.getArtifact();
+                if (addedArtifact.getExtension().equals(artifact.getExtension())) {
+                    // one artifact replace another of same extension, then we keep the original properties
+                    addedArtifact = new DefaultArtifact(addedArtifact.getGroupId(), addedArtifact.getArtifactId(), addedArtifact.getClassifier(), addedArtifact.getExtension(),
+                            addedArtifact.getVersion(), artifact.getProperties(), (File) null);
+                    return Collections.singletonList(new Dependency(addedArtifact, addedDependency.getScope()));
+                }
+            }
+            return addedDependencies;
         }
         return replacedDependency;
     }

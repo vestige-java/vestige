@@ -38,7 +38,7 @@ public class MavenArtifactKey implements Serializable {
     public MavenArtifactKey(final String groupId, final String artifactId, final String extension, final String classifier) {
         this.groupId = groupId;
         this.artifactId = artifactId;
-        if (extension == null) {
+        if (extension == null || extension.length() == 0) {
             this.extension = "jar";
         } else {
             this.extension = extension;
@@ -64,7 +64,7 @@ public class MavenArtifactKey implements Serializable {
 
     private void readObject(final java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
         in.defaultReadObject();
-        if (extension == null) {
+        if (extension == null || extension.length() == 0) {
             extension = "jar";
         }
         if (classifier == null) {

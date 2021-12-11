@@ -192,6 +192,7 @@ public class ResolverTest {
     }
 
     @Test
+    @Ignore
     public void testEAR() throws Exception {
 
         File settingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
@@ -210,9 +211,11 @@ public class ResolverTest {
         // Collections.singletonList(new Dependency(new DefaultArtifact("fr.gaellalire.vestige_app.mywar", "mywar", "war", "0.0.1"), "runtime")));
         // defaultDependencyModifier.replace(new MavenArtifactKey("fr.gaellalire.vestige_app.myeeapps", "myeeapps-ejb1", "jar", ""), Collections.<Dependency> emptyList(),
         // Collections.<MavenArtifactKey> emptySet());
-        defaultDependencyModifier.setClassifierToExtension("war", "exploded-assembly", null);
+        // defaultDependencyModifier.setClassifierToExtension("war", "exploded-assembly", null);
         defaultDependencyModifier.replace(new MavenArtifactKey("fr.gaellalire.vestige_app.myeeapps", "myeeapps-war1", "war", ""), Collections.singletonList(
                 new Dependency(new DefaultArtifact("fr.gaellalire.vestige_app.myeeapps", "myeeapps-war1", "exploded-assembly", "war", "1.0.0-SNAPSHOT"), "runtime")), null);
+        defaultDependencyModifier.replace(new MavenArtifactKey("org.apache.httpcomponents", "httpclient", "jar", ""),
+                Collections.singletonList(new Dependency(new DefaultArtifact("org.apache.httpcomponents", "httpclient", "", "pom", "4.5.13"), "runtime")), null);
         resolveRequest.setDependencyModifier(defaultDependencyModifier);
         // resolveRequest.setJpmsConfiguration(defaultJPMSConfiguration);
         // resolveRequest.setJpmsNamedModulesConfiguration(namedModulesConfiguration);
@@ -236,6 +239,7 @@ public class ResolverTest {
     }
 
     @Test
+    @Ignore
     public void testWarInEAR() throws Exception {
 
         File settingsFile = new File(System.getProperty("user.home"), ".m2" + File.separator + "settings.xml");
@@ -272,6 +276,7 @@ public class ResolverTest {
     }
 
     @Test
+    @Ignore
     public void testEjbInEAR() throws Exception {
         // exclude / add (packaging : ejb vs extension : jar) dependency vs artifact ?
         // aether : org.eclipse.aether.artifact.Artifact => extension
