@@ -117,17 +117,21 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
 
             @Override
             public void removeDependency(final String groupId, final String artifactId, final String extension) {
-                removedDependencies.add(new MavenArtifactKey(groupId, artifactId, extension, ""));
+                removeDependency(groupId, artifactId, extension, "");
             }
 
             @Override
             public void addDependency(final String groupId, final String artifactId, final String version, final String extension) {
-                dependencies.add(new Dependency(new DefaultArtifact(groupId, artifactId, extension, version), "runtime"));
+                addDependency(groupId, artifactId, version, extension, "");
             }
 
             @Override
             public void addDependency(final String groupId, final String artifactId, final String version, final String extension, final String classifier) {
-                dependencies.add(new Dependency(new DefaultArtifact(groupId, artifactId, classifier, extension, version), "runtime"));
+                String notNullExtension = extension;
+                if (extension == null || extension.length() == 0) {
+                    notNullExtension = "jar";
+                }
+                dependencies.add(new Dependency(new DefaultArtifact(groupId, artifactId, classifier, notNullExtension, version), "runtime"));
             }
 
             @Override
@@ -177,7 +181,7 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
 
             @Override
             public void addDependency(final String groupId, final String artifactId, final String version) {
-                dependencies.add(new Dependency(new DefaultArtifact(groupId, artifactId, "jar", version), "runtime"));
+                addDependency(groupId, artifactId, version, "jar");
             }
 
             @Override
@@ -188,14 +192,17 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
 
             @Override
             public void addDependency(final String groupId, final String artifactId, final String version, final String extension) {
-                // FIXME DefaultArtifact.properties by extension / or add properties in API ?
-                dependencies.add(new Dependency(new DefaultArtifact(groupId, artifactId, extension, version), "runtime"));
+                addDependency(groupId, artifactId, version, extension, "");
             }
 
             @Override
             public void addDependency(final String groupId, final String artifactId, final String version, final String extension, final String classifier) {
                 // FIXME DefaultArtifact.properties by extension / or add properties in API ?
-                dependencies.add(new Dependency(new DefaultArtifact(groupId, artifactId, classifier, extension, version), "runtime"));
+                String notNullExtension = extension;
+                if (extension == null || extension.length() == 0) {
+                    notNullExtension = "jar";
+                }
+                dependencies.add(new Dependency(new DefaultArtifact(groupId, artifactId, classifier, notNullExtension, version), "runtime"));
             }
 
             @Override
@@ -245,7 +252,11 @@ public class MavenConfigResolved implements MavenContextBuilder, MavenContext {
 
             @Override
             public void setExtension(final String extension) {
-                this.extension = extension;
+                if (extension == null || extension.length() == 0) {
+                    this.extension = "jar";
+                } else {
+                    this.extension = extension;
+                }
             }
 
             @Override
