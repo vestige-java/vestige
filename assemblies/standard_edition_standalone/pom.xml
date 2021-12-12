@@ -12,10 +12,59 @@
     <defaultGoal>install</defaultGoal>
     <plugins>
       <plugin>
+        <groupId>fr.gaellalire.vestige</groupId>
+        <artifactId>vestige.plugin.verify</artifactId>
+        <executions>
+          <execution>
+            <phase>install</phase>
+            <goals>
+              <goal>create-verification-metadata</goal>
+            </goals>
+            <configuration>
+              <vestigeVersion>${project.version}</vestigeVersion>
+              <verifications>
+                <verification>
+                  <verifyFile>${basedir}/src/main/config/verify.xml</verifyFile>
+                  <mavenPropertyName>vestige.edition.standard.verificationMetadata</mavenPropertyName>
+                </verification>
+                <verification>
+                  <verifyFile>${basedir}/src/main/config/verify-6to8.xml</verifyFile>
+                  <mavenPropertyName>vestige.edition.standard.verificationMetadata6to8</mavenPropertyName>
+                </verification>
+              </verifications>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <artifactId>maven-resources-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>install</phase>
+            <id>copy-resources</id>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${basedir}/target/classes</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>src/main/resources</directory>
+                  <filtering>true</filtering>
+                  <excludes>
+                    <exclude>.gitattributes</exclude>
+                  </excludes>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <artifactId>maven-dependency-plugin</artifactId>
         <executions>
           <execution>
-            <phase>generate-resources</phase>
+            <phase>install</phase>
             <goals>
               <goal>copy</goal>
             </goals>
@@ -70,7 +119,7 @@
         <artifactId>maven-assembly-plugin</artifactId>
         <executions>
           <execution>
-            <phase>package</phase>
+            <phase>install</phase>
             <goals>
               <goal>attached</goal>
             </goals>
@@ -79,54 +128,6 @@
                 <descriptor>src/main/config/unix.xml</descriptor>
                 <descriptor>src/main/config/windows.xml</descriptor>
               </descriptors>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>fr.gaellalire.vestige</groupId>
-        <artifactId>vestige.plugin.verify</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>create-verification-metadata</goal>
-            </goals>
-            <configuration>
-              <vestigeVersion>${project.version}</vestigeVersion>
-              <verifications>
-                <verification>
-                  <verifyFile>${basedir}/src/main/config/verify.xml</verifyFile>
-                  <mavenPropertyName>vestige.edition.standard.verificationMetadata</mavenPropertyName>
-                </verification>
-                <verification>
-                  <verifyFile>${basedir}/src/main/config/verify-6to8.xml</verifyFile>
-                  <mavenPropertyName>vestige.edition.standard.verificationMetadata6to8</mavenPropertyName>
-                </verification>
-              </verifications>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <artifactId>maven-resources-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>copy-resources</id>
-            <phase>process-resources</phase>
-            <goals>
-              <goal>copy-resources</goal>
-            </goals>
-            <configuration>
-              <outputDirectory>${basedir}/target/classes</outputDirectory>
-              <resources>
-                <resource>
-                  <directory>src/main/resources</directory>
-                  <filtering>true</filtering>
-                  <excludes>
-                    <exclude>.gitattributes</exclude>
-                  </excludes>
-                </resource>
-              </resources>
             </configuration>
           </execution>
         </executions>

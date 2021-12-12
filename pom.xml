@@ -151,7 +151,6 @@
         <artifactId>maven-release-plugin</artifactId>
         <configuration>
           <autoVersionSubmodules>true</autoVersionSubmodules>
-          <preparationGoals>clean install</preparationGoals>
         </configuration>
       </plugin>
       <!-- Maybe later to make vestige code modification harder (still possible tough) -->
