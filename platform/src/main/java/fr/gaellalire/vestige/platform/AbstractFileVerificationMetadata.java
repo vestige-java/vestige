@@ -39,4 +39,9 @@ public abstract class AbstractFileVerificationMetadata {
         return sha512;
     }
 
+    @Override
+    public String toString() {
+        return size + "/" + sha512;
+    }
+
 }

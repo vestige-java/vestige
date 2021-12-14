@@ -60,34 +60,7 @@ public class DefaultMavenResolvedClassLoaderConfiguration extends DefaultResolve
 
             @Override
             public MavenArtifact nextElement() {
-                final DefaultMavenArtifact next = iterator.next();
-                return new MavenArtifact() {
-
-                    @Override
-                    public String getVersion() {
-                        return next.getVersion();
-                    }
-
-                    @Override
-                    public String getGroupId() {
-                        return next.getGroupId();
-                    }
-
-                    @Override
-                    public String getExtension() {
-                        return next.getExtension();
-                    }
-
-                    @Override
-                    public String getArtifactId() {
-                        return next.getArtifactId();
-                    }
-
-                    @Override
-                    public String getClassifier() {
-                        return next.getClassifier();
-                    }
-                };
+                return iterator.next();
             }
         };
     }

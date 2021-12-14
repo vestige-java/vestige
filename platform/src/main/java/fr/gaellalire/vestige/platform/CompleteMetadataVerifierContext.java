@@ -114,7 +114,7 @@ public class CompleteMetadataVerifierContext implements VerifierContext {
     }
 
     @Override
-    public AttachmentVerificationMetadata getValidatedCurrentVerificationMetadata() {
+    public AttachmentVerificationMetadata getValidatedCurrentVerificationMetadata(final ClassLoaderConfiguration classLoaderConfiguration) {
         return currentAttachmentVerificationMetadata;
     }
 

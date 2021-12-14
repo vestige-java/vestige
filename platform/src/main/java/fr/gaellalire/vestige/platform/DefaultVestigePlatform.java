@@ -214,7 +214,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
                 AttachmentVerificationMetadata extractUsed = verificationMetadata.extractUsed();
                 if (extractUsed != null) {
                     String expectedUsedVerificationMetadata = extractUsed.toString();
-                    String validatedVerificationMetadata = verifierContext.getValidatedCurrentVerificationMetadata().toString();
+                    String validatedVerificationMetadata = verifierContext.getValidatedCurrentVerificationMetadata(classLoaderConfiguration).toString();
                     if (!expectedUsedVerificationMetadata.equals(validatedVerificationMetadata)) {
                         throw new IOException("Expected verification metadata subset was:\n" + expectedUsedVerificationMetadata + " but got:\n" + validatedVerificationMetadata);
                     }
@@ -612,7 +612,7 @@ public class DefaultVestigePlatform implements VestigePlatform {
             throw new IOException("After file of " + key + " is missing jars");
         }
         if (verifierContext != null) {
-            String validatedVerificationMetada = verifierContext.getValidatedCurrentVerificationMetadata().toString();
+            String validatedVerificationMetada = verifierContext.getValidatedCurrentVerificationMetadata(classLoaderConfiguration).toString();
             if (!validatedVerificationMetada.equals(presumedVerificationMetada)) {
                 // try the cache again
                 key = new VerifiedKey(classLoaderConfiguration.getKey(), validatedVerificationMetada);

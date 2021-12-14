@@ -122,8 +122,15 @@ public class PartialJarVerifierContext implements VerifierContext {
             dependencyAttachmentVerificationMetadatas.add(generateAttachmentVerificationMetadata(subClassLoaderConfiguration, iterator.next()));
         }
 
-        sharedAttachmentVerificationMetadata = new AttachmentVerificationMetadata(dependencyAttachmentVerificationMetadatas,
-                unsharedAttachmentVerificationMetadata.getBeforeFiles(), unsharedAttachmentVerificationMetadata.getAfterFiles());
+        List<FileVerificationMetadata> beforeFiles = unsharedAttachmentVerificationMetadata.getBeforeFiles();
+        for (FileVerificationMetadata fileVerificationMetadata : beforeFiles) {
+            attachmentVerificationMetadata.findAndMarkAsUsed(fileVerificationMetadata.getSize(), fileVerificationMetadata.getSha512());
+        }
+        List<FileVerificationMetadata> afterFiles = unsharedAttachmentVerificationMetadata.getAfterFiles();
+        for (FileVerificationMetadata fileVerificationMetadata : afterFiles) {
+            attachmentVerificationMetadata.findAndMarkAsUsed(fileVerificationMetadata.getSize(), fileVerificationMetadata.getSha512());
+        }
+        sharedAttachmentVerificationMetadata = new AttachmentVerificationMetadata(dependencyAttachmentVerificationMetadatas, beforeFiles, afterFiles);
         verificationMetadataByClassLoaderConfigurationKey.put(key, sharedAttachmentVerificationMetadata);
         return sharedAttachmentVerificationMetadata;
     }
@@ -173,9 +180,14 @@ public class PartialJarVerifierContext implements VerifierContext {
     }
 
     @Override
-    public AttachmentVerificationMetadata getValidatedCurrentVerificationMetadata() {
+    public AttachmentVerificationMetadata getValidatedCurrentVerificationMetadata(final ClassLoaderConfiguration classLoaderConfiguration) {
         if (validatedAttachmentVerificationMetadata == null) {
-            validatedAttachmentVerificationMetadata = new AttachmentVerificationMetadata(validatedDependencies, validatedBeforeFiles, validatedAfterFiles);
+            Serializable classLoaderConfigurationKey = classLoaderConfiguration.getKey();
+            validatedAttachmentVerificationMetadata = verificationMetadataByClassLoaderConfigurationKey.get(classLoaderConfigurationKey);
+            if (validatedAttachmentVerificationMetadata == null) {
+                validatedAttachmentVerificationMetadata = new AttachmentVerificationMetadata(validatedDependencies, validatedBeforeFiles, validatedAfterFiles);
+                verificationMetadataByClassLoaderConfigurationKey.put(classLoaderConfigurationKey, validatedAttachmentVerificationMetadata);
+            }
         }
         return validatedAttachmentVerificationMetadata;
     }

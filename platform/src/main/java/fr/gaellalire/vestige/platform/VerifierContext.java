@@ -44,7 +44,7 @@ public interface VerifierContext {
 
     AttachmentVerificationMetadata getCurrentVerificationMetadata();
 
-    AttachmentVerificationMetadata getValidatedCurrentVerificationMetadata();
+    AttachmentVerificationMetadata getValidatedCurrentVerificationMetadata(ClassLoaderConfiguration classLoaderConfiguration);
 
     void useCachedClassLoader(ClassLoaderConfiguration classLoaderConfiguration, String verifiedMetada);
 
